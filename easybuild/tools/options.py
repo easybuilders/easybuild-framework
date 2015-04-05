@@ -236,6 +236,8 @@ class EasyBuildOptions(GeneralOption):
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
+            'installpath-modules': ("Install path for modules", None, 'store', None),
+            'installpath-software': ("Install path for software", None, 'store', None),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),

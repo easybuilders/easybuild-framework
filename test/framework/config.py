@@ -159,11 +159,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_PREFIX'] = prefix
         os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = subdir_software
+        installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
+        os.environ['EASYBUILD_INSTALLPATH_MODULES'] = installpath_modules
 
         options = init_config(args=args)
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, subdir_software))
+        self.assertEqual(install_path('mod'), installpath_modules)
 
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
@@ -187,16 +190,19 @@ class EasyBuildConfigTest(EnhancedTestCase):
         ])
         write_file(config_file, cfgtxt)
 
+        installpath_software = tempfile.mkdtemp(prefix='installpath-software')
         args = [
             '--configfiles', config_file,
             '--debug',
             '--buildpath', testpath1,
+            '--installpath-software', installpath_software,
         ]
         options = init_config(args=args)
 
         self.assertEqual(build_path(), testpath1)  # via command line
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
-        self.assertEqual(install_path(), os.path.join(testpath2, 'software'))  # via config file
+        self.assertEqual(install_path(), installpath_software)  # via cmdline arg
+        self.assertEqual(install_path('mod'), os.path.join(testpath2, 'modules'))  # via config file
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
         # to check whether easyconfigs install path is auto-included in robot path
@@ -210,12 +216,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         # test with config file passed via environment variable
+        installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
             'sourcepath = %(DEFAULT_REPOSITORYPATH)s',
             'repositorypath = %(DEFAULT_REPOSITORYPATH)s,somesubdir',
             'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s',
+            'installpath-modules=%s' % installpath_modules,
         ])
         write_file(config_file, cfgtxt)
 
@@ -228,6 +236,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         topdir = os.path.join(os.getenv('HOME'), '.local', 'easybuild')
         self.assertEqual(install_path(), os.path.join(topdir, 'software'))  # default
+        self.assertEqual(install_path('mod'), installpath_modules),  # via config file
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
         self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
@@ -248,6 +257,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         self.assertEqual(source_paths(), [testpath2])  # via environment variable $EASYBUILD_SOURCEPATHS
         self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
+        self.assertEqual(install_path('mod'), installpath_modules),  # via config file
         self.assertEqual(build_path(), testpath1)  # via config file
 
         del os.environ['EASYBUILD_CONFIGFILES']

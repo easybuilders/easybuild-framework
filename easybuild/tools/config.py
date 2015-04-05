@@ -181,6 +181,8 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'buildpath',
         'config',
         'installpath',
+        'installpath_modules',
+        'installpath_software',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
@@ -323,8 +325,15 @@ def install_path(typ=None):
         typ = 'modules'
 
     variables = ConfigurationVariables()
-    suffix = variables['subdir_%s' % typ]
-    return os.path.join(variables['installpath'], suffix)
+
+    res = None
+    if variables.get('installpath_%s' % typ, None) is None:
+        suffix = variables['subdir_%s' % typ]
+        res = os.path.join(variables['installpath'], suffix)
+    else:
+        res = variables['installpath_%s' % typ]
+
+    return res
 
 
 def get_repository():
