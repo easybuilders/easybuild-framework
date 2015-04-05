@@ -38,6 +38,7 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_path, source_paths, install_path, get_repositorypath
 from easybuild.tools.config import set_tmpdir, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
@@ -137,12 +138,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
             '--prefix', prefix,
             '--installpath', install,
             '--repositorypath', repopath,
+            '--subdir-software', 'APPS',
         ]
 
         options = init_config(args=args)
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
-        self.assertEqual(install_path(), os.path.join(install, 'software'))
+        self.assertEqual(install_path(), os.path.join(install, 'APPS'))
         self.assertEqual(install_path(typ='mod'), os.path.join(install, 'modules'))
 
         self.assertEqual(options.installpath, install)
@@ -167,6 +169,12 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, subdir_software))
         self.assertEqual(install_path('mod'), installpath_modules)
+
+        # subdir options *must* be relative (to --installpath)
+        installpath_software = tempfile.mkdtemp(prefix='installpath-software')
+        os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = installpath_software
+        error_regex = r"Found problems validating the options.*'subdir_software' must specify a \*relative\* path"
+        self.assertErrorRegex(EasyBuildError, error_regex, init_config)
 
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
