@@ -58,25 +58,17 @@ class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
     """
+    LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
+    LOC_INFO_LEVEL = 1
+
     # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
     # only required because 'error' log method raises (should no longer be needed in EB v3.x)
     LOGGING_METHOD_NAME = '_error_no_raise'
 
     def __init__(self, msg, *args):
         """Constructor: initialise EasyBuildError instance."""
-        # figure out where error was raised from
-        # current frame: this constructor, one frame above: location where this EasyBuildError was created/raised
-        frameinfo = inspect.getouterframes(inspect.currentframe())[1]
-
-        # determine short location of Python module where error was raised from (starting with 'easybuild/' or 'vsc/')
-        path_parts = frameinfo[1].split(os.path.sep)
-        relpath = path_parts.pop()
-        while not (relpath.startswith('easybuild/') or relpath.startswith('vsc/')) and path_parts:
-            relpath = os.path.join(path_parts.pop() or os.path.sep, relpath)
-
-        # include location info at the end of the message
-        # for example: "Nope, giving up (at easybuild/tools/somemodule.py:123 in some_function)"
-        msg = "%s (at %s:%s in %s)" % (msg % args, relpath, frameinfo[2], frameinfo[3])
+        if args:
+            msg = msg % args
         LoggedException.__init__(self, msg)
         self.msg = msg
 
