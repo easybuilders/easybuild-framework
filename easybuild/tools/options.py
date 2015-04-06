@@ -49,15 +49,18 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
-from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
+from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
+from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
+from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -186,7 +189,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'download-timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
@@ -196,7 +199,9 @@ class EasyBuildOptions(GeneralOption):
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
-                            str, 'extend', None),
+                            'strlist', 'extend', None),
+            'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
+                          "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
@@ -236,6 +241,8 @@ class EasyBuildOptions(GeneralOption):
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-naming-scheme': ("Module naming scheme",
                                      'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
+            'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
+                              sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                               None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
@@ -372,7 +379,8 @@ class EasyBuildOptions(GeneralOption):
                 error_cnt += 1
 
         if error_cnt > 0:
-            self.log.error("Found %s problems validating the options, treating warnings above as fatal." % error_cnt)
+            raise EasyBuildError("Found %s problems validating the options, treating warnings above as fatal.",
+                                 error_cnt)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
@@ -404,17 +412,20 @@ class EasyBuildOptions(GeneralOption):
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
-                self.log.error("Required support for using GitHub API is not available (see warnings).")
+                raise EasyBuildError("Required support for using GitHub API is not available (see warnings).")
+
+        if self.options.module_syntax == ModuleGeneratorLua.SYNTAX and self.options.modules_tool != Lmod.__name__:
+            raise EasyBuildError("Generating Lua module files requires Lmod as modules tool.")
 
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
             if not HAVE_KEYRING:
-                self.log.error("Python 'keyring' module required for obtaining GitHub token is not available.")
+                raise EasyBuildError("Python 'keyring' module required for obtaining GitHub token is not available.")
             if self.options.github_user is None:
-                self.log.error("No GitHub user name provided, required for fetching GitHub token.")
+                raise EasyBuildError("No GitHub user name provided, required for fetching GitHub token.")
             token = fetch_github_token(self.options.github_user)
             if token is None:
-                self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
+                raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
 
         self._postprocess_config()
 
