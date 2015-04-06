@@ -43,7 +43,7 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
+from easybuild.tools.build_log import EasyBuildError
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -88,7 +88,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     Executes a command cmd
     - returns exitcode and stdout+stderr (mixed)
     - no input though stdin
-    - if log_ok or log_all are set -> will log.error if non-zero exit-code
+    - if log_ok or log_all are set -> will raise EasyBuildError if non-zero exit-code
     - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
     - inp is the input given to the command
     - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
@@ -119,7 +119,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
-        _log.error("run_cmd init cmd %s failed:%s" % (cmd, err))
+        raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
         p.stdin.write(inp)
     p.stdin.close()
@@ -148,7 +148,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     try:
         os.chdir(cwd)
     except OSError, err:
-        _log.error("Failed to return to %s after executing command: %s" % (cwd, err))
+        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
@@ -200,15 +200,15 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if regQ.search(q):
             return (a_s, regQ)
         else:
-            _log.error("runqanda: Question %s converted in %s does not match itself" % (q, regQtxt))
+            raise EasyBuildError("runqanda: Question %s converted in %s does not match itself", q, regQtxt)
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
         if isinstance(answers, basestring):
             answers = [answers]
         elif not isinstance(answers, list):
-            msg = "Invalid type for answer on %s, no string or list: %s (%s)" % (question, type(answers), answers)
-            _log.error(msg)
+            raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",
+                                 question, type(answers), answers)
         # list is manipulated when answering matching question, so return a copy
         return answers[:]
 
@@ -247,7 +247,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             _log.debug('run_cmd_qa: Command output will be logged to %s' % runLog.name)
             runLog.write(cmd + "\n\n")
         except IOError, err:
-            _log.error("Opening log file for Q&A failed: %s" % err)
+            raise EasyBuildError("Opening log file for Q&A failed: %s", err)
     else:
         runLog = None
 
@@ -256,7 +256,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
-        _log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
+        raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
     ec = p.poll()
     stdoutErr = ''
@@ -328,8 +328,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError, err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
-            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" %
-                       (cmd, maxHitCount, stdoutErr[-500:]))
+            raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
+                                 cmd, maxHitCount, stdoutErr[-500:])
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -351,7 +351,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     try:
         os.chdir(cwd)
     except OSError, err:
-        _log.error("Failed to return to %s after executing command: %s" % (cwd, err))
+        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdoutErr, ec, simple, log_all, log_ok, regexp)
 
@@ -370,7 +370,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         check_ec = True
         use_regexp = True
     else:
-        _log.error("invalid strictness setting: %s" % strictness)
+        raise EasyBuildError("invalid strictness setting: %s", strictness)
 
     # allow for overriding the regexp setting
     if not regexp:
@@ -381,7 +381,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
         if check_ec:
-            _log.error('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+            raise EasyBuildError('cmd "%s" exited with exitcode %s and output:\n%s', cmd, ec, stdouterr)
         else:
             _log.warn('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
     elif not ec:
@@ -394,7 +394,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         if len(res) > 0:
             message = "Found %s errors in command output (output: %s)" % (len(res), ", ".join([r[0] for r in res]))
             if use_regexp:
-                _log.error(message)
+                raise EasyBuildError(message)
             else:
                 _log.warn(message)
 
@@ -424,7 +424,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     elif type(regExp) == str:
         pass
     else:
-        _log.error("parse_log_for_error no valid regExp used: %s" % regExp)
+        raise EasyBuildError("parse_log_for_error no valid regExp used: %s", regExp)
 
     reg = re.compile(regExp, re.I)
 

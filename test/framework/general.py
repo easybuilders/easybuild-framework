@@ -28,12 +28,14 @@ Unit tests for general aspects of the EasyBuild framework
 @author: Kenneth hoste (Ghent University)
 """
 import os
+import re
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 import vsc
 
 import easybuild.framework
+from easybuild.tools.filetools import read_file
 
 
 class GeneralTest(EnhancedTestCase):
@@ -50,6 +52,23 @@ class GeneralTest(EnhancedTestCase):
         msg = "vsc-base is not provided by EasyBuild framework itself, found location: %s" % vsc_loc
         self.assertFalse(os.path.samefile(framework_loc, vsc_loc), msg)
 
+    def test_error_reporting(self):
+        """Make sure error reporting is done correctly (no more log.error, log.exception)."""
+        # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
+        easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
+
+        log_method_regexes = [
+            re.compile("log\.error\("),
+            re.compile("log\.exception\("),
+            re.compile("log\.raiseException\("),
+        ]
+
+        for dirpath, _, filenames in os.walk(easybuild_loc):
+            for filename in [f for f in filenames if f.endswith('.py')]:
+                path = os.path.join(dirpath, filename)
+                txt = read_file(path)
+                for regex in log_method_regexes:
+                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
 
 def suite():
     """ returns all the testcases in this module """
