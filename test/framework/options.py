@@ -39,9 +39,11 @@ from unittest import main as unittestmain
 from urllib2 import URLError
 
 import easybuild.tools.build_log
+import easybuild.tools.options
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -1490,6 +1492,118 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_regex = "parseconfigfiles: configfile .* not found"
         self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True)
 
+    def test_show_default_moduleclasses(self):
+        """Test --show-default-moduleclasses."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            '--unittest-file=%s' % self.logfile,
+            '--show-default-moduleclasses',
+        ]
+        write_file(self.logfile, '')
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+
+        lst = ["\t%s:[ ]*%s" % (c, d.replace('(', '\\(').replace(')', '\\)')) for (c, d) in DEFAULT_MODULECLASSES]
+        regex = re.compile("Default available module classes:\n\n" + '\n'.join(lst), re.M)
+
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in %s" % (regex.pattern, outtxt))
+
+    def test_show_default_configfiles(self):
+        """Test --show-default-configfiles."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        home = os.environ['HOME']
+        for envvar in ['XDG_CONFIG_DIRS', 'XDG_CONFIG_HOME']:
+            if envvar in os.environ:
+                del os.environ[envvar]
+
+        args = [
+            '--unittest-file=%s' % self.logfile,
+            '--show-default-configfiles',
+        ]
+
+        cfgtxt = '\n'.join([
+            '[config]',
+            'prefix = %s' % self.test_prefix,
+        ])
+
+        expected_tmpl = '\n'.join([
+            "Default list of configuration files:",
+            '',
+            "[with $XDG_CONFIG_HOME: %s, $XDG_CONFIG_DIRS: %s]",
+            '',
+            "* user-level: ${XDG_CONFIG_HOME:-$HOME/.config}/easybuild/config.cfg",
+            "  -> %s",
+            "* system-level: ${XDG_CONFIG_DIRS:-/etc}/easybuild.d/*.cfg",
+            "  -> %s/easybuild.d/*.cfg => ",
+        ])
+
+        write_file(self.logfile, '')
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+
+        homecfgfile = os.path.join(os.environ['HOME'], '.config', 'easybuild', 'config.cfg')
+        homecfgfile_str = homecfgfile
+        if os.path.exists(homecfgfile):
+            homecfgfile_str += " => found"
+        else:
+            homecfgfile_str += " => not found"
+        expected = expected_tmpl % ('(not set)', '(not set)', homecfgfile_str, '{/etc}')
+        self.assertTrue(expected in outtxt)
+
+        # to predict the full output, we need to take control over $HOME and $XDG_CONFIG_DIRS
+        os.environ['HOME'] = self.test_prefix
+        xdg_config_dirs = os.path.join(self.test_prefix, 'etc')
+        os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
+
+        expected_tmpl += '\n'.join([
+            "%s",
+            '',
+            "Default list of existing configuration files (%d): %s",
+        ])
+
+        # put dummy cfgfile in place in $HOME (to predict last line of output which only lists *existing* files)
+        mkdir(os.path.join(self.test_prefix, '.config', 'easybuild'), parents=True)
+        homecfgfile = os.path.join(self.test_prefix, '.config', 'easybuild', 'config.cfg')
+        write_file(homecfgfile, cfgtxt)
+
+        reload(easybuild.tools.options)
+        write_file(self.logfile, '')
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        expected = expected_tmpl % ('(not set)', xdg_config_dirs, "%s => found" % homecfgfile, '{%s}' % xdg_config_dirs,
+                                    '(no matches)', 1, homecfgfile)
+        self.assertTrue(expected in outtxt)
+
+        xdg_config_home = os.path.join(self.test_prefix, 'home')
+        os.environ['XDG_CONFIG_HOME'] = xdg_config_home
+        xdg_config_dirs = [os.path.join(self.test_prefix, 'etc'), os.path.join(self.test_prefix, 'moaretc')]
+        os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join(xdg_config_dirs)
+
+        # put various dummy cfgfiles in place
+        cfgfiles = [
+            os.path.join(self.test_prefix, 'etc', 'easybuild.d', 'config.cfg'),
+            os.path.join(self.test_prefix, 'moaretc', 'easybuild.d', 'bar.cfg'),
+            os.path.join(self.test_prefix, 'moaretc', 'easybuild.d', 'foo.cfg'),
+            os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
+        ]
+        for cfgfile in cfgfiles:
+            mkdir(os.path.dirname(cfgfile), parents=True)
+            write_file(cfgfile, cfgtxt)
+        reload(easybuild.tools.options)
+
+        write_file(self.logfile, '')
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        expected = expected_tmpl % (xdg_config_home, os.pathsep.join(xdg_config_dirs),
+                                    "%s => found" % os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
+                                    '{' + ', '.join(xdg_config_dirs) + '}',
+                                    ', '.join(cfgfiles[:-1]), 4, ', '.join(cfgfiles))
+        self.assertTrue(expected in outtxt)
+
+        del os.environ['XDG_CONFIG_DIRS']
+        del os.environ['XDG_CONFIG_HOME']
+        os.environ['HOME'] = home
+        reload(easybuild.tools.options)
 
 def suite():
     """ returns all the testcases in this module """
