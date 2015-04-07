@@ -476,9 +476,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(eb_go.options.robot_paths, ['/foo', tmp_ecs_dir, '/bar/baz'])
 
         # combining $EASYBUILD_ROBOT_PATHS and --robot-paths: all paths are retained in the order to be expected
-        os.environ['EASYBUILD_ROBOT_PATHS'] = '/foo::/bar/baz'
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/foobar::/barbar/baz/baz'
         eb_go = eboptions.parse_options(args=['--robot-paths=/one::/last'])
-        self.assertEqual(eb_go.options.robot_paths, ['/one', '/foo', tmp_ecs_dir, '/bar/baz', '/last'])
+        self.assertEqual(eb_go.options.robot_paths, ['/one', '/foobar', tmp_ecs_dir, '/barbar/baz/baz', '/last'])
 
         del os.environ['EASYBUILD_ROBOT_PATHS']
 
