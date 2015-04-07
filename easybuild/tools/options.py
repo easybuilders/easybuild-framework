@@ -236,6 +236,10 @@ class EasyBuildOptions(GeneralOption):
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
+            'installpath-modules': ("Install path for modules (if None, combine --installpath and --subdir-modules)",
+                                    None, 'store', None),
+            'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
+                                     None, 'store', None),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -364,23 +368,31 @@ class EasyBuildOptions(GeneralOption):
 
     def validate(self):
         """Additional validation of options"""
-        error_cnt = 0
+        error_msgs = []
 
         for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
             val = getattr(self.options, opt.replace('-', '_'))
             if val and len(val) != 2:
-                self.log.warning('--%s requires NAME,VERSION (given %s)' % (opt, ','.join(val)))
-                error_cnt += 1
+                msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
+                error_msgs.append(msg)
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
             if not umask_regex.match(self.options.umask):
-                self.log.warning("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
-                error_cnt += 1
+                msg = "--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern
+                error_msgs.append(msg)
 
-        if error_cnt > 0:
-            raise EasyBuildError("Found %s problems validating the options, treating warnings above as fatal.",
-                                 error_cnt)
+        # subdir options must be relative
+        for typ in ['modules', 'software']:
+            subdir_opt = 'subdir_%s' % typ
+            val = getattr(self.options, subdir_opt)
+            if os.path.isabs(getattr(self.options, subdir_opt)):
+                msg = "Configuration option '%s' must specify a *relative* path (use 'installpath-%s' instead?): '%s'"
+                msg = msg % (subdir_opt, typ, val)
+                error_msgs.append(msg)
+
+        if error_msgs:
+            raise EasyBuildError("Found problems validating the options: %s", '\n'.join(error_msgs))
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""

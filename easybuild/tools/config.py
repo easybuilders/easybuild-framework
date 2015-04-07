@@ -181,6 +181,8 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'buildpath',
         'config',
         'installpath',
+        'installpath_modules',
+        'installpath_software',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
@@ -322,9 +324,22 @@ def install_path(typ=None):
     elif typ == 'mod':
         typ = 'modules'
 
+    known_types = ['modules', 'software']
+    if typ not in known_types:
+        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+
     variables = ConfigurationVariables()
-    suffix = variables['subdir_%s' % typ]
-    return os.path.join(variables['installpath'], suffix)
+
+    key = 'installpath_%s' % typ
+    res = variables[key]
+    if res is None:
+        key = 'subdir_%s' % typ
+        res = os.path.join(variables['installpath'], variables[key])
+        _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
+    else:
+        _log.debug("%s install path as specified by '%s': %s", typ, key, res)
+
+    return res
 
 
 def get_repository():
