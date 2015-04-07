@@ -179,6 +179,40 @@ class EasyBuildConfigTest(EnhancedTestCase):
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
 
+    def test_install_path(self):
+        """Test install_path function."""
+        # defaults
+        self.assertEqual(install_path(), os.path.join(self.test_installpath, 'software'))
+        self.assertEqual(install_path('software'), os.path.join(self.test_installpath, 'software'))
+        self.assertEqual(install_path(typ='mod'), os.path.join(self.test_installpath, 'modules'))
+        self.assertEqual(install_path('modules'), os.path.join(self.test_installpath, 'modules'))
+
+        self.assertErrorRegex(EasyBuildError, "Unknown type specified", install_path, typ='foo')
+
+        args = [
+            '--subdir-software', 'SOFT',
+            '--installpath', '/foo',
+        ]
+        os.environ['EASYBUILD_SUBDIR_MODULES'] = 'MOD'
+        init_config(args=args)
+        self.assertEqual(install_path(), os.path.join('/foo', 'SOFT'))
+        self.assertEqual(install_path(typ='mod'), os.path.join('/foo', 'MOD'))
+        del os.environ['EASYBUILD_SUBDIR_MODULES']
+
+        args = [
+            '--installpath', '/prefix',
+            '--installpath-modules', '/foo',
+        ]
+        os.environ['EASYBUILD_INSTALLPATH_SOFTWARE'] = '/bar/baz'
+        init_config(args=args)
+        self.assertEqual(install_path(), os.path.join('/bar', 'baz'))
+        self.assertEqual(install_path(typ='mod'), '/foo')
+
+        del os.environ['EASYBUILD_INSTALLPATH_SOFTWARE']
+        init_config(args=args)
+        self.assertEqual(install_path(), os.path.join('/prefix', 'software'))
+        self.assertEqual(install_path(typ='mod'), '/foo')
+
     def test_generaloption_config_file(self):
         """Test use of new-style configuration file."""
         self.purge_environment()

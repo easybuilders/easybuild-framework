@@ -324,14 +324,21 @@ def install_path(typ=None):
     elif typ == 'mod':
         typ = 'modules'
 
+    known_types = ['modules', 'software']
+    if typ not in known_types:
+        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+
     variables = ConfigurationVariables()
 
-    res = None
-    if variables.get('installpath_%s' % typ, None) is None:
-        suffix = variables['subdir_%s' % typ]
-        res = os.path.join(variables['installpath'], suffix)
+    key = 'installpath_%s' % typ
+    res = variables[key]
+    if res is None:
+        key = 'subdir_%s' % typ
+        subdir = variables[key]
+        res = os.path.join(variables['installpath'], subdir)
+        _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
     else:
-        res = variables['installpath_%s' % typ]
+        _log.debug("%s install path as specified by '%s': %s", typ, key, res)
 
     return res
 

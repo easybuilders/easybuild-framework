@@ -236,8 +236,10 @@ class EasyBuildOptions(GeneralOption):
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
-            'installpath-modules': ("Install path for modules", None, 'store', None),
-            'installpath-software': ("Install path for software", None, 'store', None),
+            'installpath-modules': ("Install path for modules (if None, combine --installpath and --subdir-modules)",
+                                    None, 'store', None),
+            'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
+                                     None, 'store', None),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -372,14 +374,12 @@ class EasyBuildOptions(GeneralOption):
             val = getattr(self.options, opt.replace('-', '_'))
             if val and len(val) != 2:
                 msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
-                self.log.warning(msg)
                 error_msgs.append(msg)
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
             if not umask_regex.match(self.options.umask):
                 msg = "--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern
-                self.log.warning(msg)
                 error_msgs.append(msg)
 
         # subdir options must be relative
@@ -389,12 +389,10 @@ class EasyBuildOptions(GeneralOption):
             if os.path.isabs(getattr(self.options, subdir_opt)):
                 msg = "Configuration option '%s' must specify a *relative* path (use 'installpath-%s' instead?): '%s'"
                 msg = msg % (subdir_opt, typ, val)
-                self.log.warning(msg)
                 error_msgs.append(msg)
 
         if error_msgs:
-            raise EasyBuildError("Found problems validating the options, treating warnings in log file as fatal: %s",
-                                 '\n'.join(error_msgs))
+            raise EasyBuildError("Found problems validating the options: %s", '\n'.join(error_msgs))
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
