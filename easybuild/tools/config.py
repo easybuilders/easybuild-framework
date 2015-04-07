@@ -334,8 +334,7 @@ def install_path(typ=None):
     res = variables[key]
     if res is None:
         key = 'subdir_%s' % typ
-        subdir = variables[key]
-        res = os.path.join(variables['installpath'], subdir)
+        res = os.path.join(variables['installpath'], variables[key])
         _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
     else:
         _log.debug("%s install path as specified by '%s': %s", typ, key, res)
