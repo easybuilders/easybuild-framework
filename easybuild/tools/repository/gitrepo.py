@@ -46,6 +46,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
+from easybuild.tools.version import VERSION
 
 _log = fancylogger.getLogger('gitrepo', fname=False)
 
@@ -139,25 +140,24 @@ class GitRepository(FileRepository):
         """
         Commit working copy to git repository
         """
-        self.log.debug("committing in git: %s" % msg)
-        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
-                                                                              time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              getpass.getuser(),
-                                                                              msg)
+        host = socket.gethostname()
+        timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+        user = getpass.getuser()
+        completemsg = "%s with EasyBuild v%s @ %s (time: %s, user: %s)" % (msg, VERSION, host, timestamp, user)
+        self.log.debug("committing in git with message: %s" % msg)
+
         self.log.debug("git status: %s" % self.client.status())
         try:
-            self.client.commit('-am "%s"' % completemsg)
-            self.log.debug("succesfull commit")
+            self.client.commit('-am %s' % completemsg)
+            self.log.debug("succesfull commit: %s", self.client.log('HEAD^!'))
         except GitCommandError, err:
-            self.log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
+            self.log.warning("Commit from working copy %s failed, empty commit? (msg: %s): %s", self.wc, msg, err)
         try:
             info = self.client.push()
-            self.log.debug("push info: %s " % info)
+            self.log.debug("push info: %s ", info)
         except GitCommandError, err:
-            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc,
-                                                                                              self.repo,
-                                                                                              msg,
-                                                                                              err))
+            self.log.warning("Push from working copy %s to remote %s failed (msg: %s): %s",
+                             self.wc, self.repo, msg, err)
 
     def cleanup(self):
         """

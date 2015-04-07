@@ -1,4 +1,4 @@
-# #
+##
 # Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
 This python module implements the environment modules functionality:
  - loading modules
@@ -38,7 +38,6 @@ This python module implements the environment modules functionality:
 import os
 import re
 import subprocess
-import sys
 from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
@@ -47,11 +46,10 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import restore_env
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -59,9 +57,9 @@ ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
 DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 
-# keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
+# environment variables to reset/restore when running a module command (to avoid breaking it)
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
-LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
+LD_ENV_VAR_KEYS = ['LD_LIBRARY_PATH', 'LD_PRELOAD']
 
 output_matchers = {
     # matches whitespace and module-listing headers
@@ -375,14 +373,14 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, orig_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None):
         """
         Load all requested modules.
 
         @param modules: list of modules to load
         @param mod_paths: list of module paths to activate before loading
         @param purge: whether or not a 'module purge' should be run before loading
-        @param orig_env: original environment to restore after running 'module purge'
+        @param init_env: original environment to restore after running 'module purge'
         """
         if mod_paths is None:
             mod_paths = []
@@ -390,9 +388,9 @@ class ModulesTool(object):
         # purge all loaded modules if desired
         if purge:
             self.purge()
-            # restore original environment if provided
-            if orig_env is not None:
-                restore_env(orig_env)
+            # restore initial environment if provided
+            if init_env is not None:
+                restore_env(init_env)
 
         # make sure $MODULEPATH is set correctly after purging
         self.check_module_path()
@@ -453,9 +451,9 @@ class ModulesTool(object):
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
         return self.get_value_from_modulefile(mod_name, modpath_re)
 
-    def set_ld_library_path(self, ld_library_paths):
-        """Set $LD_LIBRARY_PATH to the given list of paths."""
-        os.environ['LD_LIBRARY_PATH'] = ':'.join(ld_library_paths)
+    def set_path_env_var(self, key, paths):
+        """Set path environment variable to the given list of paths."""
+        os.environ[key] = os.pathsep.join(paths)
 
     def run_module(self, *args, **kwargs):
         """
@@ -480,12 +478,12 @@ class ModulesTool(object):
 
         self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
-        # change our LD_LIBRARY_PATH here
+        # restore selected original environment variables before running module command
         environ = os.environ.copy()
-        environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        cur_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
-        new_ld_library_path = environ['LD_LIBRARY_PATH']
-        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (cur_ld_library_path, new_ld_library_path))
+        for key in LD_ENV_VAR_KEYS:
+            environ[key] = ORIG_OS_ENVIRON.get(key, '')
+            self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
+                           key, os.environ.get(key, ''), environ[key])
 
         # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
         cmdlist = [self.cmd, 'python']
@@ -506,11 +504,12 @@ class ModulesTool(object):
         if kwargs.get('return_output', False):
             return stdout + stderr
         else:
-            # the module command was run with an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
+            # the module command was run with an outdated selected environment variables (see LD_ENV_VAR_KEYS list)
+            # which will be adjusted on loading a module;
             # this needs to be taken into account when updating the environment via produced output, see below
 
-            # keep track of current LD_LIBRARY_PATH, so we can correct the adjusted LD_LIBRARY_PATH below
-            prev_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')[::-1]
+            # keep track of current values of select env vars, so we can correct the adjusted values below
+            prev_ld_values = dict([(key, os.environ.get(key, '').split(os.pathsep)[::-1]) for key in LD_ENV_VAR_KEYS])
 
             # Change the environment
             try:
@@ -522,14 +521,14 @@ class ModulesTool(object):
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)", err, out)
 
-            # correct LD_LIBRARY_PATH as yielded by the adjustments made
+            # correct values of selected environment variables as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
-            curr_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')
-            new_ld_library_path = [x for x in nub(prev_ld_library_path + curr_ld_library_path[::-1]) if len(x)][::-1]
+            for key in LD_ENV_VAR_KEYS:
+                curr_ld_val = os.environ.get(key, '').split(os.pathsep)
+                new_ld_val = [x for x in nub(prev_ld_values[key] + curr_ld_val[::-1]) if x][::-1]
 
-            self.log.debug("Correcting paths in LD_LIBRARY_PATH from %s to %s" %
-                           (curr_ld_library_path, new_ld_library_path))
-            self.set_ld_library_path(new_ld_library_path)
+                self.log.debug("Correcting paths in $%s from %s to %s" % (key, curr_ld_val, new_ld_val))
+                self.set_path_env_var(key, new_ld_val)
 
             # Process stderr
             result = []
@@ -569,30 +568,6 @@ class ModulesTool(object):
 
         return read_file(modfilepath)
 
-    def dependencies_for(self, mod_name, depth=sys.maxint):
-        """
-        Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
-        @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
-        """
-        modtxt = self.read_module_file(mod_name)
-        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
-        mods = loadregex.findall(modtxt)
-
-        if depth > 0:
-            # recursively determine dependencies for these dependency modules, until depth is non-positive
-            moddeps = [self.dependencies_for(mod, depth=depth - 1) for mod in mods]
-        else:
-            # ignore any deeper dependencies
-            moddeps = []
-
-        # add dependencies of dependency modules only if they're not there yet
-        for moddepdeps in moddeps:
-            for dep in moddepdeps:
-                if not dep in mods:
-                    mods.append(dep)
-
-        return mods
-
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
@@ -601,7 +576,7 @@ class ModulesTool(object):
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
         # copy environment so we can restore it
-        orig_env = os.environ.copy()
+        env = os.environ.copy()
 
         modpath_exts = {}
         for mod_name in mod_names:
@@ -617,8 +592,8 @@ class ModulesTool(object):
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
                 self.load([mod_name])
 
-        # restore original environment (modules may have been loaded above)
-        restore_env(orig_env)
+        # restore environment (modules may have been loaded above)
+        restore_env(env)
 
         return modpath_exts
 
@@ -654,7 +629,7 @@ class ModulesTool(object):
         @param modpath_exts: list of module path extensions for each of the dependency modules
         """
         # copy environment so we can restore it
-        orig_env = os.environ.copy()
+        env = os.environ.copy()
 
         if path_matches(full_mod_subdir, top_paths):
             self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
@@ -688,7 +663,7 @@ class ModulesTool(object):
                 self.load([dep])
 
         # restore original environment (modules may have been loaded above)
-        restore_env(orig_env)
+        restore_env(env)
 
         path = mods_to_top[:]
         if mods_to_top:
@@ -733,11 +708,11 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     REQ_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
-    def set_ld_library_path(self, ld_library_paths):
-        """Set $LD_LIBRARY_PATH to the given list of paths."""
-        super(EnvironmentModulesTcl, self).set_ld_library_path(ld_library_paths)
+    def set_path_env_var(self, key, paths):
+        """Set environment variable with given name to the given list of paths."""
+        super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
-        os.environ['LD_LIBRARY_PATH_modshare'] = ':1:'.join(ld_library_paths)
+        os.environ['%s_modshare' % key] = ':1:'.join(paths)
 
     def run_module(self, *args, **kwargs):
         """

@@ -43,7 +43,7 @@ import easybuild.tools.options
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES
+from easybuild.tools.config import DEFAULT_MODULECLASSES, get_module_syntax
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -934,15 +934,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test specifying a module footer."""
 
         # create file containing modules footer
-        module_footer_txt = '\n'.join([
-            "# test footer",
-            "setenv SITE_SPECIFIC_ENV_VAR foobar",
-        ])
+        if get_module_syntax() == 'Tcl':
+            module_footer_txt = '\n'.join([
+                "# test footer",
+                "setenv SITE_SPECIFIC_ENV_VAR foobar",
+            ])
+        elif get_module_syntax() == 'Lua':
+            module_footer_txt = '\n'.join([
+                "-- test footer",
+                'setenv("SITE_SPECIFIC_ENV_VAR", "foobar")',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         fd, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
         os.close(fd)
-        f = open(modules_footer, 'w')
-        f.write(module_footer_txt)
-        f.close()
+        write_file(modules_footer, module_footer_txt)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
@@ -960,8 +967,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-        footer_regex = re.compile(r'%s$' % module_footer_txt, re.M)
+        footer_regex = re.compile(r'%s$' % module_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
         msg = "modules footer '%s' is present in '%s'" % (module_footer_txt, toy_module_txt)
         self.assertTrue(footer_regex.search(toy_module_txt), msg)
 
@@ -987,6 +996,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, verbose=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
         is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
         self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
@@ -1171,6 +1182,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--modules-tool=MockModulesTool',
+            '--module-syntax=Tcl',  # Lua would require Lmod
         ]
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
@@ -1182,6 +1194,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--modules-tool=MockModulesTool',
+            '--module-syntax=Tcl',  # Lua would require Lmod
             '--allow-modules-tool-mismatch',
         ]
         self.eb_main(args, do_build=True)
@@ -1194,6 +1207,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--modules-tool=MockModulesTool',
+            '--module-syntax=Tcl',  # Lua would require Lmod
             '--debug',
         ]
         self.eb_main(args, do_build=True)
@@ -1378,7 +1392,44 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
-    
+
+    def test_hide_deps(self):
+        """Test use of --hide-deps."""
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'goolf-1.4.10.eb')
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        args = [
+            ec_file,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
+        self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', outtxt))
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        # zlib is not a dep at all
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        # clear log file
+        open(self.logfile, 'w').write('')
+
+        # filter deps (including a non-existing dep, i.e. zlib)
+        args.append('--hide-deps=FFTW,ScaLAPACK,zlib')
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
+        self.assertTrue(re.search('module: OpenMPI/1.6.4-GCC-4.7.2', outtxt))
+        self.assertTrue(re.search('module: OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', outtxt))
+        self.assertFalse(re.search(r'module: FFTW/3\.3\.3-gompi', outtxt))
+        self.assertTrue(re.search(r'module: FFTW/\.3\.3\.3-gompi', outtxt))
+        self.assertFalse(re.search(r'module: ScaLAPACK/2\.0\.2-gompi', outtxt))
+        self.assertTrue(re.search(r'module: ScaLAPACK/\.2\.0\.2-gompi', outtxt))
+        # zlib is not a dep at all
+        self.assertFalse(re.search(r'module: zlib', outtxt))
+
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
 
@@ -1444,7 +1495,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_file,
             '--robot-paths=%s' % test_ecs_path,
         ]
-        error_regex ='no module .* found for dependency'
+        error_regex = 'no module .* found for dependency'
         self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
         # enable robot, but without passing path required to resolve toy dependency => FAIL
