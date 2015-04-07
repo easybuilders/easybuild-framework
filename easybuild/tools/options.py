@@ -48,7 +48,7 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
+from easybuild.tools import build_log, config, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
@@ -82,9 +82,12 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES + [DEFAULT_USER_CFGFILE]
+    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES[:]
+    if os.path.exists(DEFAULT_USER_CFGFILE):
+        DEFAULT_CONFIGFILES.append(DEFAULT_USER_CFGFILE)
 
     ALLOPTSMANDATORY = False  # allow more than one argument
+    CONFIGFILES_RAISE_MISSING = True  # don't allow non-existing config files to be specified
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
@@ -265,8 +268,6 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
-            'show-default-moduleclasses': ("Show default module classes with description",
-                                           None, 'store_true', False),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
@@ -311,6 +312,9 @@ class EasyBuildOptions(GeneralOption):
                        None, 'store', None, {'metavar': 'STR'}),
             'search-short': ("Search for easyconfig files in the robot directory, print short paths",
                              None, 'store', None, 'S', {'metavar': 'STR'}),
+            'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
+            'show-default-moduleclasses': ("Show default module classes with description",
+                                           None, 'store_true', False),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
@@ -417,6 +421,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
+                self.options.show_default_configfiles,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -511,6 +516,10 @@ class EasyBuildOptions(GeneralOption):
         # dump supported module naming schemes
         if self.options.avail_module_naming_schemes:
             msg += self.avail_list('module naming schemes', avail_module_naming_schemes())
+
+        # dump default list of config files that are considered
+        if self.options.show_default_configfiles:
+            msg += self.show_default_configfiles()
 
         # dump default moduleclasses with description
         if self.options.show_default_moduleclasses:
@@ -647,14 +656,34 @@ class EasyBuildOptions(GeneralOption):
         """Show list of available values passed by argument."""
         return "List of supported %s:\n\t%s" % (name, '\n\t'.join(items))
 
+    def show_default_configfiles(self):
+        """Show list of default config files."""
+        xdg_config_home = os.environ.get('XDG_CONFIG_HOME', '(not set)')
+        xdg_config_dirs = os.environ.get('XDG_CONFIG_DIRS', '(not set)')
+        system_cfg_glob_paths = os.path.join('{' + ', '.join(XDG_CONFIG_DIRS) + '}', 'easybuild.d', '*.cfg')
+        found_cfgfile_cnt = len(self.DEFAULT_CONFIGFILES)
+        found_cfgfile_list = ', '.join(self.DEFAULT_CONFIGFILES) or '(none)'
+        lines = [
+            "Default list of configuration files:",
+            '',
+            "[with $XDG_CONFIG_HOME: %s, $XDG_CONFIG_DIRS: %s]" % (xdg_config_home, xdg_config_dirs),
+            '',
+            "* user-level: %s" % os.path.join('${XDG_CONFIG_HOME:-$HOME/.config}', 'easybuild', 'config.cfg'),
+            "  -> %s => %s" % (DEFAULT_USER_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_USER_CFGFILE)]),
+            "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc}', 'easybuild.d', '*.cfg'),
+            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(DEFAULT_SYS_CFGFILES) or "(no matches)"),
+            '',
+            "Default list of existing configuration files (%d): %s" % (found_cfgfile_cnt, found_cfgfile_list),
+        ]
+        return '\n'.join(lines)
+
     def show_default_moduleclasses(self):
         """Show list of default moduleclasses and description."""
-        txt = ["Default available moduleclasses"]
-        indent = " " * 2
+        lines = ["Default available module classes:", '']
         maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
         for name, descr in DEFAULT_MODULECLASSES:
-            txt.append("%s%s:%s%s" % (indent, name, (" " * (maxlen - len(name))), descr))
-        return "\n".join(txt)
+            lines.append("\t%s:%s%s" % (name, (" " * (maxlen - len(name))), descr))
+        return '\n'.join(lines)
 
 
 def parse_options(args=None):
@@ -668,8 +697,11 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                             go_args=args)
+    try:
+        eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                                 go_args=args)
+    except Exception, err:
+        raise EasyBuildError("Failed to parse configuration options: %s" % err)
     return eb_go
 
 
