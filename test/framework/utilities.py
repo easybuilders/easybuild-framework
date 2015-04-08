@@ -216,9 +216,9 @@ class EnhancedTestCase(_EnhancedTestCase):
             raise myerr
 
         if return_error:
-            return read_file(self.logfile), myerr
+            return read_file(logfile), myerr
         else:
-            return read_file(self.logfile)
+            return read_file(logfile)
 
     def setup_hierarchical_modules(self):
         """Setup hierarchical modules to run tests on."""
