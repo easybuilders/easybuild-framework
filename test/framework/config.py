@@ -453,7 +453,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         ]
         reload(eboptions)
         eb_go = eboptions.parse_options(args=[])
-        self.assertEqual(eb_go.options.configfiles, cfg_files)
+        # note: there may be a config file in $HOME too, so don't use a strict comparison
+        self.assertEqual(cfg_files, eb_go.options.configfiles[:3])
 
         # $XDG_CONFIG_HOME set to non-existing directory, multiple directories listed in $XDG_CONFIG_DIRS
         os.environ['XDG_CONFIG_HOME'] = os.path.join(self.test_prefix, 'nosuchdir')
