@@ -372,6 +372,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     args.extend(['-e', custom])
 
                 outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+                logtxt = read_file(self.logfile)
 
                 # check whether all parameter types are listed
                 par_types = [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT,
@@ -382,18 +383,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 for param_type in [x[1] for x in par_types]:
                     # regex for parameter group title, matches both txt and rst formats
                     regex = re.compile("%s.*\n%s" % (param_type, '-' * len(param_type)), re.I)
-                    tup = (param_type, avail_arg, args, outtxt)
+                    tup = (param_type, avail_arg, args, logtxt)
                     msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
-                    self.assertTrue(regex.search(outtxt), msg)
+                    self.assertTrue(regex.search(logtxt), msg)
 
                 # check a couple of easyconfig parameters
                 for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
                               "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
                     # regex for parameter name (with optional '*') & description, matches both txt and rst formats
                     regex = re.compile("^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
-                    tup = (param, avail_arg, args, regex.pattern, outtxt)
+                    tup = (param, avail_arg, args, regex.pattern, logtxt)
                     msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
-                    self.assertTrue(regex.search(outtxt), msg)
+                    self.assertTrue(regex.search(logtxt), msg)
 
                 modify_env(os.environ, self.orig_environ)
                 tempfile.tempdir = None
@@ -422,7 +423,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args, logfile=dummylogfn)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
-        self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
+        logtxt = read_file(self.logfile)
+        self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known compiler toolchains")
         # toolchain elements should be in alphabetical order
         tcs = {
             'dummy': [],
@@ -430,7 +432,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'ictce': ['icc', 'ifort', 'imkl', 'impi'],
         }
         for tc, tcelems in tcs.items():
-            res = re.findall("^\s*%s: .*" % tc, outtxt, re.M)
+            res = re.findall("^\s*%s: .*" % tc, logtxt, re.M)
             self.assertTrue(res, "Toolchain %s is included in list of known compiler toolchains" % tc)
             # every toolchain should only be mentioned once
             n = len(res)
@@ -457,12 +459,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     '--unittest-file=%s' % self.logfile,
                    ]
             outtxt = self.eb_main(args, logfile=dummylogfn)
+            logtxt = read_file(self.logfile)
 
             words = name.replace('-', ' ')
             info_msg = r"INFO List of supported %s:" % words
-            self.assertTrue(re.search(info_msg, outtxt), "Info message with list of available %s" % words)
+            self.assertTrue(re.search(info_msg, logtxt), "Info message with list of available %s" % words)
             for item in items:
-                res = re.findall("^\s*%s" % item, outtxt, re.M)
+                res = re.findall("^\s*%s" % item, logtxt, re.M)
                 self.assertTrue(res, "%s is included in list of available %s" % (item, words))
                 # every item should only be mentioned once
                 n = len(res)
@@ -495,13 +498,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn)
+        logtxt = read_file(self.logfile)
         cfgfile_constants = {
             'DEFAULT_ROBOT_PATHS': os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
         }
         for cst_name, cst_value in cfgfile_constants.items():
-            cst_regex = re.compile("^\*\s%s:\s.*\s\[value: .*%s.*\]" % (cst_name, cst_value), re.M)
-            tup = (cst_regex.pattern, outtxt)
-            self.assertTrue(cst_regex.search(outtxt), "Pattern '%s' in --avail-cfgfile_constants output: %s" % tup)
+            cst_regex = re.compile(r"^\*\s%s:\s.*\s\[value: .*%s.*\]" % (cst_name, cst_value), re.M)
+            tup = (cst_regex.pattern, logtxt)
+            self.assertTrue(cst_regex.search(logtxt), "Pattern '%s' in --avail-cfgfile_constants output: %s" % tup)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -536,6 +540,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     '--unittest-file=%s' % self.logfile,
                    ]
             outtxt = self.eb_main(args, logfile=dummylogfn)
+            logtxt = read_file(self.logfile)
 
             for pat in [
                         r"EasyBlock\n",
@@ -543,7 +548,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         r"|--\s+bar\n",
                        ]:
 
-                self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
+                msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
+                self.assertTrue(re.search(pat, logtxt), msg)
 
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
@@ -557,6 +563,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 '--unittest-file=%s' % self.logfile,
                ]
         outtxt = self.eb_main(args, logfile=dummylogfn)
+        logtxt = read_file(self.logfile)
 
         for pat in [
                     r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
@@ -564,7 +571,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     r"|--\s+bar\s+\(easybuild.easyblocks.generic.bar\)\n",
                    ]:
 
-            self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
+            msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
+            self.assertTrue(re.search(pat, logtxt), msg)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -580,12 +588,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
         ]
-        outtxt = self.eb_main(args, logfile=dummylogfn)
+        self.eb_main(args, logfile=dummylogfn)
+        logtxt = read_file(self.logfile)
 
         info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
-        self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
+        self.assertTrue(re.search(info_msg, logtxt), "Info message when searching for easyconfigs in '%s'" % logtxt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
-            self.assertTrue(re.search(" \* \S*%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+            self.assertTrue(re.search(r" \* \S*%s$" % ec, logtxt, re.M), "Found easyconfig %s in '%s'" % (ec, logtxt))
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -599,13 +608,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
             ]
-            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True, verbose=True)
+            self.eb_main(args, logfile=dummylogfn, raise_error=True, verbose=True)
+            logtxt = read_file(self.logfile)
 
             info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
-            self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
-            self.assertTrue(re.search('INFO CFGS\d+=', outtxt), "CFGS line message found in '%s'" % outtxt)
+            self.assertTrue(re.search(info_msg, logtxt), "Info message when searching for easyconfigs in '%s'" % logtxt)
+            self.assertTrue(re.search('INFO CFGS\d+=', logtxt), "CFGS line message found in '%s'" % logtxt)
             for ec in ["toy-0.0.eb", "toy-0.0-multiple.eb"]:
-                self.assertTrue(re.search(" \* \$CFGS\d+/*%s" % ec, outtxt), "Found easyconfig %s in '%s'" % (ec, outtxt))
+                self.assertTrue(re.search(" \* \$CFGS\d+/*%s" % ec, logtxt), "Found easyconfig %s in '%s'" % (ec, logtxt))
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
@@ -621,17 +631,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--robot-paths=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
         ]
-        outtxt = self.eb_main(args, logfile=dummylogfn)
+        self.eb_main(args, logfile=dummylogfn)
+        logtxt = read_file(self.logfile)
 
         info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
-        self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
+        self.assertTrue(re.search(info_msg, logtxt, re.M), "Info message dry running in '%s'" % logtxt)
         ecs_mods = [
             ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3", ' '),
             ("GCC-4.6.3.eb", "GCC/4.6.3", 'x'),
         ]
         for ec, mod, mark in ecs_mods:
             regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
-            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+            self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""
@@ -1553,12 +1564,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--show-default-moduleclasses',
         ]
         write_file(self.logfile, '')
-        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        self.eb_main(args, logfile=dummylogfn, verbose=True)
+        logtxt = read_file(self.logfile)
 
         lst = ["\t%s:[ ]*%s" % (c, d.replace('(', '\\(').replace(')', '\\)')) for (c, d) in DEFAULT_MODULECLASSES]
         regex = re.compile("Default available module classes:\n\n" + '\n'.join(lst), re.M)
 
-        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in %s" % (regex.pattern, outtxt))
+        self.assertTrue(regex.search(logtxt), "Pattern '%s' found in %s" % (regex.pattern, logtxt))
 
     def test_show_default_configfiles(self):
         """Test --show-default-configfiles."""
@@ -1592,7 +1604,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
 
         write_file(self.logfile, '')
-        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        self.eb_main(args, logfile=dummylogfn, verbose=True)
+        logtxt = read_file(self.logfile)
 
         homecfgfile = os.path.join(os.environ['HOME'], '.config', 'easybuild', 'config.cfg')
         homecfgfile_str = homecfgfile
@@ -1601,7 +1614,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             homecfgfile_str += " => not found"
         expected = expected_tmpl % ('(not set)', '(not set)', homecfgfile_str, '{/etc}')
-        self.assertTrue(expected in outtxt)
+        self.assertTrue(expected in logtxt)
 
         # to predict the full output, we need to take control over $HOME and $XDG_CONFIG_DIRS
         os.environ['HOME'] = self.test_prefix
@@ -1621,10 +1634,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         reload(easybuild.tools.options)
         write_file(self.logfile, '')
-        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        self.eb_main(args, logfile=dummylogfn, verbose=True)
+        logtxt = read_file(self.logfile)
         expected = expected_tmpl % ('(not set)', xdg_config_dirs, "%s => found" % homecfgfile, '{%s}' % xdg_config_dirs,
                                     '(no matches)', 1, homecfgfile)
-        self.assertTrue(expected in outtxt)
+        self.assertTrue(expected in logtxt)
 
         xdg_config_home = os.path.join(self.test_prefix, 'home')
         os.environ['XDG_CONFIG_HOME'] = xdg_config_home
@@ -1644,12 +1658,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         reload(easybuild.tools.options)
 
         write_file(self.logfile, '')
-        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        self.eb_main(args, logfile=dummylogfn, verbose=True)
+        logtxt = read_file(self.logfile)
         expected = expected_tmpl % (xdg_config_home, os.pathsep.join(xdg_config_dirs),
                                     "%s => found" % os.path.join(xdg_config_home, 'easybuild', 'config.cfg'),
                                     '{' + ', '.join(xdg_config_dirs) + '}',
                                     ', '.join(cfgfiles[:-1]), 4, ', '.join(cfgfiles))
-        self.assertTrue(expected in outtxt)
+        self.assertTrue(expected in logtxt)
 
         del os.environ['XDG_CONFIG_DIRS']
         del os.environ['XDG_CONFIG_HOME']
