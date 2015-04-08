@@ -52,6 +52,35 @@ from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
 
+DEFAULT_LMODRC_TXT = """# -*- lua -*-
+propT = {
+   state = {
+      validT = { experimental = 1, testing = 1, obsolete = 1 },
+      displayT = {
+         experimental  = { short = "(E)",  long = "(E)",     color = "blue",  doc = "Experimental", },
+         testing       = { short = "(T)",  long = "(T)",     color = "green", doc = "Testing", },
+         obsolete      = { short = "(O)",  long = "(O)",     color = "red",   doc = "Obsolete", },
+      },
+   },
+   lmod = {
+      validT = { sticky = 1 },
+      displayT = {
+         sticky = { short = "(S)",  long = "(S)",   color = "red",   doc = "Module is Sticky, requires --force to unload or purge",  },
+      },
+   },
+   arch = {
+      validT = { mic = 1, offload = 1, gpu = 1, },
+      displayT = {
+         ["mic:offload"]     = { short = "(*)",  long = "(m,o)",   color = "blue", doc = "built for host, native MIC and offload to the MIC",  },
+         ["mic"]             = { short = "(m)",  long = "(m)",     color = "blue", doc = "built for host and native MIC", },
+         ["offload"]         = { short = "(o)",  long = "(o)",     color = "blue", doc = "built for offload to the MIC only",},
+         ["gpu"]             = { short = "(g)",  long = "(g)",     color = "red" , doc = "built for GPU",},
+         ["gpu:mic"]         = { short = "(gm)", long = "(g,m)",   color = "red" , doc = "built natively for MIC and GPU",},
+         ["gpu:mic:offload"] = { short = "(@)",  long = "(g,m,o)", color = "red" , doc = "built natively for MIC and GPU and offload to the MIC",},
+      },
+   },
+}"""
+
 # test account, for which a token is available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
@@ -1537,47 +1566,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
     def test_module_features(self):
-        """Test use of --module-family and --module-properties."""
+        """Test use of module features (module family, module properties, ...)."""
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
 
         # put lmodrc file in place (properties must be known)
         lmodrc = os.path.join(self.test_prefix, 'lmodrc.lua')
-        lmodrc_txt = '\n'.join([
-            '# -*- lua -*-',
-            'propT = {',
-            '  state = {',
-            '    validT = { experimental = 1, testing = 1, obsolete = 1 },',
-            '    displayT = {',
-            '      experimental  = { short = "(E)", long = "(E)", color = "blue",  doc = "Experimental", },',
-            '      testing       = { short = "(T)", long = "(T)", color = "green", doc = "Testing", },',
-            '      obsolete      = { short = "(O)", long = "(O)", color = "red",   doc = "Obsolete", },',
-            '    },',
-            '  },',
-            '  lmod = {',
-            '    validT = { sticky = 1 },',
-            '    displayT = {',
-            '      sticky = { short = "(S)", long = "(S)", color = "red", ' +
-                'doc = "Module is Sticky, requires --force to unload or purge",  },',
-            '    },',
-            '  },',
-            '  arch = {',
-            '    validT = { mic = 1, offload = 1, gpu = 1, },',
-            '    displayT = {',
-            '      ["mic:offload"] = { short = "(*)",  long = "(m,o)", color = "blue", ' +
-                'doc = "built for host, native MIC and offload to the MIC",  },',
-            '      ["mic"]         = { short = "(m)",  long = "(m)",   color = "blue", ' +
-                'doc = "built for host and native MIC", },',
-            '      ["offload"]     = { short = "(o)",  long = "(o)",   color = "blue", ' +
-                'doc = "built for offload to the MIC only",},',
-            '      ["gpu"]         = { short = "(g)",  long = "(g)",   color = "red" , doc = "built for GPU",},',
-            '      ["gpu:mic"]     = { short = "(gm)", long = "(g,m)", color = "red" , ' +
-                'doc = "built natively for MIC and GPU",},',
-            '    },',
-            '  },',
-            '}',
-        ])
-        write_file(lmodrc, lmodrc_txt)
+        write_file(lmodrc, DEFAULT_LMODRC_TXT)
         os.environ['LMODRC'] = lmodrc
 
         # check log message with --skip for existing module

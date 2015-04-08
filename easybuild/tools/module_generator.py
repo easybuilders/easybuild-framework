@@ -61,6 +61,9 @@ class ModuleGenerator(object):
     MODULE_FILE_EXTENSION = None
     MODULE_HEADER = None
 
+    # a single level of indentation
+    INDENTATION = ' ' * 4
+
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
@@ -194,7 +197,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             lines = ["if { [ %s ] } {" % condition]
 
         if indent_body:
-            body = '    ' + body
+            body = self.INDENTATION + body
         lines.append(body)
 
         lines.extend(['}', ''])
@@ -209,8 +212,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         lines = [
             self.MODULE_HEADER.replace('%', '%%'),
             "proc ModulesHelp { } {",
-            "    puts stderr { %(description)s",
-            "    }",
+            self.INDENTATION + "puts stderr { %(description)s",
+            self.INDENTATION + '}',
             '}',
             '',
             "module-whatis {Description: %(description)s}",
@@ -330,11 +333,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def family(self, family):
         """Generate family statement."""
-        return self.lmod_only('    family "%s"' % family)
+        return self.lmod_only(self.INDENTATION + 'family "%s"' % family)
 
     def properties(self, properties):
         """Generate property statements."""
-        property_statements = '\n'.join(['    add-property "%s" "%s"' % prop for prop in properties])
+        property_statements = '\n'.join([self.INDENTATION + 'add-property "%s" "%s"' % prop for prop in properties])
         return self.lmod_only(property_statements)
 
 
@@ -369,7 +372,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             lines = ["if %s then" % condition]
 
         if indent_body:
-            body = '    ' + body
+            body = self.INDENTATION + body
         lines.append(body)
 
         lines.extend(['end', ''])

@@ -857,7 +857,7 @@ class EasyBlock(object):
         txt = ''
 
         if self.module_family is not None:
-            txt = self.module_generator.family(self.module_family)
+            txt += self.module_generator.family(self.module_family)
 
         if self.module_properties is not None:
             txt += self.module_generator.properties(self.module_properties)
