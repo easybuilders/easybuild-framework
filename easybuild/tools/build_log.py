@@ -57,13 +57,17 @@ class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
     """
+    LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
+    LOC_INFO_LEVEL = 1
+
     # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
     # only required because 'error' log method raises (should no longer be needed in EB v3.x)
     LOGGING_METHOD_NAME = '_error_no_raise'
 
     def __init__(self, msg, *args):
         """Constructor: initialise EasyBuildError instance."""
-        msg = msg % args
+        if args:
+            msg = msg % args
         LoggedException.__init__(self, msg)
         self.msg = msg
 
@@ -133,7 +137,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         orig_raise_error = self.raiseError
         self.raiseError = False
 
-        self.error(msg)
+        fancylogger.FancyLogger.error(self, msg)
 
         # reinstate previous raiseError setting
         self.raiseError = orig_raise_error

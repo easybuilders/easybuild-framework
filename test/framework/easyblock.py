@@ -62,7 +62,6 @@ class EasyBlockTest(EnhancedTestCase):
         fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(fd)
 
-        self.orig_tmp_logdir = os.environ.get('EASYBUILD_TMP_LOGDIR', None)
         self.test_tmp_logdir = tempfile.mkdtemp()
         os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir
 
@@ -635,15 +634,6 @@ class EasyBlockTest(EnhancedTestCase):
         eb.fetch_step()
         eb.extract_step()
         eb.patch_step()
-
-    def tearDown(self):
-        """ make sure to remove the temporary file """
-        super(EasyBlockTest, self).tearDown()
-
-        os.remove(self.eb_file)
-        if self.orig_tmp_logdir is not None:
-            os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
-            shutil.rmtree(self.test_tmp_logdir, True)
 
 
 def suite():
