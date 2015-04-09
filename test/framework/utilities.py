@@ -81,11 +81,12 @@ class EnhancedTestCase(_EnhancedTestCase):
 
     def setUp(self):
         """Set up testcase."""
+        super(EnhancedTestCase, self).setUp()
+
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
         self.test_prefix = set_tmpdir()
 
-        super(EnhancedTestCase, self).setUp()
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
@@ -196,7 +197,9 @@ class EnhancedTestCase(_EnhancedTestCase):
         if logfile is None:
             logfile = self.logfile
         # clear log file
-        open(logfile, 'w').write('')
+        f = open(logfile, 'w')
+        f.write('')
+        f.close()
 
         try:
             main((args, logfile, do_build))
