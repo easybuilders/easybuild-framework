@@ -189,7 +189,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         for modpath in modpaths:
             modtool.add_module_path(modpath)
 
-    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
+    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
+                reset_env=True):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -201,6 +202,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         f.write('')
         f.close()
 
+        env_before = copy.deepcopy(os.environ)
+
         try:
             main((args, logfile, do_build))
         except SystemExit:
@@ -210,18 +213,26 @@ class EnhancedTestCase(_EnhancedTestCase):
             if verbose:
                 print "err: %s" % err
 
+        logtxt = read_file(logfile)
+
         os.chdir(self.cwd)
 
         # make sure config is reinitialized
         init_config()
 
+        # restore environment to what it was before running main,
+        # changes may have been made by eb_main (e.g. $TMPDIR & co)
+        if reset_env:
+            modify_env(os.environ, env_before)
+            tempfile.tempdir = None
+
         if myerr and raise_error:
             raise myerr
 
         if return_error:
-            return read_file(logfile), myerr
+            return logtxt, myerr
         else:
-            return read_file(logfile)
+            return logtxt
 
     def setup_hierarchical_modules(self):
         """Setup hierarchical modules to run tests on."""

@@ -128,9 +128,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s: %s" % (log_msg_type, debug_arg, outtxt))
 
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
-
     def test_info(self):
         """Test enabling info logging."""
 
@@ -149,12 +146,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
 
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
-
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
-
         for quiet_arg in ['--quiet']:
             args = [
                     'nosuchfile.eb',
@@ -164,14 +157,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             for log_msg_type in ['ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
+                msg = "%s log messages are included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt)
+                self.assertTrue(res, msg)
 
             for log_msg_type in ['DEBUG', 'INFO']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(not res, "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
-
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
+                msg = "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt)
+                self.assertTrue(not res, msg)
 
     def test_force(self):
         """Test forcing installation even if the module is already available."""
@@ -191,10 +183,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         already_msg = "GCC/4.6.3 is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
-        # clear log file, clean up environment
+        # clear log file
         write_file(self.logfile, '')
-        modify_env(os.environ, self.orig_environ)
-        tempfile.tempdir = None
 
         # check that --force works
         args = [
@@ -236,10 +226,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.chdir(self.cwd)
         modules_tool().purge()
         # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
-        modify_env(os.environ, self.orig_environ)
         os.environ['MODULEPATH'] = ''
         modules_tool()
-        tempfile.tempdir = None
 
         # check log message with --skip for non-existing module
         args = [
@@ -292,9 +280,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             assertmsg = "Info log msg with job command template for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
-
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
         check_args(['--debug', '--stop=configure', '--try-software-name=foo'])
@@ -337,8 +322,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # cleanup
             os.remove(fn)
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -395,9 +378,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     tup = (param, avail_arg, args, regex.pattern, logtxt)
                     msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
                     self.assertTrue(regex.search(logtxt), msg)
-
-                modify_env(os.environ, self.orig_environ)
-                tempfile.tempdir = None
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
@@ -470,9 +450,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 # every item should only be mentioned once
                 n = len(res)
                 self.assertEqual(n, 1, "%s is only mentioned once (count: %d)" % (item, n))
-
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -550,9 +527,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
                 msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
                 self.assertTrue(re.search(pat, logtxt), msg)
-
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
 
         # clear log
         write_file(self.logfile, '')
@@ -1032,7 +1006,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--debug',
             '--tmpdir=%s' % tmpdir,
         ]
-        outtxt = self.eb_main(args, do_build=True)
+        outtxt = self.eb_main(args, do_build=True, reset_env=False)
 
         tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'eb-')
         found = re.search(tmpdir_msg, outtxt, re.M)
