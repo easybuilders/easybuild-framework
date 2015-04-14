@@ -151,7 +151,7 @@ class CrayPEWrapperGNU(CrayPEWrapper):
             comp_attrs = ['UNIQUE_OPTS', 'UNIQUE_OPTION_MAP', 'CC', 'CXX', 'C_UNIQUE_FLAGS',
                           'F77', 'F90', 'F_UNIQUE_FLAGS']
             for attr_name in ['COMPILER_%s' % a for a in comp_attrs]:
-                setattr(self, attr_name, getattr(IntelIccIfort, attr_name))
+                setattr(self, attr_name, getattr(Gcc, attr_name))
 
         super(CrayPEWrapperGNU,self)._set_compiler_vars()
 
