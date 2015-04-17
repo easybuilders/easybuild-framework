@@ -340,8 +340,10 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp + '.1', 'evenmoarbar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
 
-        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1', 'foo.log', 'foo.log.1']
-        self.assertEqual(sorted(os.listdir(self.test_prefix)), logs)
+        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1',
+                os.path.basename(self.logfile),
+                'foo.log', 'foo.log.1']
+        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if not f.startswith('tmp')]), logs)
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
