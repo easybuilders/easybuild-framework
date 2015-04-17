@@ -39,7 +39,7 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
-
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.toolchains.compiler.gcc import Gcc
@@ -106,7 +106,7 @@ class CrayPEWrapper(Compiler):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
         if optarch is None:
-            self.log.error("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
+            raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
