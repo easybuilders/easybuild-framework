@@ -1556,6 +1556,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for envvar in ['XDG_CONFIG_DIRS', 'XDG_CONFIG_HOME']:
             if envvar in os.environ:
                 del os.environ[envvar]
+        reload(easybuild.tools.options)
 
         args = [
             '--unittest-file=%s' % self.logfile,
