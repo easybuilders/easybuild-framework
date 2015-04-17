@@ -65,7 +65,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        log_re = re.compile("^%s :: EasyBuild crashed .*: BOOM$" % getRootLoggerName(), re.M)
+        log_re = re.compile("^%s :: BOOM \(at .*:[0-9]+ in [a-z_]+\)$" % getRootLoggerName(), re.M)
         logtxt = open(tmplog, 'r').read()
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
@@ -99,12 +99,14 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
 
+        root = getRootLoggerName()
+
         expected_logtxt = '\n'.join([
-            r"runpy.test_easybuildlog \[DEBUG\] :: 123 debug",
-            r"runpy.test_easybuildlog \[INFO\] :: foobar info",
-            r"runpy.test_easybuildlog \[WARNING\] :: justawarning",
-            r"runpy.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
-            r"runpy.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
+            r"%s.test_easybuildlog \[DEBUG\] :: 123 debug" % root,
+            r"%s.test_easybuildlog \[INFO\] :: foobar info" % root,
+            r"%s.test_easybuildlog \[WARNING\] :: justawarning" % root,
+            r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root,
+            r"%s.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops" % root,
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -125,10 +127,10 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
-            r"runpy.test_easybuildlog \[WARNING\] :: bleh",
-            r"runpy.test_easybuildlog \[INFO\] :: 4\+2 = 42",
-            r"runpy.test_easybuildlog \[DEBUG\] :: this is just a test",
-            r"runpy.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
+            r"%s.test_easybuildlog \[WARNING\] :: bleh" % root,
+            r"%s.test_easybuildlog \[INFO\] :: 4\+2 = 42" % root,
+            r"%s.test_easybuildlog \[DEBUG\] :: this is just a test" % root,
+            r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz" % root,
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
