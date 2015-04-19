@@ -30,6 +30,7 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -83,8 +84,7 @@ class Gcc(Compiler):
         super(Gcc, self)._set_compiler_vars()
 
         if self.options.get('32bit', None):
-            self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for " \
-                                    "32bit GCC in EasyBuild")
+            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit GCC in EasyBuild")
 
         # to get rid of lots of problems with libgfortranbegin
         # or remove the system gcc-gfortran

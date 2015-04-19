@@ -39,17 +39,24 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
+import os
 
-from easybuild.tools.config import build_option
-from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPI_TYPE_MPICH
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
+from easybuild.tools.toolchain.compiler import Compiler
+from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
+from easybuild.tools.toolchain.linalg import LinAlg
+from easybuild.tools.toolchain.mpi import Mpi
 
 
 TC_CONSTANT_CRAYPEWRAPPER = "CRAYPEWRAPPER"
 
 
-class CrayPEWrapper(Compiler):
+class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
     """Generic support for using Cray compiler wrappers"""
 
     # no toolchain components, so no modules to list here (empty toolchain definition w.r.t. components)
@@ -80,10 +87,41 @@ class CrayPEWrapper(Compiler):
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
 
-    # FIXME (kehoste) hmmmm, really? then how do you control optimisation, precision when using the Cray wrappers?
-    COMPILER_FLAGS = []  # we dont have this for the wrappers
-    COMPILER_OPT_FLAGS = []  # or those
-    COMPILER_PREC_FLAGS = []  # and those for sure not !
+    # MPI support
+    # no separate module, Cray compiler drivers always provide MPI support
+    MPI_MODULE_NAME = []
+    MPI_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
+    MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
+
+    MPI_COMPILER_MPICC = COMPILER_CC
+    MPI_COMPILER_MPICXX = COMPILER_CXX
+    MPI_COMPILER_MPIF77 = COMPILER_F77
+    MPI_COMPILER_MPIF90 = COMPILER_F90
+
+    MPI_SHARED_OPTION_MAP = {
+        '_opt_MPICC': '',
+        '_opt_MPICXX': '',
+        '_opt_MPIF77': '',
+        '_opt_MPIF90': '',
+    }
+
+    # BLAS/LAPACK support
+    # via cray-libsci module, which gets loaded via the PrgEnv module
+    # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
+    BLAS_MODULE_NAME = ['cray-libsci']
+    # specific library depends on PrgEnv flavor
+    # FIXME: make this (always) empty list?
+    BLAS_LIB = None
+    BLAS_LIB_MT = None
+
+    LAPACK_MODULE_NAME = ['cray-libsci']
+    LAPACK_IS_BLAS = True
+
+    BLACS_MODULE_NAME = []
+    SCALAPACK_MODULE_NAME = []
+
+    # FFT support, via Cray-provided fftw module
+    FFT_MODULE_NAME = ['fftw']
 
     # template and name suffix for PrgEnv module that matches this toolchain
     # e.g. 'gnu' => 'PrgEnv-gnu/<version>'
@@ -93,7 +131,7 @@ class CrayPEWrapper(Compiler):
     # template for craype module (determines code generator backend of Cray compiler wrappers)
     CRAYPE_MODULE_NAME_TEMPLATE = 'craype-%(optarch)s'
 
-    def _pre_preprare(self):
+    def _pre_prepare(self):
         """Load PrgEnv module."""
         prgenv_mod_name = self.PRGENV_MODULE_NAME_TEMPLATE % {
             'suffix': self.PRGENV_MODULE_NAME_SUFFIX,
@@ -106,40 +144,100 @@ class CrayPEWrapper(Compiler):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
         if optarch is None:
-            self.log.error("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
+            raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
-    # FIXME: (kehoste) is it really needed to customise this?
-    # this looks like a workaround for setting the COMPILER_*_FLAGS lists empty?
     def _set_compiler_flags(self):
-        """Collect the flags set, and add them as variables too"""
+        """Set compiler flag variables empty."""
+        # FIXME: actually define these to be *empty*
+        self.variables.nappend('CFLAGS', 'L.')
+        self.variables.nappend('CXXFLAGS', 'L.')
+        self.variables.nappend('FFLAGS', 'L.')
+        self.variables.nappend('F90FLAGS', 'L.')
 
-        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
-        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
-                  if self.options.get(x, False)]
-        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
-                  if self.options.get(x, False)]
+    def _set_mpi_compiler_variables(self):
+        """Set the MPI compiler variables"""
+        for var_tuple in COMPILER_VARIABLES:
+            c_var = var_tuple[0]  # [1] is the description
+            var = MPI_COMPILER_TEMPLATE % {'c_var':c_var}
 
+            value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
+            if value is None:
+                raise EasyBuildError("_set_mpi_compiler_variables: mpi compiler variable %s undefined", var)
+            self.variables.nappend_el(var, value)
 
-        # precflags last
-        self.variables.nappend('CFLAGS', flags)
-        self.variables.nappend('CFLAGS', cflags)
+            if self.options.get('usempi', None):
+                var_seq = SEQ_COMPILER_TEMPLATE % {'c_var': c_var}
+                seq_comp = self.variables[c_var]
+                self.log.debug('_set_mpi_compiler_variables: usempi set: defining %s as %s', var_seq, seq_comp)
+                self.variables[var_seq] = seq_comp
 
-        self.variables.nappend('CXXFLAGS', flags)
-        self.variables.nappend('CXXFLAGS', cflags)
+        if self.options.get('cciscxx', None):
+            self.log.debug("_set_mpi_compiler_variables: cciscxx set: switching MPICXX %s for MPICC value %s" %
+                           (self.variables['MPICXX'], self.variables['MPICC']))
+            self.variables['MPICXX'] = self.variables['MPICC']
 
-        self.variables.nappend('FFLAGS', flags)
-        self.variables.nappend('FFLAGS', fflags)
+    def _get_software_root(self, name):
+        """Get install prefix for specified software name; special treatment for Cray modules."""
+        if name == 'cray-libsci':
+            # Cray-provided LibSci module
+            env_var = 'CRAY_LIBSCI_PREFIX_DIR'
+            root = os.getenv(env_var, None)
+            if root is None:
+                raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
+            else:
+                self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
+        elif name == 'fftw':
+            # Cray-provided fftw module
+            env_var = 'FFTW_INC'
+            incdir = os.getenv(env_var, None)
+            if incdir is None:
+                raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_var)
+            else:
+                root = os.path.dirname(incdir)
+                self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
+        else:
+            root = super(CrayPEWrapper, self)._get_software_root(name)
 
-        self.variables.nappend('F90FLAGS', flags)
-        self.variables.nappend('F90FLAGS', fflags)
+        return root
+
+    def _get_software_version(self, name):
+        """Get version for specified software name; special treatment for Cray modules."""
+        if name == 'fftw':
+            # Cray-provided fftw module
+            env_var = 'FFTW_VERSION'
+            ver = os.getenv(env_var, None)
+            if ver is None:
+                raise EasyBuildError("Failed to determine version for %s via $%s", name, env_var)
+            else:
+                self.log.debug("Obtained version for %s via $%s: %s", name, env_var, ver)
+        else:
+            ver = super(CrayPEWrapper, self)._get_software_version(name)
+
+        return ver
+
+    def _set_blacs_variables(self):
+        """Skip setting BLACS related variables"""
+        pass
+
+    def _set_scalapack_variables(self):
+        """Skip setting ScaLAPACK related variables"""
+        pass
+
+    def definition(self):
+        """Empty toolchain definition (no modules listed as toolchain dependencies)."""
+        return {}
 
 
 # Gcc's base is Compiler
 class CrayPEWrapperGNU(CrayPEWrapper):
     """Support for using the Cray GNU compiler wrappers."""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
+
+    # FIXME: make this empty list?
+    BLAS_LIB = ['sci_gnu_mpi']
+    BLAS_LIB_MT = ['sci_gnu_mpi_mp']
 
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
 
@@ -151,7 +249,7 @@ class CrayPEWrapperGNU(CrayPEWrapper):
             comp_attrs = ['UNIQUE_OPTS', 'UNIQUE_OPTION_MAP', 'CC', 'CXX', 'C_UNIQUE_FLAGS',
                           'F77', 'F90', 'F_UNIQUE_FLAGS']
             for attr_name in ['COMPILER_%s' % a for a in comp_attrs]:
-                setattr(self, attr_name, getattr(IntelIccIfort, attr_name))
+                setattr(self, attr_name, getattr(Gcc, attr_name))
 
         super(CrayPEWrapperGNU,self)._set_compiler_vars()
 
@@ -159,6 +257,10 @@ class CrayPEWrapperGNU(CrayPEWrapper):
 class CrayPEWrapperIntel(CrayPEWrapper):
     """Support for using the Cray Intel compiler wrappers."""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
+
+    # FIXME: make this empty list?
+    BLAS_LIB = ['sci_intel_mpi']
+    BLAS_LIB_MT = ['sci_intel_mpi_mp']
 
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
 
@@ -178,5 +280,9 @@ class CrayPEWrapperIntel(CrayPEWrapper):
 class CrayPEWrapperCray(CrayPEWrapper):
     """Support for using the Cray CCE compiler wrappers."""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
+
+    # FIXME: make this empty list?
+    BLAS_LIB = ['sci_cray_mpi']
+    BLAS_LIB_MT = ['sci_cray_mpi_mp']
 
     PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
