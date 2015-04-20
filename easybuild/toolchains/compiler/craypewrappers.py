@@ -66,19 +66,33 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
 
     COMPILER_UNIQUE_OPTS = {
         # FIXME: (kehoste) how is this different from the existing 'shared' toolchain option? just map 'shared' to '-dynamic'? (already done)
-        'dynamic': (True, "Generate dynamically linked executables and libraries."),
+        'dynamic': (False, "Generate dynamically linked executable"),
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
         'usewrappedcompiler': (False, "Use the embedded compiler instead of the wrapper"),
+        'verbose': (True, "Verbose output"),
+        'optarch': (False, "Enable architecture optimizations"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'pic': 'shared',
-        'shared': 'dynamic',
+        #'pic': 'shared',  # FIXME (use compiler-specific setting?)
+        'shared': 'shared',
+        'dynamic': 'dynamic',
         'static': 'static',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
+        # no optimization flags
+        'noopt': [],
+        'lowopt': [],
+        'defaultopt': [],
+        'opt': [],
+        # no precision flags
+        'strict': [],
+        'precise': [],
+        'defaultprec': [],
+        'loose': [],
+        'veryloose': [],
     }
 
     COMPILER_CC = 'cc'
@@ -148,13 +162,13 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
         else:
             self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
+        # no compiler flag when optarch toolchain option is enabled
+        self.options.options_map['optarch'] = ''
+
     def _set_compiler_flags(self):
-        """Set compiler flag variables empty."""
-        # FIXME: actually define these to be *empty*
-        self.variables.nappend('CFLAGS', 'L.')
-        self.variables.nappend('CXXFLAGS', 'L.')
-        self.variables.nappend('FFLAGS', 'L.')
-        self.variables.nappend('F90FLAGS', 'L.')
+        """Set compiler flags."""
+        self.COMPILER_FLAGS.extend(['dynamic'])
+        super(CrayPEWrapper, self)._set_compiler_flags()
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""
