@@ -121,8 +121,9 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
                 dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
 
             if not dep_resolved:
-                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run)
-                if retain_all_deps and dep['external_module']:
+                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+                # since no corresponding easyconfig can be found for them
+                if retain_all_deps and dep.get('external_module', False):
                     _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
                 else:
                     # no module available (yet) => retain dependency as one to be resolved
