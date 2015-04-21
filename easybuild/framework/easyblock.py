@@ -1329,19 +1329,13 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
+        # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
-
-        # load system modules first, before loading toolchain and dependencies
-        system_modules = build_option('system_modules')
-        if system_modules is None:
-            system_modules = []
-
-        self.log.info("Loading specified system modules: %s + %s", system_modules, self.cfg['system_modules'])
-        self.modules_tool.load(system_modules + self.cfg['system_modules'])
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'])
 
+        # guess directory to start configure/build/install process in, and move there
         self.guess_start_dir()
 
     def configure_step(self):
