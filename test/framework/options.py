@@ -285,7 +285,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         check_args(['--debug', '--stop=configure', '--try-software-name=foo'])
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'])
         # --robot has preference over --robot-paths, --robot is not passed down
-        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'], passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
+        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
+                   passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -1646,6 +1647,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         del os.environ['XDG_CONFIG_HOME']
         os.environ['HOME'] = home
         reload(easybuild.tools.options)
+
 
 def suite():
     """ returns all the testcases in this module """

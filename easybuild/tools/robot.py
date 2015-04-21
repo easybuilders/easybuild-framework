@@ -166,6 +166,13 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
+        # dependencies marked as external modules should be resolved via available modules at this point
+        missing_external_modules = [d['full_mod_name'] for ec in unprocessed for d in ec['dependencies']
+                                    if d.get('external_module', False)]
+        if missing_external_modules:
+            raise EasyBuildError("Missing modules for one or more dependencies marked as external modules: %s",
+                                 missing_external_modules)
+
         # robot: look for existing dependencies, add them
         if robot and unprocessed:
 
@@ -218,6 +225,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
             # add additional (new) easyconfigs to list of stuff to process
             unprocessed.extend(additional)
+            _log.debug("Unprocessed dependencies: %s", unprocessed)
 
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
