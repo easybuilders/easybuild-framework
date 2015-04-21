@@ -527,10 +527,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         eb_go = eboptions.parse_options(args=[])
         self.assertEqual(eb_go.options.robot_paths, ['/foo', tmp_ecs_dir, '/bar/baz'])
 
-        # combining $EASYBUILD_ROBOT_PATHS and --robot-paths: all paths are retained in the order to be expected
+        # --robot-paths overrides $EASYBUILD_ROBOT_PATHS
         os.environ['EASYBUILD_ROBOT_PATHS'] = '/foobar::/barbar/baz/baz'
         eb_go = eboptions.parse_options(args=['--robot-paths=/one::/last'])
-        self.assertEqual(eb_go.options.robot_paths, ['/one', '/foobar', tmp_ecs_dir, '/barbar/baz/baz', '/last'])
+        self.assertEqual(eb_go.options.robot_paths, ['/one', tmp_ecs_dir, '/last'])
 
         del os.environ['EASYBUILD_ROBOT_PATHS']
 
@@ -555,7 +555,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_ROBOT_PATHS'] = ':/envend'
         eb_go = eboptions.parse_options(args=['--robot-paths=/veryfirst:', '--configfiles=%s' % config_file])
-        self.assertEqual(eb_go.options.robot_paths, ['/veryfirst', tmp_ecs_dir, '/envend'])
+        self.assertEqual(eb_go.options.robot_paths, ['/veryfirst', tmp_ecs_dir])
 
         del os.environ['EASYBUILD_ROBOT_PATHS']
 
@@ -563,7 +563,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         eb_go = eboptions.parse_options(args=['--robot-paths=/foo:/bar/baz'])
         self.assertEqual(eb_go.options.robot_paths, ['/foo', '/bar/baz'])
 
-        # --robot paths still get preference
+        # paths specified via --robot still get preference
         eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz', '--robot=/first'])
         self.assertEqual(eb_go.options.robot_paths, ['/first', '/foo/bar', tmp_ecs_dir, '/baz'])
 
