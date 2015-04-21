@@ -1031,6 +1031,27 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
 
 
+    def test_update(self):
+        """Test use of update() method for EasyConfig instances."""
+        toy_ebfile = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        ec = EasyConfig(toy_ebfile)
+
+        # for string values: append
+        ec.update('unpack_options', '--strip-components=1')
+        self.assertEqual(ec['unpack_options'].strip(), '--strip-components=1')
+
+        ec.update('description', "- just a test")
+        self.assertEqual(ec['description'].strip(), "Toy C program. - just a test")
+
+        # spaces in between multiple updates for stirng values
+        ec.update('configopts', 'CC="$CC"')
+        ec.update('configopts', 'CXX="$CXX"')
+        self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+
+        # for list values: extend
+        ec.update('patches', ['foo.patch', 'bar.patch'])
+        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(EasyConfigTest)

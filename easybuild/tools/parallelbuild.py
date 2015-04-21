@@ -68,7 +68,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, p
     # create a single connection, and reuse it
     conn = connect_to_server()
     if conn is None:
-        _log.error("connect_to_server returned %s, can't submit jobs." % (conn))
+        raise EasyBuildError("connect_to_server returned %s, can't submit jobs.", conn)
 
     # determine ppn once, and pass is to each job being created
     # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
@@ -214,4 +214,4 @@ def prepare_easyconfig(ec):
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
-        _log.error("An error occured while preparing %s: %s" % (ec, err))
+        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)

@@ -28,10 +28,8 @@ Toolchain compiler module, provides abstract class for compilers.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
-import os
-
 from easybuild.tools import systemtools
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -186,7 +184,7 @@ class Compiler(Toolchain):
                         # only warn if prefix is set, not all languages may be supported (e.g., no Fortran for CUDA)
                         self.log.warn("_set_compiler_vars: %s compiler variable %s undefined" % (prefix, var))
                     else:
-                        self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+                        raise EasyBuildError("_set_compiler_vars: compiler variable %s undefined", var)
 
                 self.variables[pref_var] = value
                 if is32bit:
@@ -273,7 +271,7 @@ class Compiler(Toolchain):
             self.options.options_map['optarch'] = optarch
 
         if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
-            self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
+            raise EasyBuildError("_get_optimal_architecture: don't know how to set optarch for %s", self.arch)
 
     def comp_family(self, prefix=None):
         """
@@ -286,4 +284,4 @@ class Compiler(Toolchain):
         if comp_family:
             return comp_family
         else:
-            self.log.raiseException('comp_family: COMPILER_%sFAMILY is undefined.' % infix)
+            raise EasyBuildError("comp_family: COMPILER_%sFAMILY is undefined", infix)

@@ -180,9 +180,8 @@ def dep_graph(*args, **kwargs):
     try:
         _dep_graph(*args, **kwargs)
     except NameError, err:
-        errors = "\n".join(graph_errors)
-        msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
-        _log.error("%s\nerr: %s" % (msg, err))
+        raise EasyBuildError("An optional Python packages required to generate dependency graphs is missing: %s, %s",
+                             '\n'.join(graph_errors), err)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
@@ -314,7 +313,7 @@ def parse_easyconfigs(paths):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            _log.error("Can't find path %s" % path)
+            raise EasyBuildError("Can't find path %s", path)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
@@ -325,7 +324,7 @@ def parse_easyconfigs(paths):
                 ecs = process_easyconfig(ec_file, **kwargs)
                 easyconfigs.extend(ecs)
         except IOError, err:
-            _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
+            raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
     return easyconfigs, generated_ecs
 
@@ -335,7 +334,7 @@ def stats_to_str(stats):
     Pretty print build statistics to string.
     """
     if not isinstance(stats, (OrderedDict, dict)):
-        _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
+        raise EasyBuildError("Can only pretty print build stats in dictionary form, not of type %s", type(stats))
 
     txt = "{\n"
     pref = "    "
