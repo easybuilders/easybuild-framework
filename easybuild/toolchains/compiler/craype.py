@@ -122,9 +122,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
     BLAS_MODULE_NAME = ['cray-libsci']
     # specific library depends on PrgEnv flavor
-    # FIXME: make this (always) empty list?
-    BLAS_LIB = None
-    BLAS_LIB_MT = None
+    BLAS_LIB = []
+    BLAS_LIB_MT = []
 
     LAPACK_MODULE_NAME = ['cray-libsci']
     LAPACK_IS_BLAS = True
@@ -242,14 +241,9 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
         return {}
 
 
-# Gcc's base is Compiler
 class CrayPEGNU(CrayPE):
     """Support for using the Cray GNU compiler wrappers."""
     TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_GNU'
-
-    # FIXME: make this empty list?
-    BLAS_LIB = ['sci_gnu_mpi']
-    BLAS_LIB_MT = ['sci_gnu_mpi_mp']
 
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
 
@@ -270,10 +264,6 @@ class CrayPEIntel(CrayPE):
     """Support for using the Cray Intel compiler wrappers."""
     TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_INTEL'
 
-    # FIXME: make this empty list?
-    BLAS_LIB = ['sci_intel_mpi']
-    BLAS_LIB_MT = ['sci_intel_mpi_mp']
-
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
 
     def _set_compiler_flags(self):
@@ -292,9 +282,5 @@ class CrayPEIntel(CrayPE):
 class CrayPECray(CrayPE):
     """Support for using the Cray CCE compiler wrappers."""
     TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_CRAY'
-
-    # FIXME: make this empty list?
-    BLAS_LIB = ['sci_cray_mpi']
-    BLAS_LIB_MT = ['sci_cray_mpi_mp']
 
     PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
