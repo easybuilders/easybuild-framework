@@ -42,6 +42,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
@@ -212,6 +213,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
         self.assertErrorRegex(EasyBuildError, "without name", eb._parse_dependency, ())
         self.assertErrorRegex(EasyBuildError, "without version", eb._parse_dependency, {'name': 'test'})
+        err_msg = "Incorrect external dependency specification"
+        self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
+        self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
@@ -574,6 +578,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'hidden': False,
+                'external_module': False,
             },
             {
                 'name': 'bar',
@@ -584,6 +589,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'hidden': False,
+                'external_module': False,
             },
             {
                 'name': 'test',
@@ -594,6 +600,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'hidden': True,
+                'external_module': False,
             },
         ]
 
@@ -1030,6 +1037,29 @@ class EasyConfigTest(EnhancedTestCase):
             ec[key] = 'foobar'
         self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
 
+    def test_external_dependencies(self):
+        """Test specifying external (build) dependencies."""
+        ectxt = read_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-deps.eb'))
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
+
+        # just specify some of the test modules we ship, doesn't matter where they come from
+        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        write_file(toy_ec, ectxt)
+
+        ec = EasyConfig(toy_ec)
+
+        builddeps = ec.builddependencies()
+        self.assertEqual(len(builddeps), 1)
+        self.assertEqual(builddeps[0]['short_mod_name'], 'somebuilddep/0.1')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'somebuilddep/0.1')
+        self.assertEqual(builddeps[0]['external_module'], True)
+
+        deps = ec.dependencies()
+        self.assertEqual(len(deps), 3)
+        self.assertEqual([d['short_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
+        self.assertEqual([d['full_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
+        self.assertEqual([d['external_module'] for d in deps], [False, True, True])
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""
@@ -1051,6 +1081,7 @@ class EasyConfigTest(EnhancedTestCase):
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
         self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
+
 
 def suite():
     """ returns all the testcases in this module """

@@ -111,13 +111,23 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
         new_ec = ec.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = ActiveMNS().det_full_module_name(dep)
+            full_mod_name = dep.get('full_mod_name', None)
+            if full_mod_name is None:
+                full_mod_name = ActiveMNS().det_full_module_name(dep)
+
             dep_resolved = full_mod_name in new_avail_modules
             if not retain_all_deps:
                 # hidden modules need special care, since they may not be included in list of available modules
                 dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+
             if not dep_resolved:
-                deps.append(dep)
+                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run)
+                if retain_all_deps and dep['external_module']:
+                    _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                else:
+                    # no module available (yet) => retain dependency as one to be resolved
+                    deps.append(dep)
+
         new_ec['dependencies'] = deps
 
         if len(new_ec['dependencies']) == 0:
