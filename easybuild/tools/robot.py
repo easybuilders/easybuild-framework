@@ -168,7 +168,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
         # dependencies marked as external modules should be resolved via available modules at this point
         missing_external_modules = [d['full_mod_name'] for ec in unprocessed for d in ec['dependencies']
-                                    if d['external_module']]
+                                    if d.get('external_module', False)]
         if missing_external_modules:
             raise EasyBuildError("Missing modules for one or more dependencies marked as external modules: %s",
                                  missing_external_modules)
