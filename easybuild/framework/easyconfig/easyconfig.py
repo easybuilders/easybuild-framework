@@ -539,8 +539,6 @@ class EasyConfig(object):
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
-        dummy_toolchain = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
-
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
             'dummy': False,
@@ -598,7 +596,7 @@ class EasyConfig(object):
         if tc_spec is not None:
             # (true) boolean value simply indicates that a dummy toolchain is used
             if isinstance(tc_spec, bool) and tc_spec:
-                tc = dummy_toolchain
+                tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
             # two-element list/tuple value indicates custom toolchain specification
             elif isinstance(tc_spec, (list, tuple,)):
                 if len(tc_spec) == 2:

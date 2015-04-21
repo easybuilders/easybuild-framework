@@ -155,19 +155,26 @@ def _dep_graph(fn, specs, silent=False):
     omit_versions = len(names) == len(specs)
 
     def mk_node_name(spec):
-        if omit_versions:
-            return spec['name']
+        if spec.get('external_module', False):
+            node_name = "%s (EXT)" % spec['full_mod_name']
+        elif omit_versions:
+            node_name = spec['name']
         else:
-            return ActiveMNS().det_full_module_name(spec)
+            node_name = ActiveMNS().det_full_module_name(spec)
+
+        return node_name
 
     # enhance list of specs
+    all_nodes = set()
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
+        all_nodes.add(spec['module'])
         spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
+        all_nodes.update(spec['unresolved_deps'])
 
     # build directed graph
     dgr = digraph()
-    dgr.add_nodes([spec['module'] for spec in specs])
+    dgr.add_nodes(all_nodes)
     for spec in specs:
         for dep in spec['unresolved_deps']:
             dgr.add_edge((spec['module'], dep))
