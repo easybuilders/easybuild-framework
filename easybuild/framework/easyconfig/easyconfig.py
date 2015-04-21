@@ -56,6 +56,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
+from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
@@ -530,7 +531,8 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden',
+         'external_module']
 
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         """
@@ -542,17 +544,19 @@ class EasyConfig(object):
             'dummy': False,
             'full_mod_name': None,  # full module name
             'short_mod_name': None,  # short module name
-            'name': '',  # software name
+            'name': None,  # software name
             'toolchain': None,
-            'version': '',
+            'version': None,
             'versionsuffix': '',
             'hidden': hidden,
+            'external_module': False
         }
         if isinstance(dep, dict):
             dependency.update(dep)
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+
         elif isinstance(dep, Dependency):
             dependency['name'] = dep.name()
             dependency['version'] = dep.version()
@@ -562,12 +566,25 @@ class EasyConfig(object):
             toolchain = dep.toolchain()
             if toolchain is not None:
                 dependency['toolchain'] = toolchain
+
         elif isinstance(dep, (list, tuple)):
-            # try and convert to list
-            dep = list(dep)
-            dependency.update(dict(zip(attr, dep)))
+            if dep and dep[-1] == EXTERNAL_MODULE_MARKER:
+                if len(dep) == 2:
+                    dependency['external_module'] = True
+                    dependency['short_mod_name'] = dep[0]
+                    dependency['full_mod_name'] = dep[0]
+                else:
+                    raise EasyBuildError("Incorrect external dependency specification: %s", dep)
+            else:
+                # non-external dependency: tuple (or list) that specifies name/version(/versionsuffix(/toolchain))
+                dependency.update(dict(zip(attr, dep)))
+
         else:
-            raise EasyBuildError('Dependency %s of unsupported type: %s.', dep, type(dep))
+            raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        if dependency['external_module']:
+            self.log.debug("Returning parsed external dependency: %s", dependency)
+            return dependency
 
         # check whether this dependency should be hidden according to --hide-deps
         if build_option('hide_deps'):
@@ -594,18 +611,20 @@ class EasyConfig(object):
             else:
                 raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
 
+        self.log.debug("Derived toolchain to use for dependency %s, based on toolchain spec %s: %s", dep, tc_spec, tc)
         dependency['toolchain'] = tc
 
         # make sure 'dummy' value is set correctly
         dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
 
         # validations
-        if not dependency['name']:
+        if dependency['name'] is None:
             raise EasyBuildError("Dependency specified without name: %s", dependency)
 
-        if not dependency['version']:
+        if dependency['version'] is None:
             raise EasyBuildError("Dependency specified without version: %s", dependency)
 
+        # set module names
         dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
         dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
 
@@ -1086,7 +1105,6 @@ class ActiveMNS(object):
         if not self.is_short_modname_for(mod_name, ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
-
         return mod_name
 
     def det_module_subdir(self, ec):

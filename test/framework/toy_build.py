@@ -836,6 +836,51 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern '%s' matches with: %s" % (mod_txt_regex.pattern, toy_mod_txt)
         self.assertTrue(mod_txt_regex.match(toy_mod_txt), msg)
 
+    def test_external_dependencies(self):
+        """Test specifying external (build) dependencies."""
+        ectxt = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb'))
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
+
+        # just specify some of the test modules we ship, doesn't matter where they come from
+        extraectxt = "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        extraectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        extraectxt += "\nversionsuffix = '-external-deps'"
+        write_file(toy_ec, ectxt + extraectxt)
+
+        # install dummy modules
+        modulepath = os.path.join(self.test_prefix, 'modules')
+        for mod in ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1']:
+            mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
+            write_file(os.path.join(modulepath, mod), "#%Module")
+
+        self.reset_modulepath([modulepath])
+        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True)
+
+        modules_tool().load(['toy/0.0-external-deps'])
+        # note build dependency is not loaded
+        mods = ['ictce/4.1.13', 'foobar/1.2.3', 'toy/0.0-external-deps']
+        self.assertEqual([x['mod_name'] for x in modules_tool().list()], mods)
+
+        # check behaviour when a non-existing external (build) dependency is included
+        err_msg = "Missing modules for one or more dependencies marked as external modules:"
+
+        extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
+        extraectxt += "\nversionsuffix = '-external-deps-broken1'"
+        write_file(toy_ec, ectxt + extraectxt)
+        self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
+                              raise_error=True, verbose=False)
+
+        extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
+        extraectxt += "\nversionsuffix = '-external-deps-broken2'"
+        write_file(toy_ec, ectxt + extraectxt)
+        self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
+                              raise_error=True, verbose=False)
+
+        # --dry-run still works when external modules are missing; external modules are treated as if they were there
+        outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
+        self.assertTrue(re.search(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", outtxt, re.M))
+
+
 def suite():
     """ return all the tests in this file """
     return TestLoader().loadTestsFromTestCase(ToyBuildTest)

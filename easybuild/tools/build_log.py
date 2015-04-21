@@ -76,6 +76,11 @@ class EasyBuildError(LoggedException):
         return repr(self.msg)
 
 
+def raise_easybuilderror(msg, *args):
+    """Raise EasyBuildError with given message, formatted by provided string arguments."""
+    raise EasyBuildError(msg, *args)
+
+
 class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
