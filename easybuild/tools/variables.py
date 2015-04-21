@@ -483,7 +483,7 @@ class Variables(dict):
         self.log.debug("join name %s others %s" % (name, others))
 
         # make sure name is defined, even if 'others' list is empty
-        self[name] = []
+        self.setdefault(name)
 
         for other in others:
             if other in self:
