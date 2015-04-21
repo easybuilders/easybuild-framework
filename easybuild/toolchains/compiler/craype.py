@@ -23,18 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for the Cray Programming Environment Wrappers (aka cc, CC, ftn).
-The Cray compiler wrappers are actually way more than just a compiler drivers.
+Support for the Cray Programming Environment (craype) compiler drivers (aka cc, CC, ftn).
 
 The basic concept is that the compiler driver knows how to invoke the true underlying
 compiler with the compiler's specific options tuned to Cray systems.
 
 That means that certain defaults are set that are specific to Cray's computers.
 
-The compiler wrappers are quite similar to EB toolchains as they include
+The compiler drivers are quite similar to EB toolchains as they include
 linker and compiler directives to use the Cray libraries for their MPI (and network drivers)
 Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
-
 
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
@@ -53,16 +51,16 @@ from easybuild.tools.toolchain.linalg import LinAlg
 from easybuild.tools.toolchain.mpi import Mpi
 
 
-TC_CONSTANT_CRAYPEWRAPPER = "CRAYPEWRAPPER"
+TC_CONSTANT_CRAYPE = "CRAYPE"
 
 
-class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
+class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     """Generic support for using Cray compiler wrappers"""
 
     # no toolchain components, so no modules to list here (empty toolchain definition w.r.t. components)
     # the PrgEnv and craype are loaded, but are not considered actual toolchain components
     COMPILER_MODULE_NAME = []
-    COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
+    COMPILER_FAMILY = TC_CONSTANT_CRAYPE
 
     COMPILER_UNIQUE_OPTS = {
         # FIXME: (kehoste) how is this different from the existing 'shared' toolchain option? just map 'shared' to '-dynamic'? (already done)
@@ -104,7 +102,7 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
     # MPI support
     # no separate module, Cray compiler drivers always provide MPI support
     MPI_MODULE_NAME = []
-    MPI_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
+    MPI_FAMILY = TC_CONSTANT_CRAYPE
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
 
     MPI_COMPILER_MPICC = COMPILER_CC
@@ -168,7 +166,7 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
     def _set_compiler_flags(self):
         """Set compiler flags."""
         self.COMPILER_FLAGS.extend(['dynamic'])
-        super(CrayPEWrapper, self)._set_compiler_flags()
+        super(CrayPE, self)._set_compiler_flags()
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""
@@ -212,7 +210,7 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
                 root = os.path.dirname(incdir)
                 self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
         else:
-            root = super(CrayPEWrapper, self)._get_software_root(name)
+            root = super(CrayPE, self)._get_software_root(name)
 
         return root
 
@@ -227,7 +225,7 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
             else:
                 self.log.debug("Obtained version for %s via $%s: %s", name, env_var, ver)
         else:
-            ver = super(CrayPEWrapper, self)._get_software_version(name)
+            ver = super(CrayPE, self)._get_software_version(name)
 
         return ver
 
@@ -245,9 +243,9 @@ class CrayPEWrapper(Compiler, Mpi, LinAlg, Fftw):
 
 
 # Gcc's base is Compiler
-class CrayPEWrapperGNU(CrayPEWrapper):
+class CrayPEGNU(CrayPE):
     """Support for using the Cray GNU compiler wrappers."""
-    TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
+    TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_GNU'
 
     # FIXME: make this empty list?
     BLAS_LIB = ['sci_gnu_mpi']
@@ -265,12 +263,12 @@ class CrayPEWrapperGNU(CrayPEWrapper):
             for attr_name in ['COMPILER_%s' % a for a in comp_attrs]:
                 setattr(self, attr_name, getattr(Gcc, attr_name))
 
-        super(CrayPEWrapperGNU,self)._set_compiler_vars()
+        super(CrayPEGNU,self)._set_compiler_vars()
 
 
-class CrayPEWrapperIntel(CrayPEWrapper):
+class CrayPEIntel(CrayPE):
     """Support for using the Cray Intel compiler wrappers."""
-    TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
+    TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_INTEL'
 
     # FIXME: make this empty list?
     BLAS_LIB = ['sci_intel_mpi']
@@ -288,12 +286,12 @@ class CrayPEWrapperIntel(CrayPEWrapper):
             for attr_name in ['COMPILER_%s' % a for a in comp_attrs] + ['LINKER_TOGGLE_STATIC_DYNAMIC']:
                 setattr(self, attr_name, getattr(IntelIccIfort, attr_name))
 
-        super(CrayPEWrapperIntel, self).set_compiler_flags()
+        super(CrayPEIntel, self).set_compiler_flags()
 
 
-class CrayPEWrapperCray(CrayPEWrapper):
+class CrayPECray(CrayPE):
     """Support for using the Cray CCE compiler wrappers."""
-    TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
+    TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_CRAY'
 
     # FIXME: make this empty list?
     BLAS_LIB = ['sci_cray_mpi']

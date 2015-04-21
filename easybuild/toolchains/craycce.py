@@ -27,8 +27,8 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperCray
+from easybuild.toolchains.compiler.craype import CrayPECray
 
-class CrayCCE(CrayPEWrapperCray):
+class CrayCCE(CrayPECray):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
