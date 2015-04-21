@@ -569,6 +569,10 @@ class EasyConfig(object):
         else:
             raise EasyBuildError('Dependency %s of unsupported type: %s.', dep, type(dep))
 
+        # check whether this dependency should be hidden according to --hide-deps
+        if build_option('hide_deps'):
+            dependency['hidden'] |= dependency['name'] in build_option('hide_deps')
+
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
         tc_spec = dependency['toolchain']

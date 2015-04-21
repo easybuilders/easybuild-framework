@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import module_classes
+from easybuild.tools.config import module_classes, set_tmpdir
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -82,11 +82,15 @@ class EnhancedTestCase(_EnhancedTestCase):
     def setUp(self):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
+
+        self.orig_tmpdir = tempfile.gettempdir()
+        # use a subdirectory for this test (which we can clean up easily after the test completes)
+        self.test_prefix = set_tmpdir()
+
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
         self.cwd = os.getcwd()
-        self.test_prefix = tempfile.mkdtemp()
 
         # keep track of original environment to restore
         self.orig_environ = copy.deepcopy(os.environ)
@@ -158,6 +162,13 @@ class EnhancedTestCase(_EnhancedTestCase):
             except OSError, err:
                 pass
 
+        # restore original 'parent' tmpdir
+        for var in ['TMPDIR', 'TEMP', 'TMP']:
+            os.environ[var] = self.orig_tmpdir
+
+        # reset to make sure tempfile picks up new temporary directory to use
+        tempfile.tempdir = None
+
         for path in ['buildpath', 'installpath', 'sourcepath']:
             if self.orig_paths[path] is not None:
                 os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
@@ -178,7 +189,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         for modpath in modpaths:
             modtool.add_module_path(modpath)
 
-    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
+    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
+                reset_env=True):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -186,7 +198,11 @@ class EnhancedTestCase(_EnhancedTestCase):
         if logfile is None:
             logfile = self.logfile
         # clear log file
-        open(logfile, 'w').write('')
+        f = open(logfile, 'w')
+        f.write('')
+        f.close()
+
+        env_before = copy.deepcopy(os.environ)
 
         try:
             main((args, logfile, do_build))
@@ -197,18 +213,26 @@ class EnhancedTestCase(_EnhancedTestCase):
             if verbose:
                 print "err: %s" % err
 
+        logtxt = read_file(logfile)
+
         os.chdir(self.cwd)
 
         # make sure config is reinitialized
         init_config()
 
+        # restore environment to what it was before running main,
+        # changes may have been made by eb_main (e.g. $TMPDIR & co)
+        if reset_env:
+            modify_env(os.environ, env_before)
+            tempfile.tempdir = None
+
         if myerr and raise_error:
             raise myerr
 
         if return_error:
-            return read_file(self.logfile), myerr
+            return logtxt, myerr
         else:
-            return read_file(self.logfile)
+            return logtxt
 
     def setup_hierarchical_modules(self):
         """Setup hierarchical modules to run tests on."""
