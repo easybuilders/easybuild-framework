@@ -158,9 +158,6 @@ class EasyBlock(object):
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
 
-        # original environ will be set later
-        self.orig_environ = {}
-
         # list of loaded modules
         self.loaded_modules = []
 
@@ -176,8 +173,8 @@ class EasyBlock(object):
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
 
-        # keep track of original environment, so we restore it if needed
-        self.orig_environ = copy.deepcopy(os.environ)
+        # keep track of initial environment we start in, so we can restore it if needed
+        self.initial_environ = copy.deepcopy(os.environ)
 
         # initialize logger
         self._init_log()
@@ -999,7 +996,7 @@ class EasyBlock(object):
                 mod_paths = []
             all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
             mods = [self.full_mod_name]
-            self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, orig_env=self.orig_environ)
+            self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
@@ -1007,9 +1004,8 @@ class EasyBlock(object):
         """
         Create and load fake module.
         """
-
-        # take a copy of the environment before loading the fake module, so we can restore it
-        orig_env = copy.deepcopy(os.environ)
+        # take a copy of the current environment before loading the fake module, so we can restore it
+        env = copy.deepcopy(os.environ)
 
         # create fake module
         fake_mod_path = self.make_module_step(True)
@@ -1019,13 +1015,13 @@ class EasyBlock(object):
         modtool.prepend_module_path(fake_mod_path)
         self.load_module(purge=purge)
 
-        return (fake_mod_path, orig_env)
+        return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
         """
         Clean up fake module.
         """
-        fake_mod_path, orig_env = fake_mod_data
+        fake_mod_path, env = fake_mod_data
         # unload module and remove temporary module directory
         # self.full_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.full_mod_name is not None:
@@ -1040,7 +1036,7 @@ class EasyBlock(object):
             self.log.warning("Not unloading module, since self.full_mod_name is not set.")
 
         # restore original environment
-        restore_env(orig_env)
+        restore_env(env)
 
     def load_dependency_modules(self):
         """Load dependency modules."""
@@ -1859,11 +1855,11 @@ class EasyBlock(object):
         return True
 
 
-def build_and_install_one(ecdict, orig_environ):
+def build_and_install_one(ecdict, init_env):
     """
     Build the software
     @param ecdict: dictionary contaning parsed easyconfig + metadata
-    @param orig_environ: original environment (used to reset environment)
+    @param init_env: original environment (used to reset environment)
     """
     silent = build_option('silent')
 
@@ -1876,7 +1872,7 @@ def build_and_install_one(ecdict, orig_environ):
     # restore original environment
     _log.info("Resetting environment")
     filetools.errors_found_in_log = 0
-    restore_env(orig_environ)
+    restore_env(init_env)
 
     cwd = os.getcwd()
 
@@ -2065,6 +2061,10 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
         apps.append(instance)
 
     base_dir = os.getcwd()
+
+    # keep track of environment right before initiating builds
+    # note: may be different from ORIG_OS_ENVIRON, since EasyBuild may have defined additional env vars itself by now
+    # e.g. via easyconfig.handle_allowed_system_deps
     base_env = copy.deepcopy(os.environ)
     succes = []
 
