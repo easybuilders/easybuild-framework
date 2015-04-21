@@ -480,6 +480,96 @@ class EasyBuildConfigTest(EnhancedTestCase):
             os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
         reload(eboptions)
 
+    def test_flex_robot_paths(self):
+        """Test prepend/appending to default robot search path via --robot-paths."""
+        # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        tmp_ecs_dir = os.path.join(tmpdir, 'easybuild', 'easyconfigs')
+        shutil.copytree(test_ecs_path, tmp_ecs_dir)
+
+        # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        orig_sys_path = sys.path[:]
+        sys.path = [tmpdir] + [p for p in sys.path if not os.path.exists(os.path.join(p, 'easybuild', 'easyconfigs'))]
+
+        # default: only pick up installed easyconfigs via sys.path
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.robot_paths, [tmp_ecs_dir])
+
+        # prepend to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo:'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', tmp_ecs_dir])
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo:/bar/baz/:'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', '/bar/baz/', tmp_ecs_dir])
+
+        # append to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=:/bar/baz'])
+        self.assertEqual(eb_go.options.robot_paths, [tmp_ecs_dir, '/bar/baz'])
+        # append to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=:/bar/baz:/foo'])
+        self.assertEqual(eb_go.options.robot_paths, [tmp_ecs_dir, '/bar/baz', '/foo'])
+
+        # prepend and append to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo/bar', tmp_ecs_dir, '/baz'])
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz:/trala'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo/bar', tmp_ecs_dir, '/baz', '/trala'])
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar:/trala::/baz'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo/bar', '/trala', tmp_ecs_dir, '/baz'])
+
+        # also via $EASYBUILD_ROBOT_PATHS
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/foo::/bar/baz'
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', tmp_ecs_dir, '/bar/baz'])
+
+        # --robot-paths overrides $EASYBUILD_ROBOT_PATHS
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/foobar::/barbar/baz/baz'
+        eb_go = eboptions.parse_options(args=['--robot-paths=/one::/last'])
+        self.assertEqual(eb_go.options.robot_paths, ['/one', tmp_ecs_dir, '/last'])
+
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
+        # also works with a cfgfile in the mix
+        config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
+        cfgtxt = '\n'.join([
+            '[config]',
+            'robot-paths=/cfgfirst::/cfglast',
+        ])
+        write_file(config_file, cfgtxt)
+        eb_go = eboptions.parse_options(args=['--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/cfgfirst', tmp_ecs_dir, '/cfglast'])
+
+        # cfgfile entry is lost when env var and/or cmdline options are used
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/envfirst::/envend'
+        eb_go = eboptions.parse_options(args=['--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/envfirst', tmp_ecs_dir, '/envend'])
+
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+        eb_go = eboptions.parse_options(args=['--robot-paths=/veryfirst:', '--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/veryfirst', tmp_ecs_dir])
+
+        os.environ['EASYBUILD_ROBOT_PATHS'] = ':/envend'
+        eb_go = eboptions.parse_options(args=['--robot-paths=/veryfirst:', '--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/veryfirst', tmp_ecs_dir])
+
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
+        # override default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo:/bar/baz'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', '/bar/baz'])
+
+        # paths specified via --robot still get preference
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz', '--robot=/first'])
+        self.assertEqual(eb_go.options.robot_paths, ['/first', '/foo/bar', tmp_ecs_dir, '/baz'])
+
+        sys.path[:] = orig_sys_path
+
+
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
 
