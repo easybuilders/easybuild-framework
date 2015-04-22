@@ -27,8 +27,8 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperIntel
+from easybuild.toolchains.compiler.craype import CrayPEIntel
 
-class CrayIntel(CrayPEWrapperIntel):
+class CrayIntel(CrayPEIntel):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
     NAME = 'CrayIntel'
