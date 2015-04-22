@@ -142,6 +142,12 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # template for craype module (determines code generator backend of Cray compiler wrappers)
     CRAYPE_MODULE_NAME_TEMPLATE = 'craype-%(optarch)s'
 
+    def __init__(self, *args, **kwargs):
+        """Constructor."""
+        super(CrayPE, self).__init__(*args, **kwargs)
+        # 'register'  additional toolchain options that correspond to a compiler flag
+        self.COMPILER_FLAGS.extend(['dynamic'])
+
     def _pre_prepare(self):
         """Load PrgEnv module."""
         prgenv_mod_name = self.PRGENV_MODULE_NAME_TEMPLATE % {
@@ -161,11 +167,6 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
-
-    def _set_compiler_flags(self):
-        """Set compiler flags."""
-        self.COMPILER_FLAGS.extend(['dynamic'])
-        super(CrayPE, self)._set_compiler_flags()
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""
