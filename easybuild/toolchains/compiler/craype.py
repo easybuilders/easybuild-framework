@@ -134,9 +134,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # FFT support, via Cray-provided fftw module
     FFT_MODULE_NAME = ['fftw']
 
-    # template and name suffix for PrgEnv module that matches this toolchain
+    # suffix for PrgEnv module that matches this toolchain
     # e.g. 'gnu' => 'PrgEnv-gnu/<version>'
-    PRGENV_MODULE_NAME_TEMPLATE = 'PrgEnv-%(suffix)s/%(version)s'
     PRGENV_MODULE_NAME_SUFFIX = None
 
     # template for craype module (determines code generator backend of Cray compiler wrappers)
@@ -148,14 +147,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
         # 'register'  additional toolchain options that correspond to a compiler flag
         self.COMPILER_FLAGS.extend(['dynamic'])
 
-    def _pre_prepare(self):
-        """Load PrgEnv module."""
-        prgenv_mod_name = self.PRGENV_MODULE_NAME_TEMPLATE % {
-            'suffix': self.PRGENV_MODULE_NAME_SUFFIX,
-            'version': self.version,
-        }
-        self.log.info("Loading PrgEnv module '%s' for Cray toolchain %s" % (prgenv_mod_name, self.mod_short_name))
-        self.modules_tool.load([prgenv_mod_name])
+        # use name of PrgEnv module as name of module that provides compiler
+        self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
 
     def _set_optimal_architecture(self):
         """Load craype module specified via 'optarch' build option."""
@@ -236,10 +229,6 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     def _set_scalapack_variables(self):
         """Skip setting ScaLAPACK related variables"""
         pass
-
-    def definition(self):
-        """Empty toolchain definition (no modules listed as toolchain dependencies)."""
-        return {}
 
 
 class CrayPEGNU(CrayPE):
