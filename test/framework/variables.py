@@ -78,6 +78,16 @@ class VariablesTest(EnhancedTestCase):
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")
 
+    def test_empty_variables(self):
+        """Test playing around with empty variables."""
+        v = Variables()
+        v.nappend('FOO', [])
+        self.assertEqual(v['FOO'], [])
+        v.join('BAR', 'FOO')
+        self.assertEqual(v['BAR'], [])
+        v.join('FOOBAR', 'BAR')
+        self.assertEqual(v['FOOBAR'], [])
+
 def suite():
     """ return all the tests"""
     return TestLoader().loadTestsFromTestCase(VariablesTest)
