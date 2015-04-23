@@ -38,7 +38,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import dependencies_for
-from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
+from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
+from easybuild.tools.modules import get_software_version, get_software_version_env_var_name, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -317,6 +318,39 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
+    def _prepare_dependencies(self):
+        """Load modules for dependencies, and handle special cases like external modules."""
+        # load modules for all dependencies
+        self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+
+        # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
+        for dep in self.dependencies:
+            names = dep['name']
+            if isinstance(names, basestring):
+                names = [names]
+
+            if dep['external_module'] and names is not None:
+                for name in names:
+                    self.log.debug("Defining $EB* environment variables for external module %s under name %s",
+                                   dep['short_mod_name'], name)
+
+                    # install prefix, picked up by get_software_root
+                    prefix = dep['prefix']
+                    if prefix is not None:
+                        if prefix in os.environ:
+                            prefix = os.environ[prefix]
+                            self.log.debug("Using value of $%s as prefix for external module %s: %s",
+                                           dep['prefix'], dep['short_mod_name'], prefix)
+                        else:
+                            self.log.debug("Using specified prefix for external module %s: %s",
+                                           dep['short_mod_name'], prefix)
+
+                        setvar(get_software_root_env_var_name(name), prefix)
+
+                    # $EBVERSION
+                    if dep['version'] is not None:
+                        setvar(get_software_version_env_var_name(name), dep['version'])
+
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -338,7 +372,7 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+                self._prepare_dependencies()
             return
 
         # Load the toolchain and dependencies modules
@@ -349,7 +383,7 @@ class Toolchain(object):
             for modpath in self.init_modpaths:
                 self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
         self.modules_tool.load([self.det_short_module_name()])
-        self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+        self._prepare_dependencies()
 
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
