@@ -125,6 +125,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
     BLAS_MODULE_NAME = ['cray-libsci']  # FIXME: let this load via PrgEnv, and so not list it here (or filter it out of definition)?
     # specific library depends on PrgEnv flavor
+
+    #FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
     BLAS_LIB = []
     BLAS_LIB_MT = []
 
