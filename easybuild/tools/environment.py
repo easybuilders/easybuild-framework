@@ -84,10 +84,11 @@ def setvar(key, value):
     put key in the environment with value
     tracks added keys until write_changes has been called
     """
+    oldval = os.environ.get(key, 'None (not defined)')
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     _changes[key] = value
-    _log.info("Environment variable %s set to %s" % (key, value))
+    _log.info("Environment variable %s set to %s (previous value: %s)", key, value, oldval)
 
 
 def unset_env_vars(keys):
