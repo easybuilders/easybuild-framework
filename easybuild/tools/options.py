@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
@@ -130,7 +130,7 @@ class EasyBuildOptions(GeneralOption):
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
-                            'pathlist', 'store', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+                            'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
@@ -699,9 +699,10 @@ def parse_options(args=None):
 
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                 go_args=args)
+                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror)
     except Exception, err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
+
     return eb_go
 
 

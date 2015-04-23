@@ -27,8 +27,8 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperGNU
+from easybuild.toolchains.compiler.craype import CrayPEGNU
 
-class CrayGNU(CrayPEWrapperGNU):
+class CrayGNU(CrayPEGNU):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
     NAME = 'CrayGNU'
