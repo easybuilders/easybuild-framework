@@ -50,6 +50,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -1047,6 +1048,11 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
         write_file(toy_ec, ectxt)
 
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'external_modules_metadata': ConfigObj(),
+        }
+        init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
 
         builddeps = ec.builddependencies()
@@ -1060,6 +1066,21 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual([d['short_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
         self.assertEqual([d['full_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
         self.assertEqual([d['external_module'] for d in deps], [False, True, True])
+
+        metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
+        metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foobar,bar', 'version = 1.2.3', 'prefix = /foo/bar'])
+        write_file(metadata, metadatatxt)
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'external_modules_metadata': ConfigObj(metadata),
+        }
+        init_config(build_options=build_options)
+        ec = EasyConfig(toy_ec)
+        self.assertEqual(ec.dependencies()[1]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(ec.dependencies()[1]['external_module'], True)
+        self.assertEqual(ec.dependencies()[1]['name'], ['foobar', 'bar'])
+        self.assertEqual(ec.dependencies()[1]['version'], '1.2.3')
+        self.assertEqual(ec.dependencies()[1]['prefix'], '/foo/bar')
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""

@@ -546,7 +546,7 @@ class EasyConfig(object):
             'dummy': False,
             'full_mod_name': None,  # full module name
             'short_mod_name': None,  # short module name
-            'name': None,  # software name
+            'name': None,  # software name (may be a list of names, e.g. for external modules)
             'toolchain': None,
             'version': None,
             'versionsuffix': '',
