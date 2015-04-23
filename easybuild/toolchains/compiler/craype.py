@@ -146,6 +146,10 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # template for craype module (determines code generator backend of Cray compiler wrappers)
     CRAYPE_MODULE_NAME_TEMPLATE = 'craype-%(optarch)s'
 
+    # FIXME: add support for hugepages and accelerator modules that belong to CrayPE and allow to load modules
+    # CRAYPE_HUGEMEM_MODULE_NAME_TEMPLATE = 'craype-hugepages%(hugemagesize)s'
+    # CRAYPE_ACCEL_MODULE_NAME_TEMPLATE = 'craype-accel-%(acceltgt)s' 
+
     def __init__(self, *args, **kwargs):
         """Constructor."""
         super(CrayPE, self).__init__(*args, **kwargs)
