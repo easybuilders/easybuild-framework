@@ -453,8 +453,17 @@ class Toolchain(object):
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        # name or root may be None for external modules
-        for root in self.get_software_root([dep['name'] for dep in deps if dep['name'] is not None]):
+        dep_names = []
+        for dep in deps:
+            # name may be None or a list of names for external modules
+            if dep['name'] is not None:
+                if isinstance(dep['name'], list):
+                    dep_names.extend(dep['name'])
+                else:
+                    dep_names.append(dep['name'])
+
+        for root in self.get_software_root(dep_names):
+            # software install prefix may be None for external modules
             if root is not None:
                 self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
                 self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
