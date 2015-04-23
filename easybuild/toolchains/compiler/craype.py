@@ -64,8 +64,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = {
-        # FIXME: (kehoste) how is this different from the existing 'shared' toolchain option? just map 'shared' to '-dynamic'? (already done)
         'dynamic': (False, "Generate dynamically linked executable"),
+        # FIXME: drop unused mpich-mt, usewrappedcompiler support?
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
@@ -75,18 +75,19 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        #'pic': 'shared',  # FIXME (use compiler-specific setting?)
         'shared': 'shared',
         'dynamic': 'dynamic',
         'static': 'static',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
         # no optimization flags
+        # FIXME enable?
         'noopt': [],
         'lowopt': [],
         'defaultopt': [],
         'opt': [],
         # no precision flags
+        # FIXME enable?
         'strict': [],
         'precise': [],
         'defaultprec': [],
@@ -111,6 +112,7 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     MPI_COMPILER_MPIF77 = COMPILER_F77
     MPI_COMPILER_MPIF90 = COMPILER_F90
 
+    # no MPI wrappers, so no need to specify serial compiler
     MPI_SHARED_OPTION_MAP = {
         '_opt_MPICC': '',
         '_opt_MPICXX': '',
@@ -121,7 +123,7 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # BLAS/LAPACK support
     # via cray-libsci module, which gets loaded via the PrgEnv module
     # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
-    BLAS_MODULE_NAME = ['cray-libsci']
+    BLAS_MODULE_NAME = ['cray-libsci']  # FIXME: let this load via PrgEnv, and so not list it here (or filter it out of definition)?
     # specific library depends on PrgEnv flavor
     BLAS_LIB = []
     BLAS_LIB_MT = []
@@ -150,6 +152,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
 
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
+
+        # FIXME: force use of --experimental
 
     def _set_optimal_architecture(self):
         """Load craype module specified via 'optarch' build option."""
@@ -239,6 +243,7 @@ class CrayPEGNU(CrayPE):
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
     COMPILER_FAMILY = TC_CONSTANT_GCC
 
+    # FIXME: drop this?
     def _set_compiler_vars(self):
         """Set compiler variables, either for the compiler wrapper, or the underlying compiler."""
         if self.options.option('usewrappedcompiler'):
@@ -259,6 +264,7 @@ class CrayPEIntel(CrayPE):
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
 
+    # FIXME: drop this?
     def _set_compiler_flags(self):
         """Set compiler variables, either for the compiler wrapper, or the underlying compiler."""
         if self.options.option("usewrappedcompiler"):
