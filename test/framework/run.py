@@ -95,30 +95,6 @@ class RunTest(EnhancedTestCase):
         errors = parse_log_for_error("error failed", True)
         self.assertEqual(len(errors), 1)
 
-    def test_run_cmd_suse(self):
-        """Test run_cmd on SuSE systems, which have $PROFILEREAD set."""
-        # avoid warning messages
-        run_log_level = run_log.getEffectiveLevel()
-        run_log.setLevel('ERROR')
-
-        # run_cmd should also work if $PROFILEREAD is set (very relevant for SuSE systems)
-        profileread = os.environ.get('PROFILEREAD', None)
-        os.environ['PROFILEREAD'] = 'profilereadxxx'
-        try:
-            (out, ec) = run_cmd("echo hello")
-        except Exception, err:
-            out, ec = "ERROR: %s" % err, 1
-
-        # make sure it's restored again before we can fail the test
-        if profileread is not None:
-            os.environ['PROFILEREAD'] = profileread
-        else:
-            del os.environ['PROFILEREAD']
-
-        self.assertEqual(out, "hello\n")
-        self.assertEqual(ec, 0)
-        run_log.setLevel(run_log_level)
-
 
 def suite():
     """ returns all the testcases in this module """
