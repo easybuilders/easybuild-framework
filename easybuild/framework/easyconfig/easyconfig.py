@@ -552,7 +552,7 @@ class EasyConfig(object):
             'versionsuffix': '',
             'hidden': hidden,
             'external_module': False,
-            'root': None,
+            'prefix': None,  # installation prefix (only relevant for external modules)
         }
         if isinstance(dep, dict):
             dependency.update(dep)
