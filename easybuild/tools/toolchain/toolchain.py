@@ -317,10 +317,6 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
-    def _pre_prepare(self):
-        """Toolchain-specific preparations thay should be done first."""
-        pass
-
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -336,9 +332,6 @@ class Toolchain(object):
 
         if not self._toolchain_exists():
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
-
-        # preliminary preparations first
-        self._pre_prepare()
         
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
