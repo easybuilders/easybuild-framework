@@ -453,9 +453,11 @@ class Toolchain(object):
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        for root in self.get_software_root([dep['name'] for dep in deps if not dep.get('external_module', False)]):
-            self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
-            self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+        # name or root may be None for external modules
+        for root in self.get_software_root([dep['name'] for dep in deps if dep['name'] is not None]):
+            if root is not None:
+                self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
+                self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
     def _setenv_variables(self, donotset=None):
         """Actually set the environment variables"""

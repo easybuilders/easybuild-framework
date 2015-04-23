@@ -580,6 +580,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'hidden': False,
                 'external_module': False,
+                'prefix': None,
             },
             {
                 'name': 'bar',
@@ -591,6 +592,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'hidden': False,
                 'external_module': False,
+                'prefix': None,
             },
             {
                 'name': 'test',
@@ -602,6 +604,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'hidden': True,
                 'external_module': False,
+                'prefix': None,
             },
         ]
 
