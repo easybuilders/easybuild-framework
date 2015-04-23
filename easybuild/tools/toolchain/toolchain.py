@@ -321,35 +321,39 @@ class Toolchain(object):
     def _prepare_dependencies(self):
         """Load modules for dependencies, and handle special cases like external modules."""
         # load modules for all dependencies
-        self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+        dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
+        self.log.debug("Loading modules for dependencies: %s" % dep_mods)
+        self.modules_tool.load(dep_mods)
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
-        for dep in self.dependencies:
-            names = dep['name']
+        for dep in [d for d in self.dependencies if d['external_module']]:
+            self.log.debug("Defining $EB* environment variables for external module %s", dep['short_mod_name'])
+
+            names = dep['name'] or []
             if isinstance(names, basestring):
                 names = [names]
+            self.log.debug("Software names for external module %s: %s", dep['short_mod_name'], names)
 
-            if dep['external_module'] and names is not None:
-                for name in names:
-                    self.log.debug("Defining $EB* environment variables for external module %s under name %s",
-                                   dep['short_mod_name'], name)
+            for name in names:
+                self.log.debug("Defining $EB* environment variables for external module %s under name %s",
+                               dep['short_mod_name'], name)
 
-                    # install prefix, picked up by get_software_root
-                    prefix = dep['prefix']
-                    if prefix is not None:
-                        if prefix in os.environ:
-                            prefix = os.environ[prefix]
-                            self.log.debug("Using value of $%s as prefix for external module %s: %s",
-                                           dep['prefix'], dep['short_mod_name'], prefix)
-                        else:
-                            self.log.debug("Using specified prefix for external module %s: %s",
-                                           dep['short_mod_name'], prefix)
+                # install prefix, picked up by get_software_root
+                prefix = dep['prefix']
+                if prefix is not None:
+                    if prefix in os.environ:
+                        prefix = os.environ[prefix]
+                        self.log.debug("Using value of $%s as prefix for external module %s: %s",
+                                       dep['prefix'], dep['short_mod_name'], prefix)
+                    else:
+                        self.log.debug("Using specified prefix for external module %s: %s",
+                                       dep['short_mod_name'], prefix)
 
-                        setvar(get_software_root_env_var_name(name), prefix)
+                    setvar(get_software_root_env_var_name(name), prefix)
 
-                    # $EBVERSION
-                    if dep['version'] is not None:
-                        setvar(get_software_version_env_var_name(name), dep['version'])
+                # $EBVERSION
+                if dep['version'] is not None:
+                    setvar(get_software_version_env_var_name(name), dep['version'])
 
     def prepare(self, onlymod=None):
         """
