@@ -169,6 +169,8 @@ class EasyConfig(object):
             'stop': self.valid_stops,
         }
 
+        self.external_modules_metadata = build_option('external_modules_metadata')
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -549,7 +551,8 @@ class EasyConfig(object):
             'version': None,
             'versionsuffix': '',
             'hidden': hidden,
-            'external_module': False
+            'external_module': False,
+            'root': None,
         }
         if isinstance(dep, dict):
             dependency.update(dep)
@@ -573,6 +576,11 @@ class EasyConfig(object):
                     dependency['external_module'] = True
                     dependency['short_mod_name'] = dep[0]
                     dependency['full_mod_name'] = dep[0]
+                    if dep[0] in self.external_modules_metadata:
+                        dependency.update(self.external_modules_metadata[dep[0]])
+                        self.log.info("Updated dependency info with metadata for external module: %s", dependency)
+                    else:
+                        self.log.info("No metadata available for external module %s", dep[0])
                 else:
                     raise EasyBuildError("Incorrect external dependency specification: %s", dep)
             else:

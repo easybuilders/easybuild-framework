@@ -415,7 +415,7 @@ class Toolchain(object):
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        for root in self.get_software_root([dep['name'] for dep in deps]):
+        for root in self.get_software_root([dep['name'] for dep in deps if not dep.get('external_module', False)]):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 

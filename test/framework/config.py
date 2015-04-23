@@ -46,6 +46,16 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
+EXTERNAL_MODULES_METADATA = """[cray-netcdf/4.3.2]
+name = netCDF,netCDF-Fortran
+root=NETCDF_DIR
+version = 4.3.2
+ 
+[cray-hdf5/1.8.13]
+name = HDF5
+root = HDF5_DIR
+version = 1.8.13
+"""
 
 class EasyBuildConfigTest(EnhancedTestCase):
     """Test cases for EasyBuild configuration."""
@@ -583,6 +593,27 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(eb_go.options.robot_paths, ['/first', '/foo/bar', tmp_ecs_dir, '/baz'])
 
         sys.path[:] = orig_sys_path
+
+    def test_external_modules_metadata(self):
+        """Test --external-modules-metadata."""
+        testcfgtxt = EXTERNAL_MODULES_METADATA
+        testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
+        write_file(testcfg, testcfgtxt)
+
+        cfg = init_config(args=['--external-modules-metadata=%s' % testcfg])
+
+        netcdf = {
+            'name': ['netCDF', 'netCDF-Fortran'],
+            'root': 'NETCDF_DIR',
+            'version': '4.3.2',
+        }
+        self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
+        hdf5 = {
+            'name': 'HDF5',
+            'root': 'HDF5_DIR',
+            'version': '1.8.13',
+        }
+        self.assertEqual(cfg.external_modules_metadata['cray-hdf5/1.8.13'], hdf5)
 
 
 def suite():

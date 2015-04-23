@@ -54,6 +54,7 @@ from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
@@ -235,6 +236,7 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'external-modules-metadata': ("File specifying metadata for external modules", None, 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
@@ -443,6 +445,12 @@ class EasyBuildOptions(GeneralOption):
             token = fetch_github_token(self.options.github_user)
             if token is None:
                 raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
+
+        # parse file specifying metadata for external modules
+        if self.options.external_modules_metadata:
+            self.options.external_modules_metadata = ConfigObj(self.options.external_modules_metadata)
+        else:
+            self.options.external_modules_metadata = {}
 
         self._postprocess_config()
 
