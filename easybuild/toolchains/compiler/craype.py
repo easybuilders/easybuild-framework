@@ -58,6 +58,9 @@ TC_CONSTANT_CRAYCE = "CrayCE"
 class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     """Generic support for using Cray compiler wrappers"""
 
+    # toolchain family
+    FAMILY = TC_CONSTANT_CRAYPE
+
     # compiler module name is PrgEnv, suffix name depends on CrayPE flavor (gnu, intel, cray)
     COMPILER_MODULE_NAME = None
     # compiler family depends on CrayPE flavor
@@ -244,8 +247,6 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
 
 class CrayPEGNU(CrayPE):
     """Support for using the Cray GNU compiler wrappers."""
-    TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_GNU'
-
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
     COMPILER_FAMILY = TC_CONSTANT_GCC
 
@@ -265,8 +266,6 @@ class CrayPEGNU(CrayPE):
 
 class CrayPEIntel(CrayPE):
     """Support for using the Cray Intel compiler wrappers."""
-    TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_INTEL'
-
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
 
@@ -286,7 +285,5 @@ class CrayPEIntel(CrayPE):
 
 class CrayPECray(CrayPE):
     """Support for using the Cray CCE compiler wrappers."""
-    TC_CONSTANT_CRAYPE = TC_CONSTANT_CRAYPE + '_CRAY'
-
     PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
     COMPILER_FAMILY = TC_CONSTANT_CRAYCE
