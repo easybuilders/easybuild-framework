@@ -580,7 +580,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'hidden': False,
                 'external_module': False,
-                'prefix': None,
+                'external_module_metadata': {},
             },
             {
                 'name': 'bar',
@@ -592,7 +592,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'hidden': False,
                 'external_module': False,
-                'prefix': None,
+                'external_module_metadata': {},
             },
             {
                 'name': 'test',
@@ -604,7 +604,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'hidden': True,
                 'external_module': False,
-                'prefix': None,
+                'external_module_metadata': {},
             },
         ]
 
@@ -1071,19 +1071,23 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual([d['external_module'] for d in deps], [False, True, True])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
-        metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foobar,bar', 'version = 1.2.3', 'prefix = /foo/bar'])
+        metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
         write_file(metadata, metadatatxt)
+        cfg = init_config(args=['--external-modules-metadata=%s' % metadata])
         build_options = {
+            'external_modules_metadata': cfg.external_modules_metadata,
             'valid_module_classes': module_classes(),
-            'external_modules_metadata': ConfigObj(metadata),
         }
         init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
         self.assertEqual(ec.dependencies()[1]['short_mod_name'], 'foobar/1.2.3')
         self.assertEqual(ec.dependencies()[1]['external_module'], True)
-        self.assertEqual(ec.dependencies()[1]['name'], ['foobar', 'bar'])
-        self.assertEqual(ec.dependencies()[1]['version'], '1.2.3')
-        self.assertEqual(ec.dependencies()[1]['prefix'], '/foo/bar')
+        metadata = {
+            'name': ['foo', 'bar'],
+            'version': ['1.2.3', '3.2.1'],
+            'prefix': '/foo/bar',
+        }
+        self.assertEqual(ec.dependencies()[1]['external_module_metadata'], metadata)
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""

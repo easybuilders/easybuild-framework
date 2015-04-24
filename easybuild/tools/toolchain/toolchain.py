@@ -329,8 +329,7 @@ class Toolchain(object):
         self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
 
         for name, version in zip(names, versions):
-            self.log.debug("Defining $EB* environment variables for external module %s under name %s",
-                           mod_name, name)
+            self.log.debug("Defining $EB* environment variables for external module %s under name %s", mod_name, name)
 
             # define $EBROOT env var for install prefix, picked up by get_software_root
             prefix = metadata.get('prefix')
