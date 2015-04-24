@@ -139,6 +139,6 @@ class CrayPECray(CrayPECompiler):
 
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
-        super(CrayPEIntel, self).__init__(*args, **kwargs)
+        super(CrayPECray, self).__init__(*args, **kwargs)
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []
