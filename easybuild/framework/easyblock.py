@@ -68,7 +68,7 @@ from easybuild.tools.filetools import write_file, compute_checksum, verify_check
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository.repository import init_repository
@@ -674,7 +674,18 @@ class EasyBlock(object):
         """
         basepath = install_path()
         if basepath:
-            self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, force_visible=True)
+            install_subdir_ns = build_option('software_installdir_naming_scheme')
+            if install_subdir_ns is None:
+                self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, force_visible=True)
+                self.log.debug("Determined name of install subdir using active module naming scheme: %s",
+                               self.install_subdir)
+            else:
+                avail_mnss = avail_module_naming_schemes()
+                if install_subdir_ns in avail_mnss:
+                    self.install_subdir = avail_mnss[install_subdir_ns]().det_full_module_name(self.cfg)
+                    self.log.debug("Determined name of install subdir using specified naming scheme %s: %s",
+                                   install_subdir_ns, self.install_subdir)
+
             installdir = os.path.join(basepath, self.install_subdir)
             self.installdir = os.path.abspath(installdir)
             self.log.info("Install dir set to %s" % self.installdir)
