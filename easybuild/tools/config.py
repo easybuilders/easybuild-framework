@@ -91,7 +91,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_dirs',
         'modules_footer',
         'only_blocks',
-        'only_module',
+        'module_only',
         'optarch',
         'regtest_output_dir',
         'skip',

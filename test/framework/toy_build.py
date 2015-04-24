@@ -880,8 +880,8 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
         self.assertTrue(re.search(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", outtxt, re.M))
 
-    def test_only_module(self):
-        """Test use of --only-module."""
+    def test_module_only(self):
+        """Test use of --module-only."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
 
@@ -896,8 +896,9 @@ class ToyBuildTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
+            '--module-syntax=Tcl',
         ]
-        args = common_args + ['--only-module']
+        args = common_args + ['--module-only']
         err_msg = "Sanity check failed"
         self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
         self.assertFalse(os.path.exists(toy_mod))
@@ -921,7 +922,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # install (only) additional module under a hierarchical MNS
         args = common_args + [
-            '--only-module',
+            '--module-only',
             '--software-installdir-naming-scheme=EasyBuildMNS',
             '--module-naming-scheme=HierarchicalMNS',
         ]
@@ -941,8 +942,8 @@ class ToyBuildTest(EnhancedTestCase):
         # test installing (only) additional module in Lua syntax (if Lmod is available)
         lmod_abspath = which('lmod')
         if lmod_abspath is not None:
-            args = common_args + [
-                '--only-module',
+            args = common_args[:-1] + [
+                '--module-only',
                 '--module-syntax=Lua',
                 '--modules-tool=Lmod',
             ]
