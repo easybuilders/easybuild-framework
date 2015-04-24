@@ -333,7 +333,7 @@ class Toolchain(object):
 
         if not self._toolchain_exists():
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
-        
+
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
