@@ -48,7 +48,7 @@ from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
 EXTERNAL_MODULES_METADATA = """[cray-netcdf/4.3.2]
 name = netCDF,netCDF-Fortran
-version = 4.3.2
+version = 4.3.2,4.3.2
 prefix = NETCDF_DIR
  
 [cray-hdf5/1.8.13]
@@ -604,13 +604,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         netcdf = {
             'name': ['netCDF', 'netCDF-Fortran'],
-            'version': '4.3.2',
+            'version': ['4.3.2', '4.3.2'],
             'prefix': 'NETCDF_DIR',
         }
         self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
         hdf5 = {
-            'name': 'HDF5',
-            'version': '1.8.13',
+            'name': ['HDF5'],
+            'version': ['1.8.13'],
             'prefix': 'HDF5_DIR',
         }
         self.assertEqual(cfg.external_modules_metadata['cray-hdf5/1.8.13'], hdf5)

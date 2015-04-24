@@ -456,13 +456,21 @@ class EasyBuildOptions(GeneralOption):
         parsed_external_modules_metadata = ConfigObj()
         for path in self.options.external_modules_metadata:
             if os.path.exists(path):
+                self.log.debug("Parsing %s with external modules metadata", path)
                 try:
-                    parsed = ConfigObj(path)
+                    parsed_external_modules_metadata.merge(ConfigObj(path))
                 except ConfigObjError, err:
                     raise EasyBuildError("Failed to parse %s with external modules metadata: %s", path, err)
-                parsed_external_modules_metadata.merge(parsed)
             else:
                 raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", path)
+
+        # make sure name/version values are always lists
+        for mod, entry in parsed_external_modules_metadata.items():
+            for key in ['name', 'version']:
+                if isinstance(entry[key], basestring):
+                    entry[key] = [entry[key]]
+                    self.log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
+                                   key, mod, entry[key])
 
         self.options.external_modules_metadata = parsed_external_modules_metadata
         self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
