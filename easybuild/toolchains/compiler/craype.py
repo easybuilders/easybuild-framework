@@ -37,8 +37,8 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
-from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
-from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
+from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
+from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
@@ -113,14 +113,32 @@ class CrayPEGCC(CrayPECompiler):
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
     COMPILER_FAMILY = TC_CONSTANT_GCC
 
+    def __init__(self, *args, **kwargs):
+        """CrayPEGCC constructor."""
+        super(CrayPEGCC, self).__init__(*args, **kwargs)
+        for precflag in self.COMPILER_PREC_FLAGS:
+            self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Gcc.COMPILER_UNIQUE_OPTION_MAP[precflag]
+
 
 class CrayPEIntel(CrayPECompiler):
     """Support for using the Cray Intel compiler wrappers."""
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
 
+    def __init__(self, *args, **kwargs):
+        """CrayPEIntel constructor."""
+        super(CrayPEIntel, self).__init__(*args, **kwargs)
+        for precflag in self.COMPILER_PREC_FLAGS:
+            self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
+
 
 class CrayPECray(CrayPECompiler):
     """Support for using the Cray CCE compiler wrappers."""
     PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
     COMPILER_FAMILY = TC_CONSTANT_CRAYCE
+
+    def __init__(self, *args, **kwargs):
+        """CrayPEIntel constructor."""
+        super(CrayPEIntel, self).__init__(*args, **kwargs)
+        for precflag in self.COMPILER_PREC_FLAGS:
+            self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []

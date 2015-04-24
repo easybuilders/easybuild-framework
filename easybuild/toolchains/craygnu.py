@@ -40,5 +40,5 @@ class CrayGNU(CrayPEGCC, CrayPEMPI, LibSci, CrayFFTW):
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; marked as experimental."""
-        self.log.experimental("%s toolchain", self.NAME)
+        self.log.experimental("Using %s toolchain", self.NAME)
         super(CrayGNU, self).prepare(*args, **kwargs)
