@@ -1580,7 +1580,11 @@ class EasyBlock(object):
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         # chdir to installdir (better environment for running tests)
-        os.chdir(self.installdir)
+        if os.path.exists(self.installdir):
+            try:
+                os.chdir(self.installdir)
+            except OSError, err:
+                raise EasyBuildError("Failed to move to installdir %s: %s", self.installdir, err)
 
         # run sanity check commands
         commands = self.cfg['sanity_check_commands']
@@ -1728,30 +1732,35 @@ class EasyBlock(object):
         """
         Run step, returns false when execution should be stopped
         """
+        only_module = build_option('only_module')
+        force = build_option('force')
         skip = False
+
         # skip step if specified, either as individual (skippable) step, or when only generating module file
         # still run sanity check when only generating module
         skip_individual_step = skippable and (self.skip or step in self.cfg['skipsteps'])
-        only_module_skip = build_option('only_module') and not step in ['sanitycheck', 'module']
+        only_module_skip = only_module and not step in ['sanitycheck', 'module']
         if skip_individual_step or only_module_skip:
-            self.log.info("Skipping %s step" % step)
-            skip = True
-        # allow skipping sanity check too when only generating module via --force
-        elif build_option('only_module') and step == 'sanitycheck' and build_option('force'):
-            self.log.info("Skipping %s step, due to combo of --only-module and --force" in ['sanitycheck'])
+            self.log.info("Skipping %s step", step)
             skip = True
 
-        if not skip:
-            self.log.info("Starting %s step" % step)
-            # update the config templates
+        # allow skipping sanity check too when only generating module and --force is enable
+        elif only_module and step == 'sanitycheck' and force:
+            self.log.info("Skipping %s step, due to combo of --only-module and --force", step)
+            skip = True
+
+        else:
+            self.log.debug("Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, only_module: %s, force: %s",
+                           step, skippable, self.skip, self.cfg['skipsteps'], only_module, force)
+
+            self.log.info("Starting %s step", step)
             self.update_config_template_run_step()
-
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
                 m(self)
 
         if self.cfg['stop'] == step:
-            self.log.info("Stopping after %s step." % step)
+            self.log.info("Stopping after %s step.", step)
             raise StopException(step)
 
     @staticmethod

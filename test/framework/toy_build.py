@@ -880,6 +880,31 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
         self.assertTrue(re.search(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", outtxt, re.M))
 
+    def test_only_module(self):
+        """Test use of --only-module."""
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+
+        # hide all existing modules
+        self.reset_modulepath([os.path.join(self.test_installpath, 'modules', 'all')])
+
+        # sanity check fails without --force if software is not installed yet
+        common_args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        args = common_args + ['--only-module']
+        err_msg = "Sanity check failed"
+        self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertFalse(os.path.exists(toy_mod))
+
+        self.eb_main(args + ['--force'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+
 
 def suite():
     """ return all the tests in this file """

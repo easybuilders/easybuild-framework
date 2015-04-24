@@ -207,7 +207,7 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
-            'only-module': ("Only (re)generate module file", None, 'store_true', False),
+            'only-module': ("Only generate module file", None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
