@@ -31,10 +31,10 @@ CrayCCE toolchain: Cray compilers (CCE) and MPI via Cray compiler drivers + LibS
 from easybuild.toolchains.compiler.craype import CrayPECray
 from easybuild.toolchains.fft.crayfftw import CrayFFTW
 from easybuild.toolchains.linalg.libsci import LibSci
-from easybuild.toolchains.mpi.craype import CrayPEMPI
+from easybuild.toolchains.mpi.craympich import CrayMPICH
 
 
-class CrayCCE(CrayPECray, CrayPEMPI, LibSci, CrayFFTW):
+class CrayCCE(CrayPECray, CrayMPICH, LibSci, CrayFFTW):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
 

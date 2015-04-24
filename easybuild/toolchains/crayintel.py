@@ -31,10 +31,10 @@ CrayIntel toolchain: Intel compilers and MPI via Cray compiler drivers + LibSci 
 from easybuild.toolchains.compiler.craype import CrayPEIntel
 from easybuild.toolchains.fft.crayfftw import CrayFFTW
 from easybuild.toolchains.linalg.libsci import LibSci
-from easybuild.toolchains.mpi.craype import CrayPEMPI
+from easybuild.toolchains.mpi.craympich import CrayMPICH
 
 
-class CrayIntel(CrayPEIntel, CrayPEMPI, LibSci, CrayFFTW):
+class CrayIntel(CrayPEIntel, CrayMPICH, LibSci, CrayFFTW):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
     NAME = 'CrayIntel'
 

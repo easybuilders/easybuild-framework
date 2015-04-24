@@ -35,7 +35,7 @@ from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER
 from easybuild.tools.toolchain.mpi import Mpi
 
 
-class CrayPEMPI(Mpi):
+class CrayMPICH(Mpi):
     """Generic support for using Cray compiler wrappers"""
     # MPI support
     # no separate module, Cray compiler drivers always provide MPI support
