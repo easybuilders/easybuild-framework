@@ -40,5 +40,5 @@ class CrayCCE(CrayPECray, CrayPEMPI, LibSci, CrayFFTW):
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; marked as experimental."""
-        super(CrayCCE, self).prepare(*args, **kwargs)
         self.log.experimental("%s toolchain", self.NAME)
+        super(CrayCCE, self).prepare(*args, **kwargs)
