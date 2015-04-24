@@ -39,8 +39,8 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 """
 import os
 
-from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
-from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
+from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH, TC_CONSTANT_MPI_TYPE_MPICH
 from easybuild.tools.build_log import EasyBuildError
@@ -57,7 +57,6 @@ TC_CONSTANT_CRAYCE = "CrayCE"
 
 class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     """Generic support for using Cray compiler wrappers"""
-
     # toolchain family
     FAMILY = TC_CONSTANT_CRAYPE
 
@@ -68,13 +67,11 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
 
     COMPILER_UNIQUE_OPTS = {
         'dynamic': (False, "Generate dynamically linked executable"),
-        # FIXME: drop unused mpich-mt, usewrappedcompiler support?
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
-        'usewrappedcompiler': (False, "Use the embedded compiler instead of the wrapper"),
-        'verbose': (True, "Verbose output"),
         'optarch': (False, "Enable architecture optimizations"),
+        'verbose': (True, "Verbose output"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
@@ -126,8 +123,8 @@ class CrayPE(Compiler, Mpi, LinAlg, Fftw):
     # BLAS/LAPACK support
     # via cray-libsci module, which gets loaded via the PrgEnv module
     # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
-    BLAS_MODULE_NAME = ['cray-libsci']  # FIXME: let this load via PrgEnv, and so not list it here (or filter it out of definition)?
-    # specific library depends on PrgEnv flavor
+    BLAS_MODULE_NAME = ['cray-libsci']
+    # no need to specify libraries, compiler driver takes care of linking the right libraries
     BLAS_LIB = []
     BLAS_LIB_MT = []
 
@@ -244,37 +241,11 @@ class CrayPEGNU(CrayPE):
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
     COMPILER_FAMILY = TC_CONSTANT_GCC
 
-    # FIXME: drop this?
-    def _set_compiler_vars(self):
-        """Set compiler variables, either for the compiler wrapper, or the underlying compiler."""
-        if self.options.option('usewrappedcompiler'):
-            self.log.info("Using underlying compiler, as specified by the %s class" % Gcc)
-
-            comp_attrs = ['UNIQUE_OPTS', 'UNIQUE_OPTION_MAP', 'CC', 'CXX', 'C_UNIQUE_FLAGS',
-                          'F77', 'F90', 'F_UNIQUE_FLAGS']
-            for attr_name in ['COMPILER_%s' % a for a in comp_attrs]:
-                setattr(self, attr_name, getattr(Gcc, attr_name))
-
-        super(CrayPEGNU,self)._set_compiler_vars()
-
 
 class CrayPEIntel(CrayPE):
     """Support for using the Cray Intel compiler wrappers."""
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
-
-    # FIXME: drop this?
-    def _set_compiler_flags(self):
-        """Set compiler variables, either for the compiler wrapper, or the underlying compiler."""
-        if self.options.option("usewrappedcompiler"):
-            self.log.info("Using underlying compiler, as specified by the %s class" % IntelIccIfort)
-
-            comp_attrs = ['UNIQUE_OPTS', 'UNIQUE_OPTION_MAP', 'CC', 'CXX', 'C_UNIQUE_FLAGS',
-                          'F77', 'F90', 'F_UNIQUE_FLAGS']
-            for attr_name in ['COMPILER_%s' % a for a in comp_attrs] + ['LINKER_TOGGLE_STATIC_DYNAMIC']:
-                setattr(self, attr_name, getattr(IntelIccIfort, attr_name))
-
-        super(CrayPEIntel, self).set_compiler_flags()
 
 
 class CrayPECray(CrayPE):
