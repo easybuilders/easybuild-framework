@@ -37,8 +37,12 @@ from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
+
+EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
+
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = {
+    'EXTERNAL_MODULE': (EXTERNAL_MODULE_MARKER, "External module marker"),
     'SYS_PYTHON_VERSION': (platform.python_version(), "System Python version (platform.python_version())"),
     'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
     'OS_NAME': (get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
