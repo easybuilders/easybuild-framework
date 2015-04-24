@@ -55,7 +55,7 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
-    FAMILY = None
+    TOOLCHAIN_FAMILY = None
 
     # class method
     def _is_toolchain_for(cls, name):
@@ -451,7 +451,7 @@ class Toolchain(object):
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""
-        return self.FAMILY
+        return self.TOOLCHAIN_FAMILY
 
     def comp_family(self):
         """ Return compiler family used in this toolchain (abstract method)."""
