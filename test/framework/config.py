@@ -55,6 +55,14 @@ prefix = NETCDF_DIR
 name = HDF5
 version = 1.8.13
 prefix = HDF5_DIR
+
+[foo]
+name = Foo
+prefix = /foo
+
+[bar/1.2.3]
+name = bar
+version = 1.2.3
 """
 
 class EasyBuildConfigTest(EnhancedTestCase):
@@ -614,6 +622,16 @@ class EasyBuildConfigTest(EnhancedTestCase):
             'prefix': 'HDF5_DIR',
         }
         self.assertEqual(cfg.external_modules_metadata['cray-hdf5/1.8.13'], hdf5)
+
+        # impartial metadata is fine
+        self.assertEqual(cfg.external_modules_metadata['foo'], {'name': ['Foo'], 'prefix': '/foo'})
+        self.assertEqual(cfg.external_modules_metadata['bar/1.2.3'], {'name': ['bar'], 'version': ['1.2.3']})
+
+        # if both names and versions are specified, lists must have same lengths
+        write_file(testcfg, '\n'.join(['[foo/1.2.3]', 'name = foo,bar', 'version = 1.2.3']))
+        args = ['--external-modules-metadata=%s' % testcfg]
+        err_msg = "Different length for lists of names/versions in metadata for external module"
+        self.assertErrorRegex(EasyBuildError, err_msg, init_config, args=args)
 
 
 def suite():

@@ -543,16 +543,24 @@ class EasyConfig(object):
 
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
-            'dummy': False,
-            'full_mod_name': None,  # full module name
-            'short_mod_name': None,  # short module name
-            'name': None,  # software name (may be a list of names, e.g. for external modules)
-            'toolchain': None,
+            # full/short module names
+            'full_mod_name': None,
+            'short_mod_name': None,
+            # software name, version, versionsuffix
+            'name': None,
             'version': None,
             'versionsuffix': '',
+            # toolchain with which this dependency is installed
+            'toolchain': None,
+            # boolean indicating whether we're dealing with a dummy toolchain for this dependency
+            'dummy': False,
+            # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
+            # boolean indicating whether this dependency should be resolved via an external module
             'external_module': False,
-            'prefix': None,  # installation prefix (only relevant for external modules)
+            # metadata in case this is an external module;
+            # provides information on what this module represents (software name/version, install prefix, ...)
+            'external_modules_metadata': {},
         }
         if isinstance(dep, dict):
             dependency.update(dep)
@@ -577,8 +585,9 @@ class EasyConfig(object):
                     dependency['short_mod_name'] = dep[0]
                     dependency['full_mod_name'] = dep[0]
                     if dep[0] in self.external_modules_metadata:
-                        dependency.update(self.external_modules_metadata[dep[0]])
-                        self.log.info("Updated dependency info with metadata for external module: %s", dependency)
+                        dependency['external_modules_metadata'].update(self.external_modules_metadata[dep[0]])
+                        self.log.info("Updated dependency info with available metadata for external module %s: %s",
+                                      dep[0], dependency['external_modules_metadata'])
                     else:
                         self.log.info("No metadata available for external module %s", dep[0])
                 else:

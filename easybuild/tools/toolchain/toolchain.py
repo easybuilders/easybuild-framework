@@ -318,6 +318,35 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
+    def _prepare_dependency_external_module(self, dep):
+        """Set environment variables picked up by utility functions for dependencies specified as external modules."""
+        mod_name = dep['full_mod_name']
+        metadata = dep['external_module_metadata']
+        self.log.debug("Defining $EB* environment variables for external module %s", mod_name)
+
+        names = metadata.get('name', [])
+        versions = metadata.get('version', [None]*len(names))
+        self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
+
+        for name, version in zip(names, versions):
+            self.log.debug("Defining $EB* environment variables for external module %s under name %s",
+                           mod_name, name)
+
+            # define $EBROOT env var for install prefix, picked up by get_software_root
+            prefix = metadata.get('prefix')
+            if prefix is not None:
+                if prefix in os.environ:
+                    val = os.environ[prefix]
+                    self.log.debug("Using value of $%s as prefix for external module %s: %s", prefix, mod_name, val)
+                else:
+                    val = prefix
+                    self.log.debug("Using specified prefix for external module %s: %s", mod_name, val)
+                setvar(get_software_root_env_var_name(name), val)
+
+            # define $EBVERSION env var for software version, picked up by get_software_version
+            if version is not None:
+                setvar(get_software_version_env_var_name(name), version)
+
     def _prepare_dependencies(self):
         """Load modules for dependencies, and handle special cases like external modules."""
         # load modules for all dependencies
@@ -327,33 +356,7 @@ class Toolchain(object):
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
         for dep in [d for d in self.dependencies if d['external_module']]:
-            self.log.debug("Defining $EB* environment variables for external module %s", dep['short_mod_name'])
-
-            names = dep['name'] or []
-            if isinstance(names, basestring):
-                names = [names]
-            self.log.debug("Software names for external module %s: %s", dep['short_mod_name'], names)
-
-            for name in names:
-                self.log.debug("Defining $EB* environment variables for external module %s under name %s",
-                               dep['short_mod_name'], name)
-
-                # install prefix, picked up by get_software_root
-                prefix = dep['prefix']
-                if prefix is not None:
-                    if prefix in os.environ:
-                        prefix = os.environ[prefix]
-                        self.log.debug("Using value of $%s as prefix for external module %s: %s",
-                                       dep['prefix'], dep['short_mod_name'], prefix)
-                    else:
-                        self.log.debug("Using specified prefix for external module %s: %s",
-                                       dep['short_mod_name'], prefix)
-
-                    setvar(get_software_root_env_var_name(name), prefix)
-
-                # $EBVERSION
-                if dep['version'] is not None:
-                    setvar(get_software_version_env_var_name(name), dep['version'])
+            self._prepare_dependency_external_module(dep)
 
     def prepare(self, onlymod=None):
         """
@@ -453,20 +456,19 @@ class Toolchain(object):
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        dep_names = []
+        # collect software install prefixes for dependencies
+        roots = []
         for dep in deps:
-            # name may be None or a list of names for external modules
-            if dep['name'] is not None:
-                if isinstance(dep['name'], list):
-                    dep_names.extend(dep['name'])
-                else:
-                    dep_names.append(dep['name'])
+            if dep.get('external_module', False):
+                # for software names provided via external modules, install prefix may be unknown
+                names = dep['external_module_metadata'].get('name', [])
+                roots.extend([root for root in self.get_software_root(names) if root is not None])
+            else:
+                roots.extend(self.get_software_root(dep['name']))
 
-        for root in self.get_software_root(dep_names):
-            # software install prefix may be None for external modules
-            if root is not None:
-                self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
-                self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+        for root in roots:
+            self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
+            self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
     def _setenv_variables(self, donotset=None):
         """Actually set the environment variables"""

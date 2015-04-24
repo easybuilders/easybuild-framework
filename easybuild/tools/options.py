@@ -464,13 +464,19 @@ class EasyBuildOptions(GeneralOption):
             else:
                 raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", path)
 
-        # make sure name/version values are always lists
+        # make sure name/version values are always lists, make sure they're equal length
         for mod, entry in parsed_external_modules_metadata.items():
             for key in ['name', 'version']:
-                if isinstance(entry[key], basestring):
+                if isinstance(entry.get(key), basestring):
                     entry[key] = [entry[key]]
                     self.log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
                                    key, mod, entry[key])
+
+            # if both names and versions are available, lists must be of same length
+            names, versions = entry.get('name'), entry.get('version')
+            if names is not None and versions is not None and len(names) != len(versions):
+                raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
+                                     "names: %s; versions: %s", mod, names, versions)
 
         self.options.external_modules_metadata = parsed_external_modules_metadata
         self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)

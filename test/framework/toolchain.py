@@ -570,6 +570,7 @@ class ToolchainTest(EnhancedTestCase):
                 'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
+                'external_module_metadata': {},
             },
             # no metadata available
             {
@@ -578,6 +579,7 @@ class ToolchainTest(EnhancedTestCase):
                 'full_mod_name': 'toy/0.0',
                 'short_mod_name': 'toy/0.0',
                 'external_module': True,
+                'external_module_metadata': {},
             }
         ]
         tc = self.get_toolchain('GCC', version='4.6.4')
@@ -591,12 +593,14 @@ class ToolchainTest(EnhancedTestCase):
 
         # with metadata
         deps[1] = {
-            'name': ['toy', 'foobar'],
-            'version': '1.2.3.4.5',
-            'prefix': 'FOOBAR_PREFIX',
             'full_mod_name': 'toy/0.0',
             'short_mod_name': 'toy/0.0',
             'external_module': True,
+            'external_module_metadata': {
+                'name': ['toy', 'foobar'],
+                'version': ['1.2.3', '4.5'],
+                'prefix': 'FOOBAR_PREFIX',
+            }
         }
         tc = self.get_toolchain('GCC', version='4.6.4')
         tc.add_dependencies(deps)
@@ -605,12 +609,12 @@ class ToolchainTest(EnhancedTestCase):
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
         self.assertTrue([m['mod_name'] for m in modules_tool().list()], mods)
         self.assertEqual(os.environ['EBROOTTOY'], '/foo/bar')
-        self.assertEqual(os.environ['EBVERSIONTOY'], '1.2.3.4.5')
+        self.assertEqual(os.environ['EBVERSIONTOY'], '1.2.3')
         self.assertEqual(os.environ['EBROOTFOOBAR'], '/foo/bar')
-        self.assertEqual(os.environ['EBVERSIONFOOBAR'], '1.2.3.4.5')
+        self.assertEqual(os.environ['EBVERSIONFOOBAR'], '4.5')
 
         self.assertEqual(modules.get_software_root('foobar'), '/foo/bar')
-        self.assertEqual(modules.get_software_version('toy'), '1.2.3.4.5')
+        self.assertEqual(modules.get_software_version('toy'), '1.2.3')
 
 
 def suite():
