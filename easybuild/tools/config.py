@@ -95,7 +95,6 @@ BUILD_OPTIONS_CMDLINE = {
         'optarch',
         'regtest_output_dir',
         'skip',
-        'software_installdir_naming_scheme',
         'stop',
         'suffix_modules_path',
         'test_report_env_filter',

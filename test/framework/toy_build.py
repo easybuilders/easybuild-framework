@@ -923,8 +923,7 @@ class ToyBuildTest(EnhancedTestCase):
         # install (only) additional module under a hierarchical MNS
         args = common_args + [
             '--module-only',
-            '--software-installdir-naming-scheme=EasyBuildMNS',
-            '--module-naming-scheme=HierarchicalMNS',
+            '--module-naming-scheme=MigrateFromEBToHMNS',
         ]
         toy_core_mod = os.path.join(self.test_installpath, 'modules', 'all', 'Core', 'toy', '0.0')
         self.assertFalse(os.path.exists(toy_core_mod))

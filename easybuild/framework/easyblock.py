@@ -674,23 +674,8 @@ class EasyBlock(object):
         """
         basepath = install_path()
         if basepath:
-            install_subdir_ns = build_option('software_installdir_naming_scheme')
-            if install_subdir_ns is None:
-                self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, force_visible=True)
-                self.log.debug("Determined name of install subdir using active module naming scheme: %s",
-                               self.install_subdir)
-            else:
-                avail_mnss = avail_module_naming_schemes()
-                if install_subdir_ns in avail_mnss:
-                    self.install_subdir = avail_mnss[install_subdir_ns]().det_full_module_name(self.cfg)
-                    self.log.debug("Determined name of install subdir using specified naming scheme %s: %s",
-                                   install_subdir_ns, self.install_subdir)
-                else:
-                    raise EasyBuildError("Unknown naming scheme specified for software install (sub)directory: %s",
-                                         install_subdir_ns)
-
-            installdir = os.path.join(basepath, self.install_subdir)
-            self.installdir = os.path.abspath(installdir)
+            self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
+            self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
             self.log.info("Install dir set to %s" % self.installdir)
         else:
             raise EasyBuildError("Can't set installation directory")

@@ -269,8 +269,6 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
-            'software-installdir-naming-scheme': ("Naming scheme for software install (sub)directory "
-                                                  "(default: same as --module-naming-scheme)", None, 'store', None),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
