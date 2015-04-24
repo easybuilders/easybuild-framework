@@ -34,19 +34,22 @@ import os
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+CRAY_LIBSCI_MODULE_NAME = 'cray-libsci'
+
+
 class LibSci(LinAlg):
     """Support for Cray's LibSci library, which provides BLAS/LAPACK support."""
     # BLAS/LAPACK support
     # via cray-libsci module, which gets loaded via the PrgEnv module
     # see https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
-    BLAS_MODULE_NAME = ['cray-libsci']
+    BLAS_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]
 
     # no need to specify libraries, compiler driver takes care of linking the right libraries
     # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
     BLAS_LIB = []
     BLAS_LIB_MT = []
 
-    LAPACK_MODULE_NAME = ['cray-libsci']
+    LAPACK_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]
     LAPACK_IS_BLAS = True
 
     BLACS_MODULE_NAME = []
@@ -74,3 +77,14 @@ class LibSci(LinAlg):
     def _set_scalapack_variables(self):
         """Skip setting ScaLAPACK related variables"""
         pass
+
+    def definition(self):
+        """
+        Filter BLAS module from toolchain definition.
+        The cray-libsci module is loaded indirectly (and versionless) via the PrgEnv module,
+        and thus is not a direct toolchain component.
+        """
+        tc_def = super(LibSci, self).definition()
+        tc_def['BLAS'] = []
+        tc_def['LAPACK'] = []
+        return tc_def
