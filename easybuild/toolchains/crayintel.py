@@ -1,5 +1,5 @@
 ##
-# Copyright 2014 Petar Forai
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,12 +23,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-@author: Petar Forai
+CrayIntel toolchain: Intel compilers and MPI via Cray compiler drivers + LibSci (PrgEnv-intel) and Cray FFTW
+
+@author: Petar Forai (IMP/IMBA, Austria)
+@author: Kenneth Hoste (Ghent University)
 """
-
-
 from easybuild.toolchains.compiler.craype import CrayPEIntel
+from easybuild.toolchains.fft.crayfftw import CrayFFTW
+from easybuild.toolchains.linalg.libsci import LibSci
+from easybuild.toolchains.mpi.craype import CrayPEMPI
 
-class CrayIntel(CrayPEIntel):
+
+class CrayIntel(CrayPEIntel, CrayPEMPI, LibSci, CrayFFTW):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
     NAME = 'CrayIntel'
+
+    def prepare(self, *args, **kwargs):
+        """Prepare to use this toolchain; marked as experimental."""
+        super(CrayIntel, self).prepare(*args, **kwargs)
+        self.log.experimental("%s toolchain", self.NAME)

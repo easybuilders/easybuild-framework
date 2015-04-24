@@ -23,12 +23,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-@author: Petar Forai
+CrayCCE toolchain: Cray compilers (CCE) and MPI via Cray compiler drivers + LibSci (PrgEnv-cray) and Cray FFTW
+
+@author: Petar Forai (IMP/IMBA, Austria)
+@author: Kenneth Hoste (Ghent University)
 """
-
-
 from easybuild.toolchains.compiler.craype import CrayPECray
+from easybuild.toolchains.fft.crayfftw import CrayFFTW
+from easybuild.toolchains.linalg.libsci import LibSci
+from easybuild.toolchains.mpi.craype import CrayPEMPI
 
-class CrayCCE(CrayPECray):
+
+class CrayCCE(CrayPECray, CrayPEMPI, LibSci, CrayFFTW):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
+
+    def prepare(self, *args, **kwargs):
+        """Prepare to use this toolchain; marked as experimental."""
+        super(CrayCCE, self).prepare(*args, **kwargs)
+        self.log.experimental("%s toolchain", self.NAME)
