@@ -169,6 +169,8 @@ class EasyConfig(object):
             'stop': self.valid_stops,
         }
 
+        self.external_modules_metadata = build_option('external_modules_metadata')
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -541,15 +543,24 @@ class EasyConfig(object):
 
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
-            'dummy': False,
-            'full_mod_name': None,  # full module name
-            'short_mod_name': None,  # short module name
-            'name': None,  # software name
-            'toolchain': None,
+            # full/short module names
+            'full_mod_name': None,
+            'short_mod_name': None,
+            # software name, version, versionsuffix
+            'name': None,
             'version': None,
             'versionsuffix': '',
+            # toolchain with which this dependency is installed
+            'toolchain': None,
+            # boolean indicating whether we're dealing with a dummy toolchain for this dependency
+            'dummy': False,
+            # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
-            'external_module': False
+            # boolean indicating whether this dependency should be resolved via an external module
+            'external_module': False,
+            # metadata in case this is an external module;
+            # provides information on what this module represents (software name/version, install prefix, ...)
+            'external_module_metadata': {},
         }
         if isinstance(dep, dict):
             dependency.update(dep)
@@ -573,6 +584,12 @@ class EasyConfig(object):
                     dependency['external_module'] = True
                     dependency['short_mod_name'] = dep[0]
                     dependency['full_mod_name'] = dep[0]
+                    if dep[0] in self.external_modules_metadata:
+                        dependency['external_module_metadata'].update(self.external_modules_metadata[dep[0]])
+                        self.log.info("Updated dependency info with available metadata for external module %s: %s",
+                                      dep[0], dependency['external_module_metadata'])
+                    else:
+                        self.log.info("No metadata available for external module %s", dep[0])
                 else:
                     raise EasyBuildError("Incorrect external dependency specification: %s", dep)
             else:

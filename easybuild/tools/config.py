@@ -83,6 +83,7 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'external_modules_metadata',
         'filter_deps',
         'hide_deps',
         'from_pr',
