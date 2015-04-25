@@ -44,7 +44,7 @@ import easybuild.tools.module_naming_scheme  # required to dynamically load test
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.modules import modules_tool
 
 
@@ -880,6 +880,80 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
         self.assertTrue(re.search(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", outtxt, re.M))
 
+    def test_module_only(self):
+        """Test use of --module-only."""
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+
+        # hide all existing modules
+        self.reset_modulepath([os.path.join(self.test_installpath, 'modules', 'all')])
+
+        # sanity check fails without --force if software is not installed yet
+        common_args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--module-syntax=Tcl',
+        ]
+        args = common_args + ['--module-only']
+        err_msg = "Sanity check failed"
+        self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertFalse(os.path.exists(toy_mod))
+
+        self.eb_main(args + ['--force'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+
+        os.remove(toy_mod)
+
+        # installing another module under a different naming scheme and using Lua module syntax works fine
+
+        # first actually build and install toy software + module
+        prefix = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        self.eb_main(common_args + ['--force'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')))
+        modtxt = read_file(toy_mod)
+        self.assertTrue(re.search("set root %s" % prefix, modtxt))
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        # install (only) additional module under a hierarchical MNS
+        args = common_args + [
+            '--module-only',
+            '--module-naming-scheme=MigrateFromEBToHMNS',
+        ]
+        toy_core_mod = os.path.join(self.test_installpath, 'modules', 'all', 'Core', 'toy', '0.0')
+        self.assertFalse(os.path.exists(toy_core_mod))
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_core_mod))
+        # existing install is reused
+        modtxt2 = read_file(toy_core_mod)
+        self.assertTrue(re.search("set root %s" % prefix, modtxt2))
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        os.remove(toy_mod)
+        os.remove(toy_core_mod)
+
+        # test installing (only) additional module in Lua syntax (if Lmod is available)
+        lmod_abspath = which('lmod')
+        if lmod_abspath is not None:
+            args = common_args[:-1] + [
+                '--module-only',
+                '--module-syntax=Lua',
+                '--modules-tool=Lmod',
+            ]
+            self.assertFalse(os.path.exists(toy_mod + '.lua'))
+            self.eb_main(args, do_build=True, raise_error=True)
+            self.assertTrue(os.path.exists(toy_mod + '.lua'))
+            # existing install is reused
+            modtxt3 = read_file(toy_mod + '.lua')
+            self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
 def suite():
     """ return all the tests in this file """

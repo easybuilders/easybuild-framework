@@ -68,7 +68,7 @@ from easybuild.tools.filetools import write_file, compute_checksum, verify_check
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository.repository import init_repository
@@ -674,9 +674,8 @@ class EasyBlock(object):
         """
         basepath = install_path()
         if basepath:
-            self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, force_visible=True)
-            installdir = os.path.join(basepath, self.install_subdir)
-            self.installdir = os.path.abspath(installdir)
+            self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
+            self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
             self.log.info("Install dir set to %s" % self.installdir)
         else:
             raise EasyBuildError("Can't set installation directory")
@@ -952,7 +951,7 @@ class EasyBlock(object):
         requirements = self.make_module_req_guess()
 
         lines = []
-        if os.path.exists(self.installdir):
+        if os.path.isdir(self.installdir):
             try:
                 os.chdir(self.installdir)
             except OSError, err:
@@ -1580,7 +1579,11 @@ class EasyBlock(object):
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         # chdir to installdir (better environment for running tests)
-        os.chdir(self.installdir)
+        if os.path.isdir(self.installdir):
+            try:
+                os.chdir(self.installdir)
+            except OSError, err:
+                raise EasyBuildError("Failed to move to installdir %s: %s", self.installdir, err)
 
         # run sanity check commands
         commands = self.cfg['sanity_check_commands']
@@ -1724,23 +1727,45 @@ class EasyBlock(object):
             self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
         self.cfg.generate_template_values()
 
-    def run_step(self, step, methods, skippable=False):
+    def _skip_step(self, step, skippable):
+        """Dedice whether or not to skip the specified step."""
+        module_only = build_option('module_only')
+        force = build_option('force')
+        skip = False
+
+        # skip step if specified as individual (skippable) step
+        if skippable and (self.skip or step in self.cfg['skipsteps']):
+            self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
+            skip = True
+
+        # skip step when only generating module file; still run sanity check without use of force
+        elif module_only and not step in ['sanitycheck', 'module']:
+            self.log.info("Skipping %s step (only generating module)", step)
+            skip = True
+
+        # allow skipping sanity check too when only generating module and force is used
+        elif module_only and step == 'sanitycheck' and force:
+            self.log.info("Skipping %s step because of forced module-only mode", step)
+            skip = True
+
+        else:
+            self.log.debug("Not skipping %s step (skippable: %s, skip: %s, skipsteps: %s, module_only: %s, force: %s",
+                           step, skippable, self.skip, self.cfg['skipsteps'], module_only, force)
+
+        return skip
+
+    def run_step(self, step, methods):
         """
         Run step, returns false when execution should be stopped
         """
-        if skippable and (self.skip or step in self.cfg['skipsteps']):
-            self.log.info("Skipping %s step" % step)
-        else:
-            self.log.info("Starting %s step" % step)
-            # update the config templates
-            self.update_config_template_run_step()
-
-            for m in methods:
-                self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
-                m(self)
+        self.log.info("Starting %s step", step)
+        self.update_config_template_run_step()
+        for m in methods:
+            self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
+            m(self)
 
         if self.cfg['stop'] == step:
-            self.log.info("Stopping after %s step." % step)
+            self.log.info("Stopping after %s step.", step)
             raise StopException(step)
 
     @staticmethod
@@ -1849,9 +1874,12 @@ class EasyBlock(object):
 
         print_msg("building and installing %s..." % self.full_mod_name, self.log, silent=self.silent)
         try:
-            for (stop_name, descr, step_methods, skippable) in steps:
-                print_msg("%s..." % descr, self.log, silent=self.silent)
-                self.run_step(stop_name, step_methods, skippable=skippable)
+            for (step_name, descr, step_methods, skippable) in steps:
+                if self._skip_step(step_name, skippable):
+                    print_msg("%s [skipped]" % descr, self.log, silent=self.silent)
+                else:
+                    print_msg("%s..." % descr, self.log, silent=self.silent)
+                    self.run_step(step_name, step_methods)
 
         except StopException:
             pass
