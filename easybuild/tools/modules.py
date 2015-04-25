@@ -848,7 +848,7 @@ class Lmod(ModulesTool):
 def get_software_root_env_var_name(name):
     """Return name of environment variable for software root."""
     newname = convert_name(name, upper=True)
-    return ''.join([ROOT_ENV_VAR_NAME_PREFIX, newname])
+    return ROOT_ENV_VAR_NAME_PREFIX + newname
 
 
 def get_software_root(name, with_env_var=False):
@@ -910,7 +910,7 @@ def get_software_libdir(name, only_one=True, fs=None):
 def get_software_version_env_var_name(name):
     """Return name of environment variable for software root."""
     newname = convert_name(name, upper=True)
-    return ''.join([VERSION_ENV_VAR_NAME_PREFIX, newname])
+    return VERSION_ENV_VAR_NAME_PREFIX + newname
 
 
 def get_software_version(name):
