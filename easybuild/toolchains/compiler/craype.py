@@ -102,7 +102,12 @@ class CrayPECompiler(Compiler):
         if optarch is None:
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
-            self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
+            craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
+            if self.modules_tool.exist([craype_mod_name])[0]:
+                self.modules_tool.load([craype_mod_name])
+            else:
+                raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
+                                     craype_mod_name, optarch)
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
