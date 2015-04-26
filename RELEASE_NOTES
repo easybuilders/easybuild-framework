@@ -3,6 +3,47 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.1.0 (April 28th 2015)
+------------------------
+
+feature + bugfix release
+- bump required vsc-base version to 2.2.0
+- add support for only (re)generating module files: --module-only (#1018)
+    - module naming scheme API is enhanced to include det_install_subdir method
+    - FIXME docs see
+- add support for generating module files in Lua syntax (note: required Lmod as modules tool) (#1060, #1255, #1256)
+    - see --module-syntax configuration option
+- deprecate log.error in favor of raising EasyBuildError exception (#1218)
+    - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#depr-error-reporting
+- add support for using external modules as dependencies, and to provide metadata for external modules (#1230, #1265)
+    - see http://easybuild.readthedocs.org/en/latest/Using_external_modules.html
+- add experimental support for Cray toolchains on top of PrgEnv modules: CrayGNU, CrayIntel, CrayCCE (#1234)
+    - FIXME see (wiki)
+- various other enhancements, including:
+    - sort the results of searching for files (e.g., --search output) (#1214)
+    - enhance test w.r.t. use of templates in cfgfile (#1217)
+    - define %(DEFAULT_REPOSITORYPATH)s template for cfgfiles (see eb --avail-cfgfile-constants) (#1220)
+    - also reset $LD_PRELOAD when running module commands, in case module defined $LD_PRELOAD (#1222)
+    - move location of 'module use' statements in generated module file (*after* 'module load' statements) (#1232)
+    - add support for --show-default-configfiles (#1240)
+    - report error on missing configuration files, rather than ignoring them (#1240)
+    - clean up commit message used in easyconfig git repository (#1248)
+    - add --hide-deps configuration option to specify names of software that must be installed as hidden modules (#1250)
+        - FIXME docs
+    - add support for appending/prepending to --robot-paths to avoid overwriting default robot search path (#1252)
+    - enable detection of use of unknown $EASYBUILD-prefixed environment variables (#1253)
+    - add --installpath-modules and --installpath-software configuration options (#1258)
+    - use dedicated subdirectory in temporary directory for each test to ensure better cleanup (#1260)
+    - get rid of $PROFILEREAD hack when running commands, not needed anymore (#1264)
+- various bug fixes, including:
+    - make bootstrap script robust against having 'vsc-base' already available in Python search path (#1212, #1215)
+    - set default value for unpack_options easyconfig parameter to '', so self.cfg.update works on it (#1229)
+    - also copy rotated log files (#1238)
+    - fix parsing of --download-timeout value (#1242)
+    - make test_XDG_CONFIG_env_vars unit test robust against existing user config file in default location (#1259)
+    - fix minor robustness issues w.r.t. $XDG_CONFIG* and $PYTHONPATH in unit tests (#1262)
+    - fix issue with handling empty toolchain variables (#1263)
+
 v2.0.0 (March 6th 2015)
 -----------------------
 
