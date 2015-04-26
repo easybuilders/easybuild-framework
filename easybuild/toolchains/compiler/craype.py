@@ -91,7 +91,7 @@ class CrayPECompiler(Compiler):
         """Constructor."""
         super(CrayPECompiler, self).__init__(*args, **kwargs)
         # 'register'  additional toolchain options that correspond to a compiler flag
-        self.COMPILER_FLAGS.extend(['dynamic'])
+        self.COMPILER_FLAGS.extend(['dynamic', 'mpich-mt'])
 
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
