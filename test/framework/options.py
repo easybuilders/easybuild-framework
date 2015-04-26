@@ -1648,6 +1648,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['HOME'] = home
         reload(easybuild.tools.options)
 
+    def test_generate_cmd_line(self):
+        """Test for generate_cmd_line."""
+        ebopts = EasyBuildOptions()
+        self.assertEqual(ebopts.generate_cmd_line(), [])
+
+        ebopts = EasyBuildOptions(go_args=['--force'])
+        self.assertEqual(ebopts.generate_cmd_line(), ['--force'])
+
+        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'])
+        self.assertEqual(ebopts.generate_cmd_line(), ['--search=foobar'])
+
 
 def suite():
     """ returns all the testcases in this module """
