@@ -604,6 +604,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_external_modules_metadata(self):
         """Test --external-modules-metadata."""
+        # empty list by default
+        cfg = init_config()
+        self.assertEqual(cfg.external_modules_metadata, [])
+
         testcfgtxt = EXTERNAL_MODULES_METADATA
         testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
         write_file(testcfg, testcfgtxt)
