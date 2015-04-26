@@ -15,7 +15,7 @@ feature + bugfix release
     - see --module-syntax configuration option
 - deprecate log.error in favor of raising EasyBuildError exception (#1218)
     - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#depr-error-reporting
-- add support for using external modules as dependencies, and to provide metadata for external modules (#1230, #1265)
+- add support for using external modules as dependencies, and to provide metadata for external modules (#1230, #1265, #1267)
     - see http://easybuild.readthedocs.org/en/latest/Using_external_modules.html
 - add experimental support for Cray toolchains on top of PrgEnv modules: CrayGNU, CrayIntel, CrayCCE (#1234)
     - FIXME see (wiki)
