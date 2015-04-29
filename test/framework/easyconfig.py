@@ -367,7 +367,6 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_name': tcname,
             'patches': new_patches[:1],
             'homepage': homepage,
-            'foo': "bar"
         }
 
         tweak_one(self.eb_file, tweaked_fn, tweaks)
@@ -515,7 +514,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_name': tcname,
             'toolchain_version': tcver,
             'version': ver,
-            'foo': 'bar123'
+            'start_dir': 'bar123'
         })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
@@ -526,10 +525,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['versionsuffix'], specs['versionsuffix'])
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
-        # can't check for key 'foo', because EasyConfig ignores parameter names it doesn't know about
-        txt = read_file(res[1])
-        self.assertTrue(re.search('foo = "%s"' % specs['foo'], txt))
+        self.assertEqual(ec['start_dir'], specs['start_dir'])
         os.remove(res[1])
+
+        specs.update({
+            'foo': 'bar123'
+        })
+        self.assertErrorRegex(EasyBuildError, "Unkown easyconfig parameter: foo",
+                              obtain_ec_for, specs, [self.ec_dir], None)
+        del specs['foo']
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
