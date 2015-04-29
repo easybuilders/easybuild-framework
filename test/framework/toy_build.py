@@ -769,7 +769,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
-                r'help = \[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]',
+                r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'whatis\(\[\[Name: toy\]\]\)',
                 r'whatis\(\[\[Version: 0.0\]\]\)',
                 r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
