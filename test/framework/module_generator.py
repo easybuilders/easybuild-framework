@@ -93,7 +93,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help = [[%s]]' % gzip_txt,
+                'help([[%s]])' % gzip_txt,
                 "whatis([[Name: gzip]])" ,
                 "whatis([[Version: 1.4]])" ,
                 "whatis([[Description: %s]])" % gzip_txt,

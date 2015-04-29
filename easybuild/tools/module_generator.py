@@ -323,7 +323,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         lines = [
-            "help = [[%(description)s]]",
+            "help([[%(description)s]])",
             "whatis([[Name: %(name)s]])",
             "whatis([[Version: %(version)s]])",
             "whatis([[Description: %(description)s]])",
