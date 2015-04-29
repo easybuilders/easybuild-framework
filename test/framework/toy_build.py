@@ -805,7 +805,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
