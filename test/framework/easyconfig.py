@@ -42,6 +42,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
@@ -49,6 +50,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -212,6 +214,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
         self.assertErrorRegex(EasyBuildError, "without name", eb._parse_dependency, ())
         self.assertErrorRegex(EasyBuildError, "without version", eb._parse_dependency, {'name': 'test'})
+        err_msg = "Incorrect external dependency specification"
+        self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
+        self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
@@ -367,7 +372,6 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_name': tcname,
             'patches': new_patches[:1],
             'homepage': homepage,
-            'foo': "bar"
         }
 
         tweak_one(self.eb_file, tweaked_fn, tweaks)
@@ -515,7 +519,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain_name': tcname,
             'toolchain_version': tcver,
             'version': ver,
-            'foo': 'bar123'
+            'start_dir': 'bar123'
         })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
@@ -526,10 +530,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['versionsuffix'], specs['versionsuffix'])
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
-        # can't check for key 'foo', because EasyConfig ignores parameter names it doesn't know about
-        txt = read_file(res[1])
-        self.assertTrue(re.search('foo = "%s"' % specs['foo'], txt))
+        self.assertEqual(ec['start_dir'], specs['start_dir'])
         os.remove(res[1])
+
+        specs.update({
+            'foo': 'bar123'
+        })
+        self.assertErrorRegex(EasyBuildError, "Unkown easyconfig parameter: foo",
+                              obtain_ec_for, specs, [self.ec_dir], None)
+        del specs['foo']
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
@@ -574,6 +583,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'hidden': False,
+                'external_module': False,
+                'external_module_metadata': {},
             },
             {
                 'name': 'bar',
@@ -584,6 +595,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'hidden': False,
+                'external_module': False,
+                'external_module_metadata': {},
             },
             {
                 'name': 'test',
@@ -594,6 +607,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'hidden': True,
+                'external_module': False,
+                'external_module_metadata': {},
             },
         ]
 
@@ -1029,6 +1044,75 @@ class EasyConfigTest(EnhancedTestCase):
             """Dummy function to set easyconfig parameter in 'ec' EasyConfig instance"""
             ec[key] = 'foobar'
         self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
+
+    def test_external_dependencies(self):
+        """Test specifying external (build) dependencies."""
+        ectxt = read_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-deps.eb'))
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
+
+        # just specify some of the test modules we ship, doesn't matter where they come from
+        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        write_file(toy_ec, ectxt)
+
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'external_modules_metadata': ConfigObj(),
+        }
+        init_config(build_options=build_options)
+        ec = EasyConfig(toy_ec)
+
+        builddeps = ec.builddependencies()
+        self.assertEqual(len(builddeps), 1)
+        self.assertEqual(builddeps[0]['short_mod_name'], 'somebuilddep/0.1')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'somebuilddep/0.1')
+        self.assertEqual(builddeps[0]['external_module'], True)
+
+        deps = ec.dependencies()
+        self.assertEqual(len(deps), 3)
+        self.assertEqual([d['short_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
+        self.assertEqual([d['full_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
+        self.assertEqual([d['external_module'] for d in deps], [False, True, True])
+
+        metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
+        metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
+        write_file(metadata, metadatatxt)
+        cfg = init_config(args=['--external-modules-metadata=%s' % metadata])
+        build_options = {
+            'external_modules_metadata': cfg.external_modules_metadata,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        ec = EasyConfig(toy_ec)
+        self.assertEqual(ec.dependencies()[1]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(ec.dependencies()[1]['external_module'], True)
+        metadata = {
+            'name': ['foo', 'bar'],
+            'version': ['1.2.3', '3.2.1'],
+            'prefix': '/foo/bar',
+        }
+        self.assertEqual(ec.dependencies()[1]['external_module_metadata'], metadata)
+
+    def test_update(self):
+        """Test use of update() method for EasyConfig instances."""
+        toy_ebfile = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        ec = EasyConfig(toy_ebfile)
+
+        # for string values: append
+        ec.update('unpack_options', '--strip-components=1')
+        self.assertEqual(ec['unpack_options'].strip(), '--strip-components=1')
+
+        ec.update('description', "- just a test")
+        self.assertEqual(ec['description'].strip(), "Toy C program. - just a test")
+
+        # spaces in between multiple updates for stirng values
+        ec.update('configopts', 'CC="$CC"')
+        ec.update('configopts', 'CXX="$CXX"')
+        self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+
+        # for list values: extend
+        ec.update('patches', ['foo.patch', 'bar.patch'])
+        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
 
 
 def suite():
