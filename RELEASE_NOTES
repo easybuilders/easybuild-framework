@@ -14,7 +14,7 @@ feature + bugfix release
 - add support for only (re)generating module files: --module-only (#1018)
     - module naming scheme API is enhanced to include det_install_subdir method
     - see http://easybuild.readthedocs.org/en/latest/Partial_installations.html#module-only
-- add support for generating module files in Lua syntax (note: required Lmod as modules tool) (#1060, #1255, #1256, #1270)
+- add support for generating module files in Lua syntax (note: requires Lmod as modules tool) (#1060, #1255, #1256, #1270)
     - see --module-syntax configuration option and http://easybuild.readthedocs.org/en/latest/Configuration.html#module-syntax
 - deprecate log.error method in favor of raising EasyBuildError exception (#1218)
     - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#depr-error-reporting
