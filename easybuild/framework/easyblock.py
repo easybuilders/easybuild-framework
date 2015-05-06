@@ -1738,8 +1738,10 @@ class EasyBlock(object):
             self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
             skip = True
 
-        # skip step when only generating module file; still run sanity check without use of force
-        elif module_only and not step in ['sanitycheck', 'module']:
+        # skip step when only generating module file
+        # * still run sanity check without use of force
+        # * always run ready & prepare step to set up toolchain + deps
+        elif module_only and not step in ['ready', 'prepare', 'sanitycheck', 'module']:
             self.log.info("Skipping %s step (only generating module)", step)
             skip = True
 
