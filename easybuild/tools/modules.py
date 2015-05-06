@@ -122,7 +122,7 @@ class ModulesTool(object):
     TERSE_OPTION = (0, '--terse')
     # module command to use
     COMMAND = None
-    # environment variable to determine the module command (instead of COMMAND)
+    # environment variable that may refer to module command
     COMMAND_ENVIRONMENT = None
     # run module command explicitly using this shell
     COMMAND_SHELL = None
@@ -156,8 +156,8 @@ class ModulesTool(object):
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = self.COMMAND
-        if self.COMMAND_ENVIRONMENT is not None and self.COMMAND_ENVIRONMENT in os.environ:
-            self.log.debug('Set command via environment variable %s' % self.COMMAND_ENVIRONMENT)
+        if which(self.cmd) is None and self.COMMAND_ENVIRONMENT in os.environ:
+            self.log.debug('Set command via environment variable %s: %s', self.COMMAND_ENVIRONMENT, self.cmd)
             self.cmd = os.environ[self.COMMAND_ENVIRONMENT]
 
         if self.cmd is None:
