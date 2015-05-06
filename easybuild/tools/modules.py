@@ -122,7 +122,8 @@ class ModulesTool(object):
     TERSE_OPTION = (0, '--terse')
     # module command to use
     COMMAND = None
-    # environment variable that may refer to module command
+    # environment variable to determine path to module command;
+    # used as fallback in case command is not available in $PATH
     COMMAND_ENVIRONMENT = None
     # run module command explicitly using this shell
     COMMAND_SHELL = None
@@ -155,11 +156,20 @@ class ModulesTool(object):
         self._modules = []
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
-        self.cmd = self.COMMAND
-        if which(self.cmd) is None and self.COMMAND_ENVIRONMENT in os.environ:
-            self.log.debug('Set command via environment variable %s: %s', self.COMMAND_ENVIRONMENT, self.cmd)
-            self.cmd = os.environ[self.COMMAND_ENVIRONMENT]
+        self.cmd = which(self.COMMAND)
+        env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
 
+        # only use command path in environment variable if command in not available in $PATH
+        if self.cmd is None and env_cmd_path is not None:
+            self.log.debug('Set command via environment variable %s: %s', self.COMMAND_ENVIRONMENT, self.cmd)
+            self.cmd = env_cmd_path
+
+        # check whether paths obtained via $PATH and $LMOD_CMD are different
+        elif self.cmd != env_cmd_path:
+            self.log.debug("Different paths found for module command '%s' via which/$PATH and $%s: %s vs %s",
+                           self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
+
+        # make sure the module command was found
         if self.cmd is None:
             raise EasyBuildError("No command set.")
         else:
