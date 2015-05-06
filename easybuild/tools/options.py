@@ -40,7 +40,7 @@ import sys
 from distutils.version import LooseVersion
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
@@ -134,7 +134,8 @@ class EasyBuildOptions(GeneralOption):
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
-            'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
+            'stop': ("Stop the installation after certain step",
+                     'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
         })
 
@@ -206,9 +207,8 @@ class EasyBuildOptions(GeneralOption):
                             'strlist', 'extend', None),
             'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
-            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
-                                 None, 'store_true', True),
-            'module-only': ("Only generate module file (and run sanity check)", None, 'store_true', False),
+            'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
+                            None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -405,7 +405,6 @@ class EasyBuildOptions(GeneralOption):
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
         build_log.EXPERIMENTAL = self.options.experimental
-        config.SUPPORT_OLDSTYLE = self.options.oldstyleconfig
 
         # set strictness of run module
         if self.options.strict:
