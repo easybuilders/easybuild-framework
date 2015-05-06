@@ -156,16 +156,16 @@ class ModulesTool(object):
         self._modules = []
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
-        self.cmd = which(self.COMMAND)
+        self.cmd = self.COMMAND
         env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
 
         # only use command path in environment variable if command in not available in $PATH
-        if self.cmd is None and env_cmd_path is not None:
+        if which(self.cmd) is None and env_cmd_path is not None:
             self.log.debug('Set command via environment variable %s: %s', self.COMMAND_ENVIRONMENT, self.cmd)
             self.cmd = env_cmd_path
 
         # check whether paths obtained via $PATH and $LMOD_CMD are different
-        elif self.cmd != env_cmd_path:
+        elif which(self.cmd) != env_cmd_path:
             self.log.debug("Different paths found for module command '%s' via which/$PATH and $%s: %s vs %s",
                            self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
 
