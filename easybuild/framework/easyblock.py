@@ -78,6 +78,25 @@ from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
+BUILD_STEP = 'build'
+CLEANUP_STEP = 'cleanup'
+CONFIGURE_STEP = 'configure'
+EXTENSIONS_STEP = 'extensions'
+FETCH_STEP = 'fetch'
+MODULE_STEP = 'module'
+PACKAGE_STEP = 'package'
+PATCH_STEP = 'patch'
+POSTPROC_STEP = 'postproc'
+PREPARE_STEP = 'prepare'
+READY_STEP = 'ready'
+SANITYCHECK_STEP = 'sanitycheck'
+SOURCE_STEP = 'source'
+TEST_STEP = 'test'
+TESTCASES_STEP = 'testcases'
+
+MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
+
+
 _log = fancylogger.getLogger('easyblock')
 
 
@@ -1738,13 +1757,15 @@ class EasyBlock(object):
             self.log.info("Skipping %s step (skip: %s, skipsteps: %s)", step, self.skip, self.cfg['skipsteps'])
             skip = True
 
-        # skip step when only generating module file; still run sanity check without use of force
-        elif module_only and not step in ['sanitycheck', 'module']:
+        # skip step when only generating module file
+        # * still run sanity check without use of force
+        # * always run ready & prepare step to set up toolchain + deps
+        elif module_only and not step in MODULE_ONLY_STEPS:
             self.log.info("Skipping %s step (only generating module)", step)
             skip = True
 
         # allow skipping sanity check too when only generating module and force is used
-        elif module_only and step == 'sanitycheck' and force:
+        elif module_only and step == SANITYCHECK_STEP and force:
             self.log.info("Skipping %s step because of forced module-only mode", step)
             skip = True
 
@@ -1784,14 +1805,14 @@ class EasyBlock(object):
             (True, lambda x: env.reset_changes()),
             (True, lambda x: x.handle_iterate_opts()),
         ]
-        ready_step_spec = lambda initial: get_step('ready', "creating build dir, resetting environment",
+        ready_step_spec = lambda initial: get_step(READY_STEP, "creating build dir, resetting environment",
                                                    ready_substeps, False, initial=initial)
 
         source_substeps = [
             (False, lambda x: x.checksum_step()),
             (True, lambda x: x.extract_step()),
         ]
-        source_step_spec = lambda initial: get_step('source', "unpacking", source_substeps, True, initial=initial)
+        source_step_spec = lambda initial: get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
 
         def prepare_step_spec(initial):
             """Return prepare step specification."""
@@ -1799,7 +1820,7 @@ class EasyBlock(object):
                 substeps = [lambda x: x.prepare_step()]
             else:
                 substeps = [lambda x: x.guess_start_dir()]
-            return ('prepare', 'preparing', substeps, False)
+            return (PREPARE_STEP, 'preparing', substeps, False)
 
         install_substeps = [
             (False, lambda x: x.stage_install_step()),
@@ -1811,14 +1832,14 @@ class EasyBlock(object):
         # format for step specifications: (stop_name: (description, list of functions, skippable))
 
         # core steps that are part of the iterated loop
-        patch_step_spec = ('patch', 'patching', [lambda x: x.patch_step()], True)
-        configure_step_spec = ('configure', 'configuring', [lambda x: x.configure_step()], True)
-        build_step_spec = ('build', 'building', [lambda x: x.build_step()], True)
-        test_step_spec = ('test', 'testing', [lambda x: x.test_step()], True)
+        patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step()], True)
+        configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step()], True)
+        build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step()], True)
+        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step()], True)
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
-            ('fetch', 'fetching files', [lambda x: x.fetch_step()], False),
+            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step()], False),
             ready_step_spec(True),
             source_step_spec(True),
             patch_step_spec,
@@ -1843,19 +1864,19 @@ class EasyBlock(object):
         ] * (iteration_count - 1)
         # part 3: post-iteration part
         steps_part3 = [
-            ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
-            ('package', 'packaging', [lambda x: x.package_step()], True),
-            ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
-            ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
-            ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
-            ('module', 'creating module', [lambda x: x.make_module_step()], False),
+            (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step()], False),
+            (PACKAGE_STEP, 'packaging', [lambda x: x.package_step()], True),
+            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step()], True),
+            (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step()], False),
+            (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step()], False),
+            (MODULE_STEP, 'creating module', [lambda x: x.make_module_step()], False),
         ]
 
         # full list of steps, included iterated steps
         steps = steps_part1 + steps_part2 + steps_part3
 
         if run_test_cases:
-            steps.append(('testcases', 'running test cases', [
+            steps.append((TESTCASES_STEP, 'running test cases', [
                 lambda x: x.load_module(),
                 lambda x: x.test_cases_step(),
             ], False))

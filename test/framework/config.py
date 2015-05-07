@@ -251,13 +251,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         """Test use of new-style configuration file."""
         self.purge_environment()
 
-        oldstyle_config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
         config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
 
         testpath1 = os.path.join(self.tmpdir, 'test1')
         testpath2 = os.path.join(self.tmpdir, 'testtwo')
-
-        write_file(oldstyle_config_file, '')
 
         # test with config file passed via command line
         cfgtxt = '\n'.join([
