@@ -54,6 +54,7 @@ from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
+from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
@@ -207,6 +208,7 @@ class EasyBuildOptions(GeneralOption):
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
+            'module-only': ("Only generate module file (and run sanity check)", None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -235,6 +237,8 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
+                                          'strlist', 'store', []),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
@@ -444,7 +448,39 @@ class EasyBuildOptions(GeneralOption):
             if token is None:
                 raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
 
+        self._postprocess_external_modules_metadata()
+
         self._postprocess_config()
+
+    def _postprocess_external_modules_metadata(self):
+        """Parse file(s) specifying metadata for external modules."""
+        parsed_external_modules_metadata = ConfigObj()
+        for path in self.options.external_modules_metadata:
+            if os.path.exists(path):
+                self.log.debug("Parsing %s with external modules metadata", path)
+                try:
+                    parsed_external_modules_metadata.merge(ConfigObj(path))
+                except ConfigObjError, err:
+                    raise EasyBuildError("Failed to parse %s with external modules metadata: %s", path, err)
+            else:
+                raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", path)
+
+        # make sure name/version values are always lists, make sure they're equal length
+        for mod, entry in parsed_external_modules_metadata.items():
+            for key in ['name', 'version']:
+                if isinstance(entry.get(key), basestring):
+                    entry[key] = [entry[key]]
+                    self.log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
+                                   key, mod, entry[key])
+
+            # if both names and versions are available, lists must be of same length
+            names, versions = entry.get('name'), entry.get('version')
+            if names is not None and versions is not None and len(names) != len(versions):
+                raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
+                                     "names: %s; versions: %s", mod, names, versions)
+
+        self.options.external_modules_metadata = parsed_external_modules_metadata
+        self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
