@@ -393,10 +393,14 @@ class EasyConfig(object):
         faulty_deps = []
         for hidden_dep in self['hiddendependencies']:
             # check whether hidden dep is a listed dep using *visible* module name, not hidden one
+            hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
             if visible_mod_name in dep_mod_names:
                 self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != visible_mod_name]
                 self.log.debug("Removed dependency matching hidden dependency %s" % hidden_dep)
+            elif hidden_mod_name in dep_mod_names:
+                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != hidden_mod_name]
+                self.log.debug("Hidden dependency %s is already marked to be installed as hidden module", hidden_dep)
             else:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
