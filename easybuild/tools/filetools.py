@@ -342,7 +342,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
         raise EasyBuildError("search_file: ignore_dirs (%s) should be of type list, not %s",
                              ignore_dirs, type(ignore_dirs))
 
-    query = re.compile(query.lower())
+    # compile regex, case-insensitive
+    query = re.compile(query, re.I)
 
     var_lines = []
     hit_lines = []
@@ -355,7 +356,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
-                if query.search(filename.lower()):
+                if query.search(filename):
                     if not hit_in_path:
                         var = "CFGS%d" % var_index
                         var_index += 1
