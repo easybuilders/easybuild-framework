@@ -169,7 +169,6 @@ class EnhancedTestCase(_EnhancedTestCase):
                 f = open(logfile, 'w')
                 f.write('')
                 f.close()
-                sys.stderr.write('Restored %s\n' % logfile)
         except (OSError, IOError), err:
             pass
 
@@ -215,6 +214,8 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         env_before = copy.deepcopy(os.environ)
 
+        log = fancylogger.getLogger(fname=False)
+        orig_log_handlers = log.handlers[:]
         try:
             main((args, logfile, do_build))
         except SystemExit:
@@ -223,6 +224,12 @@ class EnhancedTestCase(_EnhancedTestCase):
             myerr = err
             if verbose:
                 print "err: %s" % err
+
+        # remove any log handlers that were added by main()
+        new_log_handlers = [h for h in log.handlers if h not in orig_log_handlers]
+        for log_handler in new_log_handlers:
+            log_handler.close()
+            log.removeHandler(log_handler)
 
         logtxt = read_file(logfile)
 
