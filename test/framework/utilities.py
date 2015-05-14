@@ -83,6 +83,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
 
+        # keep track of log handlers
+        log = fancylogger.getLogger(fname=False)
+        self.orig_log_handlers = log.handlers[:]
+
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
         self.test_prefix = set_tmpdir()
@@ -97,10 +101,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
-
-        self.orig_paths = {}
-        for path in ['buildpath', 'installpath', 'sourcepath']:
-            self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
         testdir = os.path.dirname(os.path.abspath(__file__))
 
@@ -145,31 +145,27 @@ class EnhancedTestCase(_EnhancedTestCase):
     def tearDown(self):
         """Clean up after running testcase."""
         super(EnhancedTestCase, self).tearDown()
+
+        # go back to where we were before
         os.chdir(self.cwd)
+
+        # restore original environment
         modify_env(os.environ, self.orig_environ)
-        tempfile.tempdir = None
 
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        # cleanup: remove test directory, but restore log files (as empty files)
-        # log rotation only kicks in when *all* log handles are out of scope (when this TestCase object is removed);
-        # log files must still be in place at that time
+        # remove any log handlers that were added (so that log files can be effectively removed)
+        log = fancylogger.getLogger(fname=False)
+        new_log_handlers = [h for h in log.handlers if h not in self.orig_log_handlers]
+        for log_handler in new_log_handlers:
+            log_handler.close()
+            log.removeHandler(log_handler)
+
+        # cleanup test tmp dir
         try:
-            logfiles = []
-            for root, _, filenames in os.walk(self.test_prefix):
-                for filename in filenames:
-                    if filename.endswith('.log'):
-                        logfiles.append(os.path.join(root, filename))
-
             shutil.rmtree(self.test_prefix)
-
-            for logfile in logfiles:
-                os.makedirs(os.path.dirname(logfile))
-                f = open(logfile, 'w')
-                f.write('')
-                f.close()
-        except (OSError, IOError), err:
+        except (OSError, IOError):
             pass
 
         # restore original 'parent' tmpdir
@@ -178,14 +174,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
-
-        for path in ['buildpath', 'installpath', 'sourcepath']:
-            if self.orig_paths[path] is not None:
-                os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
-            else:
-                if 'EASYBUILD_%s' % path.upper() in os.environ:
-                    del os.environ['EASYBUILD_%s' % path.upper()]
-        init_config()
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
@@ -214,8 +202,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         env_before = copy.deepcopy(os.environ)
 
-        log = fancylogger.getLogger(fname=False)
-        orig_log_handlers = log.handlers[:]
         try:
             main((args, logfile, do_build))
         except SystemExit:
@@ -224,12 +210,6 @@ class EnhancedTestCase(_EnhancedTestCase):
             myerr = err
             if verbose:
                 print "err: %s" % err
-
-        # remove any log handlers that were added by main()
-        new_log_handlers = [h for h in log.handlers if h not in orig_log_handlers]
-        for log_handler in new_log_handlers:
-            log_handler.close()
-            log.removeHandler(log_handler)
 
         logtxt = read_file(logfile)
 
