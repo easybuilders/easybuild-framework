@@ -39,9 +39,9 @@ from vsc.utils import fancylogger
 
 origLogToFile = fancylogger.logToFile
 def tweakedLogToFile(*args, **kwargs):
-    """Modified logToFile, with 100KB max log file size and no rotation."""
-    kwargs['max_bytes'] = 1024*1024
-    kwargs['backup_count'] = 0
+    """Modified logToFile, with 1MB max log file size and no rotation."""
+    kwargs['max_bytes'] = 1024*1024  # 1MB
+    kwargs['backup_count'] = 0  # don't keep any rotated logs
     return origLogToFile(*args, **kwargs)
 fancylogger.logToFile = tweakedLogToFile
 

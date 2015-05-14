@@ -153,7 +153,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         sys.path = self.orig_sys_path
 
         # cleanup: remove test directory, but restores log files (empty)
-        # log rotation only kicks in when *all* log handles are out of scope
+        # log rotation only kicks in when *all* log handles are out of scope (when this TestCase object is removed);
+        # log files should still be in place at that time
         try:
             logfiles = []
             for root, _, filenames in os.walk(self.test_prefix):
