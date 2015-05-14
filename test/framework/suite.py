@@ -41,7 +41,7 @@ origLogToFile = fancylogger.logToFile
 def tweakedLogToFile(*args, **kwargs):
     """Modified logToFile, with 100KB max log file size and no rotation."""
     kwargs['max_bytes'] = 1024*1024
-    kwargs['backup_count'] = 1
+    kwargs['backup_count'] = 0
     return origLogToFile(*args, **kwargs)
 fancylogger.logToFile = tweakedLogToFile
 
