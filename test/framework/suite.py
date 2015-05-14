@@ -37,6 +37,14 @@ import tempfile
 import unittest
 from vsc.utils import fancylogger
 
+origLogToFile = fancylogger.logToFile
+def tweakedLogToFile(*args, **kwargs):
+    """Modified logToFile, with 100KB max log file size and no rotation."""
+    kwargs['max_bytes'] = 1024*1024
+    kwargs['backup_count'] = 1
+    return origLogToFile(*args, **kwargs)
+fancylogger.logToFile = tweakedLogToFile
+
 # initialize EasyBuild logging, so we disable it
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import set_tmpdir
