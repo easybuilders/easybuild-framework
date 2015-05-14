@@ -48,7 +48,7 @@ from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import module_classes, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions
@@ -152,9 +152,9 @@ class EnhancedTestCase(_EnhancedTestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        # cleanup: remove test directory, but restores log files (empty)
+        # cleanup: remove test directory, but restore log files (as empty files)
         # log rotation only kicks in when *all* log handles are out of scope (when this TestCase object is removed);
-        # log files should still be in place at that time
+        # log files must still be in place at that time
         try:
             logfiles = []
             for root, _, filenames in os.walk(self.test_prefix):
@@ -165,9 +165,12 @@ class EnhancedTestCase(_EnhancedTestCase):
             shutil.rmtree(self.test_prefix)
 
             for logfile in logfiles:
-                mkdir(os.path.dirname(logfile), parents=True)
-                write_file(logfile, '')
-        except OSError, err:
+                os.makedirs(os.path.dirname(logfile))
+                f = open(logfile, 'w')
+                f.write('')
+                f.close()
+                sys.stderr.write('Restored %s\n' % logfile)
+        except (OSError, IOError), err:
             pass
 
         # restore original 'parent' tmpdir
