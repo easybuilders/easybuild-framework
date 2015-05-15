@@ -37,6 +37,7 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
+import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
 from easybuild.tools.build_log import EasyBuildError
@@ -111,6 +112,13 @@ class CrayPECompiler(Compiler):
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
+
+    def prepare(self, *args, **kwargs):
+        """Prepare to use this toolchain; define $CRAYPE_LINK_TYPE if 'dynamic' toolchain option is enabled."""
+        super(CrayPECompiler, self).prepare(*args, **kwargs)
+
+        if self.options['dynamic']:
+            env.setvar('CRAYPE_LINK_TYPE', 'dynamic')
 
 
 class CrayPEGCC(CrayPECompiler):
