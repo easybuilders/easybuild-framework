@@ -68,8 +68,9 @@ class CrayPECompiler(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'shared': 'shared',
-        'dynamic': 'dynamic',
+        #handled shared and dynamic always via CRAYPE_LINK_TYPE environment variable, dont pass flags to wrapper.
+        'shared': '',
+        'dynamic': '',
         'static': 'static',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
@@ -117,7 +118,7 @@ class CrayPECompiler(Compiler):
         """Prepare to use this toolchain; define $CRAYPE_LINK_TYPE if 'dynamic' toolchain option is enabled."""
         super(CrayPECompiler, self).prepare(*args, **kwargs)
 
-        if self.options['dynamic']:
+        if self.options['dynamic'] or self.options['shared']:
             env.setvar('CRAYPE_LINK_TYPE', 'dynamic')
 
 
