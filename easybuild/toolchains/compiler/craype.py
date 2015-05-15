@@ -68,7 +68,7 @@ class CrayPECompiler(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-	#handled shared and dynamic always via CRAYPE_LINK_TYPE environment variable, dont pass flags to wrapper.
+        #handled shared and dynamic always via CRAYPE_LINK_TYPE environment variable, dont pass flags to wrapper.
         'shared': '',
         'dynamic': '',
         'static': 'static',
