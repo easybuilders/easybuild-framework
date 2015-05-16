@@ -68,10 +68,9 @@ class CrayPECompiler(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        #handled shared and dynamic always via CRAYPE_LINK_TYPE environment variable, dont pass flags to wrapper.
+        # handle shared and dynamic always via $CRAYPE_LINK_TYPE environment variable, don't pass flags to wrapper
         'shared': '',
         'dynamic': '',
-        'static': 'static',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
     }
@@ -119,6 +118,7 @@ class CrayPECompiler(Compiler):
         super(CrayPECompiler, self).prepare(*args, **kwargs)
 
         if self.options['dynamic'] or self.options['shared']:
+            self.log.debug("Enabling building of shared libs/dynamically linked executables via $CRAYPE_LINK_TYPE")
             env.setvar('CRAYPE_LINK_TYPE', 'dynamic')
 
 
