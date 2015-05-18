@@ -88,9 +88,9 @@ TEMPLATE_CONSTANTS = [
      'googlecode.com source url'),
     ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
      'launchpad.net source url'),
-    ('PYPI_SOURCE', 'http://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
+    ('PYPI_SOURCE', 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
      'pypi source url'),  # e.g., Cython, Sphinx
-    ('PYPI_LOWER_SOURCE', 'http://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
+    ('PYPI_LOWER_SOURCE', 'https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
      'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
     ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
      'cran.r-project.org (base) source url'),
