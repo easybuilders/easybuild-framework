@@ -10,6 +10,7 @@ bugfix release
 - fix issue with missing load statements when --module-only is used, don't skip ready/prepare steps (#1276)
 - enhance --search: only consider actual filename (not entire path), use regex syntax (#1281)
 - various other bug fixes, including:
+    - fix generate_software_list.py script w.r.t. dependencies marked as external modules (#1273)
     - only use $LMOD_CMD value if lmod binary can't be found in $PATH (#1275)
     - fix location of module_only build option w.r.t. default value (#1277)
     - fix combined use of --hide-deps and hiddendependencies (#1280)
