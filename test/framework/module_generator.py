@@ -269,6 +269,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         build_options = {
             'check_osdeps': False,
+            'external_modules_metadata': {},
             'robot_path': [ecs_dir],
             'valid_stops': all_stops,
             'validate': False,
