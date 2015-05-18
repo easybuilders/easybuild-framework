@@ -1069,10 +1069,11 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[0]['external_module'], True)
 
         deps = ec.dependencies()
-        self.assertEqual(len(deps), 3)
-        self.assertEqual([d['short_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
-        self.assertEqual([d['full_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
-        self.assertEqual([d['external_module'] for d in deps], [False, True, True])
+        self.assertEqual(len(deps), 4)
+        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']
+        self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
+        self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
+        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
         metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
@@ -1084,14 +1085,14 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
-        self.assertEqual(ec.dependencies()[1]['short_mod_name'], 'foobar/1.2.3')
-        self.assertEqual(ec.dependencies()[1]['external_module'], True)
+        self.assertEqual(ec.dependencies()[2]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(ec.dependencies()[2]['external_module'], True)
         metadata = {
             'name': ['foo', 'bar'],
             'version': ['1.2.3', '3.2.1'],
             'prefix': '/foo/bar',
         }
-        self.assertEqual(ec.dependencies()[1]['external_module_metadata'], metadata)
+        self.assertEqual(ec.dependencies()[2]['external_module_metadata'], metadata)
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""
