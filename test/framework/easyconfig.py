@@ -1114,6 +1114,22 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('patches', ['foo.patch', 'bar.patch'])
         self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
 
+    def test_hide_hidden_deps(self):
+        """Test use of --hide-deps on hiddendependencies."""
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
+        ec = EasyConfig(ec_file)
+        self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
+        self.assertEqual(ec['dependencies'], [])
+
+        build_options = {
+            'hide_deps': ['toy'],
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        ec = EasyConfig(ec_file)
+        self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
+        self.assertEqual(ec['dependencies'], [])
 
 def suite():
     """ returns all the testcases in this module """

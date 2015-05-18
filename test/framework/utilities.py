@@ -83,6 +83,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
 
+        # keep track of log handlers
+        log = fancylogger.getLogger(fname=False)
+        self.orig_log_handlers = log.handlers[:]
+
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
         self.test_prefix = set_tmpdir()
@@ -97,10 +101,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
-
-        self.orig_paths = {}
-        for path in ['buildpath', 'installpath', 'sourcepath']:
-            self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
         testdir = os.path.dirname(os.path.abspath(__file__))
 
@@ -145,22 +145,28 @@ class EnhancedTestCase(_EnhancedTestCase):
     def tearDown(self):
         """Clean up after running testcase."""
         super(EnhancedTestCase, self).tearDown()
+
+        # go back to where we were before
         os.chdir(self.cwd)
+
+        # restore original environment
         modify_env(os.environ, self.orig_environ)
-        tempfile.tempdir = None
 
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        # cleanup
-        for path in [self.logfile, self.test_buildpath, self.test_installpath, self.test_prefix]:
-            try:
-                if os.path.isdir(path):
-                    shutil.rmtree(path)
-                else:
-                    os.remove(path)
-            except OSError, err:
-                pass
+        # remove any log handlers that were added (so that log files can be effectively removed)
+        log = fancylogger.getLogger(fname=False)
+        new_log_handlers = [h for h in log.handlers if h not in self.orig_log_handlers]
+        for log_handler in new_log_handlers:
+            log_handler.close()
+            log.removeHandler(log_handler)
+
+        # cleanup test tmp dir
+        try:
+            shutil.rmtree(self.test_prefix)
+        except (OSError, IOError):
+            pass
 
         # restore original 'parent' tmpdir
         for var in ['TMPDIR', 'TEMP', 'TMP']:
@@ -168,14 +174,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
-
-        for path in ['buildpath', 'installpath', 'sourcepath']:
-            if self.orig_paths[path] is not None:
-                os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
-            else:
-                if 'EASYBUILD_%s' % path.upper() in os.environ:
-                    del os.environ['EASYBUILD_%s' % path.upper()]
-        init_config()
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
