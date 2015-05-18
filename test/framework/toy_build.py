@@ -849,7 +849,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # install dummy modules
         modulepath = os.path.join(self.test_prefix, 'modules')
-        for mod in ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1']:
+        for mod in ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
@@ -858,7 +858,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         modules_tool().load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
-        mods = ['ictce/4.1.13', 'foobar/1.2.3', 'toy/0.0-external-deps']
+        mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
         self.assertEqual([x['mod_name'] for x in modules_tool().list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
@@ -886,8 +886,8 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(ec_files_path, 'toy-0.0-deps.eb')
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
 
-        # hide all existing modules
-        self.reset_modulepath([os.path.join(self.test_installpath, 'modules', 'all')])
+        # only consider provided test modules
+        self.reset_modulepath([os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')])
 
         # sanity check fails without --force if software is not installed yet
         common_args = [
@@ -911,6 +911,7 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure load statements for dependencies are included in additional module file generated with --module-only
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
 
         os.remove(toy_mod)
 
@@ -923,7 +924,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)  # toy + ictce
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
 
         # install (only) additional module under a hierarchical MNS
