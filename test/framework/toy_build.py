@@ -849,7 +849,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # install dummy modules
         modulepath = os.path.join(self.test_prefix, 'modules')
-        for mod in ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1']:
+        for mod in ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
@@ -858,7 +858,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         modules_tool().load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
-        mods = ['ictce/4.1.13', 'foobar/1.2.3', 'toy/0.0-external-deps']
+        mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
         self.assertEqual([x['mod_name'] for x in modules_tool().list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
@@ -882,11 +882,12 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_module_only(self):
         """Test use of --module-only."""
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
-        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec_file = os.path.join(ec_files_path, 'toy-0.0-deps.eb')
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
 
-        # hide all existing modules
-        self.reset_modulepath([os.path.join(self.test_installpath, 'modules', 'all')])
+        # only consider provided test modules
+        self.reset_modulepath([os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')])
 
         # sanity check fails without --force if software is not installed yet
         common_args = [
@@ -896,6 +897,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
+            '--robot=%s' % ec_files_path,
             '--module-syntax=Tcl',
         ]
         args = common_args + ['--module-only']
@@ -906,15 +908,20 @@ class ToyBuildTest(EnhancedTestCase):
         self.eb_main(args + ['--force'], do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
 
+        # make sure load statements for dependencies are included in additional module file generated with --module-only
+        modtxt = read_file(toy_mod)
+        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
+
         os.remove(toy_mod)
 
         # installing another module under a different naming scheme and using Lua module syntax works fine
 
         # first actually build and install toy software + module
-        prefix = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        prefix = os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps')
         self.eb_main(common_args + ['--force'], do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
-        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin')))
+        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
         modtxt = read_file(toy_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
@@ -925,15 +932,19 @@ class ToyBuildTest(EnhancedTestCase):
             '--module-only',
             '--module-naming-scheme=MigrateFromEBToHMNS',
         ]
-        toy_core_mod = os.path.join(self.test_installpath, 'modules', 'all', 'Core', 'toy', '0.0')
+        toy_core_mod = os.path.join(self.test_installpath, 'modules', 'all', 'Core', 'toy', '0.0-deps')
         self.assertFalse(os.path.exists(toy_core_mod))
         self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_core_mod))
         # existing install is reused
         modtxt2 = read_file(toy_core_mod)
         self.assertTrue(re.search("set root %s" % prefix, modtxt2))
-        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        # make sure load statements for dependencies are included
+        modtxt = read_file(toy_core_mod)
+        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
 
         os.remove(toy_mod)
         os.remove(toy_core_mod)
@@ -952,8 +963,12 @@ class ToyBuildTest(EnhancedTestCase):
             # existing install is reused
             modtxt3 = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
-            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
             self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+            # make sure load statements for dependencies are included
+            modtxt = read_file(toy_mod + '.lua')
+            self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
 
 def suite():
     """ return all the tests in this file """

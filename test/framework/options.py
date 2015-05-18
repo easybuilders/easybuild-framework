@@ -574,6 +574,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+        write_file(self.logfile, '')
+
+        args = [
+            '--search=^gcc.*2.eb',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn)
+        logtxt = read_file(self.logfile)
+
+        info_msg = r"Searching \(case-insensitive\) for '\^gcc.\*2.eb' in"
+        self.assertTrue(re.search(info_msg, logtxt), "Info message when searching for easyconfigs in '%s'" % logtxt)
+        for ec in ['GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.9.2.eb']:
+            self.assertTrue(re.search(r" \* \S*%s$" % ec, logtxt, re.M), "Found easyconfig %s in '%s'" % (ec, logtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+        write_file(self.logfile, '')
+
         for search_arg in ['-S', '--search-short']:
             open(self.logfile, 'w').write('')
             args = [

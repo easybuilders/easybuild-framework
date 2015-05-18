@@ -101,7 +101,7 @@ else:
 # configure EasyBuild, by parsing options
 eb_go = eboptions.parse_options(args=args)
 config.init(eb_go.options, eb_go.get_options_by_section('config'))
-config.init_build_options({'validate': False})
+config.init_build_options({'validate': False, 'external_modules_metadata': {}})
 
 
 configs = []
@@ -125,7 +125,7 @@ for root, subfolders, files in walk(options.path):
             ec = EasyConfig(ec_file)
             log.info("found valid easyconfig %s" % ec)
             if not ec.name in names:
-                log.info("found new software package %s" % ec)
+                log.info("found new software package %s" % ec.name)
                 ec.easyblock = None
                 # check if an easyblock exists
                 ebclass = get_easyblock_class(None, name=ec.name, default_fallback=False)

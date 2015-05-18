@@ -29,6 +29,7 @@ Unit tests for ModulesTool class.
 """
 import os
 import re
+import stat
 import tempfile
 from vsc.utils import fancylogger
 
@@ -41,7 +42,7 @@ import easybuild.tools.options as eboptions
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import which
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.modules import modules_tool, Lmod
 from test.framework.utilities import init_config
 
@@ -95,7 +96,8 @@ class ModulesToolTest(EnhancedTestCase):
             # should never get here
             self.assertTrue(False, 'BrokenMockModulesTool should fail')
         except EasyBuildError, err:
-            self.assertTrue('command is not available' in str(err))
+            err_msg = "command is not available"
+            self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
@@ -160,6 +162,9 @@ class ModulesToolTest(EnhancedTestCase):
             }
             init_config(build_options=build_options)
 
+            lmod = Lmod(testing=True)
+            self.assertEqual(lmod.cmd, lmod_abspath)
+
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
             new_paths = []
@@ -173,8 +178,18 @@ class ModulesToolTest(EnhancedTestCase):
             # make sure $MODULEPATH contains path that provides some modules
             os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
-            # initialize Lmod modules tool, pass full path to 'lmod' via $LMOD_CMD
+            # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
+            fake_path = os.path.join(self.test_installpath, 'lmod')
+            write_file(fake_path, '#!/bin/bash\necho "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION)
+            os.chmod(fake_path, stat.S_IRUSR|stat.S_IXUSR)
+            os.environ['LMOD_CMD'] = fake_path
+            init_config(build_options=build_options)
+            lmod = Lmod(testing=True)
+            self.assertEqual(lmod.cmd, fake_path)
+
+            # use correct full path for 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
+            init_config(build_options=build_options)
             lmod = Lmod(testing=True)
 
             # obtain list of availabe modules, should be non-empty
