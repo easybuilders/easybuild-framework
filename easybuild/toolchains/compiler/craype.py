@@ -43,6 +43,7 @@ from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, I
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
+import re
 
 
 TC_CONSTANT_CRAYPE = "CrayPE"
@@ -105,11 +106,16 @@ class CrayPECompiler(Compiler):
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
             if self.modules_tool.exist([craype_mod_name])[0]:
-                if craype_mod_name in self.modules_tool.loaded_modules():
-                    pass
-                else:
-                    craype_mod_loaded = self.modules_tool.loaded_modules()
-                    self.modules_tool.swap( [craype_mod_name])
+                if any(mod.startswith('craype-') for mod in self.modules_tool.loaded_modules()):
+                    loaded_craype_mod = [mod for mod in self.modules_tool.loaded_modules() if mod.startswith("craype-")]
+                    self.log.debug("Loaded craype modules %s " % loaded_craype_mod)
+                    conflicts_re = re.compile('^conflict\s*(\S+).*$',re.MG)
+                    conflicts=self.modules_tool.get_value_from_modulefile(loaded_craype_mod,conflicts_re.matches())
+
+                    if craype_mod_name in conflicts:
+                        self.modules_tool.swap(loaded_craype_mod,craype_mod_name)
+                    else:
+                        self.modules_tool.load(craype_mod_name)
             else:
                 raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
                                      craype_mod_name, optarch)
