@@ -251,13 +251,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         """Test use of new-style configuration file."""
         self.purge_environment()
 
-        oldstyle_config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
         config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
 
         testpath1 = os.path.join(self.tmpdir, 'test1')
         testpath2 = os.path.join(self.tmpdir, 'testtwo')
-
-        write_file(oldstyle_config_file, '')
 
         # test with config file passed via command line
         cfgtxt = '\n'.join([
@@ -604,6 +601,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_external_modules_metadata(self):
         """Test --external-modules-metadata."""
+        # empty list by default
+        cfg = init_config()
+        self.assertEqual(cfg.external_modules_metadata, [])
+
         testcfgtxt = EXTERNAL_MODULES_METADATA
         testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
         write_file(testcfg, testcfgtxt)

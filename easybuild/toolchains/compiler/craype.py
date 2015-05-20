@@ -37,6 +37,7 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
+import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
 from easybuild.tools.build_log import EasyBuildError
@@ -67,9 +68,9 @@ class CrayPECompiler(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'shared': 'shared',
-        'dynamic': 'dynamic',
-        'static': 'static',
+        # handle shared and dynamic always via $CRAYPE_LINK_TYPE environment variable, don't pass flags to wrapper
+        'shared': '',
+        'dynamic': '',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
     }
@@ -102,10 +103,27 @@ class CrayPECompiler(Compiler):
         if optarch is None:
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
-            self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
+            craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
+            if self.modules_tool.exist([craype_mod_name])[0]:
+                if craype_mod_name in self.modules_tool.loaded_modules():
+                    pass
+                else:
+                    craype_mod_loaded = self.modules_tool.loaded_modules()
+                    self.modules_tool.swap( [craype_mod_name])
+            else:
+                raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
+                                     craype_mod_name, optarch)
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
+
+    def prepare(self, *args, **kwargs):
+        """Prepare to use this toolchain; define $CRAYPE_LINK_TYPE if 'dynamic' toolchain option is enabled."""
+        super(CrayPECompiler, self).prepare(*args, **kwargs)
+
+        if self.options['dynamic'] or self.options['shared']:
+            self.log.debug("Enabling building of shared libs/dynamically linked executables via $CRAYPE_LINK_TYPE")
+            env.setvar('CRAYPE_LINK_TYPE', 'dynamic')
 
 
 class CrayPEGCC(CrayPECompiler):
