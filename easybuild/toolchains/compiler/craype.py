@@ -110,9 +110,10 @@ class CrayPECompiler(Compiler):
                     loaded_craype_mod = [mod for mod in self.modules_tool.loaded_modules() if mod.startswith("craype-")]
                     self.log.debug("Loaded craype modules %s " % loaded_craype_mod)
                     conflicts_re = re.compile('^conflict\s*(\S+).*$',re.M)
-                    conflicts=self.modules_tool.get_value_from_modulefile(loaded_craype_mod,conflicts_re.matches())
+                    conflicts=self.modules_tool.get_value_from_modulefile(loaded_craype_mod,conflicts_re)
 
                     if craype_mod_name in conflicts:
+                        self.log.debug("Conflicts are %s" % conflicts)
                         self.modules_tool.swap(loaded_craype_mod,craype_mod_name)
                     else:
                         self.modules_tool.load(craype_mod_name)
