@@ -435,6 +435,19 @@ class ModulesTool(object):
         """
         return self.run_module('show', mod_name, return_output=True)
 
+    def swap(self, mod_name1, mod_name2):
+        """
+        Run 'module swap' for mod_name1 to mod_name2
+        :param mod_name1: The module that should be swapped
+        :param mod_name2: to the module that should be swapped with
+        :return: 0 if the module that should be swapped to is loaded after the swap
+        """
+        self.log.debug("Swapping module %s for module %s" % (mod_name1,mod_name1))
+        self.run_module('swap', '%s(mod_name1)', '%s(mod_name2)')
+        lm=self.loaded_modules()
+        for m in lm:
+            print self.log.debug("loaded module %s" % m)
+
     def get_value_from_modulefile(self, mod_name, regex):
         """
         Get info from the module file for the specified module.

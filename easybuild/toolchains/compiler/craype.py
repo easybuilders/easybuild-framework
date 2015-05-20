@@ -105,7 +105,11 @@ class CrayPECompiler(Compiler):
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
             if self.modules_tool.exist([craype_mod_name])[0]:
-                self.modules_tool.load([craype_mod_name])
+                if craype_mod_name in self.modules_tool.loaded_modules():
+                    pass
+                else:
+                    craype_mod_loaded = self.modules_tool.loaded_modules()
+                    self.modules_tool.swap( [craype_mod_name])
             else:
                 raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
                                      craype_mod_name, optarch)
