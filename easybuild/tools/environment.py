@@ -28,9 +28,16 @@ Utility module for modifying os.environ
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import os
 from vsc.utils import fancylogger
 from vsc.utils.missing import shell_quote
+
+from easybuild.tools.build_log import EasyBuildError
+
+
+# take copy of original environemt, so we can restore (parts of) it later
+ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
 
 
 _log = fancylogger.getLogger('environment', fname=False)
@@ -53,7 +60,7 @@ def write_changes(filename):
     except IOError, err:
         if script is not None:
             script.close()
-        _log.error("Failed to write to %s: %s" % (filename, err))
+        raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()
 
 
@@ -71,15 +78,20 @@ def get_changes():
     """
     return _changes
 
+
 def setvar(key, value):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
     """
+    if key in os.environ:
+        oldval_info = "previous value: '%s'" % os.environ[key]
+    else:
+        oldval_info = "previously undefined"
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     _changes[key] = value
-    _log.info("Environment variable %s set to %s" % (key, value))
+    _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
 
 def unset_env_vars(keys):
@@ -120,7 +132,7 @@ def read_environment(env_vars, strict=False):
         missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
         msg = 'Following name/variable not found in environment: %s' % missing
         if strict:
-            _log.error(msg)
+            raise EasyBuildError(msg)
         else:
             _log.debug(msg)
 

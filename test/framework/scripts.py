@@ -34,6 +34,9 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+import vsc
+
+import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.run import run_cmd
@@ -41,6 +44,16 @@ from easybuild.tools.run import run_cmd
 
 class ScriptsTest(EnhancedTestCase):
     """ Testcase for run module """
+
+    def setUp(self):
+        """Test setup."""
+        super(ScriptsTest, self).setUp()
+
+        # make sure both vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
+        vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+        framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
+        pythonpath = os.environ.get('PYTHONPATH', '')
+        os.environ['PYTHONPATH'] = os.pathsep.join([vsc_loc, framework_loc, pythonpath])
 
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""

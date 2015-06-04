@@ -40,7 +40,7 @@ import sys
 from distutils.version import LooseVersion
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
@@ -49,15 +49,20 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
-from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_PACKAGE_TEMPLATE
+from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
+from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
+from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PACKAGE_TEMPLATE, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
+from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
+from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
+from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -79,9 +84,12 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES + [DEFAULT_USER_CFGFILE]
+    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES[:]
+    if os.path.exists(DEFAULT_USER_CFGFILE):
+        DEFAULT_CONFIGFILES.append(DEFAULT_USER_CFGFILE)
 
     ALLOPTSMANDATORY = False  # allow more than one argument
+    CONFIGFILES_RAISE_MISSING = True  # don't allow non-existing config files to be specified
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
@@ -124,10 +132,11 @@ class EasyBuildOptions(GeneralOption):
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
-                            'pathlist', 'store', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+                            'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
-            'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
+            'stop': ("Stop the installation after certain step",
+                     'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
         })
 
@@ -196,9 +205,11 @@ class EasyBuildOptions(GeneralOption):
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
-                            str, 'extend', None),
-            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
-                                 None, 'store_true', True),
+                            'strlist', 'extend', None),
+            'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
+                          "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
+            'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
+                            None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -227,15 +238,23 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
+                                          'strlist', 'store', []),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
+            'installpath-modules': ("Install path for modules (if None, combine --installpath and --subdir-modules)",
+                                    None, 'store', None),
+            'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
+                                     None, 'store', None),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-naming-scheme': ("Module naming scheme",
                                      'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
+            'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
+                              sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                               None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
@@ -262,8 +281,6 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
-            'show-default-moduleclasses': ("Show default module classes with description",
-                                           None, 'store_true', False),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
@@ -308,6 +325,9 @@ class EasyBuildOptions(GeneralOption):
                        None, 'store', None, {'metavar': 'STR'}),
             'search-short': ("Search for easyconfig files in the robot directory, print short paths",
                              None, 'store', None, 'S', {'metavar': 'STR'}),
+            'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
+            'show-default-moduleclasses': ("Show default module classes with description",
+                                           None, 'store_true', False),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
@@ -365,27 +385,35 @@ class EasyBuildOptions(GeneralOption):
 
     def validate(self):
         """Additional validation of options"""
-        error_cnt = 0
+        error_msgs = []
 
         for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
             val = getattr(self.options, opt.replace('-', '_'))
             if val and len(val) != 2:
-                self.log.warning('--%s requires NAME,VERSION (given %s)' % (opt, ','.join(val)))
-                error_cnt += 1
+                msg = "--%s requires NAME,VERSION (given %s)" % (opt, ','.join(val))
+                error_msgs.append(msg)
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
             if not umask_regex.match(self.options.umask):
-                self.log.warning("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
-                error_cnt += 1
+                msg = "--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern
+                error_msgs.append(msg)
 
-        if error_cnt > 0:
-            self.log.error("Found %s problems validating the options, treating warnings above as fatal." % error_cnt)
+        # subdir options must be relative
+        for typ in ['modules', 'software']:
+            subdir_opt = 'subdir_%s' % typ
+            val = getattr(self.options, subdir_opt)
+            if os.path.isabs(getattr(self.options, subdir_opt)):
+                msg = "Configuration option '%s' must specify a *relative* path (use 'installpath-%s' instead?): '%s'"
+                msg = msg % (subdir_opt, typ, val)
+                error_msgs.append(msg)
+
+        if error_msgs:
+            raise EasyBuildError("Found problems validating the options: %s", '\n'.join(error_msgs))
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
         build_log.EXPERIMENTAL = self.options.experimental
-        config.SUPPORT_OLDSTYLE = self.options.oldstyleconfig
 
         # set strictness of run module
         if self.options.strict:
@@ -405,6 +433,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
+                self.options.show_default_configfiles,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -412,19 +441,59 @@ class EasyBuildOptions(GeneralOption):
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
-                self.log.error("Required support for using GitHub API is not available (see warnings).")
+                raise EasyBuildError("Required support for using GitHub API is not available (see warnings).")
+
+        if self.options.module_syntax == ModuleGeneratorLua.SYNTAX and self.options.modules_tool != Lmod.__name__:
+            raise EasyBuildError("Generating Lua module files requires Lmod as modules tool.")
 
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
             if not HAVE_KEYRING:
-                self.log.error("Python 'keyring' module required for obtaining GitHub token is not available.")
+                raise EasyBuildError("Python 'keyring' module required for obtaining GitHub token is not available.")
             if self.options.github_user is None:
-                self.log.error("No GitHub user name provided, required for fetching GitHub token.")
+                raise EasyBuildError("No GitHub user name provided, required for fetching GitHub token.")
             token = fetch_github_token(self.options.github_user)
             if token is None:
-                self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
+                raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
+
+        self._postprocess_external_modules_metadata()
 
         self._postprocess_config()
+
+    def _postprocess_external_modules_metadata(self):
+        """Parse file(s) specifying metadata for external modules."""
+        # leave external_modules_metadata untouched if no files are provided
+        if not self.options.external_modules_metadata:
+            self.log.debug("No metadata provided for external modules.")
+            return
+
+        parsed_external_modules_metadata = ConfigObj()
+        for path in self.options.external_modules_metadata:
+            if os.path.exists(path):
+                self.log.debug("Parsing %s with external modules metadata", path)
+                try:
+                    parsed_external_modules_metadata.merge(ConfigObj(path))
+                except ConfigObjError, err:
+                    raise EasyBuildError("Failed to parse %s with external modules metadata: %s", path, err)
+            else:
+                raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", path)
+
+        # make sure name/version values are always lists, make sure they're equal length
+        for mod, entry in parsed_external_modules_metadata.items():
+            for key in ['name', 'version']:
+                if isinstance(entry.get(key), basestring):
+                    entry[key] = [entry[key]]
+                    self.log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
+                                   key, mod, entry[key])
+
+            # if both names and versions are available, lists must be of same length
+            names, versions = entry.get('name'), entry.get('version')
+            if names is not None and versions is not None and len(names) != len(versions):
+                raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
+                                     "names: %s; versions: %s", mod, names, versions)
+
+        self.options.external_modules_metadata = parsed_external_modules_metadata
+        self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
@@ -496,6 +565,10 @@ class EasyBuildOptions(GeneralOption):
         # dump supported module naming schemes
         if self.options.avail_module_naming_schemes:
             msg += self.avail_list('module naming schemes', avail_module_naming_schemes())
+
+        # dump default list of config files that are considered
+        if self.options.show_default_configfiles:
+            msg += self.show_default_configfiles()
 
         # dump default moduleclasses with description
         if self.options.show_default_moduleclasses:
@@ -632,14 +705,34 @@ class EasyBuildOptions(GeneralOption):
         """Show list of available values passed by argument."""
         return "List of supported %s:\n\t%s" % (name, '\n\t'.join(items))
 
+    def show_default_configfiles(self):
+        """Show list of default config files."""
+        xdg_config_home = os.environ.get('XDG_CONFIG_HOME', '(not set)')
+        xdg_config_dirs = os.environ.get('XDG_CONFIG_DIRS', '(not set)')
+        system_cfg_glob_paths = os.path.join('{' + ', '.join(XDG_CONFIG_DIRS) + '}', 'easybuild.d', '*.cfg')
+        found_cfgfile_cnt = len(self.DEFAULT_CONFIGFILES)
+        found_cfgfile_list = ', '.join(self.DEFAULT_CONFIGFILES) or '(none)'
+        lines = [
+            "Default list of configuration files:",
+            '',
+            "[with $XDG_CONFIG_HOME: %s, $XDG_CONFIG_DIRS: %s]" % (xdg_config_home, xdg_config_dirs),
+            '',
+            "* user-level: %s" % os.path.join('${XDG_CONFIG_HOME:-$HOME/.config}', 'easybuild', 'config.cfg'),
+            "  -> %s => %s" % (DEFAULT_USER_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_USER_CFGFILE)]),
+            "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc}', 'easybuild.d', '*.cfg'),
+            "  -> %s => %s" % (system_cfg_glob_paths, ', '.join(DEFAULT_SYS_CFGFILES) or "(no matches)"),
+            '',
+            "Default list of existing configuration files (%d): %s" % (found_cfgfile_cnt, found_cfgfile_list),
+        ]
+        return '\n'.join(lines)
+
     def show_default_moduleclasses(self):
         """Show list of default moduleclasses and description."""
-        txt = ["Default available moduleclasses"]
-        indent = " " * 2
+        lines = ["Default available module classes:", '']
         maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
         for name, descr in DEFAULT_MODULECLASSES:
-            txt.append("%s%s:%s%s" % (indent, name, (" " * (maxlen - len(name))), descr))
-        return "\n".join(txt)
+            lines.append("\t%s:%s%s" % (name, (" " * (maxlen - len(name))), descr))
+        return '\n'.join(lines)
 
 
 def parse_options(args=None):
@@ -653,8 +746,12 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                             go_args=args)
+    try:
+        eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror)
+    except Exception, err:
+        raise EasyBuildError("Failed to parse configuration options: %s" % err)
+
     return eb_go
 
 

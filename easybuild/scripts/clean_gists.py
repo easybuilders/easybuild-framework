@@ -31,6 +31,7 @@ import re
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import simple_option
 from vsc.utils.rest import RestClient
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import GITHUB_EB_MAIN, fetch_github_token
 from easybuild.tools.options import EasyBuildOptions
@@ -54,7 +55,7 @@ def main():
     log = go.log
 
     if not (go.options.all or go.options.closed_pr or go.options.orphans):
-        log.error("Please tell me what to do?")
+        raise EasyBuildError("Please tell me what to do?")
 
     if go.options.github_user is None:
         eb_go = EasyBuildOptions(envvar_prefix='EASYBUILD', go_args=[])
@@ -64,7 +65,7 @@ def main():
         username = go.options.github_user
 
     if username is None:
-        log.error("Could not find a github username")
+        raise EasyBuildError("Could not find a github username")
     else:
         log.info("Using username = %s", username)
 
@@ -75,8 +76,8 @@ def main():
     status, gists = gh.gists.get(per_page=100)
 
     if status != HTTP_STATUS_OK:
-        log.error("Failed to get a lists of gists for user %s: error code %s, message = %s",
-                  username, status, gists)
+        raise EasyBuildError("Failed to get a lists of gists for user %s: error code %s, message = %s",
+                             username, status, gists)
     else:
         log.info("Found %s gists", len(gists))
 
@@ -102,8 +103,8 @@ def main():
                 if pr_num not in pr_cache:
                     status, pr = gh.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr_num].get()
                     if status != HTTP_STATUS_OK:
-                        log.error("Failed to get pull-request #%s: error code %s, message = %s",
-                                  pr_num, status, pr)
+                        raise EasyBuildError("Failed to get pull-request #%s: error code %s, message = %s",
+                                             pr_num, status, pr)
                     pr_cache[pr_num] = pr["state"]
 
                 if pr_cache[pr_num] == "closed":
@@ -118,8 +119,8 @@ def main():
             status, del_gist = gh.gists[gist["id"]].delete()
 
             if status != HTTP_DELETE_OK:
-                log.error("Unable to remove gist (id=%s): error code %s, message = %s",
-                          gist["id"], status, del_gist)
+                raise EasyBuildError("Unable to remove gist (id=%s): error code %s, message = %s",
+                                     gist["id"], status, del_gist)
             else:
                 log.info("Delete gist with id=%s", gist["id"])
                 num_deleted += 1
