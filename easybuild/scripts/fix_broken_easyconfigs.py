@@ -30,14 +30,13 @@ Script to fix easyconfigs that broke due to support for deprecated functionality
 import os
 import re
 import sys
-import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import SimpleOption
 
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import init_build_options
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, fetch_parameters_from_easyconfig
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import init_build_options
 from easybuild.tools.filetools import find_easyconfigs, read_file, write_file
 
 
@@ -98,7 +97,7 @@ def process_easyconfig_file(ec_file):
                 os.rename(ec_file, backup_ec_file)
                 log.info("Backed up %s to %s" % (ec_file, backup_ec_file))
             except OSError, err:
-                log.error("Failed to backup %s before rewriting it: %s" % (ec_file, err))
+                raise EasyBuildError("Failed to backup %s before rewriting it: %s", ec_file, err)
 
         write_file(ec_file, fixed_ectxt)
         log.debug("Contents of fixed easyconfig file: %s" % fixed_ectxt)
@@ -119,24 +118,28 @@ try:
     log = go.log
 
     fancylogger.logToScreen(enable=True, stdout=True)
-    log.setLevel('INFO')
+    fancylogger.setLogLevel('WARNING')
 
     try:
         import easybuild.easyblocks.generic.configuremake
     except ImportError, err:
-        log.error("easyblocks are not available in Python search path: %s" % err)
+        raise EasyBuildError("easyblocks are not available in Python search path: %s", err)
 
     for path in go.args:
         if not os.path.exists(path):
-            log.error("Non-existing path %s specified" % path)
+            raise EasyBuildError("Non-existing path %s specified", path)
 
     ec_files = [ec for p in go.args for ec in find_easyconfigs(p)]
     if not ec_files:
-        log.error("No easyconfig files specified")
+        raise EasyBuildError("No easyconfig files specified")
 
     log.info("Processing %d easyconfigs" % len(ec_files))
     for ec_file in ec_files:
-        process_easyconfig_file(ec_file)
+        try:
+            process_easyconfig_file(ec_file)
+        except EasyBuildError, err:
+            log.warning("Ignoring issue when processing %s: %s", ec_file, err)
 
 except EasyBuildError, err:
+    sys.stderr.write("ERROR: %s\n" % err)
     sys.exit(1)

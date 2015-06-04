@@ -32,12 +32,14 @@ Creating a new toolchain should be as simple as possible.
 """
 
 import os
-import re
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
+from easybuild.tools.module_generator import dependencies_for
+from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
+from easybuild.tools.modules import get_software_version, get_software_version_env_var_name, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -54,6 +56,7 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+    TOOLCHAIN_FAMILY = None
 
     # class method
     def _is_toolchain_for(cls, name):
@@ -81,13 +84,13 @@ class Toolchain(object):
         if name is None:
             name = self.NAME
         if name is None:
-            self.log.error("Toolchain init: no name provided")
+            raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
 
         if version is None:
             version = self.VERSION
         if version is None:
-            self.log.error("Toolchain init: no version provided")
+            raise EasyBuildError("Toolchain init: no version provided")
         self.version = version
 
         self.vars = None
@@ -128,7 +131,7 @@ class Toolchain(object):
         elif typ == list:
             return self.variables[name].flatten()
         else:
-            self.log.error("get_variable: Don't know how to create value of type %s." % typ)
+            raise EasyBuildError("get_variable: Don't know how to create value of type %s.", typ)
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
@@ -187,18 +190,18 @@ class Toolchain(object):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
-            self.log.error("get_software_root software root for %s was not found in environment" % name)
+            raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
         else:
-            self.log.debug("get_software_root software root %s for %s was found in environment" % (root, name))
+            self.log.debug("get_software_root software root %s for %s was found in environment", root, name)
         return root
 
     def _get_software_version(self, name):
         """Try to get the software root for name"""
         version = get_software_version(name)
         if version is None:
-            self.log.error("get_software_version software version for %s was not found in environment" % name)
+            raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
         else:
-            self.log.debug("get_software_version software version %s for %s was found in environment" % (version, name))
+            self.log.debug("get_software_version software version %s for %s was found in environment", version, name)
 
         return version
 
@@ -221,7 +224,7 @@ class Toolchain(object):
     def det_short_module_name(self):
         """Determine module name for this toolchain."""
         if self.mod_short_name is None:
-            self.log.error("Toolchain module name was not set yet (using set_module_info).")
+            raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
         return self.mod_short_name
 
     def _toolchain_exists(self):
@@ -234,7 +237,7 @@ class Toolchain(object):
             return True
         else:
             if self.mod_short_name is None:
-                self.log.error("Toolchain module name was not set yet (using set_module_info).")
+                raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
             # check whether a matching module exists if self.mod_short_name contains a module name
             return self.modules_tool.exist([self.mod_full_name])[0]
 
@@ -247,7 +250,7 @@ class Toolchain(object):
             else:
                 # used to be warning, but this is a severe error imho
                 known_opts = ','.join(self.options.keys())
-                self.log.error("Undefined toolchain option %s specified (known options: %s)" % (opt, known_opts))
+                raise EasyBuildError("Undefined toolchain option %s specified (known options: %s)", opt, known_opts)
 
     def get_dependency_version(self, dependency):
         """ Generate a version string for a dependency on a module using this toolchain """
@@ -267,7 +270,7 @@ class Toolchain(object):
 
         if 'version' in dependency:
             version = "".join([dependency['version'], toolchain, suffix])
-            self.log.debug("get_dependency_version: version in dependency return %s" % version)
+            self.log.debug("get_dependency_version: version in dependency return %s", version)
             return version
         else:
             toolchain_suffix = "".join([toolchain, suffix])
@@ -275,11 +278,11 @@ class Toolchain(object):
             # Find the most recent (or default) one
             if len(matches) > 0:
                 version = matches[-1][-1]
-                self.log.debug("get_dependency_version: version not in dependency return %s" % version)
+                self.log.debug("get_dependency_version: version not in dependency return %s", version)
                 return
             else:
-                tup = (dependency['name'], toolchain_suffix)
-                self.log.error("No toolchain version for dependency name %s (suffix %s) found" % tup)
+                raise EasyBuildError("No toolchain version for dependency name %s (suffix %s) found",
+                                     dependency['name'], toolchain_suffix)
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
@@ -289,8 +292,7 @@ class Toolchain(object):
         for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
             self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
             if not dep_exists:
-                tup = (dep_mod_name, dep)
-                self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
+                raise EasyBuildError("add_dependencies: no module '%s' found for dependency %s", dep_mod_name, dep)
             else:
                 self.dependencies.append(dep)
                 self.log.debug('add_dependencies: added toolchain dependency %s' % str(dep))
@@ -317,6 +319,45 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
+    def _prepare_dependency_external_module(self, dep):
+        """Set environment variables picked up by utility functions for dependencies specified as external modules."""
+        mod_name = dep['full_mod_name']
+        metadata = dep['external_module_metadata']
+        self.log.debug("Defining $EB* environment variables for external module %s", mod_name)
+
+        names = metadata.get('name', [])
+        versions = metadata.get('version', [None]*len(names))
+        self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
+
+        for name, version in zip(names, versions):
+            self.log.debug("Defining $EB* environment variables for external module %s under name %s", mod_name, name)
+
+            # define $EBROOT env var for install prefix, picked up by get_software_root
+            prefix = metadata.get('prefix')
+            if prefix is not None:
+                if prefix in os.environ:
+                    val = os.environ[prefix]
+                    self.log.debug("Using value of $%s as prefix for external module %s: %s", prefix, mod_name, val)
+                else:
+                    val = prefix
+                    self.log.debug("Using specified prefix for external module %s: %s", mod_name, val)
+                setvar(get_software_root_env_var_name(name), val)
+
+            # define $EBVERSION env var for software version, picked up by get_software_version
+            if version is not None:
+                setvar(get_software_version_env_var_name(name), version)
+
+    def _prepare_dependencies(self):
+        """Load modules for dependencies, and handle special cases like external modules."""
+        # load modules for all dependencies
+        dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
+        self.log.debug("Loading modules for dependencies: %s" % dep_mods)
+        self.modules_tool.load(dep_mods)
+
+        # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
+        for dep in [d for d in self.dependencies if d['external_module']]:
+            self._prepare_dependency_external_module(dep)
+
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -328,17 +369,17 @@ class Toolchain(object):
         (If string: comma separated list of variables that will be ignored).
         """
         if self.modules_tool is None:
-            self.log.error("No modules tool defined in Toolchain instance.")
+            raise EasyBuildError("No modules tool defined in Toolchain instance.")
 
         if not self._toolchain_exists():
-            self.log.error("No module found for toolchain: %s" % self.mod_short_name)
+            raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+                self._prepare_dependencies()
             return
 
         # Load the toolchain and dependencies modules
@@ -349,11 +390,11 @@ class Toolchain(object):
             for modpath in self.init_modpaths:
                 self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
         self.modules_tool.load([self.det_short_module_name()])
-        self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+        self._prepare_dependencies()
 
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
-        self.toolchain_dep_mods = self.modules_tool.dependencies_for(mod_name, depth=0)
+        self.toolchain_dep_mods = dependencies_for(mod_name, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name
@@ -373,8 +414,8 @@ class Toolchain(object):
         if all(map(self.is_dep_in_toolchain_module, toolchain_definition)):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
-            self.log.error("List of toolchain dependency modules and toolchain definition do not match " \
-                           "(%s vs %s)" % (self.toolchain_dep_mods, toolchain_definition))
+            raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
+                                 "(%s vs %s)", self.toolchain_dep_mods, toolchain_definition)
 
         # Generate the variables to be set
         self.set_variables()
@@ -415,7 +456,17 @@ class Toolchain(object):
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        for root in self.get_software_root([dep['name'] for dep in deps]):
+        # collect software install prefixes for dependencies
+        roots = []
+        for dep in deps:
+            if dep.get('external_module', False):
+                # for software names provided via external modules, install prefix may be unknown
+                names = dep['external_module_metadata'].get('name', [])
+                roots.extend([root for root in self.get_software_root(names) if root is not None])
+            else:
+                roots.extend(self.get_software_root(dep['name']))
+
+        for root in roots:
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
@@ -426,8 +477,7 @@ class Toolchain(object):
         donotsetlist = []
         if isinstance(donotset, str):
             # TODO : more legacy code that should be using proper type
-            self.log.error("_setenv_variables: using commas-separated list. should be deprecated.")
-            donotsetlist = donotset.split(',')
+            raise EasyBuildError("_setenv_variables: using commas-separated list. should be deprecated.")
         elif isinstance(donotset, list):
             donotsetlist = donotset
 
@@ -448,6 +498,10 @@ class Toolchain(object):
     def get_flag(self, name):
         """Get compiler flag for a certain option."""
         return "-%s" % self.options.option(name)
+
+    def toolchain_family(self):
+        """Return toolchain family for this toolchain."""
+        return self.TOOLCHAIN_FAMILY
 
     def comp_family(self):
         """ Return compiler family used in this toolchain (abstract method)."""

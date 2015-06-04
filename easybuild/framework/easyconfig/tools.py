@@ -111,13 +111,24 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
         new_ec = ec.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = ActiveMNS().det_full_module_name(dep)
+            full_mod_name = dep.get('full_mod_name', None)
+            if full_mod_name is None:
+                full_mod_name = ActiveMNS().det_full_module_name(dep)
+
             dep_resolved = full_mod_name in new_avail_modules
             if not retain_all_deps:
                 # hidden modules need special care, since they may not be included in list of available modules
                 dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+
             if not dep_resolved:
-                deps.append(dep)
+                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+                # since no corresponding easyconfig can be found for them
+                if retain_all_deps and dep.get('external_module', False):
+                    _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                else:
+                    # no module available (yet) => retain dependency as one to be resolved
+                    deps.append(dep)
+
         new_ec['dependencies'] = deps
 
         if len(new_ec['dependencies']) == 0:
@@ -144,19 +155,26 @@ def _dep_graph(fn, specs, silent=False):
     omit_versions = len(names) == len(specs)
 
     def mk_node_name(spec):
-        if omit_versions:
-            return spec['name']
+        if spec.get('external_module', False):
+            node_name = "%s (EXT)" % spec['full_mod_name']
+        elif omit_versions:
+            node_name = spec['name']
         else:
-            return ActiveMNS().det_full_module_name(spec)
+            node_name = ActiveMNS().det_full_module_name(spec)
+
+        return node_name
 
     # enhance list of specs
+    all_nodes = set()
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
+        all_nodes.add(spec['module'])
         spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
+        all_nodes.update(spec['unresolved_deps'])
 
     # build directed graph
     dgr = digraph()
-    dgr.add_nodes([spec['module'] for spec in specs])
+    dgr.add_nodes(all_nodes)
     for spec in specs:
         for dep in spec['unresolved_deps']:
             dgr.add_edge((spec['module'], dep))
@@ -180,9 +198,8 @@ def dep_graph(*args, **kwargs):
     try:
         _dep_graph(*args, **kwargs)
     except NameError, err:
-        errors = "\n".join(graph_errors)
-        msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
-        _log.error("%s\nerr: %s" % (msg, err))
+        raise EasyBuildError("An optional Python packages required to generate dependency graphs is missing: %s, %s",
+                             '\n'.join(graph_errors), err)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
@@ -314,7 +331,7 @@ def parse_easyconfigs(paths):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            _log.error("Can't find path %s" % path)
+            raise EasyBuildError("Can't find path %s", path)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
@@ -325,7 +342,7 @@ def parse_easyconfigs(paths):
                 ecs = process_easyconfig(ec_file, **kwargs)
                 easyconfigs.extend(ecs)
         except IOError, err:
-            _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
+            raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
     return easyconfigs, generated_ecs
 
@@ -335,7 +352,7 @@ def stats_to_str(stats):
     Pretty print build statistics to string.
     """
     if not isinstance(stats, (OrderedDict, dict)):
-        _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
+        raise EasyBuildError("Can only pretty print build stats in dictionary form, not of type %s", type(stats))
 
     txt = "{\n"
     pref = "    "

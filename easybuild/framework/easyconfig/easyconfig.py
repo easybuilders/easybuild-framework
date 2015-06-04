@@ -56,6 +56,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
+from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
@@ -114,7 +115,7 @@ class EasyConfig(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         if path is not None and not os.path.isfile(path):
-            self.log.error("EasyConfig __init__ expected a valid path")
+            raise EasyBuildError("EasyConfig __init__ expected a valid path")
 
         # read easyconfig file contents (or use provided rawtxt), so it can be passed down to avoid multiple re-reads
         self.path = None
@@ -168,6 +169,8 @@ class EasyConfig(object):
             'stop': self.valid_stops,
         }
 
+        self.external_modules_metadata = build_option('external_modules_metadata')
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -215,7 +218,7 @@ class EasyConfig(object):
         elif isinstance(prev_value, list):
             self[key] = prev_value + value
         else:
-            self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
+            raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
     def parse(self):
         """
@@ -228,7 +231,8 @@ class EasyConfig(object):
             # build a new dictionary with only the expected keys, to pass as named arguments to get_config_dict()
             arg_specs = self.build_specs
         else:
-            self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
+            raise EasyBuildError("Specifications should be specified using a dictionary, got %s",
+                                 type(self.build_specs))
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
         self.log.info("Parsing easyconfig file %s with rawcontent: %s" % (self.path, self.rawtxt))
@@ -241,7 +245,7 @@ class EasyConfig(object):
         # this includes both generic mandatory parameters and software-specific parameters defined via extra_options
         missing_mandatory_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_mandatory_keys:
-            self.log.error("mandatory parameters not provided in %s: %s" % (self.path, missing_mandatory_keys))
+            raise EasyBuildError("mandatory parameters not provided in %s: %s", self.path, missing_mandatory_keys)
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
@@ -249,8 +253,8 @@ class EasyConfig(object):
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
         if typos:
-            self.log.error("You may have some typos in your easyconfig file: %s" %
-                            ', '.join(["%s -> %s" % typo for typo in typos]))
+            raise EasyBuildError("You may have some typos in your easyconfig file: %s",
+                                 ', '.join(["%s -> %s" % typo for typo in typos]))
 
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
@@ -263,8 +267,7 @@ class EasyConfig(object):
                     self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
                 else:
                     self[key] = local_vars[key]
-                tup = (key, self[key], type(self[key]))
-                self.log.info("setting config option %s: value %s (type: %s)" % tup)
+                self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
             elif key in REPLACED_PARAMETERS:
                 _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
@@ -280,8 +283,10 @@ class EasyConfig(object):
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
         for (name, version) in self['allow_system_deps']:
-            env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
-            env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
+            # root is set to name, not an actual path
+            env.setvar(get_software_root_env_var_name(name), name)
+            # version is expected to be something that makes sense
+            env.setvar(get_software_version_env_var_name(name), version)
 
     def validate(self, check_osdeps=True):
         """
@@ -302,8 +307,8 @@ class EasyConfig(object):
 
         self.log.info("Checking skipsteps")
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
-            self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
-                           (type(self._config['skipsteps'][0]), self._config['skipsteps'][0]))
+            raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
+                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
@@ -317,12 +322,12 @@ class EasyConfig(object):
         if lic is None:
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                self.log.error("License is mandatory, but 'software_license' is undefined")
+                raise EasyBuildError("License is mandatory, but 'software_license' is undefined")
         elif not isinstance(lic, License):
-            self.log.error('License %s has to be a License subclass instance, found classname %s.' %
-                           (lic, lic.__class__.__name__))
+            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.',
+                                 lic, lic.__class__.__name__)
         elif not lic.name in EASYCONFIG_LICENSES_DICT:
-            self.log.error('Invalid license %s (classname: %s).' % (lic.name, lic.__class__.__name__))
+            raise EasyBuildError('Invalid license %s (classname: %s).', lic.name, lic.__class__.__name__)
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)
@@ -340,13 +345,14 @@ class EasyConfig(object):
             if isinstance(dep, basestring):
                 dep = (dep,)
             elif not isinstance(dep, tuple):
-                self.log.error("Non-tuple value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
+                raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
+                                     dep, type(dep))
 
             if not any([check_os_dependency(cand_dep) for cand_dep in dep]):
                 not_found.append(dep)
 
         if not_found:
-            self.log.error("One or more OS dependencies were not found: %s" % not_found)
+            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found)
         else:
             self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
@@ -365,7 +371,7 @@ class EasyConfig(object):
 
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
             if self.get(opt, None) is None:
-                self.log.error("%s not available in self.cfg (anymore)?!" % opt)
+                raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
             if isinstance(self[opt], (list, tuple)):
@@ -374,7 +380,7 @@ class EasyConfig(object):
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
         if len(nub(list_opt_lengths)) > 1:
-            self.log.error("Build option lists for iterated build should have same length: %s" % opt_counts)
+            raise EasyBuildError("Build option lists for iterated build should have same length: %s", opt_counts)
 
         return True
 
@@ -387,10 +393,14 @@ class EasyConfig(object):
         faulty_deps = []
         for hidden_dep in self['hiddendependencies']:
             # check whether hidden dep is a listed dep using *visible* module name, not hidden one
+            hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
             if visible_mod_name in dep_mod_names:
                 self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != visible_mod_name]
                 self.log.debug("Removed dependency matching hidden dependency %s" % hidden_dep)
+            elif hidden_mod_name in dep_mod_names:
+                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != hidden_mod_name]
+                self.log.debug("Hidden dependency %s is already marked to be installed as hidden module", hidden_dep)
             else:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
@@ -399,8 +409,8 @@ class EasyConfig(object):
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
-            tup = (faulty_deps, dep_mod_names)
-            self.log.error("Hidden dependencies with visible module names %s not in list of dependencies: %s" % tup)
+            raise EasyBuildError("Hidden dependencies with visible module names %s not in list of dependencies: %s",
+                                 faulty_deps, dep_mod_names)
 
     def dependencies(self):
         """
@@ -515,7 +525,7 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
+            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
     # private method
     def _parse_dependency(self, dep, hidden=False):
@@ -527,7 +537,8 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden',
+         'external_module']
 
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         """
@@ -536,20 +547,31 @@ class EasyConfig(object):
 
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
-            'dummy': False,
-            'full_mod_name': None,  # full module name
-            'short_mod_name': None,  # short module name
-            'name': '',  # software name
-            'toolchain': None,
-            'version': '',
+            # full/short module names
+            'full_mod_name': None,
+            'short_mod_name': None,
+            # software name, version, versionsuffix
+            'name': None,
+            'version': None,
             'versionsuffix': '',
+            # toolchain with which this dependency is installed
+            'toolchain': None,
+            # boolean indicating whether we're dealing with a dummy toolchain for this dependency
+            'dummy': False,
+            # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
+            # boolean indicating whether this dependency should be resolved via an external module
+            'external_module': False,
+            # metadata in case this is an external module;
+            # provides information on what this module represents (software name/version, install prefix, ...)
+            'external_module_metadata': {},
         }
         if isinstance(dep, dict):
             dependency.update(dep)
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+
         elif isinstance(dep, Dependency):
             dependency['name'] = dep.name()
             dependency['version'] = dep.version()
@@ -559,12 +581,35 @@ class EasyConfig(object):
             toolchain = dep.toolchain()
             if toolchain is not None:
                 dependency['toolchain'] = toolchain
+
         elif isinstance(dep, (list, tuple)):
-            # try and convert to list
-            dep = list(dep)
-            dependency.update(dict(zip(attr, dep)))
+            if dep and dep[-1] == EXTERNAL_MODULE_MARKER:
+                if len(dep) == 2:
+                    dependency['external_module'] = True
+                    dependency['short_mod_name'] = dep[0]
+                    dependency['full_mod_name'] = dep[0]
+                    if dep[0] in self.external_modules_metadata:
+                        dependency['external_module_metadata'].update(self.external_modules_metadata[dep[0]])
+                        self.log.info("Updated dependency info with available metadata for external module %s: %s",
+                                      dep[0], dependency['external_module_metadata'])
+                    else:
+                        self.log.info("No metadata available for external module %s", dep[0])
+                else:
+                    raise EasyBuildError("Incorrect external dependency specification: %s", dep)
+            else:
+                # non-external dependency: tuple (or list) that specifies name/version(/versionsuffix(/toolchain))
+                dependency.update(dict(zip(attr, dep)))
+
         else:
-            self.log.error('Dependency %s of unsupported type: %s.' % (dep, type(dep)))
+            raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
+
+        if dependency['external_module']:
+            self.log.debug("Returning parsed external dependency: %s", dependency)
+            return dependency
+
+        # check whether this dependency should be hidden according to --hide-deps
+        if build_option('hide_deps'):
+            dependency['hidden'] |= dependency['name'] in build_option('hide_deps')
 
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
@@ -578,27 +623,29 @@ class EasyConfig(object):
                 if len(tc_spec) == 2:
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
-                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(tc_spec))
+                    raise EasyBuildError("List/tuple value for toolchain should have two elements (%s)", str(tc_spec))
             elif isinstance(tc_spec, dict):
                 if 'name' in tc_spec and 'version' in tc_spec:
                     tc = copy.deepcopy(tc_spec)
                 else:
-                    self.log.error("Found toolchain spec as dict with required 'name'/'version' keys: %s" % tc_spec)
+                    raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
             else:
-                self.log.error("Unsupported type for toolchain spec encountered: %s => %s" % (tc_spec, type(tc_spec)))
+                raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
 
+        self.log.debug("Derived toolchain to use for dependency %s, based on toolchain spec %s: %s", dep, tc_spec, tc)
         dependency['toolchain'] = tc
 
         # make sure 'dummy' value is set correctly
         dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
 
         # validations
-        if not dependency['name']:
-            self.log.error("Dependency specified without name: %s" % dependency)
+        if dependency['name'] is None:
+            raise EasyBuildError("Dependency specified without name: %s", dependency)
 
-        if not dependency['version']:
-            self.log.error("Dependency specified without version: %s" % dependency)
+        if dependency['version'] is None:
+            raise EasyBuildError("Dependency specified without version: %s", dependency)
 
+        # set module names
         dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
         dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
 
@@ -643,7 +690,7 @@ class EasyConfig(object):
         if key in self._config:
             value = self._config[key][0]
         else:
-            self.log.error("Use of unknown easyconfig parameter '%s' when getting parameter value" % key)
+            raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
         if self.enable_templating:
             if self.template_values is None or len(self.template_values) == 0:
@@ -658,8 +705,8 @@ class EasyConfig(object):
         if key in self._config:
             self._config[key][0] = value
         else:
-            tup = (key, value)
-            self.log.error("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'" % tup)
+            raise EasyBuildError("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'",
+                                 key, value)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def get(self, key, default=None):
@@ -705,8 +752,8 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
             # figure out if full path was specified or not
             if es:
                 modulepath = '.'.join(es)
-                tup = (class_name, modulepath)
-                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)" % tup)
+                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)",
+                          class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
                 # if we only get the class name, most likely we're dealing with a generic easyblock
@@ -763,16 +810,17 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
                         _log.nosupport(depr_msg, '2.0')
                 else:
                     if error_on_failed_import:
-                        _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                        raise EasyBuildError("Failed to import easyblock for %s because of module issue: %s",
+                                             class_name, err)
                     else:
                         _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
-            tup = (cls.__name__, easyblock, name)
-            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
+                      cls.__name__, easyblock, name)
         else:
-            tup = (easyblock, name, default_fallback)
-            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s" % tup)
+            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s",
+                       easyblock, name, default_fallback)
 
         return cls
 
@@ -780,7 +828,7 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception, err:
-        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
+        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
 def get_module_path(name, generic=False, decode=True):
@@ -890,8 +938,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError, err:
-            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
-            _log.exception(msg)
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 
         name = ec['name']
 
@@ -970,7 +1017,7 @@ def robot_find_easyconfig(name, version):
         return _easyconfig_files_cache[key]
     paths = build_option('robot_path')
     if not paths:
-        _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
+        raise EasyBuildError("No robot path specified, which is required when looking for easyconfigs (use --robot)")
     if not isinstance(paths, (list, tuple)):
         paths = [paths]
     # candidate easyconfig paths
@@ -1002,7 +1049,8 @@ class ActiveMNS(object):
         if sel_mns in avail_mnss:
             self.mns = avail_mnss[sel_mns]()
         else:
-            self.log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
+            raise EasyBuildError("Selected module naming scheme %s could not be found in %s",
+                                 sel_mns, avail_mnss.keys())
 
     def requires_full_easyconfig(self, keys):
         """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
@@ -1023,8 +1071,8 @@ class ActiveMNS(object):
                     self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                 ec = parsed_ec[0]['ec']
             else:
-                tup = (ec['name'], det_full_ec_version(ec), ec)
-                self.log.error("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s" % tup)
+                raise EasyBuildError("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s",
+                                     ec['name'], det_full_ec_version(ec), ec)
 
         return ec
 
@@ -1047,7 +1095,7 @@ class ActiveMNS(object):
         mod_name = mns_method(self.check_ec_type(ec))
 
         if not is_valid_module_name(mod_name):
-            self.log.error("%s is not a valid module name" % str(mod_name))
+            raise EasyBuildError("%s is not a valid module name", str(mod_name))
 
         # check whether module name should be hidden or not
         # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
@@ -1063,6 +1111,13 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid full module name %s" % mod_name)
         return mod_name
 
+    def det_install_subdir(self, ec):
+        """Determine name of software installation subdirectory."""
+        self.log.debug("Determining software installation subdir for %s", ec)
+        subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
+        self.log.debug("Obtained subdir %s", subdir)
+        return subdir
+
     def det_devel_module_filename(self, ec, force_visible=False):
         """Determine devel module filename."""
         modname = self.det_full_module_name(ec, force_visible=force_visible)
@@ -1076,9 +1131,8 @@ class ActiveMNS(object):
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
         if not self.is_short_modname_for(mod_name, ec['name']):
-            tup = (mod_name, ec['name'])
-            self.log.error("is_short_modname_for('%s', '%s') for active module naming scheme returns False" % tup)
-
+            raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
+                                 mod_name, ec['name'])
         return mod_name
 
     def det_module_subdir(self, ec):
