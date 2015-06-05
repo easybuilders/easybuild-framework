@@ -87,7 +87,7 @@ class IntelIccIfort(Compiler):
         'dynamic':'-Bdynamic',
     }
 
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
+    LIB_MULTITHREAD = None
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
@@ -104,6 +104,9 @@ class IntelIccIfort(Compiler):
             raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
                                  icc_version, ifort_version)
 
+        # reset LIB_MULTITHREAD every time,
+        # to avoid problems when multiple Intel compilers versions are used in a single session
+        self.LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 

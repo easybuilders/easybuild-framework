@@ -67,9 +67,9 @@ class IntelMKL(LinAlg):
     BLACS_LIB_STATIC = True
 
     SCALAPACK_MODULE_NAME = ['imkl']
-    SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
-    SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
-    SCALAPACK_LIB_MAP = {"lp64_sc":"_lp64"}
+    SCALAPACK_LIB = None
+    SCALAPACK_LIB_MT = None
+    SCALAPACK_LIB_MAP = None
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
     SCALAPACK_LIB_GROUP = True
     SCALAPACK_LIB_STATIC = True
@@ -101,10 +101,10 @@ class IntelMKL(LinAlg):
 
         if self.options.get('32bit', None):
             # 32bit
-            self.BLAS_LIB_MAP.update({"lp64":''})
+            self.BLAS_LIB_MAP.update({"lp64":''})  # FIXME
         if self.options.get('i8', None):
             # ilp64/i8
-            self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})
+            self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})  # FIXME
             # CPP / CFLAGS
             self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
 
@@ -150,6 +150,11 @@ class IntelMKL(LinAlg):
         super(IntelMKL, self)._set_blacs_variables()
 
     def _set_scalapack_variables(self):
+        # reset SCALAPACK_LIB* every time, to avoid problems when multiple imkl versions are used in a single session
+        self.SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
+        self.SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
+        self.SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
+
         imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         if LooseVersion(imkl_version) < LooseVersion('10.3'):
             self.SCALAPACK_LIB.append("mkl_solver%(lp64)s_sequential")

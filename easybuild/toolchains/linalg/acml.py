@@ -43,9 +43,8 @@ class Acml(LinAlg):
     Provides ACML BLAS/LAPACK support.
     """
     BLAS_MODULE_NAME = ['ACML']
-    # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
-    BLAS_LIB = ['acml']
-    BLAS_LIB_MT = ['acml_mp']
+    BLAS_LIB = None
+    BLAS_LIB_MT = None
 
     # is completed in _set_blas_variables, depends on compiler used
     BLAS_LIB_DIR = []
@@ -72,6 +71,11 @@ class Acml(LinAlg):
         except:
             raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
                                  "with compiler family %s", self.COMPILER_FAMILY)
+
+        # reset BLAS_LIB(_MT) every time, to avoid problems when multiple ACML versions are used in a single session
+        # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
+        self.BLAS_LIB = ['acml']
+        self.BLAS_LIB_MT = ['acml_mp']
 
         # version before 5.x still featured the acml_mv library
         ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]
