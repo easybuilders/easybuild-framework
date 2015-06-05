@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2014 Ghent University
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,9 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, nub
 from vsc.utils.wrapper import Wrapper
 
+from easybuild.tools.build_log import EasyBuildError
+
+
 _log = fancylogger.getLogger('tools.convert', fname=False)
 
 
@@ -56,7 +59,7 @@ class Convert(Wrapper):
         if isinstance(obj, basestring):
             self.data = self._from_string(obj)
         else:
-            self.log.error('unsupported type %s for %s: %s' % (type(obj), self.__class__.__name__, obj))
+            raise EasyBuildError("unsupported type %s for %s: %s", type(obj), self.__class__.__name__, obj)
         super(Convert, self).__init__(self.data)
 
     def _split_string(self, txt, sep=None, max=0):
@@ -66,7 +69,7 @@ class Convert(Wrapper):
         """
         if sep is None:
             if self.SEPARATOR is None:
-                self.log.error('No SEPARATOR set, also no separator passed')
+                raise EasyBuildError("No SEPARATOR set, also no separator passed")
             else:
                 sep = self.SEPARATOR
         return [x.strip() for x in re.split(r'' + sep, txt, maxsplit=max)]
@@ -221,4 +224,4 @@ def get_convert_class(class_name):
     if len(res) == 1:
         return res[0]
     else:
-        _log.error('More then one Convert subclass found for name %s: %s' % (class_name, res))
+        raise EasyBuildError("More than one Convert subclass found for name %s: %s", class_name, res)

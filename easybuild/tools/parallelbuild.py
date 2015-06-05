@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -203,4 +203,4 @@ def prepare_easyconfig(ec):
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
-        _log.error("An error occured while preparing %s: %s" % (ec, err))
+        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,8 @@ Map values can be string with named templates
 
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 class ToolchainOptions(dict):
     def __init__(self):
@@ -62,9 +64,9 @@ class ToolchainOptions(dict):
         self.log.debug("_add_options: adding options %s" % options)
         for name, value in options.items():
             if not isinstance(value, (list, tuple,)) and len(value) == 2:
-                self.log.raiseException("_add_options: option name %s has to be 2 element list (%s)" % (name, value))
+                raise EasyBuildError("_add_options: option name %s has to be 2 element list (%s)", name, value)
             if name in self:
-                self.log.debug("_add_options: redefining previous name %s (previous value %s)" % (name, self.get(name)))
+                self.log.debug("_add_options: redefining previous name %s (previous value %s)", name, self.get(name))
             self.__setitem__(name, value[0])
             self.description.__setitem__(name, value[1])
 
@@ -75,9 +77,9 @@ class ToolchainOptions(dict):
         for name in options_map.keys():
             if not name in self:
                 if name.startswith('_opt_'):
-                    self.log.debug("_add_options_map: no option with name %s defined, but allowed" % name)
+                    self.log.debug("_add_options_map: no option with name %s defined, but allowed", name)
                 else:
-                    self.log.raiseException("_add_options_map: no option with name %s defined" % name)
+                    raise EasyBuildError("_add_options_map: no option with name %s defined", name)
 
         self.options_map.update(options_map)
 

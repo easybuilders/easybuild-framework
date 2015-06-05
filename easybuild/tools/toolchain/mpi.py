@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,7 @@ import tempfile
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -106,7 +107,7 @@ class Mpi(Toolchain):
 
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:
-                self.log.raiseException("_set_mpi_compiler_variables: mpi compiler variable %s undefined" % var)
+                raise EasyBuildError("_set_mpi_compiler_variables: mpi compiler variable %s undefined", var)
             self.variables.nappend_el(var, value)
 
             # complete compiler variable template to produce e.g. 'mpicc -cc=icc -X -Y' from 'mpicc -cc=%(CC_base)'
@@ -159,7 +160,7 @@ class Mpi(Toolchain):
         if self.MPI_FAMILY:
             return self.MPI_FAMILY
         else:
-            self.log.raiseException("mpi_family: MPI_FAMILY is undefined.")
+            raise EasyBuildError("mpi_family: MPI_FAMILY is undefined.")
 
     # FIXME: deprecate this function, use mympirun instead
     # this requires that either mympirun is packaged together with EasyBuild, or that vsc-tools is a dependency of EasyBuild
@@ -188,10 +189,16 @@ class Mpi(Toolchain):
         # Intel MPI mpirun needs more work
         if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
-            tmpdir = tempfile.mkdtemp(prefix='eb-mpi_cmd_for-')
-
             # set temporary dir for mdp
-            env.setvar('I_MPI_MPD_TMPDIR', tmpdir)
+            # note: this needs to be kept *short*, to avoid mpirun failing with "socket.error: AF_UNIX path too long"
+            # exact limit is unknown, but ~20 characters seems to be OK
+            env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
+            mpd_tmpdir = os.environ['I_MPI_MPD_TMPDIR']
+            if len(mpd_tmpdir) > 20:
+                self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s" % mpd_tmpdir)
+
+            # temporary location for mpdboot and nodes files
+            tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
@@ -207,7 +214,7 @@ class Mpi(Toolchain):
                     os.remove(fn)
                 write_file(fn, "localhost ifhn=localhost")
             except OSError, err:
-                self.log.error("Failed to create file %s: %s" % (fn, err))
+                raise EasyBuildError("Failed to create file %s: %s", fn, err)
 
             params.update({'mpdbf': "--file=%s" % fn})
 
@@ -218,11 +225,11 @@ class Mpi(Toolchain):
                     os.remove(fn)
                 write_file(fn, "localhost\n" * nr_ranks)
             except OSError, err:
-                self.log.error("Failed to create file %s: %s" % (fn, err))
+                raise EasyBuildError("Failed to create file %s: %s", fn, err)
 
             params.update({'nodesfile': "-machinefile %s" % fn})
 
         if mpi_family in mpi_cmds.keys():
             return mpi_cmds[mpi_family] % params
         else:
-            self.log.error("Don't know how to create an MPI command for MPI library of type '%s'." % mpi_family)
+            raise EasyBuildError("Don't know how to create an MPI command for MPI library of type '%s'.", mpi_family)

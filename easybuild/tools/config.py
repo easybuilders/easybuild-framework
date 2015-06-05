@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,12 +40,12 @@ import string
 import tempfile
 import time
 from vsc.utils import fancylogger
-from vsc.utils.missing import nub, FrozenDictKnownKeys
+from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 import easybuild.tools.environment as env
-from easybuild.tools.environment import read_environment as _read_environment
+from easybuild.tools import run
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_cmd
 
 
@@ -54,6 +54,7 @@ _log = fancylogger.getLogger('config', fname=False)
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
+DEFAULT_MODULE_SYNTAX = 'Tcl'
 DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
@@ -65,6 +66,7 @@ DEFAULT_PATH_SUBDIRS = {
 }
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+DEFAULT_STRICT = run.WARN
 
 PREFERRED_JOB_BACKENDS = ('Pbs', 'GC3Pie')
 
@@ -85,7 +87,9 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'external_modules_metadata',
         'filter_deps',
+        'hide_deps',
         'from_pr',
         'github_user',
         'group',
@@ -107,6 +111,7 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'force',
         'hidden',
+        'module_only',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -117,6 +122,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+    ],
+    DEFAULT_STRICT: [
+        'strict',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -179,21 +187,24 @@ class ConfigurationVariables(FrozenDictKnownKeys):
 
     # list of known/required keys
     REQUIRED = [
-        'config',
-        'prefix',
         'buildpath',
+        'config',
         'installpath',
+        'installpath_modules',
+        'installpath_software',
         'job_backend',
-        'sourcepath',
+        'logfile_format',
+        'moduleclasses',
+        'module_naming_scheme',
+        'module_syntax',
+        'modules_tool',
+        'prefix',
         'repository',
         'repositorypath',
-        'logfile_format',
-        'tmp_logdir',
-        'moduleclasses',
+        'sourcepath',
         'subdir_modules',
         'subdir_software',
-        'modules_tool',
-        'module_naming_scheme',
+        'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
 
@@ -204,8 +215,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         """
         missing = [x for x in self.KNOWN_KEYS if not x in self]
         if len(missing) > 0:
-            msg = 'Cannot determine value for configuration variables %s. Please specify it.' % missing
-            self.log.error(msg)
+            raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
 
         return self.items()
 
@@ -237,7 +247,7 @@ def init(options, config_options_dict):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
-        _log.error("Value for sourcepath has invalid type (%s): %s" % (type(sourcepath), sourcepath))
+        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -324,9 +334,22 @@ def install_path(typ=None):
     elif typ == 'mod':
         typ = 'modules'
 
+    known_types = ['modules', 'software']
+    if typ not in known_types:
+        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+
     variables = ConfigurationVariables()
-    suffix = variables['subdir_%s' % typ]
-    return os.path.join(variables['installpath'], suffix)
+
+    key = 'installpath_%s' % typ
+    res = variables[key]
+    if res is None:
+        key = 'subdir_%s' % typ
+        res = os.path.join(variables['installpath'], variables[key])
+        _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
+    else:
+        _log.debug("%s install path as specified by '%s': %s", typ, key, res)
+
+    return res
 
 
 def get_repository():
@@ -353,7 +376,7 @@ def get_modules_tool():
 
 def get_module_naming_scheme():
     """
-    Return module naming scheme (EasyBuild, ...)
+    Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
 
@@ -364,6 +387,13 @@ def get_job_backend():
     """
     # 'job_backend' key will only be present after EasyBuild config is initialized
     return ConfigurationVariables().get('job_backend', None)
+
+
+def get_module_syntax():
+    """
+    Return module syntax (Lua, Tcl)
+    """
+    return ConfigurationVariables()['module_syntax']
 
 
 def log_file_format(return_directory=False):
@@ -457,12 +487,12 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         if tmpdir is not None:
             if not os.path.exists(tmpdir):
                 os.makedirs(tmpdir)
-            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=tmpdir)
+            current_tmpdir = tempfile.mkdtemp(prefix='eb-', dir=tmpdir)
         else:
             # use tempfile default parent dir
-            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+            current_tmpdir = tempfile.mkdtemp(prefix='eb-')
     except OSError, err:
-        _log.error("Failed to create temporary directory (tmpdir: %s): %s" % (tmpdir, err))
+        raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
 
     _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
 
@@ -481,7 +511,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
             msg += "This can cause problems in the build process, consider using --tmpdir."
             if raise_error:
-                _log.error(msg)
+                raise EasyBuildError(msg)
             else:
                 _log.warning(msg)
         else:
@@ -489,6 +519,6 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         os.remove(tmptest_file)
 
     except OSError, err:
-        _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
+        raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
 
     return current_tmpdir

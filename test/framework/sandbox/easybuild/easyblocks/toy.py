@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,9 +33,11 @@ import platform
 import shutil
 
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.run import run_cmd
+
 
 class EB_toy(EasyBlock):
     """Support for building/installing toy."""
@@ -55,7 +57,7 @@ class EB_toy(EasyBlock):
         # make sure Python system dep is handled correctly when specified
         if self.cfg['allow_system_deps']:
             if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
-                self.log.error("Sanity check on allowed Python system dep failed.")
+                raise EasyBlock("Sanity check on allowed Python system dep failed.")
         os.rename('%s.source' % name, '%s.c' % name)
 
     def build_step(self, name=None):
