@@ -59,7 +59,7 @@ class Toolchain(object):
     TOOLCHAIN_FAMILY = None
 
     # list of class 'constants' that should be restored for every new instance of this class
-    CLASS_CONSTANTS_TO_RESTORE = []
+    CLASS_CONSTANTS_TO_RESTORE = None
     CLASS_CONSTANT_COPIES = {}
 
     # class method
@@ -99,6 +99,7 @@ class Toolchain(object):
 
         self.vars = None
 
+        self.add_class_constants_to_restore([])  # make sure self.CLASS_CONSTANTS_TO_RESTORE is initialised
         self._copy_class_constants()
         self._restore_class_constants()
 
@@ -114,6 +115,13 @@ class Toolchain(object):
                 self.mod_full_name = self.mns.det_full_module_name(tc_dict)
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
+
+    def add_class_constants_to_restore(self, names):
+        """Add given constants to list of class constants to restore with each new instance."""
+        if self.CLASS_CONSTANTS_TO_RESTORE is None:
+            self.CLASS_CONSTANTS_TO_RESTORE = names[:]
+        else:
+            self.CLASS_CONSTANTS_TO_RESTORE.extend(names)
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -139,7 +147,7 @@ class Toolchain(object):
                 if hasattr(self, cst):
                     self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(getattr(self, cst))
                 else:
-                    raise EasyBuildError("Class constant '%s' to be restored does not exist", cst)
+                    raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
 
             self.log.debug("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
 

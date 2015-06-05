@@ -91,7 +91,7 @@ class IntelIccIfort(Compiler):
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
-        self.CLASS_CONSTANTS_TO_RESTORE.append('LIB_MULTITHREAD')
+        self.add_class_constants_to_restore(['LIB_MULTITHREAD'])
         super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):

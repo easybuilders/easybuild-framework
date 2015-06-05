@@ -76,8 +76,7 @@ class IntelMKL(LinAlg):
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
-        self.CLASS_CONSTANTS_TO_RESTORE.append('BLAS_LIB_MAP')
-        self.CLASS_CONSTANTS_TO_RESTORE.extend(['SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
+        self.add_class_constants_to_restore(['BLAS_LIB_MAP', 'SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
         super(IntelMKL, self).__init__(*args, **kwargs)
 
     def _set_blas_variables(self):

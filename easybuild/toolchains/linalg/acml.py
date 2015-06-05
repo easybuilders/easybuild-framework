@@ -60,7 +60,7 @@ class Acml(LinAlg):
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
-        self.CLASS_CONSTANTS_TO_RESTORE.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
+        self.add_class_constants_to_restore(['BLAS_LIB', 'BLAS_LIB_MT'])
         super(Acml, self).__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
