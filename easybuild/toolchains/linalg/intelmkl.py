@@ -28,7 +28,6 @@ Support for Intel MKL as toolchain linear algebra library.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import copy
 from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
