@@ -53,7 +53,9 @@ def _to_key(dep):
     """Determine key for specified dependency."""
     return ActiveMNS().det_full_module_name(dep)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build'):
+def build_easyconfigs_in_parallel(build_command, easyconfigs,
+                                  output_dir='easybuild-build',
+                                  prepare_first=True):
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
     Return list of jobs submitted.
