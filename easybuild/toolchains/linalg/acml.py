@@ -43,6 +43,7 @@ class Acml(LinAlg):
     Provides ACML BLAS/LAPACK support.
     """
     BLAS_MODULE_NAME = ['ACML']
+    # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
     BLAS_LIB = ['acml']
     BLAS_LIB_MT = ['acml_mp']
 

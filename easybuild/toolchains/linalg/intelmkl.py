@@ -67,15 +67,16 @@ class IntelMKL(LinAlg):
     BLACS_LIB_STATIC = True
 
     SCALAPACK_MODULE_NAME = ['imkl']
-    SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
-    SCALAPACK_LIB_GROUP = True
-    SCALAPACK_LIB_STATIC = True
     SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
     SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
     SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
+    SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
+    SCALAPACK_LIB_GROUP = True
+    SCALAPACK_LIB_STATIC = True
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
+        self.CLASS_CONSTANTS_TO_RESTORE.append('BLAS_LIB_MAP')
         self.CLASS_CONSTANTS_TO_RESTORE.extend(['SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
         super(IntelMKL, self).__init__(*args, **kwargs)
 
@@ -106,10 +107,10 @@ class IntelMKL(LinAlg):
 
         if self.options.get('32bit', None):
             # 32bit
-            self.BLAS_LIB_MAP.update({"lp64":''})  # FIXME
+            self.BLAS_LIB_MAP.update({"lp64":''})
         if self.options.get('i8', None):
             # ilp64/i8
-            self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})  # FIXME
+            self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})
             # CPP / CFLAGS
             self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
 
