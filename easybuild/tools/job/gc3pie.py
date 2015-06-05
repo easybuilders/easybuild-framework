@@ -48,10 +48,11 @@ from easybuild.tools.job import JobServer
 
 from vsc.utils import fancylogger
 
-# inject EasyBuild logger into GC3Pie
-gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
-# make handling of log.error compatible with stdlib logging
-gc3libs.log.raiseError = False
+if HAVE_GC3PIE:
+    # inject EasyBuild logger into GC3Pie
+    gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
+    # make handling of log.error compatible with stdlib logging
+    gc3libs.log.raiseError = False
 
 
 # eb --job --job-backend=GC3Pie
