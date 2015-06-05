@@ -28,7 +28,7 @@ Support for Intel MKL as toolchain linear algebra library.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
@@ -76,7 +76,7 @@ class IntelMKL(LinAlg):
     # keep track of original values, need to be restored every time since we append to class 'constants' SCALAPACK_LIB*
     _INIT_SCALAPACK_LIB = SCALAPACK_LIB[:]
     _INIT_SCALAPACK_LIB_MT = SCALAPACK_LIB_MT[:]
-    _INIT_SCALAPACK_LIB_MAP = SCALAPACK_LIB_MAP[:]
+    _INIT_SCALAPACK_LIB_MAP = copy.deepcopy(SCALAPACK_LIB_MAP)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -155,9 +155,9 @@ class IntelMKL(LinAlg):
 
     def _set_scalapack_variables(self):
         # reset SCALAPACK_LIB* every time, to avoid problems when multiple imkl versions are used in a single session
-        self.SCALAPACK_LIB = self._INIT_SCALAPACK_LIB
-        self.SCALAPACK_LIB_MT = self._INIT_SCALAPACK_LIB_MT
-        self.SCALAPACK_LIB_MAP = self._INIT_SCALAPACK_LIB_MAP
+        self.SCALAPACK_LIB = self._INIT_SCALAPACK_LIB[:]
+        self.SCALAPACK_LIB_MT = self._INIT_SCALAPACK_LIB_MT[:]
+        self.SCALAPACK_LIB_MAP = copy.deepcopy(self._INIT_SCALAPACK_LIB_MAP)
 
         imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         if LooseVersion(imkl_version) < LooseVersion('10.3'):
