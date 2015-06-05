@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,14 +38,33 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
-from easybuild.tools.config import build_path, source_paths, install_path, get_repositorypath
+from easybuild.tools import run
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option, build_path, source_paths, install_path, get_repositorypath
 from easybuild.tools.config import set_tmpdir, BuildOptions, ConfigurationVariables
-from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
+from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.repository.filerepo import FileRepository
-from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
+EXTERNAL_MODULES_METADATA = """[cray-netcdf/4.3.2]
+name = netCDF,netCDF-Fortran
+version = 4.3.2,4.3.2
+prefix = NETCDF_DIR
+ 
+[cray-hdf5/1.8.13]
+name = HDF5
+version = 1.8.13
+prefix = HDF5_DIR
+
+[foo]
+name = Foo
+prefix = /foo
+
+[bar/1.2.3]
+name = bar
+version = 1.2.3
+"""
 
 class EasyBuildConfigTest(EnhancedTestCase):
     """Test cases for EasyBuild configuration."""
@@ -54,6 +73,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Prepare for running a config test."""
+        reload(eboptions)
         super(EasyBuildConfigTest, self).setUp()
         self.tmpdir = tempfile.mkdtemp()
 
@@ -137,12 +157,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
             '--prefix', prefix,
             '--installpath', install,
             '--repositorypath', repopath,
+            '--subdir-software', 'APPS',
         ]
 
         options = init_config(args=args)
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
-        self.assertEqual(install_path(), os.path.join(install, 'software'))
+        self.assertEqual(install_path(), os.path.join(install, 'APPS'))
         self.assertEqual(install_path(typ='mod'), os.path.join(install, 'modules'))
 
         self.assertEqual(options.installpath, install)
@@ -159,26 +180,82 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_PREFIX'] = prefix
         os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = subdir_software
+        installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
+        os.environ['EASYBUILD_INSTALLPATH_MODULES'] = installpath_modules
 
         options = init_config(args=args)
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, subdir_software))
+        self.assertEqual(install_path('mod'), installpath_modules)
+
+        # subdir options *must* be relative (to --installpath)
+        installpath_software = tempfile.mkdtemp(prefix='installpath-software')
+        os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = installpath_software
+        error_regex = r"Found problems validating the options.*'subdir_software' must specify a \*relative\* path"
+        self.assertErrorRegex(EasyBuildError, error_regex, init_config)
 
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
+
+    def test_error_env_var_typo(self):
+        """Test error reporting on use of known $EASYBUILD-prefixed env vars."""
+        # all is well
+        init_config()
+
+        os.environ['EASYBUILD_FOO'] = 'foo'
+        os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'] = 'whatever'
+
+        error = r"Found 2 environment variable\(s\) that are prefixed with %s " % CONFIG_ENV_VAR_PREFIX
+        error += "but do not match valid option\(s\): "
+        error += ','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
+        self.assertErrorRegex(EasyBuildError, error, init_config)
+
+        del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
+        del os.environ['EASYBUILD_FOO']
+
+    def test_install_path(self):
+        """Test install_path function."""
+        # defaults
+        self.assertEqual(install_path(), os.path.join(self.test_installpath, 'software'))
+        self.assertEqual(install_path('software'), os.path.join(self.test_installpath, 'software'))
+        self.assertEqual(install_path(typ='mod'), os.path.join(self.test_installpath, 'modules'))
+        self.assertEqual(install_path('modules'), os.path.join(self.test_installpath, 'modules'))
+
+        self.assertErrorRegex(EasyBuildError, "Unknown type specified", install_path, typ='foo')
+
+        args = [
+            '--subdir-software', 'SOFT',
+            '--installpath', '/foo',
+        ]
+        os.environ['EASYBUILD_SUBDIR_MODULES'] = 'MOD'
+        init_config(args=args)
+        self.assertEqual(install_path(), os.path.join('/foo', 'SOFT'))
+        self.assertEqual(install_path(typ='mod'), os.path.join('/foo', 'MOD'))
+        del os.environ['EASYBUILD_SUBDIR_MODULES']
+
+        args = [
+            '--installpath', '/prefix',
+            '--installpath-modules', '/foo',
+        ]
+        os.environ['EASYBUILD_INSTALLPATH_SOFTWARE'] = '/bar/baz'
+        init_config(args=args)
+        self.assertEqual(install_path(), os.path.join('/bar', 'baz'))
+        self.assertEqual(install_path(typ='mod'), '/foo')
+
+        del os.environ['EASYBUILD_INSTALLPATH_SOFTWARE']
+        init_config(args=args)
+        self.assertEqual(install_path(), os.path.join('/prefix', 'software'))
+        self.assertEqual(install_path(typ='mod'), '/foo')
 
     def test_generaloption_config_file(self):
         """Test use of new-style configuration file."""
         self.purge_environment()
 
-        oldstyle_config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
         config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
 
         testpath1 = os.path.join(self.tmpdir, 'test1')
         testpath2 = os.path.join(self.tmpdir, 'testtwo')
-
-        write_file(oldstyle_config_file, '')
 
         # test with config file passed via command line
         cfgtxt = '\n'.join([
@@ -187,16 +264,19 @@ class EasyBuildConfigTest(EnhancedTestCase):
         ])
         write_file(config_file, cfgtxt)
 
+        installpath_software = tempfile.mkdtemp(prefix='installpath-software')
         args = [
             '--configfiles', config_file,
             '--debug',
             '--buildpath', testpath1,
+            '--installpath-software', installpath_software,
         ]
         options = init_config(args=args)
 
         self.assertEqual(build_path(), testpath1)  # via command line
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
-        self.assertEqual(install_path(), os.path.join(testpath2, 'software'))  # via config file
+        self.assertEqual(install_path(), installpath_software)  # via cmdline arg
+        self.assertEqual(install_path('mod'), os.path.join(testpath2, 'modules'))  # via config file
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
         # to check whether easyconfigs install path is auto-included in robot path
@@ -210,10 +290,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         # test with config file passed via environment variable
+        installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
-            'robot-paths = /tmp/foo:%(DEFAULT_ROBOT_PATHS)s',
+            'sourcepath = %(DEFAULT_REPOSITORYPATH)s',
+            'repositorypath = %(DEFAULT_REPOSITORYPATH)s,somesubdir',
+            'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s',
+            'installpath-modules=%s' % installpath_modules,
         ])
         write_file(config_file, cfgtxt)
 
@@ -224,11 +308,18 @@ class EasyBuildConfigTest(EnhancedTestCase):
         ]
         options = init_config(args=args)
 
-        self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
+        topdir = os.path.join(os.getenv('HOME'), '.local', 'easybuild')
+        self.assertEqual(install_path(), os.path.join(topdir, 'software'))  # default
+        self.assertEqual(install_path('mod'), installpath_modules),  # via config file
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
-        self.assertTrue('/tmp/foo' in options.robot_paths)
-        self.assertTrue(os.path.join(tmpdir, 'easybuild', 'easyconfigs') in options.robot_paths)
+        self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
+        robot_paths = [
+            '/tmp/foo',
+            os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
+            os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
+        ]
+        self.assertEqual(options.robot_paths[:3], robot_paths)
 
         testpath3 = os.path.join(self.tmpdir, 'testTHREE')
         os.environ['EASYBUILD_SOURCEPATH'] = testpath2
@@ -240,6 +331,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         self.assertEqual(source_paths(), [testpath2])  # via environment variable $EASYBUILD_SOURCEPATHS
         self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
+        self.assertEqual(install_path('mod'), installpath_modules),  # via config file
         self.assertEqual(build_path(), testpath1)  # via config file
 
         del os.environ['EASYBUILD_CONFIGFILES']
@@ -257,13 +349,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
             mytmpdir = set_tmpdir(tmpdir=tmpdir)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
-                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'easybuild-')))
+                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
                 self.assertEqual(os.environ[var], mytmpdir)
-            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
             tempfile_tmpdir = tempfile.mkdtemp()
-            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
             fd, tempfile_tmpfile = tempfile.mkstemp()
-            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
 
             # tmp_logdir follows tmpdir
             self.assertEqual(get_build_log_path(), mytmpdir)
@@ -389,12 +481,11 @@ class EasyBuildConfigTest(EnhancedTestCase):
             os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
             os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
             os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'),
-            # default config file in home dir is last (even if the file is not there)
-            os.path.join(os.path.expanduser('~'), '.config', 'easybuild', 'config.cfg'),
         ]
         reload(eboptions)
         eb_go = eboptions.parse_options(args=[])
-        self.assertEqual(eb_go.options.configfiles, cfg_files)
+        # note: there may be a config file in $HOME too, so don't use a strict comparison
+        self.assertEqual(cfg_files, eb_go.options.configfiles[:3])
 
         # $XDG_CONFIG_HOME set to non-existing directory, multiple directories listed in $XDG_CONFIG_DIRS
         os.environ['XDG_CONFIG_HOME'] = os.path.join(self.test_prefix, 'nosuchdir')
@@ -402,7 +493,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
             os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
             os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
             os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'),
-            os.path.join(self.test_prefix, 'nosuchdir', 'easybuild', 'config.cfg'),
         ]
         reload(eboptions)
         eb_go = eboptions.parse_options(args=[])
@@ -419,6 +509,142 @@ class EasyBuildConfigTest(EnhancedTestCase):
             del os.environ['XDG_CONFIG_DIRS']
         else:
             os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
+        reload(eboptions)
+
+    def test_flex_robot_paths(self):
+        """Test prepend/appending to default robot search path via --robot-paths."""
+        # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        tmp_ecs_dir = os.path.join(tmpdir, 'easybuild', 'easyconfigs')
+        shutil.copytree(test_ecs_path, tmp_ecs_dir)
+
+        # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        orig_sys_path = sys.path[:]
+        sys.path = [tmpdir] + [p for p in sys.path if not os.path.exists(os.path.join(p, 'easybuild', 'easyconfigs'))]
+
+        # default: only pick up installed easyconfigs via sys.path
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.robot_paths, [tmp_ecs_dir])
+
+        # prepend to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo:'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', tmp_ecs_dir])
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo:/bar/baz/:'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', '/bar/baz/', tmp_ecs_dir])
+
+        # append to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=:/bar/baz'])
+        self.assertEqual(eb_go.options.robot_paths, [tmp_ecs_dir, '/bar/baz'])
+        # append to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=:/bar/baz:/foo'])
+        self.assertEqual(eb_go.options.robot_paths, [tmp_ecs_dir, '/bar/baz', '/foo'])
+
+        # prepend and append to default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo/bar', tmp_ecs_dir, '/baz'])
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz:/trala'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo/bar', tmp_ecs_dir, '/baz', '/trala'])
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar:/trala::/baz'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo/bar', '/trala', tmp_ecs_dir, '/baz'])
+
+        # also via $EASYBUILD_ROBOT_PATHS
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/foo::/bar/baz'
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', tmp_ecs_dir, '/bar/baz'])
+
+        # --robot-paths overrides $EASYBUILD_ROBOT_PATHS
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/foobar::/barbar/baz/baz'
+        eb_go = eboptions.parse_options(args=['--robot-paths=/one::/last'])
+        self.assertEqual(eb_go.options.robot_paths, ['/one', tmp_ecs_dir, '/last'])
+
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
+        # also works with a cfgfile in the mix
+        config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
+        cfgtxt = '\n'.join([
+            '[config]',
+            'robot-paths=/cfgfirst::/cfglast',
+        ])
+        write_file(config_file, cfgtxt)
+        eb_go = eboptions.parse_options(args=['--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/cfgfirst', tmp_ecs_dir, '/cfglast'])
+
+        # cfgfile entry is lost when env var and/or cmdline options are used
+        os.environ['EASYBUILD_ROBOT_PATHS'] = '/envfirst::/envend'
+        eb_go = eboptions.parse_options(args=['--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/envfirst', tmp_ecs_dir, '/envend'])
+
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+        eb_go = eboptions.parse_options(args=['--robot-paths=/veryfirst:', '--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/veryfirst', tmp_ecs_dir])
+
+        os.environ['EASYBUILD_ROBOT_PATHS'] = ':/envend'
+        eb_go = eboptions.parse_options(args=['--robot-paths=/veryfirst:', '--configfiles=%s' % config_file])
+        self.assertEqual(eb_go.options.robot_paths, ['/veryfirst', tmp_ecs_dir])
+
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
+        # override default robot path
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo:/bar/baz'])
+        self.assertEqual(eb_go.options.robot_paths, ['/foo', '/bar/baz'])
+
+        # paths specified via --robot still get preference
+        eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz', '--robot=/first'])
+        self.assertEqual(eb_go.options.robot_paths, ['/first', '/foo/bar', tmp_ecs_dir, '/baz'])
+
+        sys.path[:] = orig_sys_path
+
+    def test_external_modules_metadata(self):
+        """Test --external-modules-metadata."""
+        # empty list by default
+        cfg = init_config()
+        self.assertEqual(cfg.external_modules_metadata, [])
+
+        testcfgtxt = EXTERNAL_MODULES_METADATA
+        testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
+        write_file(testcfg, testcfgtxt)
+
+        cfg = init_config(args=['--external-modules-metadata=%s' % testcfg])
+
+        netcdf = {
+            'name': ['netCDF', 'netCDF-Fortran'],
+            'version': ['4.3.2', '4.3.2'],
+            'prefix': 'NETCDF_DIR',
+        }
+        self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
+        hdf5 = {
+            'name': ['HDF5'],
+            'version': ['1.8.13'],
+            'prefix': 'HDF5_DIR',
+        }
+        self.assertEqual(cfg.external_modules_metadata['cray-hdf5/1.8.13'], hdf5)
+
+        # impartial metadata is fine
+        self.assertEqual(cfg.external_modules_metadata['foo'], {'name': ['Foo'], 'prefix': '/foo'})
+        self.assertEqual(cfg.external_modules_metadata['bar/1.2.3'], {'name': ['bar'], 'version': ['1.2.3']})
+
+        # if both names and versions are specified, lists must have same lengths
+        write_file(testcfg, '\n'.join(['[foo/1.2.3]', 'name = foo,bar', 'version = 1.2.3']))
+        args = ['--external-modules-metadata=%s' % testcfg]
+        err_msg = "Different length for lists of names/versions in metadata for external module"
+        self.assertErrorRegex(EasyBuildError, err_msg, init_config, args=args)
+
+    def test_strict(self):
+        """Test use of --strict."""
+        # check default
+        self.assertEqual(build_option('strict'), run.WARN)
+
+        for strict_str, strict_val in [('error', run.ERROR), ('ignore', run.IGNORE), ('warn', run.WARN)]:
+            options = init_config(args=['--strict=%s' % strict_str])
+            init_config(build_options={'strict': options.strict})
+            self.assertEqual(build_option('strict'), strict_val)
+
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

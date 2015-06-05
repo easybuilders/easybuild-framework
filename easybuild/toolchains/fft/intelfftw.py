@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ Support for Intel FFTW as toolchain FFT library.
 import os
 from distutils.version import LooseVersion
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.tools.modules import get_software_root, get_software_version
 
@@ -45,7 +46,7 @@ class IntelFFTW(Fftw):
 
     def _set_fftw_variables(self):
         if not hasattr(self, 'BLAS_LIB_DIR'):
-            self.log.raiseException("_set_fftw_variables: IntelFFT based on IntelMKL (no BLAS_LIB_DIR found)")
+            raise EasyBuildError("_set_fftw_variables: IntelFFT based on IntelMKL (no BLAS_LIB_DIR found)")
 
         imklver = get_software_version(self.FFT_MODULE_NAME[0])
 
@@ -60,7 +61,7 @@ class IntelFFTW(Fftw):
             if get_software_root('GCC'):
                 compsuff = '_gnu'
             else:
-                self.log.error("Not using Intel compilers or GCC, don't know compiler suffix for FFTW libraries.")
+                raise EasyBuildError("Not using Intel compilers or GCC, don't know compiler suffix for FFTW libraries.")
 
         fftw_libs = ["fftw3xc%s%s" % (compsuff, picsuff)]
         if self.options['usempi']:
@@ -89,6 +90,5 @@ class IntelFFTW(Fftw):
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
-            tup = (check_fftw_libs, fft_lib_dirs)
-            msg = "Not all FFTW interface libraries %s are found in %s, can't set FFT_LIB." % tup
-            self.log.error(msg)
+            raise EasyBuildError("Not all FFTW interface libraries %s are found in %s, can't set FFT_LIB.",
+                                 check_fftw_libs, fft_lib_dirs)

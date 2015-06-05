@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -96,7 +96,7 @@ def regtest(easyconfig_paths, build_specs=None):
         for path in easyconfig_paths:
             ecfiles += find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
     else:
-        _log.error("No easyconfig paths specified.")
+        raise EasyBuildError("No easyconfig paths specified.")
 
     test_results = []
 

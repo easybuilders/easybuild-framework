@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -60,7 +61,7 @@ class Acml(LinAlg):
     def _set_blas_variables(self):
         """Fix the map a bit"""
         if self.options.get('32bit', None):
-            self.log.raiseException("_set_blas_variables: 32bit ACML not (yet) supported")
+            raise EasyBuildError("_set_blas_variables: 32bit ACML not (yet) supported")
         try:
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 subdirs = self.ACML_SUBDIRS_MAP[self.COMPILER_FAMILY]
@@ -69,8 +70,8 @@ class Acml(LinAlg):
                 incdirs = [os.path.join(x, 'include') for x in subdirs]
                 self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
         except:
-            self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP"
-                                     " with compiler family %s") % self.COMPILER_FAMILY)
+            raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
+                                 "with compiler family %s", self.COMPILER_FAMILY)
 
         # version before 5.x still featured the acml_mv library
         ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]

@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2014 Ghent University
+# Copyright 2011-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,6 +38,7 @@ from socket import gethostname
 from vsc.utils import fancylogger
 from vsc.utils.affinity import sched_getaffinity
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, which
 from easybuild.tools.run import run_cmd
 
@@ -121,8 +122,8 @@ def get_cpu_vendor():
             arch = res.group('vendor')
         if arch in VENDORS:
             vendor = VENDORS[arch]
-            tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
-            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s" % tup)
+            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
+                       vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
@@ -157,8 +158,8 @@ def get_cpu_family():
             power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
             if power_regex.search(cpuinfo_txt):
                 family = POWER
-                tup = (power_regex.pattern, PROC_CPUINFO_FP, family)
-                _log.debug("Determined CPU family using regex '%s' in %s: %s" % tup)
+                _log.debug("Determined CPU family using regex '%s' in %s: %s",
+                           power_regex.pattern, PROC_CPUINFO_FP, family)
 
     if family is None:
         family = UNKNOWN
@@ -182,8 +183,8 @@ def get_cpu_model():
         res = model_regex.search(txt)
         if res is not None:
             model = res.group('model').strip()
-            tup = (model_regex.pattern, PROC_CPUINFO_FP, model)
-            _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s" % tup)
+            _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
+                       model_regex.pattern, PROC_CPUINFO_FP, model)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
@@ -348,7 +349,7 @@ def get_os_version():
                 if not known_sp:
                     suff = '_UNKNOWN_SP'
             else:
-                _log.error("Don't know how to determine subversions for SLES %s" % os_version)
+                raise EasyBuildError("Don't know how to determine subversions for SLES %s", os_version)
 
         return os_version
     else:
@@ -413,8 +414,8 @@ def get_glibc_version():
             _log.debug("Found glibc version %s" % glibc_version)
             return glibc_version
         else:
-            tup = (glibc_ver_str, glibc_ver_regex.pattern)
-            _log.error("Failed to determine glibc version from '%s' using pattern '%s'." % tup)
+            raise EasyBuildError("Failed to determine glibc version from '%s' using pattern '%s'.",
+                                 glibc_ver_str, glibc_ver_regex.pattern)
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
@@ -447,7 +448,7 @@ def use_group(group_name):
     try:
         group_id = grp.getgrnam(group_name).gr_gid
     except KeyError, err:
-        _log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (group_name, err))
+        raise EasyBuildError("Failed to get group ID for '%s', group does not exist (err: %s)", group_name, err)
 
     group = (group_name, group_id)
     try:
@@ -460,7 +461,7 @@ def use_group(group_name):
             err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % group_name
         else:
             err_msg += "current user '%s' is not in group %s (members: %s)" % (user, group, grp_members)
-        _log.error(err_msg)
+        raise EasyBuildError(err_msg)
     _log.info("Using group '%s' (gid: %s)" % group)
 
     return group
@@ -476,7 +477,7 @@ def det_parallelism(par, maxpar):
             try:
                 par = int(par)
             except ValueError, err:
-                _log.error("Specified level of parallelism '%s' is not an integer value: %s" % (par, err))
+                raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
     else:
         par = get_avail_core_count()
         # check ulimit -u
@@ -491,7 +492,7 @@ def det_parallelism(par, maxpar):
                 par = par_guess
                 _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
         except ValueError, err:
-            _log.exception("Failed to determine max user processes (%s, %s): %s" % (ec, out, err))
+            raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
 
     if maxpar is not None and maxpar < par:
         _log.info("Limiting parallellism from %s to %s" % (par, maxpar))

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,6 +38,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
@@ -152,9 +153,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         # make sure this stops, we really don't want to get stuck in an infinite loop
         loopcnt += 1
         if loopcnt > maxloopcnt:
-            tup = (maxloopcnt, unprocessed, irresolvable)
-            msg = "Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)" % tup
-            _log.error(msg)
+            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)",
+                                 maxloopcnt, unprocessed, irresolvable)
 
         # first try resolving dependencies without using external dependencies
         last_processed_count = -1
@@ -165,6 +165,13 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             for ec in more_ecs:
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
+
+        # dependencies marked as external modules should be resolved via available modules at this point
+        missing_external_modules = [d['full_mod_name'] for ec in unprocessed for d in ec['dependencies']
+                                    if d.get('external_module', False)]
+        if missing_external_modules:
+            raise EasyBuildError("Missing modules for one or more dependencies marked as external modules: %s",
+                                 missing_external_modules)
 
         # robot: look for existing dependencies, add them
         if robot and unprocessed:
@@ -205,8 +212,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]
                         dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:
-                            tup = (path, dep_mod_name, mods)
-                            _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
+                            raise EasyBuildError("easyconfig file %s does not contain module %s (mods: %s)",
+                                                 path, dep_mod_name, mods)
 
                         for ec in processed_ecs:
                             if not ec in unprocessed + additional:
@@ -218,6 +225,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
             # add additional (new) easyconfigs to list of stuff to process
             unprocessed.extend(additional)
+            _log.debug("Unprocessed dependencies: %s", unprocessed)
 
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
@@ -229,9 +237,9 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         irresolvable_mods_eb = [EasyBuildMNS().det_full_module_name(dep) for dep in irresolvable]
         _log.warning("Irresolvable dependencies (EasyBuild module names): %s" % ', '.join(irresolvable_mods_eb))
         irresolvable_mods = [ActiveMNS().det_full_module_name(dep) for dep in irresolvable]
-        _log.error('Irresolvable dependencies encountered: %s' % ', '.join(irresolvable_mods))
+        raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
 
-    _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
+    _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
     return ordered_ecs
 
 

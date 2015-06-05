@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,6 +46,7 @@ import glob
 import os
 import re
 import shutil
+import site
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -56,7 +57,11 @@ VSC_BASE = 'vsc-base'
 EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs']
 
 # set print_debug to True for detailed progress info
-print_debug = os.environ.get('EASYBUILD_BOOTSTRAP_DEBUG', False)
+print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
+
+# don't add user site directory to sys.path (equivalent to python -s), see https://www.python.org/dev/peps/pep-0370/
+os.environ['PYTHONNOUSERSITE'] = '1'
+site.ENABLE_USER_SITE = False
 
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
@@ -362,10 +367,15 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
 
-    if distribute_egg_dir is not None:
-        # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
-        pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
-        os.environ['PYTHONPATH'] = os.pathsep.join([distribute_egg_dir] + pythonpaths)
+    # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
+    # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH
+    if distribute_egg_dir is None:
+        preinstallopts = ''
+    else:
+        preinstallopts = 'PYTHONPATH=%s:$PYTHONPATH' % distribute_egg_dir
+    templates.update({
+        'preinstallopts': preinstallopts,
+    })
 
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
@@ -373,6 +383,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     templates.update({
         'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
         'sources': "%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
+        'pythonpath': distribute_egg_dir,
     })
     f.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     f.close()
@@ -428,11 +439,11 @@ def main():
         error("Usage: %s <install path>" % sys.argv[0])
     install_path = os.path.abspath(sys.argv[1])
 
-    sourcepath = os.environ.get('EASYBUILD_BOOTSTRAP_SOURCEPATH')
+    sourcepath = os.environ.pop('EASYBUILD_BOOTSTRAP_SOURCEPATH', None)
     if sourcepath is not None:
         info("Fetching sources from %s..." % sourcepath)
 
-    skip_stage0 = os.environ.get('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
+    skip_stage0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
 
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
@@ -447,10 +458,13 @@ def main():
     sys.path = []
     for path in orig_sys_path:
         include_path = True
-        # exclude path if it's potentially an EasyBuild package
-        if 'easybuild' in path:
+        # exclude path if it's potentially an EasyBuild/VSC package, providing the 'easybuild'/'vsc' namespace, resp.
+        if any([os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easyblocks', 'easybuild', 'vsc']]):
             include_path = False
-        # exclude path if it contain an easy-install.pth file
+        # exclude any .egg paths
+        if path.endswith('.egg'):
+            include_path = False
+        # exclude any path that contains an easy-install.pth file
         if os.path.exists(os.path.join(path, 'easy-install.pth')):
             include_path = False
 
@@ -519,6 +533,8 @@ sources = [%(sources)s]
 # EasyBuild is a (set of) Python packages, so it depends on Python
 # usually, we want to use the system Python, so no actual Python dependency is listed
 allow_system_deps = [('Python', SYS_PYTHON_VERSION)]
+
+preinstallopts = '%(preinstallopts)s'
 """
 
 # distribute_setup.py script (https://pypi.python.org/pypi/distribute)

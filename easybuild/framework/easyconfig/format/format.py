@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
 from easybuild.framework.easyconfig.format.convert import Dependency
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 
 
@@ -59,7 +60,7 @@ def get_format_version(txt):
             maj_min = res.groupdict()
             format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
         except (KeyError, TypeError), err:
-            _log.error("Failed to get version from match %s: %s" % (res.groups(), err))
+            raise EasyBuildError("Failed to get version from match %s: %s", res.groups(), err)
     return format_version
 
 
@@ -242,13 +243,13 @@ class EBConfigObj(object):
                     new_value = []
                     for dep_name, dep_val in value.items():
                         if isinstance(dep_val, Section):
-                            self.log.error("Unsupported nested section '%s' found in dependencies section" % dep_name)
+                            raise EasyBuildError("Unsupported nested section '%s' in dependencies section", dep_name)
                         else:
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
                             dep = Dependency(dep_val, name=dep_name)
                             if dep.name() is None or dep.version() is None:
-                                tmpl = "Failed to find name/version in parsed dependency: %s (dict: %s)"
-                                self.log.error(tmpl % (dep, dict(dep)))
+                                raise EasyBuildError("Failed to find name/version in parsed dependency: %s (dict: %s)",
+                                                     dep, dict(dep))
                             new_value.append(dep)
 
                     tmpl = 'Converted dependency section %s to %s, passed it to parent section (or default)'
@@ -268,7 +269,7 @@ class EBConfigObj(object):
                         else:
                             self.log.debug("Not a %s section marker" % marker_type.__name__)
                     if not new_key:
-                        self.log.error("Unsupported section marker '%s'" % key)
+                        raise EasyBuildError("Unsupported section marker '%s'", key)
 
                     # parse value as a section, recursively
                     new_value = self.parse_sections(value, current.get_nested_dict())
@@ -296,10 +297,10 @@ class EBConfigObj(object):
                     # remove possible surrounding whitespace (some people add space after comma)
                     new_value = [value_type(x.strip()) for x in value]
                     if False in [x.is_valid() for x in new_value]:
-                        self.log.error("Failed to parse '%s' as list of %s" % (value, value_type.__name__))
+                        raise EasyBuildError("Failed to parse '%s' as list of %s", value, value_type.__name__)
                 else:
-                    tup = (key, value, type(value))
-                    self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
+                    raise EasyBuildError('Bug: supported but unknown key %s with non-string value: %s, type %s',
+                                         key, value, type(value))
 
                 self.log.debug("Converted value '%s' for key '%s' into new value '%s'" % (value, key, new_value))
                 current[key] = new_value
@@ -334,7 +335,7 @@ class EBConfigObj(object):
         self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED)
         for key, value in self.supported.items():
             if not key in self.VERSION_OPERATOR_VALUE_TYPES:
-                self.log.error('Unsupported key %s in %s section' % (key, self.SECTION_MARKER_SUPPORTED))
+                raise EasyBuildError('Unsupported key %s in %s section', key, self.SECTION_MARKER_SUPPORTED)
             self.sections['%s' % key] = value
 
         for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
@@ -344,7 +345,7 @@ class EBConfigObj(object):
                 first = self.supported[supported_key][0]
                 f_val = getattr(first, fn_name)()
                 if f_val is None:
-                    self.log.error("First %s %s can't be used as default (%s returned None)" % (key, first, fn_name))
+                    raise EasyBuildError("First %s %s can't be used as default (%s returned None)", key, first, fn_name)
                 else:
                     self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
                     self.default[key] = f_val
@@ -438,8 +439,7 @@ class EBConfigObj(object):
             tc_overops.add(key)
 
             if key.test(tcname, tcversion):
-                tup = (tcname, tcversion, key)
-                self.log.debug("Found matching marker for specified toolchain '%s, %s': %s" % tup)
+                self.log.debug("Found matching marker for specified toolchain '%s, %s': %s", tcname, tcversion, key)
                 # TODO remove when unifying add_toolchina with .add()
                 tmp_squashed = self._squash(vt_tuple, nested_dict, sanity)
                 res_sections.update(tmp_squashed.result)
@@ -456,7 +456,7 @@ class EBConfigObj(object):
             else:
                 self.log.debug('Found non-matching version marker %s. Ignoring this (nested) section.' % key)
         else:
-            self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
+            raise EasyBuildError("Unhandled section marker '%s' (type '%s')", key, type(key))
 
         return res_sections
 
@@ -479,8 +479,8 @@ class EBConfigObj(object):
             tmp_tc_oversops = {}  # temporary, only for conflict checking
             for tcversop in value:
                 tc_overops = tmp_tc_oversops.setdefault(tcversop.tc_name, OrderedVersionOperators())
-                tup = (tcversop, tc_overops, tcname, tcversion)
-                self.log.debug('Add tcversop %s to tc_overops %s tcname %s tcversion %s' % tup)
+                self.log.debug("Add tcversop %s to tc_overops %s tcname %s tcversion %s",
+                               tcversop, tc_overops, tcname, tcversion)
                 tc_overops.add(tcversop)  # test non-conflicting list
                 if tcversop.test(tcname, tcversion):
                     matching_toolchains.append(tcversop)
@@ -507,7 +507,7 @@ class EBConfigObj(object):
                 self.log.debug('No matching versions, removing the whole current key %s' % key)
                 return Squashed()
         else:
-            self.log.error('Unexpected VERSION_OPERATOR_VALUE_TYPES key %s value %s' % (key, value))
+            raise EasyBuildError('Unexpected VERSION_OPERATOR_VALUE_TYPES key %s value %s', key, value)
 
         return None
 
@@ -520,11 +520,11 @@ class EBConfigObj(object):
                 version = self.default['version']
                 self.log.debug("No version specified, using default %s" % version)
             else:
-                self.log.error("No version specified, no default found.")
+                raise EasyBuildError("No version specified, no default found.")
         elif version in versions:
             self.log.debug("Version '%s' is supported in easyconfig." % version)
         else:
-            self.log.error("Version '%s' not supported in easyconfig (only %s)" % (version, versions))
+            raise EasyBuildError("Version '%s' not supported in easyconfig (only %s)", version, versions)
 
         tcnames = [tc.tc_name for tc in self.supported['toolchains']]
         if tcname is None:
@@ -532,11 +532,11 @@ class EBConfigObj(object):
                 tcname = self.default['toolchain']['name']
                 self.log.debug("No toolchain name specified, using default %s" % tcname)
             else:
-                self.log.error("No toolchain name specified, no default found.")
+                raise EasyBuildError("No toolchain name specified, no default found.")
         elif tcname in tcnames:
             self.log.debug("Toolchain '%s' is supported in easyconfig." % tcname)
         else:
-            self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
+            raise EasyBuildError("Toolchain '%s' not supported in easyconfig (only %s)", tcname, tcnames)
 
         tcs = [tc for tc in self.supported['toolchains'] if tc.tc_name == tcname]
         if tcversion is None:
@@ -544,17 +544,16 @@ class EBConfigObj(object):
                 tcversion = self.default['toolchain']['version']
                 self.log.debug("No toolchain version specified, using default %s" % tcversion)
             else:
-                self.log.error("No toolchain version specified, no default found.")
+                raise EasyBuildError("No toolchain version specified, no default found.")
         elif any([tc.test(tcname, tcversion) for tc in tcs]):
             self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
         else:
-            tup = (tcname, tcversion, tcs)
-            self.log.error("Toolchain '%s' version '%s' not supported in easyconfig (only %s)" % tup)
+            raise EasyBuildError("Toolchain '%s' version '%s' not supported in easyconfig (only %s)",
+                                 tcname, tcversion, tcs)
 
-        tup = (version, tcname, tcversion)
-        self.log.debug('version %s, tcversion %s, tcname %s' % tup)
+        self.log.debug('version %s, tcversion %s, tcname %s', version, tcname, tcversion)
 
-        return tup
+        return (version, tcname, tcversion)
 
     def get_specs_for(self, version=None, tcname=None, tcversion=None):
         """
@@ -578,7 +577,7 @@ class EasyConfigFormat(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         if not len(self.VERSION) == len(FORMAT_VERSION_TEMPLATE.split('.')):
-            self.log.error('Invalid version number %s (incorrect length)' % self.VERSION)
+            raise EasyBuildError('Invalid version number %s (incorrect length)', self.VERSION)
 
         self.rawtext = None  # text version of the easyconfig
         self.header = None  # easyconfig header (e.g., format version, license, ...)

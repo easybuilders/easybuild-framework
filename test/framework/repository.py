@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,6 +40,7 @@ from easybuild.tools.repository.gitrepo import GitRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
+from easybuild.tools.version import VERSION
 
 
 class RepositoryTest(EnhancedTestCase):
@@ -97,6 +98,11 @@ class RepositoryTest(EnhancedTestCase):
             repo.init()
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
             repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, False)
+            repo.commit("toy/0.0")
+
+            log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
+            logmsg = repo.client.log('HEAD^!')
+            self.assertTrue(log_regex.search(logmsg), "Pattern '%s' found in %s" % (log_regex.pattern, logmsg))
 
             shutil.rmtree(repo.wc)
             shutil.rmtree(tmpdir)

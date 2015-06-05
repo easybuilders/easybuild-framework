@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -32,6 +32,7 @@ Support for Clang as toolchain compiler.
 """
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -98,6 +99,5 @@ class Clang(Compiler):
         super(Clang, self)._set_compiler_vars()
 
         if self.options.get('32bit', None):
-            self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for " \
-                                    "32bit Clang in EasyBuild")
+            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit Clang in EasyBuild")
 

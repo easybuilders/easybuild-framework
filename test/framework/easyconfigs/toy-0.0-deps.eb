@@ -18,7 +18,10 @@ checksums = [[
 ]]
 patches = ['toy-0.0_typo.patch']
 
-dependencies = [('ictce', '4.1.13', '', True)]
+dependencies = [
+    ('ictce', '4.1.13', '', True),
+    ('GCC/4.7.2', EXTERNAL_MODULE),
+]
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],

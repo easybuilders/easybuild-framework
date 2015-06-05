@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,7 @@ import shutil
 import stat
 import tempfile
 import urllib2
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
@@ -201,6 +201,18 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
+        # make sure specified timeout is parsed correctly (as a float, not a string)
+        opts = init_config(args=['--download-timeout=5.3'])
+        init_config(build_options={'download_timeout': opts.download_timeout})
+        target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
+        url = 'https://jenkins1.ugent.be/robots.txt'
+        try:
+            urllib2.urlopen(url)
+            res = ft.download_file(fn, url, target_location)
+            self.assertEqual(res, target_location, "download with specified timeout works")
+        except urllib2.URLError:
+            print "Skipping timeout test in test_download_file (working offline)"
+
     def test_mkdir(self):
         """Test mkdir function."""
         tmpdir = tempfile.mkdtemp()
@@ -307,6 +319,36 @@ class FileToolsTest(EnhancedTestCase):
             ('b/toy-0.0/toy.source', 2),
         ]:
             self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
+
+    def test_move_logs(self):
+        """Test move_logs function."""
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, 'foobar')
+        ft.write_file(fp + '.1', 'moarfoobar')
+        ft.move_logs(fp, os.path.join(self.test_prefix, 'foo.log'))
+
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'foo.log')), 'foobar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'foo.log.1')), 'moarfoobar')
+
+        ft.write_file(os.path.join(self.test_prefix, 'bar.log'), 'bar')
+        ft.write_file(os.path.join(self.test_prefix, 'bar.log_1'), 'barbar')
+
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, 'moarbar')
+        ft.write_file(fp + '.1', 'evenmoarbar')
+        ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
+
+        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1',
+                os.path.basename(self.logfile),
+                'foo.log', 'foo.log.1']
+        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if not f.startswith('tmp')]), logs)
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+
 
 def suite():
     """ returns all the testcases in this module """
