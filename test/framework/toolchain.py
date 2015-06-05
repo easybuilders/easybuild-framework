@@ -622,50 +622,65 @@ class ToolchainTest(EnhancedTestCase):
         tmpdir2, imkl_module_path2, imkl_module_txt2 = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
 
         # incl. -lguide
-        libblas_mt_old = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
-        libblas_mt_old += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
+        libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_ictce3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
-        libblas_mt_new = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
-        libblas_mt_new += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+        libblas_mt_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_ictce4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
 
         # incl. -lmkl_solver*
-        libscalack_old = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
-        libscalack_old += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalack_ictce3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
+        libscalack_ictce3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
 
         # no -lmkl_solver*
-        libscalack_new = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalack_ictce4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
 
-        tc = self.get_toolchain('ictce', version='4.1.13')
-        tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_new)
-        self.assertTrue(libscalack_new in os.environ['LIBSCALAPACK'])
-        modules_tool().purge()
+        libblas_mt_goolfc = "-lopenblas -lgfortran"
+        libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
 
-        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc = self.get_toolchain('goolfc', version='1.3.12')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_old)
-        self.assertTrue(libscalack_old in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
         modules_tool().purge()
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_new)
-        self.assertTrue(libscalack_new in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
         modules_tool().purge()
 
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
         tc.prepare()
-        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_old)
-        self.assertTrue(libscalack_old in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
         modules_tool().purge()
 
-        libscalack_new = libscalack_new.replace('_lp64', '_ilp64')
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
         tc = self.get_toolchain('ictce', version='4.1.13')
         opts = {'i8': True}
         tc.set_options(opts)
         tc.prepare()
-        self.assertTrue(libscalack_new in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
 
         # cleanup
         shutil.rmtree(tmpdir1)

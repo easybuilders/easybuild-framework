@@ -30,7 +30,7 @@ Creating a new toolchain should be as simple as possible.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 from vsc.utils import fancylogger
 
@@ -57,6 +57,10 @@ class Toolchain(object):
     NAME = None
     VERSION = None
     TOOLCHAIN_FAMILY = None
+
+    # list of class 'constants' that should be restored for every new instance of this class
+    CLASS_CONSTANTS_TO_RESTORE = []
+    CLASS_CONSTANT_COPIES = {}
 
     # class method
     def _is_toolchain_for(cls, name):
@@ -95,6 +99,9 @@ class Toolchain(object):
 
         self.vars = None
 
+        self._copy_class_constants()
+        self._restore_class_constants()
+
         self.modules_tool = modules_tool()
         self.mns = mns
         self.mod_full_name = None
@@ -121,6 +128,32 @@ class Toolchain(object):
                 self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
             if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
                 self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+
+    def _copy_class_constants(self):
+        """Copy class constants that needs to be restored again when a new instance is created."""
+        # this only needs to be done the first time (for this class, taking inheritance into account is key)
+        key = self.__class__
+        if key not in self.CLASS_CONSTANT_COPIES:
+            self.CLASS_CONSTANT_COPIES[key] = {}
+            for cst in self.CLASS_CONSTANTS_TO_RESTORE:
+                if hasattr(self, cst):
+                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(getattr(self, cst))
+                else:
+                    raise EasyBuildError("Class constant '%s' to be restored does not exist", cst)
+
+            self.log.debug("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
+
+    def _restore_class_constants(self):
+        """Restored class constants that need to be restored when a new instance is created."""
+        key = self.__class__
+        for cst in self.CLASS_CONSTANT_COPIES[key]:
+            newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
+            if hasattr(self, cst):
+                self.log.debug("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
+            else:
+                self.log.debug("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+
+            setattr(self, cst, newval)
 
     def get_variable(self, name, typ=str):
         """Get value for specified variable.

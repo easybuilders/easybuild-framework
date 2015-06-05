@@ -45,9 +45,6 @@ class Acml(LinAlg):
     BLAS_MODULE_NAME = ['ACML']
     BLAS_LIB = ['acml']
     BLAS_LIB_MT = ['acml_mp']
-    # keep track of original values, need to be restored every time since we append to class 'constants' BLAS_LIB*
-    _INIT_BLAS_LIB = BLAS_LIB[:]
-    _INIT_BLAS_LIB_MT = BLAS_LIB_MT[:]
 
     # is completed in _set_blas_variables, depends on compiler used
     BLAS_LIB_DIR = []
@@ -59,6 +56,11 @@ class Acml(LinAlg):
         TC_CONSTANT_INTELCOMP: ['ifort64', 'ifort64_mp'],
         TC_CONSTANT_GCC: ['gfortran64', 'gfortran64_mp'],
     }
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        self.CLASS_CONSTANTS_TO_RESTORE.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
+        super(Acml, self).__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -74,11 +76,6 @@ class Acml(LinAlg):
         except:
             raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
                                  "with compiler family %s", self.COMPILER_FAMILY)
-
-        # reset BLAS_LIB(_MT) every time, to avoid problems when multiple ACML versions are used in a single session
-        # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
-        self.BLAS_LIB = self._INIT_BLAS_LIB[:]
-        self.BLAS_LIB_MT = self._INIT_BLAS_LIB_MT[:]
 
         # version before 5.x still featured the acml_mv library
         ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]

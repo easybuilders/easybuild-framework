@@ -88,8 +88,11 @@ class IntelIccIfort(Compiler):
     }
 
     LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related
-    # keep track of original value, needs to be restored every time since we append to class 'constant' LIB_MULTITHREAD
-    _INIT_LIB_MULTITHREAD = LIB_MULTITHREAD[:]
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        self.CLASS_CONSTANTS_TO_RESTORE.append('LIB_MULTITHREAD')
+        super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
@@ -106,9 +109,6 @@ class IntelIccIfort(Compiler):
             raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
                                  icc_version, ifort_version)
 
-        # reset LIB_MULTITHREAD every time,
-        # to avoid problems when multiple Intel compilers versions are used in a single session
-        self.LIB_MULTITHREAD = self._INIT_LIB_MULTITHREAD[:]
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
