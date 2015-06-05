@@ -68,7 +68,7 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
 
     pkgname = pkgtemplate % {
         'toolchain' : toolchain_name,
-        'version': '-'.join([x for x in [easyblock.cfg.get('versionprefix', ''), easyblock.cfg['version'], easyblock.cfg['versionsuffix']] if x]),
+        'version': '-'.join([x for x in [easyblock.cfg.get('versionprefix', ''), easyblock.cfg['version'], easyblock.cfg['versionsuffix'].lstrip('-')] if x]),
         'name' : easyblock.name,
     }
     
@@ -87,7 +87,7 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
         _log.debug("The dep added looks like %s " % dep)
         dep_pkgname = pkgtemplate % {
             'name': dep['name'],
-            'version': '-'.join([x for x in [dep.get('versionprefix',''), dep['version'], dep['versionsuffix']] if x]),
+            'version': '-'.join([x for x in [dep.get('versionprefix',''), dep['version'], dep['versionsuffix'].lstrip('-')] if x]),
             'toolchain': "%s-%s" % (dep['toolchain']['name'], dep['toolchain']['version']),
         }
         depstring += " --depends '%s'" % ( dep_pkgname)
