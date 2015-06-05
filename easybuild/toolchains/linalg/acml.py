@@ -43,8 +43,11 @@ class Acml(LinAlg):
     Provides ACML BLAS/LAPACK support.
     """
     BLAS_MODULE_NAME = ['ACML']
-    BLAS_LIB = None
-    BLAS_LIB_MT = None
+    BLAS_LIB = ['acml']
+    BLAS_LIB_MT = ['acml_mp']
+    # keep track of original values, need to be restored every time since we append to class 'constants' BLAS_LIB*
+    _INIT_BLAS_LIB = BLAS_LIB[:]
+    _INIT_BLAS_LIB_MT = BLAS_LIB_MT[:]
 
     # is completed in _set_blas_variables, depends on compiler used
     BLAS_LIB_DIR = []
@@ -74,8 +77,8 @@ class Acml(LinAlg):
 
         # reset BLAS_LIB(_MT) every time, to avoid problems when multiple ACML versions are used in a single session
         # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
-        self.BLAS_LIB = ['acml']
-        self.BLAS_LIB_MT = ['acml_mp']
+        self.BLAS_LIB = self._INIT_BLAS_LIB[:]
+        self.BLAS_LIB_MT = self._INIT_BLAS_LIB_MT[:]
 
         # version before 5.x still featured the acml_mv library
         ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]

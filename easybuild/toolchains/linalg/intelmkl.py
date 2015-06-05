@@ -67,12 +67,16 @@ class IntelMKL(LinAlg):
     BLACS_LIB_STATIC = True
 
     SCALAPACK_MODULE_NAME = ['imkl']
-    SCALAPACK_LIB = None
-    SCALAPACK_LIB_MT = None
-    SCALAPACK_LIB_MAP = None
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
     SCALAPACK_LIB_GROUP = True
     SCALAPACK_LIB_STATIC = True
+    SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
+    SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
+    SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
+    # keep track of original values, need to be restored every time since we append to class 'constants' SCALAPACK_LIB*
+    _INIT_SCALAPACK_LIB = SCALAPACK_LIB[:]
+    _INIT_SCALAPACK_LIB_MT = SCALAPACK_LIB_MT[:]
+    _INIT_SCALAPACK_LIB_MAP = SCALAPACK_LIB_MAP[:]
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -151,9 +155,9 @@ class IntelMKL(LinAlg):
 
     def _set_scalapack_variables(self):
         # reset SCALAPACK_LIB* every time, to avoid problems when multiple imkl versions are used in a single session
-        self.SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
-        self.SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
-        self.SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
+        self.SCALAPACK_LIB = self._INIT_SCALAPACK_LIB
+        self.SCALAPACK_LIB_MT = self._INIT_SCALAPACK_LIB_MT
+        self.SCALAPACK_LIB_MAP = self._INIT_SCALAPACK_LIB_MAP
 
         imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         if LooseVersion(imkl_version) < LooseVersion('10.3'):
