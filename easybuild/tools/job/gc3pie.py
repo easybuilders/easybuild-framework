@@ -146,8 +146,6 @@ class GC3Pie(JobBackend):
         No more job submissions should be attempted after `commit()`
         has been called, until `begin()` is invoked again.
         """
-        total = len(self._jobs)
-
         # Create an instance of `Engine` using the configuration file present
         # in your home directory.
         self._engine = create_engine()
@@ -174,13 +172,13 @@ class GC3Pie(JobBackend):
                 'RUNNING',
                 'ok',
                 'failed',
-            ], total=total)
+            ])
 
             # Wait a few seconds...
             time.sleep(30)
 
         # final status report
-        self._print_status_report(['total', 'ok', 'failed'], total=total)
+        self._print_status_report(['total', 'ok', 'failed'])
 
     def _print_status_report(self, states=('total', 'ok', 'failed'), **override):
         """
