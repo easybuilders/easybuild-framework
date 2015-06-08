@@ -33,7 +33,9 @@ from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
-from easybuild.tools import config, parallelbuild
+from easybuild.tools import config, job
+from easybuild.tools.job import pbs_python
+from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
 
@@ -59,36 +61,48 @@ class MockPbsJob(object):
     def has_holds(self, *args, **kwargs):
         pass
 
-    def submit(self, *args, **kwargs):
+    def _submit(self, *args, **kwargs):
         pass
 
 
 class ParallelBuildTest(EnhancedTestCase):
     """ Testcase for run module """
 
-    def setUp(self):
-        """Set up testcase."""
-        super(ParallelBuildTest, self).setUp()
+    def test_build_easyconfigs_in_parallel_pbs_python(self):
+        """Basic test for build_easyconfigs_in_parallel function."""
+        # put mocked functions in place
+        PbsPython__init__ = PbsPython.__init__
+        PbsPython_commit = PbsPython.commit
+        PbsPython_connect_to_server = PbsPython.connect_to_server
+        PbsPython_ppn = PbsPython.ppn
+        pbs_python_PbsJob = pbs_python.PbsJob
+
+        PbsPython.__init__ = lambda self: PbsPython._init(self, pbs_server='localhost')
+        PbsPython.commit = mock
+        PbsPython.connect_to_server = mock
+        PbsPython.ppn = mock
+        pbs_python.PbsJob = MockPbsJob
+
         build_options = {
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             'valid_module_classes': config.module_classes(),
             'validate': False,
         }
-        init_config(build_options=build_options)
+        init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
-        # put mocked functions in place
-        parallelbuild.connect_to_server = mock
-        parallelbuild.disconnect_from_server = mock
-        parallelbuild.get_ppn = mock
-        parallelbuild.PbsJob = MockPbsJob
 
-    def test_build_easyconfigs_in_parallel(self):
-        """Basic test for build_easyconfigs_in_parallel function."""
         easyconfig_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
         easyconfigs = process_easyconfig(easyconfig_file)
         ordered_ecs = resolve_dependencies(easyconfigs)
         jobs = build_easyconfigs_in_parallel("echo %(spec)s", ordered_ecs, prepare_first=False)
         self.assertEqual(len(jobs), 8)
+
+        # restore mocked stuff
+        PbsPython.__init__ = PbsPython__init__
+        PbsPython.commit = PbsPython_commit
+        PbsPython.connect_to_server = PbsPython_connect_to_server
+        PbsPython.ppn = PbsPython_ppn
+        pbs_python.PbsJob = pbs_python_PbsJob
 
 def suite():
     """ returns all the testcases in this module """

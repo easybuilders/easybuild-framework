@@ -44,7 +44,7 @@ except ImportError:
     HAVE_GC3PIE = False
 
 from easybuild.tools.build_log import print_msg
-from easybuild.tools.job import JobServer
+from easybuild.tools.job import JobBackend
 
 from vsc.utils import fancylogger
 
@@ -56,7 +56,7 @@ if HAVE_GC3PIE:
 
 
 # eb --job --job-backend=GC3Pie
-class GC3Pie(JobServer):
+class GC3Pie(JobBackend):
     """
     Use the GC3Pie__ framework to submit and monitor compilation jobs.
 
@@ -83,7 +83,7 @@ class GC3Pie(JobServer):
         Create and return a job object with the given parameters.
 
         First argument `server` is an instance of the corresponding
-        `JobServer` class, i.e., a `GC3Pie`:class: instance in this case.
+        `JobBackend` class, i.e., a `GC3Pie`:class: instance in this case.
 
         Second argument `script` is the content of the job script
         itself, i.e., the sequence of shell commands that will be

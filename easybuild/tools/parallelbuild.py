@@ -72,14 +72,12 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
 
     job_server = job_backend()
     if job_server is None:
-        _log.error("Cannot use --job if no job backend is available.")
+        raise EasyBuildError("Cannot use --job if no job backend is available.")
 
     try:
         job_server.begin()
-    except RuntimeError, err:
-        _log.error("connection to server failed (%s: %s), can't submit jobs."
-                   % (err.__class__.__name__, err))
-        return None # XXX: should this `raise` instead?
+    except RuntimeError as err:
+        raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
 
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's

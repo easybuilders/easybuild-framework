@@ -52,6 +52,7 @@ from easybuild.tools.run import run_cmd
 _log = fancylogger.getLogger('config', fname=False)
 
 
+DEFAULT_JOB_BACKEND = 'PbsPython'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Tcl'
@@ -67,8 +68,6 @@ DEFAULT_PATH_SUBDIRS = {
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_STRICT = run.WARN
-
-PREFERRED_JOB_BACKENDS = ('Pbs', 'GC3Pie')
 
 
 # utility function for obtaining default paths
