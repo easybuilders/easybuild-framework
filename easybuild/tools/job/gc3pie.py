@@ -76,7 +76,8 @@ class GC3Pie(JobBackend):
 
         Removes any reference to previously-submitted jobs.
         """
-        self._jobs = DependentTaskCollection()
+        self._jobs = DependentTaskCollection(
+            output_dir=os.path.join(os.getcwd(), 'easybuild-jobs'))
 
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """
@@ -117,7 +118,7 @@ class GC3Pie(JobBackend):
             inputs=[],
             outputs=[],
             # where should the output (STDOUT/STDERR) files be downloaded to?
-            output_dir=os.path.join(os.getcwd(), 'easybuild-jobs', name),
+            output_dir=os.path.join(self._jobs.output_dir, name),
             # capture STDOUT and STDERR
             stdout='stdout.log',
             join=True,
