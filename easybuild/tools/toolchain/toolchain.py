@@ -77,7 +77,7 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None):
+    def __init__(self, name=None, version=None, mns=None, class_constants=None):
         """Toolchain constructor."""
 
         self.base_init()
@@ -99,9 +99,7 @@ class Toolchain(object):
 
         self.vars = None
 
-        self.add_class_constants_to_restore([])  # make sure self.CLASS_CONSTANTS_TO_RESTORE is initialised
-        self._copy_class_constants()
-        self._restore_class_constants()
+        self._init_class_constants(class_constants)
 
         self.modules_tool = modules_tool()
         self.mns = mns
@@ -116,14 +114,8 @@ class Toolchain(object):
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
-    def add_class_constants_to_restore(self, names):
-        """Add given constants to list of class constants to restore with each new instance."""
-        if self.CLASS_CONSTANTS_TO_RESTORE is None:
-            self.CLASS_CONSTANTS_TO_RESTORE = names[:]
-        else:
-            self.CLASS_CONSTANTS_TO_RESTORE.extend(names)
-
     def base_init(self):
+        """Initialise missing class attributes (log, options, variables)."""
         if not hasattr(self, 'log'):
             self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -136,6 +128,17 @@ class Toolchain(object):
                 self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
             if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
                 self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+
+    def _init_class_constants(self, class_constants):
+        """Initialise class 'constants'."""
+        # make sure self.CLASS_CONSTANTS_TO_RESTORE is initialised
+        if class_constants is None:
+            self.CLASS_CONSTANTS_TO_RESTORE = []
+        else:
+            self.CLASS_CONSTANTS_TO_RESTORE = class_constants[:]
+
+        self._copy_class_constants()
+        self._restore_class_constants()
 
     def _copy_class_constants(self):
         """Copy class constants that needs to be restored again when a new instance is created."""
