@@ -36,7 +36,7 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.job import JobServer
+from easybuild.tools.job import JobBackend
 
 
 _log = fancylogger.getLogger('pbs_python', fname=False)
@@ -58,27 +58,30 @@ try:
     HAVE_PBS_PYTHON = True
 except ImportError:
     _log.debug("Failed to import pbs from pbs_python."
-               " Silently ignoring, this is a real issue only with --job=pbs")
+               " Silently ignoring, this is a real issue only when pbs_python is used as backend for --job")
     # no `pbs_python` available, turn function into a no-op
     def only_if_pbs_import_successful(fn):
         def instead(*args, **kwargs):
             """This is a no-op since `pbs_python` is not available."""
             errmsg = ("PBSQuery or pbs modules not available."
                       " Please make sure `pbs_python` is installed and usable.")
-            _log.error(errmsg)
-            raise RuntimeError(errmsg)
+            raise EasyBuildError(errmsg)
         return instead
     HAVE_PBS_PYTHON = False
 
 
-class Pbs(JobServer):
+class PbsPython(JobBackend):
     """
     Manage PBS server communication and create `PbsJob` objects.
     """
 
     USABLE = HAVE_PBS_PYTHON
 
+    @only_if_pbs_import_successful
     def __init__(self, pbs_server=None):
+        _init()
+
+    def _init(self, pbs_server=None):
         self.pbs_server = pbs_server or pbs.pbs_default()
         self.conn = None
         self._ppn = None
