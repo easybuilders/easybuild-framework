@@ -44,6 +44,7 @@ except ImportError:
     HAVE_GC3PIE = False
 
 from easybuild.tools.build_log import print_msg
+from easybuild.tools.config import build_option
 from easybuild.tools.job import JobBackend
 
 from vsc.utils import fancylogger
@@ -167,16 +168,10 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report([
-                'total',
-                'SUBMITTED',
-                'RUNNING',
-                'ok',
-                'failed',
-            ])
+            self._print_status_report(['total', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
 
             # Wait a few seconds...
-            time.sleep(30)
+            time.sleep(30)  # FIXME: don't hardcode (at least use a class constant that can be tweaked)
 
         # final status report
         self._print_status_report(['total', 'ok', 'failed'])
@@ -192,14 +187,5 @@ class GC3Pie(JobBackend):
         report the number of total jobs right from the start.
         """
         stats = self._engine.stats(only=Application)
-        print_msg(
-            "build jobs: "
-            + ", ".join([
-                ("%d %s" % (
-                    override.get(state, stats[state]),
-                    state.lower(),
-                ))
-                for state in states
-                if stats[state] > 0
-            ]),
-            log=override.get('log', gc3libs.log))
+        job_overview = ', '.join(["%d %s" % (override.get(s, stats[s]), s.lower()) for s in states if stats[s]])
+        print_msg("build jobs: %s" % job_overview, log=override.get('log', gc3libs.log), silent=build_option('silent'))
