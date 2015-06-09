@@ -36,6 +36,7 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import write_file
 from easybuild.tools.job import pbs_python
+from easybuild.tools.job.gc3pie import GC3Pie
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
@@ -88,13 +89,13 @@ class ParallelBuildTest(EnhancedTestCase):
         """Test build_easyconfigs_in_parallel(), using (mocked) pbs_python as backend for --job."""
         # put mocked functions in place
         PbsPython__init__ = PbsPython.__init__
-        PbsPython_commit = PbsPython.commit
+        PbsPython_complete = PbsPython.complete
         PbsPython_connect_to_server = PbsPython.connect_to_server
         PbsPython_ppn = PbsPython.ppn
         pbs_python_PbsJob = pbs_python.PbsJob
 
-        PbsPython.__init__ = lambda self: PbsPython._init(self, pbs_server='localhost')
-        PbsPython.commit = mock
+        PbsPython.__init__ = lambda self: PbsPython__init__(self, pbs_server='localhost')
+        PbsPython.complete = mock
         PbsPython.connect_to_server = mock
         PbsPython.ppn = mock
         pbs_python.PbsJob = MockPbsJob
@@ -114,7 +115,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
-        PbsPython.commit = PbsPython_commit
+        PbsPython.complete = PbsPython_complete
         PbsPython.connect_to_server = PbsPython_connect_to_server
         PbsPython.ppn = PbsPython_ppn
         pbs_python.PbsJob = pbs_python_PbsJob
@@ -126,6 +127,8 @@ class ParallelBuildTest(EnhancedTestCase):
         except ImportError:
             print "GC3Pie not available, skipping test"
             return
+
+        GC3Pie.POLL_INTERVAL = 0.5  # poll every 0.5 seconds to speed up the test
 
         build_options = {
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),

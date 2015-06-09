@@ -36,7 +36,7 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.job import JobBackend
+from easybuild.tools.job.backend import JobBackend
 
 
 _log = fancylogger.getLogger('pbs_python', fname=False)
@@ -77,16 +77,18 @@ class PbsPython(JobBackend):
 
     USABLE = HAVE_PBS_PYTHON
 
-    @only_if_pbs_import_successful
     def __init__(self, pbs_server=None):
-        _init()
-
-    def _init(self, pbs_server=None):
+        """Constructor."""
         self.pbs_server = pbs_server or pbs.pbs_default()
         self.conn = None
         self._ppn = None
 
-    def begin(self):
+    def init(self):
+        """
+        Initialise the job backend.
+
+        Connect to the PBS server & reset list of submitted jobs.
+        """
         self.connect_to_server()
         self._submitted = []
 
@@ -97,27 +99,31 @@ class PbsPython(JobBackend):
             self.conn = pbs.pbs_connect(self.pbs_server)
         return self.conn
 
-    def submit(self, job, after=frozenset()):
-        assert isinstance(job, PbsJob)
-        if after:
-            job.add_dependencies(after)
+    def queue(self, job, dependencies=frozenset()):
+        """
+        Add a job to the queue.
+
+        @param dependencies: jobs on which this job depends.
+        """
+        if dependencies:
+            job.add_dependencies(dependencies)
         job._submit()
         self._submitted.append(job)
 
-    def commit(self):
-        # release all user holds on jobs after submission is completed
+    def complete(self):
+        """
+        Complete a bulk job submission.
+
+        Release all user holds on submitted jobs, and disconnect from server.
+        """
         for job in self._submitted:
             if job.has_holds():
                 _log.info("releasing user hold on job %s" % job.jobid)
                 job.release_hold()
         self.disconnect_from_server()
         if self._submitted:
-            _log.info(
-                "List of submitted jobs:"
-                + "; ".join([
-                    ("%s (%s): %s" % (job.name, job.module, job.jobid))
-                    for job in self._submitted
-                ]))
+            submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
+            _log.info("List of submitted jobs: %s", submitted_jobs)
 
     @only_if_pbs_import_successful
     def disconnect_from_server(self):
@@ -150,8 +156,7 @@ class PbsPython(JobBackend):
 
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """Create and return a `PbsJob` object with the given parameters."""
-        return PbsJob(self, script, name, env_vars, hours, cores,
-                      conn=self.conn, ppn=self.ppn)
+        return PbsJob(self, script, name, env_vars, hours, cores, conn=self.conn, ppn=self.ppn)
 
 
 class PbsJob(object):

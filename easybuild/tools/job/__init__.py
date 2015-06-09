@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2015 Ghent University
+# Copyright 2011-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -22,85 +22,13 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""Abstract interface for submitting jobs and related utilities."""
+"""
+Declares easybuild.tools.job namespace, in an extendable way.
 
+@author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+"""
+from pkgutil import extend_path
 
-from abc import ABCMeta, abstractmethod
-
-from vsc.utils.missing import get_subclasses
-
-from easybuild.tools.config import get_job_backend
-from easybuild.tools.utilities import import_available_modules
-
-
-class JobBackend(object):
-    __metaclass__ = ABCMeta
-
-    USABLE = False
-
-    @abstractmethod
-    def begin(self):
-        """
-        Start a bulk job submission.
-
-        Jobs may be queued and only actually submitted when `commit()`
-        is called.
-        """
-        pass
-
-    @abstractmethod
-    def make_job(self, script, name, env_vars=None, hours=None, cores=None):
-        """
-        Create and return a `Job` object with the given parameters.
-
-        See the `Job`:class: constructor for an explanation of what
-        the arguments are.
-        """
-        pass
-
-    @abstractmethod
-    def submit(self, job, after=frozenset()):
-        """
-        Submit a job to the batch-queueing system.
-
-        If second optional argument `after` is given, it must be a
-        sequence of jobs that must be successfully terminated before
-        the new job can run.
-
-        Note that actual submission may be delayed until `commit()` is
-        called.
-        """
-        pass
-
-    @abstractmethod
-    def commit(self):
-        """
-        End a bulk job submission.
-
-        Releases any jobs that were possibly queued since the last
-        `begin()` call.
-
-        No more job submissions should be attempted after `commit()`
-        has been called, until a `begin()` is invoked again.
-        """
-        pass
-
-
-def avail_job_backends(check_usable=True):
-    """
-    Return all known job execution backends.
-    """
-    import_available_modules('easybuild.tools.job')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(JobBackend)])
-    return class_dict
-
-
-def job_backend():
-    """
-    Return interface to job server, or `None` if none is available.
-    """
-    job_backend = get_job_backend()
-    if job_backend is None:
-        return None
-    job_backend_class = avail_job_backends().get(job_backend)
-    return job_backend_class()
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
