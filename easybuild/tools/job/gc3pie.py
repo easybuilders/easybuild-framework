@@ -71,6 +71,12 @@ class GC3Pie(JobBackend):
 
     USABLE = HAVE_GC3PIE
 
+    # After polling for job status, sleep for this time duration
+    # before polling again. Duration is expressed in seconds.
+    #
+    # XXX: should this be configurable via a command-line option?
+    POLL_INTERVAL = 30
+
     def begin(self):
         """
         Start a bulk job submission.
@@ -171,7 +177,7 @@ class GC3Pie(JobBackend):
             self._print_status_report(['total', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
 
             # Wait a few seconds...
-            time.sleep(30)  # FIXME: don't hardcode (at least use a class constant that can be tweaked)
+            time.sleep(self.POLL_INTERVAL)
 
         # final status report
         self._print_status_report(['total', 'ok', 'failed'])
