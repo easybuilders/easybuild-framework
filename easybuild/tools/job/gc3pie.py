@@ -45,7 +45,7 @@ except ImportError:
 
 from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.job import JobBackend
+from easybuild.tools.job.backend import JobBackend
 
 from vsc.utils import fancylogger
 

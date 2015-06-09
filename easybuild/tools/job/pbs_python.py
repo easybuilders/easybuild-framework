@@ -36,7 +36,7 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.job import JobBackend
+from easybuild.tools.job.backend import JobBackend
 
 
 _log = fancylogger.getLogger('pbs_python', fname=False)
