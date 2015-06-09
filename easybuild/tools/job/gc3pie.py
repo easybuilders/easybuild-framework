@@ -75,11 +75,11 @@ class GC3Pie(JobBackend):
     # before polling again. Duration is expressed in seconds.
     POLL_INTERVAL = 30
 
-    def begin(self):
+    def init(self):
         """
-        Start a bulk job submission.
+        Initialise the job backend.
 
-        Removes any reference to previously-submitted jobs.
+        Start a new list of submitted jobs.
         """
         self._jobs = DependentTaskCollection(
             output_dir=os.path.join(os.getcwd(), 'easybuild-jobs'))
@@ -130,27 +130,19 @@ class GC3Pie(JobBackend):
             **extra_args
             )
 
-    def submit(self, job, after=frozenset()):
+    def queue(self, job, dependencies=frozenset()):
         """
-        Submit a job to the batch-queueing system, optionally specifying dependencies.
+        Add a job to the queue, optionally specifying dependencies.
 
-        If second optional argument `after` is given, it must be a
-        sequence of jobs that must be successfully terminated before
-        the new job can run.
-
-        Actual submission is delayed until `commit()` is called.
+        @param dependencies: jobs on which this job depends.
         """
-        self._jobs.add(job, after)
+        self._jobs.add(job, dependencies)
 
-    def commit(self):
+    def complete(self):
         """
-        End a bulk job submission.
+        Complete a bulk job submission.
 
-        Releases any jobs that were possibly queued since the last
-        `begin()` call.
-
-        No more job submissions should be attempted after `commit()`
-        has been called, until `begin()` is invoked again.
+        Create engine, and progress it until all jobs have terminated.
         """
         # Create an instance of `Engine` using the configuration file present
         # in your home directory.

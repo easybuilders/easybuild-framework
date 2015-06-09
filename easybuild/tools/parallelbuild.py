@@ -75,7 +75,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
         raise EasyBuildError("Cannot use --job if no job backend is available.")
 
     try:
-        job_server.begin()
+        job_server.init()
     except RuntimeError as err:
         raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
 
@@ -101,7 +101,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
         job_deps = [module_to_job[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in module_to_job]
 
         # actually (try to) submit job
-        job_server.submit(new_job, job_deps)
+        job_server.queue(new_job, job_deps)
         _log.info(
             "job %s for module %s has been submitted"
             % (new_job, new_job.module))
@@ -110,7 +110,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
         module_to_job[new_job.module] = new_job
         jobs.append(new_job)
 
-    job_server.commit()
+    job_server.complete()
 
     return jobs
 

@@ -39,11 +39,11 @@ class JobBackend(object):
     USABLE = False
 
     @abstractmethod
-    def begin(self):
+    def init(self):
         """
-        Start a bulk job submission.
+        Initialise the job backend, to start a bulk job submission.
 
-        Jobs may be queued and only actually submitted when `commit()`
+        Jobs may be queued and only actually submitted when `complete()`
         is called.
         """
         pass
@@ -59,29 +59,29 @@ class JobBackend(object):
         pass
 
     @abstractmethod
-    def submit(self, job, after=frozenset()):
+    def queue(self, job, dependencies=frozenset()):
         """
-        Submit a job to the batch-queueing system.
+        Add a job to the queue.
 
-        If second optional argument `after` is given, it must be a
+        If second optional argument `dependencies` is given, it must be a
         sequence of jobs that must be successfully terminated before
         the new job can run.
 
-        Note that actual submission may be delayed until `commit()` is
+        Note that actual submission may be delayed until `complete()` is
         called.
         """
         pass
 
     @abstractmethod
-    def commit(self):
+    def complete(self):
         """
-        End a bulk job submission.
+        Complete a bulk job submission.
 
         Releases any jobs that were possibly queued since the last
-        `begin()` call.
+        `init()` call.
 
-        No more job submissions should be attempted after `commit()`
-        has been called, until a `begin()` is invoked again.
+        No more job submissions should be attempted after `complete()`
+        has been called, until a `init()` is invoked again.
         """
         pass
 
