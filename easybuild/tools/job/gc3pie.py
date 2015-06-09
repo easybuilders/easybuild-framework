@@ -66,7 +66,7 @@ except ImportError as err:
     # GC3Pie not available, turn method in a raised EasyBuildError
     def gc3pie_imported(_):
         """Decorator which raises an EasyBuildError because GC3Pie is not available."""
-        def fail(_):
+        def fail(*args, **kwargs):
             """Raise EasyBuildError since GC3Pie is not available."""
             errmsg = "gc3libs not available. Please make sure GC3Pie is installed and usable: %s"
             raise EasyBuildError(errmsg, err)

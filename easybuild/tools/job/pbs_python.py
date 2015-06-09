@@ -65,7 +65,7 @@ except ImportError as err:
     # `pbs_python` not available, turn method in a raised EasyBuildError
     def pbs_python_imported(_):
         """Decorator which raises an EasyBuildError because pbs_python is not available."""
-        def fail(_):
+        def fail(*args, **kwargs):
             """Raise EasyBuildError since `pbs_python` is not available."""
             errmsg = "PBSQuery or pbs modules not available. Please make sure `pbs_python` is installed and usable: %s"
             raise EasyBuildError(errmsg, err)
