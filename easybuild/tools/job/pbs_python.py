@@ -52,31 +52,31 @@ try:
     from PBSQuery import PBSQuery
     import pbs
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
-    # `pbs_python` available, no need guard against import errors
-    def only_if_pbs_import_successful(fn):
+
+    # `pbs_python` is available, no need guard against import errors
+    def pbs_python_imported(fn):
+        """No-op decorator."""
         return fn
-    HAVE_PBS_PYTHON = True
-except ImportError:
+
+except ImportError as err:
     _log.debug("Failed to import pbs from pbs_python."
                " Silently ignoring, this is a real issue only when pbs_python is used as backend for --job")
-    # no `pbs_python` available, turn function into a no-op
-    def only_if_pbs_import_successful(fn):
-        def instead(*args, **kwargs):
-            """This is a no-op since `pbs_python` is not available."""
-            errmsg = ("PBSQuery or pbs modules not available."
-                      " Please make sure `pbs_python` is installed and usable.")
-            raise EasyBuildError(errmsg)
-        return instead
-    HAVE_PBS_PYTHON = False
+
+    # `pbs_python` not available, turn method in a raised EasyBuildError
+    def pbs_python_imported(_):
+        """Decorator which raises an EasyBuildError because pbs_python is not available."""
+        def fail(_):
+            """Raise EasyBuildError since `pbs_python` is not available."""
+            errmsg = "PBSQuery or pbs modules not available. Please make sure `pbs_python` is installed and usable: %s"
+            raise EasyBuildError(errmsg, err)
+
+        return fail
 
 
 class PbsPython(JobBackend):
     """
     Manage PBS server communication and create `PbsJob` objects.
     """
-
-    USABLE = HAVE_PBS_PYTHON
-
     def __init__(self, pbs_server=None):
         """Constructor."""
         self.pbs_server = pbs_server or pbs.pbs_default()
@@ -92,7 +92,7 @@ class PbsPython(JobBackend):
         self.connect_to_server()
         self._submitted = []
 
-    @only_if_pbs_import_successful
+    @pbs_python_imported
     def connect_to_server(self):
         """Connect to PBS server, set and return connection."""
         if not self.conn:
@@ -125,12 +125,13 @@ class PbsPython(JobBackend):
             submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
             _log.info("List of submitted jobs: %s", submitted_jobs)
 
-    @only_if_pbs_import_successful
+    @pbs_python_imported
     def disconnect_from_server(self):
         """Disconnect current connection."""
         pbs.pbs_disconnect(self.conn)
         self.conn = None
 
+    @pbs_python_imported
     def _get_ppn(self):
         """Guess PBS' `ppn` value for a full node."""
         # cache this value as it's not likely going to change over the
