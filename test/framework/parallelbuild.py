@@ -36,6 +36,7 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import write_file
 from easybuild.tools.job import pbs_python
+from easybuild.tools.job.gc3pie import GC3Pie
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
@@ -126,6 +127,8 @@ class ParallelBuildTest(EnhancedTestCase):
         except ImportError:
             print "GC3Pie not available, skipping test"
             return
+
+        GC3Pie.POLL_INTERVAL = 0.5  # poll every 0.5 seconds to speed up the test
 
         build_options = {
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),

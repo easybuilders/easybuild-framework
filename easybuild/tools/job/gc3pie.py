@@ -176,10 +176,14 @@ class GC3Pie(JobBackend):
 
             # Wait a few seconds...
 <<<<<<< HEAD
+<<<<<<< HEAD
             time.sleep(self.POLL_INTERVAL)
 =======
             time.sleep(POLL_INTERVAL)
 >>>>>>> Make polling interval a class-level constant.
+=======
+            time.sleep(self.POLL_INTERVAL)
+>>>>>>> fix use of POLL_INTERVAL constant, use it in GC3Pie job backend unit test
 
         # final status report
         self._print_status_report(['total', 'ok', 'failed'])
