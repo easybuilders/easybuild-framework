@@ -27,11 +27,20 @@
 Interface for submitting jobs via GC3Pie.
 
 @author: Riccardo Murri (University of Zurich)
+@author: Kenneth Hoste (Ghent University)
 """
-
-
 import os
 import time
+
+from vsc.utils import fancylogger
+
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
+from easybuild.tools.job.backend import JobBackend
+
+
+_log = fancylogger.getLogger('gc3pie', fname=False)
+
 
 try:
     import gc3libs
@@ -39,51 +48,58 @@ try:
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
     from gc3libs.workflow import DependentTaskCollection
-    HAVE_GC3PIE = True
-except ImportError:
-    HAVE_GC3PIE = False
 
-from easybuild.tools.build_log import print_msg
-from easybuild.tools.config import build_option
-from easybuild.tools.job.backend import JobBackend
-
-from vsc.utils import fancylogger
-
-if HAVE_GC3PIE:
     # inject EasyBuild logger into GC3Pie
     gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
     # make handling of log.error compatible with stdlib logging
     gc3libs.log.raiseError = False
 
+    # GC3Pie is available, no need guard against import errors
+    def gc3pie_imported(fn):
+        """No-op decorator."""
+        return fn
+
+except ImportError as err:
+    _log.debug("Failed to import gc3libs from GC3Pie."
+               " Silently ignoring, this is a real issue only when GC3Pie is used as backend for --job")
+
+    # GC3Pie not available, turn method in a raised EasyBuildError
+    def gc3pie_imported(_):
+        """Decorator which raises an EasyBuildError because GC3Pie is not available."""
+        def fail(_):
+            """Raise EasyBuildError since GC3Pie is not available."""
+            errmsg = "gc3libs not available. Please make sure GC3Pie is installed and usable: %s"
+            raise EasyBuildError(errmsg, err)
+
+        return fail
+
 
 # eb --job --job-backend=GC3Pie
 class GC3Pie(JobBackend):
     """
-    Use the GC3Pie__ framework to submit and monitor compilation jobs.
+    Use the GC3Pie framework to submit and monitor compilation jobs,
+    see http://gc3pie.readthedocs.org/.
 
     In contrast with accessing an external service, GC3Pie implements
     its own workflow manager, which means ``eb --job
     --job-backend=GC3Pie`` will keep running until all jobs have
     terminated.
-
-    .. __: http://gc3pie.googlecode.com/
     """
-
-    USABLE = HAVE_GC3PIE
-
     # After polling for job status, sleep for this time duration
     # before polling again. Duration is expressed in seconds.
     POLL_INTERVAL = 30
 
+    @gc3pie_imported
     def init(self):
         """
         Initialise the job backend.
 
         Start a new list of submitted jobs.
         """
-        self._jobs = DependentTaskCollection(
-            output_dir=os.path.join(os.getcwd(), 'easybuild-jobs'))
+        self.output_dir = os.path.join(os.getcwd(), 'easybuild-gc3pie-jobs')
+        self.jobs = DependentTaskCollection(output_dir=self.output_dir)
 
+    @gc3pie_imported
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """
         Create and return a job object with the given parameters.
@@ -106,38 +122,47 @@ class GC3Pie(JobBackend):
         * hours must be in the range 1 .. MAX_WALLTIME;
         * cores depends on which cluster the job is being run.
         """
-        extra_args = {
+        named_args = {
             'jobname': name, # job name in GC3Pie
-            'name':    name, # same in EasyBuild
+            'name':    name, # job name in EasyBuild
         }
-        if env_vars:
-            extra_args['environment'] = env_vars
-        if hours:
-            extra_args['requested_walltime'] = hours*hr
-        if cores:
-            extra_args['requested_cores'] = cores
-        return Application(
-            # arguments
-            ['/bin/sh', '-c', script],
-            # no need to stage files in or out
-            inputs=[],
-            outputs=[],
-            # where should the output (STDOUT/STDERR) files be downloaded to?
-            output_dir=os.path.join(self._jobs.output_dir, name),
-            # capture STDOUT and STDERR
-            stdout='stdout.log',
-            join=True,
-            **extra_args
-            )
 
+        # environment
+        if env_vars:
+            named_args['environment'] = env_vars
+
+        # input/output files for job (none)
+        named_args['inputs'] = []
+        named_args['outputs'] = []
+
+        # job logs
+        named_args.update({
+            # join stdout/stderr in a single log
+            'join': True,
+            # location for log file
+            'output_dir': os.path.join(self.output_dir, name),
+            # log file name
+            'stdout': 'eb.log',
+        })
+
+        # resources
+        if hours:
+            named_args['requested_walltime'] = hours * hr
+        if cores:
+            named_args['requested_cores'] = cores
+
+        return Application(['/bin/sh', '-c', script], **named_args)
+
+    @gc3pie_imported
     def queue(self, job, dependencies=frozenset()):
         """
         Add a job to the queue, optionally specifying dependencies.
 
         @param dependencies: jobs on which this job depends.
         """
-        self._jobs.add(job, dependencies)
+        self.jobs.add(job, dependencies)
 
+    @gc3pie_imported
     def complete(self):
         """
         Complete a bulk job submission.
@@ -151,13 +176,13 @@ class GC3Pie(JobBackend):
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
-        self._engine.add(self._jobs)
+        self._engine.add(self.jobs)
 
         # in case you want to select a specific resource, call
         # `Engine.select_resource(<resource_name>)`
 
         # Periodically check the status of your application.
-        while self._jobs.execution.state != Run.State.TERMINATED:
+        while self.jobs.execution.state != Run.State.TERMINATED:
             # `Engine.progress()` will do the GC3Pie magic:
             # submit new jobs, update status of submitted jobs, get
             # results of terminating jobs etc...
@@ -172,7 +197,8 @@ class GC3Pie(JobBackend):
         # final status report
         self._print_status_report(['total', 'ok', 'failed'])
 
-    def _print_status_report(self, states=('total', 'ok', 'failed'), **override):
+    @gc3pie_imported
+    def _print_status_report(self, states=('total', 'ok', 'failed')):
         """
         Print a job status report to STDOUT and the log file.
 
@@ -183,5 +209,5 @@ class GC3Pie(JobBackend):
         report the number of total jobs right from the start.
         """
         stats = self._engine.stats(only=Application)
-        job_overview = ', '.join(["%d %s" % (override.get(s, stats[s]), s.lower()) for s in states if stats[s]])
-        print_msg("build jobs: %s" % job_overview, log=override.get('log', gc3libs.log), silent=build_option('silent'))
+        job_overview = ', '.join(["%d %s" % (stats[s], s.lower()) for s in states if stats[s]])
+        print_msg("GC3Pie job overview: %s" % job_overview, log=_log, silent=build_option('silent'))

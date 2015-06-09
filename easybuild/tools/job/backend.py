@@ -36,8 +36,6 @@ from easybuild.tools.utilities import import_available_modules
 class JobBackend(object):
     __metaclass__ = ABCMeta
 
-    USABLE = False
-
     @abstractmethod
     def init(self):
         """
