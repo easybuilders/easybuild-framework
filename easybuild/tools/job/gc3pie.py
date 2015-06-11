@@ -93,10 +93,15 @@ class GC3Pie(JobBackend):
 
         Start a new list of submitted jobs.
         """
+        # List of config files for GC3Pie; non-existing ones will be
+        # silently ignored.  The list here copies GC3Pie's default,
+        # for the principle of minimal surprise, but there is no
+        # strict requirement that this be done and EB could actually
+        # choose to use a completely distinct set of conf. files.
+        self.config_files = gc3libs.Default.CONFIG_FILE_LOCATIONS[:]
         cfgfile = build_option('job_backend_config')
         if cfgfile:
-            # FIXME: is there a better way?
-            gc3libs.Default.CONFIG_FILE_LOCATIONS.append(cfgfile)
+            self.config_files.append(cfgfile)
 
         # additional subdirectory, since GC3Pie cleans up the output dir?!
         self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
@@ -184,7 +189,7 @@ class GC3Pie(JobBackend):
         """
         # Create an instance of `Engine` using the configuration file present
         # in your home directory.
-        self._engine = create_engine()
+        self._engine = create_engine(* self.config_files)
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
