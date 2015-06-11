@@ -247,8 +247,8 @@ class EasyBuildOptions(GeneralOption):
                                     None, 'store', None),
             'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
                                      None, 'store', None),
-            'job-backend': ("What job runner to use", 'choice', 'store',
-                            DEFAULT_JOB_BACKEND, avail_job_backends().keys()),
+            'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
+                            DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -356,6 +356,21 @@ class EasyBuildOptions(GeneralOption):
         opts = None
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='easyconfig')
+
+    def job_options(self):
+        """Option related to --job."""
+        descr = ("Options for job backend", "Options for job backend (only relevant when --job is used)")
+
+        opts = OrderedDict({
+            'backend-config': ("Configuration file for job backend", None, 'store', None),
+            'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
+            'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
+            'polling-interval': ("Interval between polls for status of jobs (in seconds)", int, 'store', 30),
+            'target-resource': ("Target resource for jobs", None, 'store', None),
+        })
+
+        self.log.debug("job_options: descr %s opts %s", descr, opts)
+        self.add_group_parser(opts, descr, prefix='job')
 
     def easyblock_options(self):
         # easyblock options (to be passed to easyblock instance)

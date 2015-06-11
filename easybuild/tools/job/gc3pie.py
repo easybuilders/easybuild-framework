@@ -85,9 +85,6 @@ class GC3Pie(JobBackend):
     --job-backend=GC3Pie`` will keep running until all jobs have
     terminated.
     """
-    # After polling for job status, sleep for this time duration
-    # before polling again. Duration is expressed in seconds.
-    POLL_INTERVAL = 30
 
     @gc3pie_imported
     def init(self):
@@ -96,8 +93,18 @@ class GC3Pie(JobBackend):
 
         Start a new list of submitted jobs.
         """
-        self.output_dir = os.path.join(os.getcwd(), 'easybuild-gc3pie-jobs')
+        cfgfile = build_option('job_backend_config')
+        if cfgfile:
+            # FIXME: is there a better way?
+            gc3libs.Default.CONFIG_FILE_LOCATIONS.append(cfgfile)
+
+        # additional subdirectory, since GC3Pie cleans up the output dir?!
+        self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
+
+        # after polling for job status, sleep for this time duration
+        # before polling again (in seconds)
+        self.poll_interval = build_option('job_polling_interval')
 
     @gc3pie_imported
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
@@ -140,14 +147,20 @@ class GC3Pie(JobBackend):
             # join stdout/stderr in a single log
             'join': True,
             # location for log file
-            'output_dir': os.path.join(self.output_dir, name),
+            # FIXME: does GC3Pie blindly remove this entire directory?!
+            'output_dir': self.output_dir,
             # log file name
-            'stdout': 'eb.log',
+            'stdout': 'eb-%s-gc3pie-job.log' % name,
         })
 
         # resources
-        if hours:
-            named_args['requested_walltime'] = hours * hr
+        if hours is None:
+            hours = build_option('job_max_walltime')
+        if hours > max_walltime:
+            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            hours = max_walltime
+        named_args['requested_walltime'] = hours * hr
+
         if cores:
             named_args['requested_cores'] = cores
 
@@ -179,7 +192,7 @@ class GC3Pie(JobBackend):
         self._engine.add(self.jobs)
 
         # in case you want to select a specific resource, call
-        # `Engine.select_resource(<resource_name>)`
+        self._engine.select_resource(build_option('job_target_resource'))
 
         # Periodically check the status of your application.
         while self.jobs.execution.state != Run.State.TERMINATED:
@@ -192,7 +205,7 @@ class GC3Pie(JobBackend):
             self._print_status_report(['total', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
 
             # Wait a few seconds...
-            time.sleep(self.POLL_INTERVAL)
+            time.sleep(self.poll_interval)
 
         # final status report
         self._print_status_report(['total', 'ok', 'failed'])
