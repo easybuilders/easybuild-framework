@@ -159,8 +159,9 @@ class GC3Pie(JobBackend):
         })
 
         # resources
+        max_walltime = build_option('job_max_walltime')
         if hours is None:
-            hours = build_option('job_max_walltime')
+            hours = max_walltime
         if hours > max_walltime:
             self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
             hours = max_walltime
@@ -187,9 +188,8 @@ class GC3Pie(JobBackend):
 
         Create engine, and progress it until all jobs have terminated.
         """
-        # Create an instance of `Engine` using the configuration file present
-        # in your home directory.
-        self._engine = create_engine(* self.config_files)
+        # create an instance of `Engine` using the list of configuration files
+        self._engine = create_engine(*self.config_files)
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
@@ -197,7 +197,9 @@ class GC3Pie(JobBackend):
         self._engine.add(self.jobs)
 
         # in case you want to select a specific resource, call
-        self._engine.select_resource(build_option('job_target_resource'))
+        target_resource = build_option('job_target_resource')
+        if target_resource:
+            self._engine.select_resource(target_resource)
 
         # Periodically check the status of your application.
         while self.jobs.execution.state != Run.State.TERMINATED:
@@ -207,7 +209,7 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report(['total', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
+            self._print_status_report(['total', 'NEW', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
 
             # Wait a few seconds...
             time.sleep(self.poll_interval)
