@@ -36,13 +36,13 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.job.backend import JobBackend
 
 
 _log = fancylogger.getLogger('pbs_python', fname=False)
 
 
-MAX_WALLTIME = 72
 # extend paramater should be 'NULL' in some functions because this is required by the python api
 NULL = 'NULL'
 # list of known hold types
@@ -79,7 +79,7 @@ class PbsPython(JobBackend):
     """
     def __init__(self, pbs_server=None):
         """Constructor."""
-        self.pbs_server = pbs_server or pbs.pbs_default()
+        self.pbs_server = pbs_server or build_option('job_target_resource') or pbs.pbs_default()
         self.conn = None
         self._ppn = None
 
@@ -169,7 +169,7 @@ class PbsJob(object):
         create a new Job to be submitted to PBS
         env_vars is a dictionary with key-value pairs of environment variables that should be passed on to the job
         hours and cores should be integer values.
-        hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
+        hours can be 1 - (max walltime), cores depends on which cluster it is being run.
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -189,11 +189,12 @@ class PbsJob(object):
         # setup the resources requested
 
         # validate requested resources!
+        max_walltime = build_option('job_max_walltime')
         if hours is None:
-            hours = MAX_WALLTIME
-        if hours > MAX_WALLTIME:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, MAX_WALLTIME))
-            hours = MAX_WALLTIME
+            hours = max_walltime
+        if hours > max_walltime:
+            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            hours = max_walltime
 
         if ppn is None:
             max_cores = server.ppn
@@ -207,9 +208,9 @@ class PbsJob(object):
 
         # only allow cores and hours for now.
         self.resources = {
-                          "walltime": "%s:00:00" % hours,
-                          "nodes": "1:ppn=%s" % cores
-                         }
+            'walltime': '%s:00:00' % hours,
+            'nodes': '1:ppn=%s' % cores,
+        }
         # don't specify any queue name to submit to, use the default
         self.queue = None
         # job id of this job
@@ -238,9 +239,16 @@ class PbsJob(object):
         self.log.debug("Going to submit script %s" % txt)
 
         # Build default pbs_attributes list
-        pbs_attributes = pbs.new_attropl(1)
+        pbs_attributes = pbs.new_attropl(3)
         pbs_attributes[0].name = pbs.ATTR_N  # Job_Name
         pbs_attributes[0].value = self.name
+
+        output_dir = build_option('output_dir')
+        pbs_attributes[1].name = pbs.ATTR_o
+        pbs_attributes[1].value = os.path.join(output_dir, '%s.o$PBS_JOBID' % self.name)
+
+        pbs_attributes[2].name = pbs.ATTR_e
+        pbs_attributes[2].value = os.path.join(output_dir, '%s.e$PBS_JOBID' % self.name)
 
         # set resource requirements
         resource_attributes = pbs.new_attropl(len(self.resources))

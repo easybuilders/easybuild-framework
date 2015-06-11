@@ -72,7 +72,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
 
     job_server = job_backend()
     if job_server is None:
-        raise EasyBuildError("Cannot use --job if no job backend is available.")
+        raise EasyBuildError("Can not use --job if no job backend is available.")
 
     try:
         job_server.init()
