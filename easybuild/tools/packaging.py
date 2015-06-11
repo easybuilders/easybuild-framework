@@ -44,8 +44,10 @@ from easybuild.tools.config import install_path, package_template
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import which
 
 _log = fancylogger.getLogger('tools.packaging')
+config_options = [ 'package_tool', 'package_type' ]
 
 def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     '''
@@ -114,4 +116,18 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     _log.info("wrote rpm to %s" % (workdir) )
 
     return workdir
+
+
+def option_postprocess():
+    '''
+    Called from easybuild.tools.options.postprocess to check that experimental is triggered and fpm is available
+    '''
+
+    _log.experimental("Using the packaging module, This is experimental")
+    fpm_path = which('fpm')
+    rpmbuild_path = which('rpmbuild')
+    if fpm_path and rpmbuild_path:
+        _log.info("fpm found at: %s" % fpm_path)
+    else:
+        raise EasyBuildError("Need both fpm and rpmbuild. Found fpm: %s rpmbuild: %s", fpm_path, rpmbuild_path)
 

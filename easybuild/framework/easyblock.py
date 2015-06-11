@@ -1499,6 +1499,8 @@ class EasyBlock(object):
         packagedir_dest = os.path.abspath(package_path())
 
         packaging_tool = build_option('package_tool')
+        opt_force = build_option('force')
+
         if packaging_tool == "fpm":
             packaging_type = build_option('package_type') if build_option('package_type') else "rpm"
              
@@ -1507,8 +1509,13 @@ class EasyBlock(object):
             if not os.path.exists(packagedir_dest):
                 mkdir(packagedir_dest)
         
-            for file in glob.glob(os.path.join(packagedir_src, "*.%s" % packaging_type)):
-                shutil.copy(file, packagedir_dest)
+            for src_file in glob.glob(os.path.join(packagedir_src, "*.%s" % packaging_type)):
+                src_filename = os.path.basename(src_file)
+                dest_file = os.path.join(packagedir_dest, src_filename)
+                if os.path.exists(dest_file) and not opt_force:
+                    raise EasyBuildError("Unable to copy file, dest already exists. Look in src for packages dest: %s src: %s ", dest_file, src_file)
+                else:
+                    shutil.copy(src_file, packagedir_dest)
         else:
             _log.debug('Skipping package step')
 

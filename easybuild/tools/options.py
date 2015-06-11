@@ -48,7 +48,7 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
+from easybuild.tools import build_log, config, run, packaging  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PACKAGE_TEMPLATE, DEFAULT_PATH_SUBDIRS
@@ -458,6 +458,15 @@ class EasyBuildOptions(GeneralOption):
         self._postprocess_external_modules_metadata()
 
         self._postprocess_config()
+
+        #Check experimental option dependencies (for now packaging)
+        #print "Got config_options: %s" % packaging.config_options
+        package_options = [ getattr(self.options, x) for x in packaging.config_options if getattr(self.options, x) ]
+        if any( package_options ):
+            packaging.option_postprocess()
+        else:
+            self.log.debug("Didn't find any packaging options")
+
 
     def _postprocess_external_modules_metadata(self):
         """Parse file(s) specifying metadata for external modules."""
