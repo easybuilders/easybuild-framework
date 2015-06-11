@@ -191,6 +191,8 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'buildpath',
         'config',
         'installpath',
+        'installpath_modules',
+        'installpath_software',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
