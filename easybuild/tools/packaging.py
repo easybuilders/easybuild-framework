@@ -43,6 +43,7 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.config import install_path, package_template
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('tools.packaging')
 
@@ -57,7 +58,7 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     try:
         os.chdir(workdir)
     except OSError, err:
-        _log.error("Failed to chdir into workdir: %s : %s" % (workdir, err))
+        raise EasybBuildError("Failed to chdir into workdir: %s : %s", workdir, err)
 
     # default package_template is "eb-%(toolchain)s-%(name)s"
     pkgtemplate = package_template()
