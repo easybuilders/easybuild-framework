@@ -90,7 +90,7 @@ class GC3Pie(JobBackend):
 
     REQ_VERSION = '2.3.0'
     DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
-    REQ_SVN_REVISION = 4218  # use integer value, not a string!
+    REQ_SVN_REVISION = 4223  # use integer value, not a string!
 
     @gc3pie_imported
     def _check_version(self):
