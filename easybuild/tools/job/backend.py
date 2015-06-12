@@ -36,6 +36,15 @@ from easybuild.tools.utilities import import_available_modules
 class JobBackend(object):
     __metaclass__ = ABCMeta
 
+    def __init__(self):
+        """Constructor."""
+        self._check_version()
+
+    @abstractmethod
+    def _check_version(self):
+        """Check whether version of backend complies with required version."""
+        pass
+
     @abstractmethod
     def init(self):
         """

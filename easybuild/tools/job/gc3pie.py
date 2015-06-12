@@ -29,7 +29,9 @@ Interface for submitting jobs via GC3Pie.
 @author: Riccardo Murri (University of Zurich)
 @author: Kenneth Hoste (Ghent University)
 """
+from distutils.version import LooseVersion
 import os
+import re
 import time
 
 from vsc.utils import fancylogger
@@ -86,12 +88,38 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
+    REQ_VERSION = '2.3.0'
+    DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
+    REQ_SVN_REVISION = 4218  # use integer value, not a string!
+
+    @gc3pie_imported
+    def _check_version(self):
+        """Check whether GC3Pie version complies with required version."""
+        version_regex = re.compile(r'^(?P<version>\S*) version \(SVN \$Revision: (?P<svn_rev>\d+)\s*\$\)')
+        version_str = gc3libs.__version__
+        res = version_regex.search(version_str)
+        if res:
+            version = res.group('version')
+            svn_rev = int(res.group('svn_rev'))
+            _log.debug("Parsed GC3Pie version info: '%s' (SVN rev: '%s')", version, svn_rev)
+
+            if version == self.DEVELOPMENT_VERSION:
+                # fall back to checking SVN revision for development versions
+                if svn_rev < self.REQ_SVN_REVISION:
+                    raise EasyBuildError("Found GC3Pie SVN revision %d, but revision %d or newer is required",
+                                         svn_rev, self.REQ_SVN_REVISION)
+            else:
+                if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
+                    raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
+                                         version, self.REQ_VERSION)
+        else:
+            raise EasyBuildError("Failed to parse GC3Pie version string '%s' using pattern %s",
+                                 version_str, version_regex.pattern)
+
     @gc3pie_imported
     def init(self):
         """
-        Initialise the job backend.
-
-        Start a new list of submitted jobs.
+        Initialise the GC3Pie job backend.
         """
         # List of config files for GC3Pie; non-existing ones will be
         # silently ignored.  The list here copies GC3Pie's default,

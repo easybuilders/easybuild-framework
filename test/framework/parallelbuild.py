@@ -90,12 +90,14 @@ class ParallelBuildTest(EnhancedTestCase):
         """Test build_easyconfigs_in_parallel(), using (mocked) pbs_python as backend for --job."""
         # put mocked functions in place
         PbsPython__init__ = PbsPython.__init__
+        PbsPython_check_version = PbsPython._check_version
         PbsPython_complete = PbsPython.complete
         PbsPython_connect_to_server = PbsPython.connect_to_server
         PbsPython_ppn = PbsPython.ppn
         pbs_python_PbsJob = pbs_python.PbsJob
 
         PbsPython.__init__ = lambda self: PbsPython__init__(self, pbs_server='localhost')
+        PbsPython._check_version = lambda _: True
         PbsPython.complete = mock
         PbsPython.connect_to_server = mock
         PbsPython.ppn = mock
@@ -116,6 +118,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
+        PbsPython._check_version = PbsPython_check_version
         PbsPython.complete = PbsPython_complete
         PbsPython.connect_to_server = PbsPython_connect_to_server
         PbsPython.ppn = PbsPython_ppn
