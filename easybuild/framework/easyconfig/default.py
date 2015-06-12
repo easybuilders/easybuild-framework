@@ -115,7 +115,8 @@ DEFAULT_CONFIG = {
     'versionprefix': ['', ('Additional prefix for software version '
                            '(placed before version and toolchain name)'), BUILD],
     'versionsuffix': ['', 'Additional suffix for software version (placed after toolchain name)', BUILD],
-
+    'qa': [{}, ("List of commands to send to the command line during installation."
+                "(format: {'<String from command line prompt>':'<String to send to command line prompt>')"), BUILD],
     # FILEMANAGEMENT easyconfig parameters
     'buildininstalldir': [False, ('Boolean to build (True) or not build (False) in the installation directory'),
                           FILEMANAGEMENT],
