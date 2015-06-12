@@ -29,10 +29,10 @@ Interface module to TORQUE (PBS).
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+from distutils.version import LooseVersion
 import os
+import re
 import tempfile
-import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
@@ -49,8 +49,8 @@ NULL = 'NULL'
 KNOWN_HOLD_TYPES = []
 
 try:
-    from PBSQuery import PBSQuery
     import pbs
+    from PBSQuery import PBSQuery
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 
     # `pbs_python` is available, no need guard against import errors
@@ -77,8 +77,30 @@ class PbsPython(JobBackend):
     """
     Manage PBS server communication and create `PbsJob` objects.
     """
-    def __init__(self, pbs_server=None):
+
+    # pbs_python 4.1.0 introduces the pbs.version variable we rely on
+    REQ_VERSION = '4.1.0'
+
+    @pbs_python_imported
+    def _check_version(self):
+        """Check whether pbs_python version complies with required version."""
+        version_regex = re.compile('pbs_python version (?P<version>.*)')
+        res = version_regex.search(pbs.version)
+        if res:
+            version = res.group('version')
+            if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
+                raise EasyBuildError("Found pbs_python version %s, but version %s or more recent is required",
+                                     version, self.REQ_VERSION)
+        else:
+            raise EasyBuildError("Failed to parse pbs_python version string '%s' using pattern %s",
+                                 pbs.version, version_regex.pattern)
+
+    def __init__(self, *args, **kwargs):
         """Constructor."""
+        pbs_server = kwargs.pop('pbs_server', None)
+
+        super(PbsPython, self).__init__(*args, **kwargs)
+
         self.pbs_server = pbs_server or build_option('job_target_resource') or pbs.pbs_default()
         self.conn = None
         self._ppn = None
