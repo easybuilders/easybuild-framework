@@ -41,19 +41,21 @@ from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
 
 
-GC3PIE_LOCAL_CONFIGURATION = """[resource/localhost]
+# test GC3Pie configuration with large resource specs
+GC3PIE_LOCAL_CONFIGURATION = """[resource/ebtestlocalhost]
 enabled = yes
 type = shellcmd
 frontend = localhost
 transport = local
 max_cores_per_job = 1
-max_memory_per_core = 1GiB
-max_walltime = 8 hours
+max_memory_per_core = 1000GiB
+max_walltime = 1000 hours
 # this doubles as "maximum concurrent jobs"
-max_cores = 4
+max_cores = 1000
 architecture = x86_64
 auth = none
 override = no
+resourcedir = %(resourcedir)s
 """
 
 def mock(*args, **kwargs):
@@ -128,14 +130,16 @@ class ParallelBuildTest(EnhancedTestCase):
             return
 
         # put GC3Pie config in place to use local host and fork/exec
+        resourcedir = os.path.join(self.test_prefix, 'gc3pie')
         gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
-        write_file(gc3pie_cfgfile, GC3PIE_LOCAL_CONFIGURATION)
+        write_file(gc3pie_cfgfile, GC3PIE_LOCAL_CONFIGURATION % {'resourcedir': resourcedir})
 
         build_options = {
             'job_backend_config': gc3pie_cfgfile,
             'job_max_walltime': 24,
             'job_output_dir': self.test_prefix,
-            'job_polling_interval': 1,
+            'job_polling_interval': 0.2,  # quick polling
+            'job_target_resource': 'ebtestlocalhost',
             'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
             'silent': True,
             'valid_module_classes': config.module_classes(),

@@ -199,7 +199,9 @@ class GC3Pie(JobBackend):
         # in case you want to select a specific resource, call
         target_resource = build_option('job_target_resource')
         if target_resource:
-            self._engine.select_resource(target_resource)
+            res = self._engine.select_resource(target_resource)
+            if res == 0:
+                raise EasyBuildError("Failed to select target resource '%s' in GC3Pie", target_resource)
 
         # Periodically check the status of your application.
         while self.jobs.execution.state != Run.State.TERMINATED:

@@ -365,7 +365,7 @@ class EasyBuildOptions(GeneralOption):
             'backend-config': ("Configuration file for job backend", None, 'store', None),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
             'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
-            'polling-interval': ("Interval between polls for status of jobs (in seconds)", int, 'store', 30),
+            'polling-interval': ("Interval between polls for status of jobs (in seconds)", float, 'store', 30.0),
             'target-resource': ("Target resource for jobs", None, 'store', None),
         })
 
