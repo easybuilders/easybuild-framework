@@ -94,6 +94,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group',
         'ignore_dirs',
         'job_backend_config',
+        'job_max_walltime',
         'job_output_dir',
         'job_polling_interval',
         'job_target_resource',

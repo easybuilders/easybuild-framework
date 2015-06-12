@@ -36,7 +36,6 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import write_file
 from easybuild.tools.job import pbs_python
-from easybuild.tools.job.gc3pie import GC3Pie
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
@@ -128,21 +127,21 @@ class ParallelBuildTest(EnhancedTestCase):
             print "GC3Pie not available, skipping test"
             return
 
-        GC3Pie.POLL_INTERVAL = 0.5  # poll every 0.5 seconds to speed up the test
+        # put GC3Pie config in place to use local host and fork/exec
+        gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
+        write_file(gc3pie_cfgfile, GC3PIE_LOCAL_CONFIGURATION)
 
         build_options = {
-            'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            'job_backend_config': gc3pie_cfgfile,
+            'job_max_walltime': 24,
+            'job_output_dir': self.test_prefix,
+            'job_polling_interval': 1,
+            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
             'silent': True,
             'valid_module_classes': config.module_classes(),
             'validate': False,
         }
-        init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
-
-        # put GC3Pie config in place to use local host and fork/exec
-        gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
-        write_file(gc3pie_cfgfile, GC3PIE_LOCAL_CONFIGURATION)
-        # inject configuration file
-        gc3libs.Default.CONFIG_FILE_LOCATIONS.append(gc3pie_cfgfile)
+        options = init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
 
         ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
