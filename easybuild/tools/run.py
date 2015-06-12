@@ -170,7 +170,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         regQtxt = split.join(splitq) + split.rstrip('+') + "*"
         # add optional split at the end
         for i in [idx for idx, a in enumerate(a_s) if not a.endswith('\n')]:
-            answers[i] += '\n'
+            a_s[i] += '\n'
         regQ = re.compile(r"" + regQtxt)
         if regQ.search(q):
             return (a_s, regQ)
