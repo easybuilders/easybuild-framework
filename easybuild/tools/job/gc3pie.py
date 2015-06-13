@@ -88,6 +88,8 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
+    # location of __version__ to use may change, depending on the minimal required SVN revision for development versions
+    VERSION_STR = gc3libs.core.__version__
     REQ_VERSION = '2.3.0'
     DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
     REQ_SVN_REVISION = 4223  # use integer value, not a string!
@@ -96,8 +98,7 @@ class GC3Pie(JobBackend):
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
         version_regex = re.compile(r'^(?P<version>\S*) version \(SVN \$Revision: (?P<svn_rev>\d+)\s*\$\)')
-        version_str = gc3libs.__version__
-        res = version_regex.search(version_str)
+        res = version_regex.search(self.VERSION_STR)
         if res:
             version = res.group('version')
             svn_rev = int(res.group('svn_rev'))
@@ -114,7 +115,7 @@ class GC3Pie(JobBackend):
                                          version, self.REQ_VERSION)
         else:
             raise EasyBuildError("Failed to parse GC3Pie version string '%s' using pattern %s",
-                                 version_str, version_regex.pattern)
+                                 self.VERSION_STR, version_regex.pattern)
 
     @gc3pie_imported
     def init(self):
