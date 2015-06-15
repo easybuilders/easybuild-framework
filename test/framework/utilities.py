@@ -196,9 +196,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         if logfile is None:
             logfile = self.logfile
         # clear log file
-        f = open(logfile, 'w')
-        f.write('')
-        f.close()
+        if logfile:
+            f = open(logfile, 'w')
+            f.write('')
+            f.close()
 
         env_before = copy.deepcopy(os.environ)
 
@@ -211,7 +212,10 @@ class EnhancedTestCase(_EnhancedTestCase):
             if verbose:
                 print "err: %s" % err
 
-        logtxt = read_file(logfile)
+        if logfile:
+            logtxt = read_file(logfile)
+        else:
+            logtxt = None
 
         os.chdir(self.cwd)
 
