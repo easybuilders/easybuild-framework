@@ -101,7 +101,6 @@ class ModulesToolTest(EnhancedTestCase):
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
-        BrokenMockModulesTool._instances.pop(BrokenMockModulesTool, None)
         bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -135,13 +134,11 @@ class ModulesToolTest(EnhancedTestCase):
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
-        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool(testing=True)
         self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
-        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool(testing=True)
         f = open(self.logfile, 'r')
         logtxt = f.read()
