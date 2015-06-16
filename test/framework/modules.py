@@ -42,7 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
+from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir, modules_tool
 
 
 # number of modules included for testing purposes
@@ -347,8 +347,13 @@ class ModulesTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(self.test_prefix, 'Core')
         modtool = modules_tool()
 
+        if isinstance(modtool, Lmod):
+            load_err_msg = "cannot[\s\n]*be[\s\n]*loaded"
+        else:
+            load_err_msg = "Unable to locate a modulefile"
+
         # GCC/4.6.3 is *not* an available Core module
-        self.assertErrorRegex(EasyBuildError, "Unable to locate a modulefile", modtool.load, ['GCC/4.6.3'])
+        self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['GCC/4.6.3'])
 
         # GCC/4.7.2 is one of the available Core modules
         modtool.load(['GCC/4.7.2'])
@@ -370,7 +375,7 @@ class ModulesTest(EnhancedTestCase):
         modtool.load(['GCC/4.7.2'])
 
         # OpenMPI/1.6.4 is *not* available with current $MODULEPATH (loaded GCC/4.7.2 was not a hierarchical module)
-        self.assertErrorRegex(EasyBuildError, "Unable to locate a modulefile", modtool.load, ['OpenMPI/1.6.4'])
+        self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['OpenMPI/1.6.4'])
 
 
 def suite():
