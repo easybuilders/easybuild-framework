@@ -136,8 +136,6 @@ class ModulesTool(object):
     # modules tool user cache directory
     USER_CACHE_DIR = None
 
-    __metaclass__ = Singleton
-
     def __init__(self, mod_paths=None, testing=False):
         """
         Create a ModulesTool object
