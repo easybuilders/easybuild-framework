@@ -47,6 +47,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
 
 _log = fancylogger.getLogger('tools.packaging')
+# This is an abbreviated list of the package options, eventually it might make sense to set them
+# all in the "plugin" rather than in tools.options
 config_options = [ 'package_tool', 'package_type' ]
 
 def package_fpm(easyblock, modfile_path, package_type="rpm" ):
