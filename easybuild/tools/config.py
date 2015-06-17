@@ -96,6 +96,7 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'only_blocks',
         'optarch',
+        'package_template',
         'package_tool',
         'package_type',
         'regtest_output_dir',
@@ -113,6 +114,7 @@ BUILD_OPTIONS_CMDLINE = {
         'force',
         'hidden',
         'module_only',
+        'package',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -199,7 +201,6 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'module_syntax',
         'modules_tool',
         'packagepath',
-        'package_template',
         'prefix',
         'repository',
         'repositorypath',
@@ -372,12 +373,6 @@ def package_path():
     Return the path where built packages are copied to
     """
     return ConfigurationVariables()['packagepath']
-
-def package_template():
-    """
-    Returns the package template
-    """
-    return ConfigurationVariables()['package_template']
 
 def get_modules_tool():
     """

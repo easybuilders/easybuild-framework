@@ -261,12 +261,6 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
-            'package-tool': ("Packaging tool to use",
-                             None, 'store_or_None', None),
-            'package-type': ("Packaging type to output to",
-                             None, 'store_or_None', None),
-            'package-template': ("A template string to name the package",
-                             None, 'store', DEFAULT_PACKAGE_TEMPLATE),
             'packagepath': ("The destination path for the packages built by package-tool",
                              None, 'store', mk_full_default_path('packagepath')),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
@@ -353,6 +347,20 @@ class EasyBuildOptions(GeneralOption):
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
+    def package_options(self):
+        # package-related options
+        descr = ("Package options", "Control packaging performed by EasyBuild.")
+
+        opts = OrderedDict({
+            'package': ("Enabling packaging", None, 'store_true', False),
+            'package-template': ("A template string to name the package", None, 'store', DEFAULT_PACKAGE_TEMPLATE),
+            'package-tool': ("Packaging tool to use", None, 'store_or_None', None),
+            'package-type': ("Packaging type to output to", None, 'store_or_None', None),
+        })
+
+        self.log.debug("package_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def easyconfig_options(self):
