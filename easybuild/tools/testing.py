@@ -117,7 +117,7 @@ def regtest(easyconfig_paths, build_specs=None):
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        resolved = resolve_dependencies(easyconfigs)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)

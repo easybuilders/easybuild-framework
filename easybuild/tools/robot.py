@@ -65,12 +65,11 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
     return robot_path
 
 
-def dry_run(easyconfigs, short=False, build_specs=None):
+def dry_run(easyconfigs, short=False):
     """
     Compose dry run overview for supplied easyconfigs ([ ] for unavailable, [x] for available, [F] for forced)
     @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
     @param short: use short format for overview: use a variable for common prefixes
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     lines = []
     if build_option('robot_path') is None:
@@ -78,7 +77,7 @@ def dry_run(easyconfigs, short=False, build_specs=None):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True)
+        all_specs = minimally_resolve_dependencies(easyconfigs, retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
@@ -142,25 +141,22 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
 
         # Look for a matching easyconfig starting from the bottom
 
-def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, use_any_existing_modules=False):
+def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
     """
     Work through the list of easyconfigs to determine an optimal order with minimal dependency resolution
     @param unprocessed: list of easyconfigs
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability
     """
     if build_option('robot_path') is None:
         _log.info("No robot path : not (minimally) resolving dependencies")
-        return resolve_dependencies(unprocessed,build_specs, retain_all_deps)
+        return resolve_dependencies(unprocessed, retain_all_deps=retain_all_deps)
     else:
         # Look over all elements of the list individually
         minimal_list = []
         for ec in unprocessed:
-            item_specs = resolve_dependencies([ec], build_specs=build_specs, retain_all_deps=True)
-            # Tweak the easyconfigs according to the build_specs
-            # HOW DO I DO THIS CORRECTLY...motoring on assuming I successfully did this!
+            item_specs = resolve_dependencies([ec], retain_all_deps=True)
 
-            # Now we have a complete list of the dependencies (updated with build_specs if necessary), let's do a
+            # Now we have a complete list of the dependencies, let's do a
             # search/replace for the toolchain, removing existing elements from the list according to retain_all_deps
             item_specs = replace_toolchain_with_hierarchy(
                 item_specs, parent=ec['name'],
@@ -175,13 +171,12 @@ def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_dep
                     _log.error("Conflicting dependency versions for %s easyconfig: %s" % ec['name'] % check['name'])
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
         minimal_list = list(set(minimal_list)) # Unique items only
-        return resolve_dependencies(minimal_list,build_specs=None, retain_all_deps=False)
+        return resolve_dependencies(minimal_list, retain_all_deps=False)
 
-def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
+def resolve_dependencies(unprocessed, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
