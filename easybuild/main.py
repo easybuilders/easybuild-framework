@@ -261,7 +261,7 @@ def main(testing_data=(None, None, None)):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
+        txt = dry_run(easyconfigs, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
@@ -281,8 +281,8 @@ def main(testing_data=(None, None, None)):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            #ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
-            ordered_ecs = minimally_resolve_dependencies(easyconfigs, build_specs=build_specs)
+            #ordered_ecs = resolve_dependencies(easyconfigs)
+            ordered_ecs = minimally_resolve_dependencies(easyconfigs)
         else:
             ordered_ecs = easyconfigs
     else:
