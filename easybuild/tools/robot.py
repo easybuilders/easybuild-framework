@@ -131,8 +131,11 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
 
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
-    # Let's grab the toolchain of the parent and create our hierarchy using info from item_specs
-    
+    # Let's grab the toolchain of the parent and start creating our hierarchy using info from item_specs
+    toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain'] == parent]
+    # loop through the toolchain name until we fully resolve to the bottom
+    while:
+        if toolchains
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
     for ec in item_specs:
