@@ -121,7 +121,25 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability
     @param use_any_existing_modules: if you find an existing module for any TC, don't replace it
     """
+    # Collect available modules
+    if retain_all_deps:
+        # assume that no modules are available when forced, to retain all dependencies
+        avail_modules = []
+        _log.info("Forcing all dependencies to be retained.")
+    else:
+        # Get a list of all available modules (format: [(name, installversion), ...])
+        avail_modules = modules_tool().available()
 
+        if len(avail_modules) == 0:
+            _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
+    # Let's grab the toolchain of the parent and create our hierarchy
+
+    # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
+    # 'dummy') search for a replacement.
+    for ec in item_specs:
+
+        # First go down the list looking for an existing module, removing the list item if we find one
+        # Look for a matching easyconfig starting from the bottom
 
 def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, use_any_existing_modules=False):
     """
@@ -138,7 +156,7 @@ def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_dep
         for ec in unprocessed:
             item_specs = resolve_dependencies([ec], build_specs=build_specs, retain_all_deps=True)
             # Tweak the easyconfigs according to the build_specs
-            # HOW DO I DO THIS CORRECTLY
+            # HOW DO I DO THIS CORRECTLY...motoring on assuming I successfully did this!
 
             # Now we have a complete list of the dependencies (updated with build_specs if necessary), let's do a
             # search/replace for the toolchain, removing existing elements from the list according to retain_all_deps
