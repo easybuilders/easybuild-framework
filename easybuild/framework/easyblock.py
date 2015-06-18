@@ -1501,14 +1501,17 @@ class EasyBlock(object):
         packaging_tool = build_option('package_tool')
         opt_force = build_option('force')
 
-        if packaging_tool == "fpm":
+        if not build_option('package'):
+            _log.info("Skipping package step (not enabled)")
+
+        elif packaging_tool == "fpm":
             packaging_type = build_option('package_type') if build_option('package_type') else "rpm"
-             
+
             packagedir_src = package_fpm(self, path_to_module_file, package_type=packaging_type)
-   
+
             if not os.path.exists(packagedir_dest):
                 mkdir(packagedir_dest)
-        
+
             for src_file in glob.glob(os.path.join(packagedir_src, "*.%s" % packaging_type)):
                 src_filename = os.path.basename(src_file)
                 dest_file = os.path.join(packagedir_dest, src_filename)
@@ -1517,7 +1520,7 @@ class EasyBlock(object):
                 else:
                     shutil.copy(src_file, packagedir_dest)
         else:
-            _log.debug('Skipping package step')
+            raise EasyBuildError("Unknown packaging tool specified: %s", packaging_tool)
 
 
     def post_install_step(self):
@@ -1894,7 +1897,7 @@ class EasyBlock(object):
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step()], False),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step()], False),
             (MODULE_STEP, 'creating module', [lambda x: x.make_module_step()], False),
-            (PACKAGE_STEP, 'packaging', [lambda x: x.package_step()], True),
+            (PACKAGE_STEP, 'packaging', [lambda x: x.package_step()], False),
         ]
 
         # full list of steps, included iterated steps
