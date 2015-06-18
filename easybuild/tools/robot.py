@@ -113,6 +113,48 @@ def dry_run(easyconfigs, short=False, build_specs=None):
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
     return '\n'.join(lines)
 
+def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_any_existing_modules):
+    """
+    Work through the list to determine and replace toolchains with minimal possible value (respecting arguments)
+    @param item_specs: list of easyconfigs
+    @param parent: the name of the parent software in the list
+    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability
+    @param use_any_existing_modules: if you find an existing module for any TC, don't replace it
+    """
+
+
+def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, use_any_existing_modules=False):
+    """
+    Work through the list of easyconfigs to determine an optimal order with minimal dependency resolution
+    @param unprocessed: list of easyconfigs
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability
+    """
+    if build_option('robot_path') is None:
+        _log.info("No robot path : not (minimally) resolving dependencies")
+        return resolve_dependencies(unprocessed,build_specs, retain_all_deps)
+    else:
+        # Look over all elements of the list individually
+        for ec in unprocessed:
+            item_specs = resolve_dependencies([ec], build_specs=build_specs, retain_all_deps=True)
+            # Tweak the easyconfigs according to the build_specs
+            # HOW DO I DO THIS CORRECTLY
+
+            # Now we have a complete list of the dependencies (updated with build_specs if necessary), let's do a
+            # search/replace for the toolchain, removing existing elements from the list according to retain_all_deps
+            item_specs = replace_toolchain_with_hierarchy(
+                item_specs, parent=ec['name'],
+                retain_all_deps=retain_all_deps,
+                use_any_existing_modules=use_any_existing_modules
+            )
+            # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
+            # fully consistent versions)
+            item_specs = list(set(item_specs)) # Unique items only
+            for check in item_specs:
+                if not next((x for x in item_specs[check:] if x['name'] == check['name']), False):
+                    _log.error("Conflicting dependency versions for %s easyconfig: %s" % ec['name'] % check['name'])
+        # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
+        return resolve_dependencies(minimal_list,build_specs=None, retain_all_deps=False)
 
 def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     """
