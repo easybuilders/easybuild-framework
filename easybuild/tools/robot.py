@@ -143,6 +143,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # First go down the list looking for an existing module, removing the list item if we find one
 
         # Look for a matching easyconfig starting from the bottom
+        pass
 
 def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
     """
