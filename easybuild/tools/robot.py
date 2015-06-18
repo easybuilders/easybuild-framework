@@ -114,7 +114,7 @@ def dry_run(easyconfigs, short=False):
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
     return '\n'.join(lines)
 
-def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_any_existing_modules):
+def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_any_existing_modules, subtoolchains):
     """
     Work through the list to determine and replace toolchains with minimal possible value (respecting arguments)
     @param item_specs: list of easyconfigs
@@ -130,23 +130,50 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
         avail_modules = modules_tool().available()
-
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
-    # Let's grab the toolchain of the parent and start creating our hierarchy using info from item_specs
+
+    # Let's grab the toolchain of the parent
     toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == parent]
-    # loop through the toolchain name until we fully resolve to the bottom
-    #while:
-    #    if toolchains
+    # Populate the other toolchain possibilities
+    current = parent
+    while:
+        # Get the next subtoolchain
+        if subtoolchains[current]:
+            current = subtoolchains[current]
+            # See if we have the corresponding easyconfig in our list so we can get the version
+            toolchains += [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == current]
+        else break
+    _log.info("Found toolchain hierarchy ", toolchains)
+
 
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
+    resolved_easyconfigs =[]
     for ec in item_specs:
-
         # First go down the list looking for an existing module, removing the list item if we find one
-
+        cand_dep = ec
+        resolved = False
+        if use_any_existing_modules and not retain_all_deps:
+            for tc in reversed(toolchains):
+                cand_dep.toolchain = tc
+                if ActiveMNS().det_full_module_name(cand_dep) in avail_modules:
+                    resolved_easyconfigs.append(cand_dep)
+                    resolved = True
+                    break
         # Look for a matching easyconfig starting from the bottom
-        pass
+        if not resolved:
+            for tc in toolchains:
+                cand_dep.toolchain = tc
+                path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
+                if not path is None:
+                    resolved_easyconfigs.append(cand_dep)
+                    resolved = True
+                    break
+         if not resolved:
+             _log.error("Coould not resolve minimal dependency at all, this should be impossible!")
+    # Should probably do some checking that all software appears in both lists
+    return resolved_easyconfigs
 
 def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
     """
@@ -172,7 +199,8 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
             item_specs = replace_toolchain_with_hierarchy(
                 item_specs, parent=ec['name'],
                 retain_all_deps=retain_all_deps,
-                use_any_existing_modules=use_any_existing_modules
+                use_any_existing_modules=use_any_existing_modules,
+                subtoolchains=subtoolchains
             )
             # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
             # fully consistent versions)
