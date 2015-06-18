@@ -133,7 +133,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
     # Let's grab the toolchain of the parent and create our hierarchy using info from item_specs
-
+    
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
     for ec in item_specs:
@@ -154,6 +154,7 @@ def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_dep
         return resolve_dependencies(unprocessed,build_specs, retain_all_deps)
     else:
         # Look over all elements of the list individually
+        minimal_list = []
         for ec in unprocessed:
             item_specs = resolve_dependencies([ec], build_specs=build_specs, retain_all_deps=True)
             # Tweak the easyconfigs according to the build_specs
@@ -173,6 +174,7 @@ def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_dep
                 if not next((x for x in item_specs[check:] if x['name'] == check['name']), False):
                     _log.error("Conflicting dependency versions for %s easyconfig: %s" % ec['name'] % check['name'])
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
+        minimal_list = list(set(minimal_list)) # Unique items only
         return resolve_dependencies(minimal_list,build_specs=None, retain_all_deps=False)
 
 def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
