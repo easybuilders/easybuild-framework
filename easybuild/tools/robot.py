@@ -35,6 +35,7 @@ Dependency resolution functionality, a.k.a. robot.
 """
 import os
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
@@ -44,6 +45,7 @@ from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.toolchain.utilities import search_toolchain
 
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
@@ -134,8 +136,9 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     # Let's grab the toolchain of the parent and start creating our hierarchy using info from item_specs
     toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == parent]
     # loop through the toolchain name until we fully resolve to the bottom
-    while:
-        if toolchains
+    #while:
+    #    if toolchains
+
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
     for ec in item_specs:
@@ -155,6 +158,10 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
         _log.info("No robot path : not (minimally) resolving dependencies")
         return resolve_dependencies(unprocessed, retain_all_deps=retain_all_deps)
     else:
+        _, all_tc_classes = search_toolchain('')
+        subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+        print [(key, val) for (key, val) in subtoolchains.items() if key in ['intel-para', 'ipsmpi', 'iccifort', 'impich']]
+
         # Look over all elements of the list individually
         minimal_list = []
         for ec in unprocessed:
@@ -169,12 +176,12 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
             )
             # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
             # fully consistent versions)
-            item_specs = list(set(item_specs)) # Unique items only
+            item_specs = nub(items_specs)
             for check in item_specs:
                 if not next((x for x in item_specs[check:] if x['name'] == check['name']), False):
                     _log.error("Conflicting dependency versions for %s easyconfig: %s" % ec['name'] % check['name'])
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
-        minimal_list = list(set(minimal_list)) # Unique items only
+        minimal_list = nub(minimal_list) # Unique items only
         return resolve_dependencies(minimal_list, retain_all_deps=False)
 
 def resolve_dependencies(unprocessed, retain_all_deps=False):

@@ -56,6 +56,7 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+    SUBTOOLCHAIN = None
     TOOLCHAIN_FAMILY = None
 
     # class method
