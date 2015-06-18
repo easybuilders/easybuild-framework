@@ -45,6 +45,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
+from easybuild.tools.package.activepns import ActivePNS
 
 _log = fancylogger.getLogger('tools.packaging')
 # This is an abbreviated list of the package options, eventually it might make sense to set them
@@ -64,19 +65,12 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     except OSError, err:
         raise EasybBuildError("Failed to chdir into workdir: %s : %s", workdir, err)
 
-    # default package_template is "eb-%(toolchain)s-%(name)s"
-    pkgtemplate = package_template()
-    full_ec_version = det_full_ec_version(easyblock.cfg)
-    _log.debug("I got a package template that looks like: %s " % pkgtemplate )
+    package_naming_scheme = ActivePNS()
 
-    toolchain_name = "%s-%s" % (easyblock.toolchain.name, easyblock.toolchain.version)
-
-    pkgname = pkgtemplate % {
-        'toolchain' : toolchain_name,
-        'version': '-'.join([x for x in [easyblock.cfg.get('versionprefix', ''), easyblock.cfg['version'], easyblock.cfg['versionsuffix'].lstrip('-')] if x]),
-        'name' : easyblock.name,
-    }
-    
+    pkgname = package_naming_scheme.name(easyblock.cfg)
+    pkgver  = package_naming_scheme.version(easyblock.cfg)
+    pkgrel  = package_naming_scheme.release(easyblock.cfg)
+ 
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -87,14 +81,8 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     _log.debug("The dependencies to be added to the package are: " + pprint.pformat([easyblock.toolchain.as_dict()]+easyblock.cfg.dependencies()))
     depstring = ""    
     for dep in deps:
-        full_dep_version = det_full_ec_version(dep)
-        #by default will only build iteration 1 packages, do we need to enhance this?
         _log.debug("The dep added looks like %s " % dep)
-        dep_pkgname = pkgtemplate % {
-            'name': dep['name'],
-            'version': '-'.join([x for x in [dep.get('versionprefix',''), dep['version'], dep['versionsuffix'].lstrip('-')] if x]),
-            'toolchain': "%s-%s" % (dep['toolchain']['name'], dep['toolchain']['version']),
-        }
+        dep_pkgname = package_naming_scheme.name(dep)
         depstring += " --depends '%s'" % ( dep_pkgname)
 
     cmdlist=[
@@ -104,7 +92,7 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
         '--provides', pkgname,
         '-t', package_type, # target
         '-s', 'dir', # source
-        '--version', "eb",
+        '--version', pkgver,
     ]
     cmdlist.extend([ depstring ])
     cmdlist.extend([
@@ -132,4 +120,5 @@ def option_postprocess():
         _log.info("fpm found at: %s" % fpm_path)
     else:
         raise EasyBuildError("Need both fpm and rpmbuild. Found fpm: %s rpmbuild: %s", fpm_path, rpmbuild_path)
+
 

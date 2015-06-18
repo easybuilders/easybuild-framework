@@ -67,7 +67,6 @@ DEFAULT_PATH_SUBDIRS = {
 }
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
-DEFAULT_PACKAGE_TEMPLATE = "eb-%(name)s-%(version)s-%(toolchain)s"
 DEFAULT_STRICT = run.WARN
 
 # utility function for obtaining default paths

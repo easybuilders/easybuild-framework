@@ -48,10 +48,10 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import build_log, config, run, packaging  # @UnusedImport make sure config is always initialized!
+from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
-from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PACKAGE_TEMPLATE, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.config import DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import DEFAULT_STRICT, get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
@@ -63,6 +63,7 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
+import easybuild.tools.package.utilities as packaging
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -265,8 +266,6 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_or_None', None),
             'package-type': ("Packaging type to output to",
                              None, 'store_or_None', None),
-            'package-template': ("A template string to name the package",
-                             None, 'store', DEFAULT_PACKAGE_TEMPLATE),
             'packagepath': ("The destination path for the packages built by package-tool",
                              None, 'store', mk_full_default_path('packagepath')),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
