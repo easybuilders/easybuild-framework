@@ -718,6 +718,26 @@ class EasyConfig(object):
         else:
             return default
 
+    def __eq__(self, ec):
+        """Is this EasyConfig instance equivalent to the provided one?"""
+        return self.asdict() == ec.asdict()
+
+    def __hash__(self):
+        """Return hash value for a hashable representation of this EasyConfig instance."""
+        def make_hashable(val):
+            """Make a hashable value of the given value."""
+            if isinstance(val, list):
+                val = tuple(val)
+            elif isinstance(val, dict):
+                val = tuple([(key, make_hashable(val)) for (key, val) in sorted(val.items())])
+            return val
+
+        tup = ()
+        for (key, val) in sorted(self.asdict().items()):
+            tup += (key, make_hashable(val))
+
+        return hash(tup)
+
     def asdict(self):
         """
         Return dict representation of this EasyConfig instance.

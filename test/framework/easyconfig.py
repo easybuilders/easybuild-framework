@@ -38,6 +38,7 @@ from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
+from vsc.utils.missing import nub
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
@@ -1131,6 +1132,28 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'], [])
+
+    def test_compare_easyconfigs(self):
+        """Test comparing of parsed easyconfigs."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        gcc463_ec_file = os.path.join(test_easyconfigs, 'GCC-4.6.3.eb')
+        gcc492_ec_file = os.path.join(test_easyconfigs, 'GCC-4.9.2.eb')
+
+        ec_gcc463 = EasyConfig(gcc463_ec_file)
+        ec_gcc463_bis = EasyConfig(gcc463_ec_file)
+        ec_gcc492 = EasyConfig(gcc492_ec_file)
+
+        # different objects, but represent the same easyconfig
+        self.assertFalse(ec_gcc463 is ec_gcc463_bis)
+        self.assertEquals(ec_gcc463, ec_gcc463_bis)
+
+        # different easyconfigs
+        self.assertFalse(ec_gcc463 is ec_gcc492)
+        self.assertFalse(ec_gcc463 == ec_gcc492)
+
+        # set/nub also work
+        self.assertEqual(list(set([ec_gcc463, ec_gcc463_bis, ec_gcc463])), [ec_gcc463])
+        self.assertEqual(nub([ec_gcc463, ec_gcc492, ec_gcc463_bis]), [ec_gcc463_bis, ec_gcc492])
 
 def suite():
     """ returns all the testcases in this module """
