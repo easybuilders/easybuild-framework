@@ -172,7 +172,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     break
          if not resolved:
              _log.error("Coould not resolve minimal dependency at all, this should be impossible!")
-    # Should probably do some checking that all software appears in both lists
+    # Should do some checking that all software appears in both lists and correct any updates to dependencies
     return resolved_easyconfigs
 
 def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
