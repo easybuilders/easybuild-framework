@@ -36,6 +36,7 @@ Command line options for eb
 import glob
 import os
 import re
+import shutil
 import sys
 from distutils.version import LooseVersion
 from vsc.utils.missing import nub
@@ -52,10 +53,11 @@ from easybuild.tools import build_log, config, run  # build_log should always st
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
-from easybuild.tools.config import DEFAULT_STRICT, get_pretend_installpath, mk_full_default_path
+from easybuild.tools.config import DEFAULT_STRICT, get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
+from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -240,6 +242,11 @@ class EasyBuildOptions(GeneralOption):
                                           'strlist', 'store', []),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
+            'include-easyblocks': ("Location(s) of extra or customized easyblocks", 'strlist', 'store', []),
+            'include-module-naming-schemes': ("Location(s) of extra or customized module naming schemes",
+                                              'strlist', 'store', []),
+            'include-toolchains': ("Location(s) of extra or customized toolchains or toolchain components",
+                                   'strlist', 'store', []),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
             'installpath-modules': ("Install path for modules (if None, combine --installpath and --subdir-modules)",
@@ -417,6 +424,12 @@ class EasyBuildOptions(GeneralOption):
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
 
+        # set tmpdir
+        self.options.tmpdir = set_tmpdir(self.options.tmpdir)
+
+        # take --include options into account
+        self._postprocess_include()
+
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains, self.options.avail_cfgfile_constants,
@@ -484,6 +497,13 @@ class EasyBuildOptions(GeneralOption):
 
         self.options.external_modules_metadata = parsed_external_modules_metadata
         self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
+
+    def _postprocess_include(self):
+        """Postprocess --include options."""
+        # set up included easyblocks, module naming schemes and toolchains/toolchain components
+        include_easyblocks(self.options.tmpdir, self.options.include_easyblocks)
+        #include_module_naming_schemes(self.options.tmpdir, self.options.include_module_naming_schemes)
+        #include_toolchains(self.options.tmpdir, self.options.include_toolchains)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
@@ -568,6 +588,13 @@ class EasyBuildOptions(GeneralOption):
             self.log.info(msg)
         else:
             print msg
+
+        # cleanup tmpdir
+        try:
+            shutil.rmtree(self.options.tmpdir)
+        except OSError as err:
+            raise EasyBuildError("Failed to clean up temporary directory %s: %s", self.options.tmpdir, err)
+
         sys.exit(0)
 
     def avail_cfgfile_constants(self):
@@ -587,17 +614,21 @@ class EasyBuildOptions(GeneralOption):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
         return '\n'.join(lines)
 
-    def avail_classes_tree(self, classes, classNames, detailed, depth=0):
+    def avail_classes_tree(self, classes, class_names, locations, detailed, depth=0):
         """Print list of classes as a tree."""
         txt = []
-        for className in classNames:
-            classInfo = classes[className]
+        for class_name in class_names:
+            class_info = classes[class_name]
             if detailed:
-                txt.append("%s|-- %s (%s)" % ("|   " * depth, className, classInfo['module']))
+                mod = class_info['module']
+                loc = ''
+                if mod in locations:
+                    loc = '@ %s' % locations[mod]
+                txt.append("%s|-- %s (%s %s)" % ("|   " * depth, class_name, mod, loc))
             else:
-                txt.append("%s|-- %s" % ("|   " * depth, className))
-            if 'children' in classInfo:
-                txt.extend(self.avail_classes_tree(classes, classInfo['children'], detailed, depth + 1))
+                txt.append("%s|-- %s" % ("|   " * depth, class_name))
+            if 'children' in class_info:
+                txt.extend(self.avail_classes_tree(classes, class_info['children'], locations, detailed, depth + 1))
         return txt
 
     def avail_easyblocks(self):
@@ -608,6 +639,7 @@ class EasyBuildOptions(GeneralOption):
         # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
         search_toolchain('')
 
+        locations = {}
         for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
             __import__(package)
 
@@ -620,7 +652,9 @@ class EasyBuildOptions(GeneralOption):
                     for f in os.listdir(path):
                         res = module_regexp.match(f)
                         if res:
-                            __import__("%s.%s" % (package, res.group(1)))
+                            easyblock = '%s.%s' % (package, res.group(1))
+                            __import__(easyblock)
+                            locations.update({easyblock: os.path.join(path, f)})
 
         def add_class(classes, cls):
             """Add a new class, and all of its subclasses."""
@@ -643,11 +677,15 @@ class EasyBuildOptions(GeneralOption):
         for root in roots:
             root = root.__name__
             if detailed:
-                txt.append("%s (%s)" % (root, classes[root]['module']))
+                mod = classes[root]['module']
+                loc = ''
+                if mod in locations:
+                    loc = '@ %s' % locations[mod]
+                txt.append("%s (%s %s)" % (root, mod, loc))
             else:
                 txt.append("%s" % root)
             if 'children' in classes[root]:
-                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], detailed))
+                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed))
                 txt.append("")
 
         return "\n".join(txt)
