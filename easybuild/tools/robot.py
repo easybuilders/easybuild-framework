@@ -132,13 +132,14 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
 
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
-    # Let's grab the toolchain of the parent and create our hierarchy
+    # Let's grab the toolchain of the parent and create our hierarchy using info from item_specs
 
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
     for ec in item_specs:
 
         # First go down the list looking for an existing module, removing the list item if we find one
+
         # Look for a matching easyconfig starting from the bottom
 
 def minimally_resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, use_any_existing_modules=False):
