@@ -64,6 +64,8 @@ from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_s
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 import easybuild.tools.package.utilities as packaging
+from easybuild.tools.package.utilities import DEFAULT_PNS
+from easybuild.tools.package.activepns import avail_package_naming_scheme
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -356,9 +358,9 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'package': ("Enabling packaging", None, 'store_true', False),
-            'package-template': ("A template string to name the package", None, 'store', DEFAULT_PACKAGE_TEMPLATE),
             'package-tool': ("Packaging tool to use", None, 'store_or_None', None),
             'package-type': ("Packaging type to output to", None, 'store_or_None', None),
+            'package-naming-scheme': ("Packaging naming scheme choice", 'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_scheme().keys()))
         })
 
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))

@@ -1,18 +1,22 @@
 
 
 from vsc.utils import fancylogger
+from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
-from easybuild.tools.config import build_option
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.config import get_package_naming_scheme
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
+from easybuild.tools.package.packaging_naming_scheme.pns import PackagingNamingScheme
+from easybuild.tools.utilities import import_available_modules
 
 def avail_package_naming_scheme():
     '''
     Returns the list of valed naming schemes that are in the easybuild.package.package_naming_scheme namespace
     '''
-    pns = import_available_modules('easybuild.tools.package.packaging_naming_scheme')
+    import_available_modules('easybuild.tools.package.packaging_naming_scheme')
 
-    return pns
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackagingNamingScheme)])
+
+    return class_dict
 
 class ActivePNS(object):
     """
@@ -26,7 +30,7 @@ class ActivePNS(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         avail_pns = avail_package_naming_scheme()
-        sel_pns = build_option("package-naming-scheme")
+        sel_pns = get_package_naming_scheme()
         if sel_pns in avail_pns:
             self.pns = avail_pns[sel_pns]()
         else:

@@ -95,7 +95,6 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'only_blocks',
         'optarch',
-        'package_template',
         'package_tool',
         'package_type',
         'regtest_output_dir',
@@ -200,6 +199,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'module_syntax',
         'modules_tool',
         'packagepath',
+        'package_naming_scheme',
         'prefix',
         'repository',
         'repositorypath',
@@ -366,6 +366,12 @@ def get_repositorypath():
     Return the repository path
     """
     return ConfigurationVariables()['repositorypath']
+
+def get_package_naming_scheme():
+    """
+    Return the package naming scheme
+    """
+    return ConfigurationVariables()['package_naming_scheme']
 
 def package_path():
     """

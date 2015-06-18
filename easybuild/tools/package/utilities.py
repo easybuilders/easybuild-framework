@@ -47,6 +47,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
 from easybuild.tools.package.activepns import ActivePNS
 
+DEFAULT_PNS = 'EasyBuildPNS'
+
 _log = fancylogger.getLogger('tools.packaging')
 # This is an abbreviated list of the package options, eventually it might make sense to set them
 # all in the "plugin" rather than in tools.options
