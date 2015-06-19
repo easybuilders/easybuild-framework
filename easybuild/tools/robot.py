@@ -47,7 +47,7 @@ from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.toolchain.utilities import search_toolchain
-
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
@@ -208,8 +208,20 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     if not set(initial_names) == set(final_names):
         _log.error("Not all software in initial list appears in final list:%s :: %s" %initial_names %final_names)
 
-    # Update dependencies within the final list so that all versions correspond correctly
-    # THIS IS HARD
+    # Update dependencies within the final list so that all toolchains correspond correctly
+    for dep_ec in resolved_easyconfigs:
+        # Search through all other easyconfigs for matching dependencies
+        for ec in resolved_easyconfigs:
+            for dependency in ec['ec']['dependencies']:
+                if dependency['name'] == dep_ec['name']:
+                    # Update toolchain
+                    dependency['toolchain'] = dep_ec['toolchain']
+                    if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+                        dependency['toolchain']['dummy'] = True
+                    # Update module name
+                    ActiveMNS().det_short_module_name(dependency)
+                    ActiveMNS().det_full_module_name(dependency)
+
 
     return resolved_easyconfigs
 
