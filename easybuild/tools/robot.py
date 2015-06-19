@@ -270,6 +270,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False):
     """
 
     print [x.get('full_mod_name', x) for x in unprocessed]
+    print [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
 
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
