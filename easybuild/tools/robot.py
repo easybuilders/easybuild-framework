@@ -34,6 +34,7 @@ Dependency resolution functionality, a.k.a. robot.
 @author: Ward Poelmans (Ghent University)
 """
 import os
+from easybuild import toolchains
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
@@ -48,9 +49,8 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
-_log = fancylogger.getLogger('tools.robot', fname=False)
 
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+_log = fancylogger.getLogger('tools.robot', fname=False)
 
 def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
     """Determine robot path."""
@@ -144,7 +144,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             # See if we have the corresponding easyconfig in our list so we can get the version
             toolchain_easyconfig = [ec for ec in item_specs if ec['ec']['name'] == subtoolchains[current]]
             if len(toolchain_easyconfig) == 1:
-                toolchains += [{'name': toolchain_easyconfig[0]['name'],
+                toolchains += [{'name': toolchain_easyconfig[0]['ec']['name'],
                                 'version': det_full_ec_version(toolchain_easyconfig[0])}]
             else if len(toolchain_easyconfig) == 0:
                 _log.info("Your toolchain hierarchy is not fully populated!")
@@ -164,7 +164,13 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # First go down the list looking for an existing module, removing the list item if we find one
         cand_dep = ec
         resolved = False
-        if use_any_existing_modules and not retain_all_deps:
+        # Check that the toolchain of the item is already in the hierarchy, if not, do nothing
+        if not cand_dep.toolchain in toolchains:
+            _log.info("Toolchain of %s does not match parent" %cand_dep)
+            resolved_easyconfigs.append(cand_dep)
+            resolved = True
+
+        if not resolved and (use_any_existing_modules and not retain_all_deps):
             for tc in reversed(toolchains):
                 cand_dep.toolchain = tc
                 if ActiveMNS().det_full_module_name(cand_dep) in avail_modules:
