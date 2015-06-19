@@ -205,7 +205,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     initial_names = [ec['ec']['name'] for ec in item_specs]
     final_names = [ec['name'] for ec in resolved_easyconfigs]
     if not set(initial_names) == set(final_names):
-        _log.error("Not all software in initial list appears in final list:%s :: %s" %initial_names %final_names)
+        _log.error('Not all software in initial list appears in final list:%s :: %s' %initial_names %final_names)
 
     # Update dependencies within the final list so that all toolchains correspond correctly
     for dep_ec in resolved_easyconfigs:
@@ -260,7 +260,7 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
 
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
         minimal_list = nub(minimal_list) # Unique items only
-        return resolve_dependencies(minimal_list, retain_all_deps=False)
+        return resolve_dependencies(minimal_list, retain_all_deps=retain_all_deps)
 
 def resolve_dependencies(unprocessed, retain_all_deps=False):
     """
