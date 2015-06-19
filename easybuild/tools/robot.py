@@ -141,11 +141,10 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # Get the next subtoolchain
         if subtoolchains[current]:
             # See if we have the corresponding easyconfig in our list so we can get the version
-            if:
-                toolchains += [
-                    ec['ec']['toolchain']
-                    for ec in item_specs if ec['ec']['toolchain']['name'] == subtoolchains[current]
-                    ]
+            toolchain = ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == \
+                subtoolchains[current]
+            if toolchain:
+                toolchains += [toolchain]
             else:
                 _log.info("Your toolchain hierarchy is not fully populated!")
                 _log.info("No version found for subtoolchain %s of %s with parent software %s",
