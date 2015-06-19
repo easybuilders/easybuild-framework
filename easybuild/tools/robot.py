@@ -179,7 +179,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     break
         # Look for any matching easyconfig starting from the bottom
         if not resolved:
-            for tc in toolchains:
+            for tc in reversed(toolchains):
                 cand_dep['ec']['toolchain'] = tc
                 eb_file = robot_find_easyconfig(cand_dep['ec']['name'], det_full_ec_version(cand_dep['ec']))
                 if eb_file is not None:
