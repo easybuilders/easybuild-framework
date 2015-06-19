@@ -41,8 +41,8 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir, modules_tool
 
 
 # number of modules included for testing purposes
@@ -321,6 +321,61 @@ class ModulesTest(EnhancedTestCase):
         deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
+
+    def test_modules_tool_stateless(self):
+        """Check whether ModulesTool instance is stateless between runs."""
+        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+
+        # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
+        shutil.copytree(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
+        shutil.copytree(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
+
+        modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '4.7.2'))
+        modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2')
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        write_file(os.path.join(self.test_prefix, 'Core', 'GCC', '4.7.2'), modtxt)
+
+        modtxt = read_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'))
+        modpath_extension = os.path.join(self.test_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        mkdir(modpath_extension, parents=True)
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        write_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'), modtxt)
+
+        # force reset of any singletons by reinitiating config
+        init_config()
+
+        os.environ['MODULEPATH'] = os.path.join(self.test_prefix, 'Core')
+        modtool = modules_tool()
+
+        if isinstance(modtool, Lmod):
+            load_err_msg = "cannot[\s\n]*be[\s\n]*loaded"
+        else:
+            load_err_msg = "Unable to locate a modulefile"
+
+        # GCC/4.6.3 is *not* an available Core module
+        self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['GCC/4.6.3'])
+
+        # GCC/4.7.2 is one of the available Core modules
+        modtool.load(['GCC/4.7.2'])
+
+        # OpenMPI/1.6.4 becomes available after loading GCC/4.7.2 module
+        modtool.load(['OpenMPI/1.6.4'])
+        modtool.purge()
+
+        # reset $MODULEPATH, obtain new ModulesTool instance,
+        # which should not remember anything w.r.t. previous $MODULEPATH value
+        os.environ['MODULEPATH'] = test_modules_path
+        modtool = modules_tool()
+
+        # GCC/4.6.3 is available
+        modtool.load(['GCC/4.6.3'])
+        modtool.purge()
+
+        # GCC/4.7.2 is available (note: also as non-Core module outside of hierarchy)
+        modtool.load(['GCC/4.7.2'])
+
+        # OpenMPI/1.6.4 is *not* available with current $MODULEPATH (loaded GCC/4.7.2 was not a hierarchical module)
+        self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['OpenMPI/1.6.4'])
 
 
 def suite():
