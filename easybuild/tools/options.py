@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import build_log, config, run  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
@@ -502,8 +502,8 @@ class EasyBuildOptions(GeneralOption):
         """Postprocess --include options."""
         # set up included easyblocks, module naming schemes and toolchains/toolchain components
         include_easyblocks(self.options.tmpdir, self.options.include_easyblocks)
-        #include_module_naming_schemes(self.options.tmpdir, self.options.include_module_naming_schemes)
-        #include_toolchains(self.options.tmpdir, self.options.include_toolchains)
+        include_module_naming_schemes(self.options.tmpdir, self.options.include_module_naming_schemes)
+        include_toolchains(self.options.tmpdir, self.options.include_toolchains)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""

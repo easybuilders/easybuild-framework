@@ -34,8 +34,16 @@ import sys
 from vsc.utils.missing import nub
 from vsc.utils import fancylogger
 
-import easybuild.easyblocks  # just so we can reload it later
 from easybuild.tools.build_log import EasyBuildError
+# these are imported just to we can reload them later
+import easybuild.easyblocks
+import easybuild.easyblocks.generic
+import easybuild.tools.module_naming_scheme
+import easybuild.toolchains
+import easybuild.toolchains.compiler
+import easybuild.toolchains.fft
+import easybuild.toolchains.linalg
+import easybuild.toolchains.mpi
 
 
 _log = fancylogger.getLogger('tools.include', fname=False)
@@ -46,32 +54,55 @@ from pkgutil import extend_path
 __path__ = extend_path(__path__, __name__)
 """
 
+def create_pkg(path):
+    """Write package __init__.py file at specified path."""
+    init_path = os.path.join(path, '__init__.py')
+    try:
+        # note: can't use mkdir, since that required build options to be initialised
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-def set_up_eb_package(parent_path, eb_pkg_name):
+        # put __init__.py files in place, with required pkgutil.extend_path statement
+        # note: can't use write_file, since that required build options to be initialised
+        handle = open(init_path, 'w')
+        handle.write(PKG_INIT_BODY)
+        handle.close()
+    except (IOError, OSError) as err:
+        raise EasyBuildError("Failed to write %s: %s", init_path, err)
+
+
+def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None):
     """Set up new easybuild subnamespace in specified path."""
     if not eb_pkg_name.startswith('easybuild'):
         raise EasyBuildError("Specified EasyBuild package name does not start with 'easybuild': %s", eb_pkg_name)
 
     pkgpath = os.path.join(parent_path, eb_pkg_name.replace('.', os.path.sep))
-    # note: can't use mkdir, since that required build options to be initialised
-    os.makedirs(pkgpath)
 
-    # put __init__.py files in place, with required pkgutil.extend_path statement
+    # handle subpackages first
+    if subpkgs:
+        for subpkg in subpkgs:
+            create_pkg(os.path.join(pkgpath, subpkg))
+
+    # creata package dirs on each level
     while pkgpath != parent_path:
-        # note: can't use write_file, since that required build options to be initialised
-        handle = open(os.path.join(pkgpath, '__init__.py'), 'w')
-        handle.write(PKG_INIT_BODY)
-        handle.close()
-
+        create_pkg(pkgpath)
         pkgpath = os.path.dirname(pkgpath)
+
+
+def safe_symlink(source_path, symlink_path):
+    """Create a symlink at the specified path for the given path."""
+    try:
+        os.symlink(os.path.abspath(source_path), symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
+    except OSError as err:
+        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
     easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
 
-    # covers both easybuild.easyblocks and easybuild.easyblocks.generic namespaces
-    set_up_eb_package(easyblocks_path, 'easybuild.easyblocks.generic')
+    set_up_eb_package(easyblocks_path, 'easybuild.easyblocks', subpkgs=['generic'])
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
@@ -80,34 +111,78 @@ def include_easyblocks(tmpdir, paths):
         filename = os.path.basename(easyblock_module)
 
         # generic easyblocks are expected to be in a directory named 'generic'
-        if os.path.basename(os.path.dirname(easyblock_module)) == 'generic':
+        parent_dir = os.path.basename(os.path.dirname(easyblock_module))
+        if parent_dir == 'generic':
             target_path = os.path.join(easyblocks_dir, 'generic', filename)
         else:
             target_path = os.path.join(easyblocks_dir, filename)
 
-        try:
-            os.symlink(easyblock_module, target_path)
-            _log.info("Symlinking %s to %s", easyblock_module, target_path)
-        except OSError as err:
-            raise EasyBuildError("Symlinking %s to %s failed: %s", easyblock_module, target_path, err)
+        safe_symlink(easyblock_module, target_path)
 
     included_easyblocks = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
     included_generic_easyblocks = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
     _log.debug("Included generic easyblocks: %s", included_easyblocks)
     _log.debug("Included software-specific easyblocks: %s", included_generic_easyblocks)
 
-    # inject path into Python search path, and reload easybuild.easyblocks to get it 'registered' in sys.modules
+    # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, easyblocks_path)
     reload(easybuild.easyblocks)
+    reload(easybuild.easyblocks.generic)
 
 
 def include_module_naming_schemes(tmpdir, paths):
     """Include module naming schemes at specified locations."""
-    # FIXME todo
-    raise NotImplementedError
+    mns_path = os.path.join(tmpdir, 'included-module-naming-schemes')
+
+    set_up_eb_package(mns_path, 'easybuild.tools.module_naming_scheme')
+
+    mns_dir = os.path.join(mns_path, 'easybuild', 'tools', 'module_naming_scheme')
+
+    allpaths = nub([y for x in paths for y in glob.glob(x)])
+    for mns_module in allpaths:
+        filename = os.path.basename(mns_module)
+        target_path = os.path.join(mns_dir, filename)
+        safe_symlink(mns_module, target_path)
+
+    included_mns = [x for x in os.listdir(mns_dir) if x not in ['__init__.py']]
+    _log.debug("Included module naming schemes: %s", included_mns)
+
+    # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
+    sys.path.insert(0, mns_path)
+    reload(easybuild.tools.module_naming_scheme)
 
 
 def include_toolchains(tmpdir, paths):
     """Include toolchains and toolchain components at specified locations."""
-    # FIXME todo
-    raise NotImplementedError
+    toolchains_path = os.path.join(tmpdir, 'included-toolchains')
+    toolchain_subpkgs = ['compiler', 'fft', 'linalg', 'mpi']
+
+    set_up_eb_package(toolchains_path, 'easybuild.toolchains', subpkgs=toolchain_subpkgs)
+
+    toolchains_dir = os.path.join(toolchains_path, 'easybuild', 'toolchains')
+
+    allpaths = nub([y for x in paths for y in glob.glob(x)])
+    for toolchain_module in allpaths:
+        filename = os.path.basename(toolchain_module)
+
+        parent_dir = os.path.basename(os.path.dirname(toolchain_module))
+
+        # generic toolchains are expected to be in a directory named 'generic'
+        if parent_dir in toolchain_subpkgs:
+            target_path = os.path.join(toolchains_dir, parent_dir, filename)
+        else:
+            target_path = os.path.join(toolchains_dir, filename)
+
+        safe_symlink(toolchain_module, target_path)
+
+    included_toolchains = [x for x in os.listdir(toolchains_dir) if x not in ['__init__.py'] + toolchain_subpkgs]
+    _log.debug("Included toolchains: %s", included_toolchains)
+    for subpkg in toolchain_subpkgs:
+        included_subpkg_modules = [x for x in os.listdir(os.path.join(toolchains_dir, subpkg)) if x != '__init__.py']
+        _log.debug("Included toolchain %s components: %s", subpkg, included_subpkg_modules)
+
+    # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
+    sys.path.insert(0, toolchains_path)
+    reload(easybuild.toolchains)
+    for subpkg in toolchain_subpkgs:
+        reload(sys.modules['easybuild.toolchains.%s' % subpkg])
