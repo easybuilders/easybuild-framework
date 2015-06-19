@@ -72,7 +72,8 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     pkgname = package_naming_scheme.name(easyblock.cfg)
     pkgver  = package_naming_scheme.version(easyblock.cfg)
     pkgrel  = package_naming_scheme.release(easyblock.cfg)
- 
+
+    _log.debug("Got the pns values for (name, version, release): (%s, %s, %s)" % (pkgname, pkgver, pkgrel)) 
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()

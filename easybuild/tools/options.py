@@ -266,6 +266,8 @@ class EasyBuildOptions(GeneralOption):
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'packagepath': ("The destination path for the packages built by package-tool",
                              None, 'store', mk_full_default_path('packagepath')),
+            'package-naming-scheme': ("Packaging naming scheme choice", 
+                                      'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_scheme().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
@@ -360,7 +362,6 @@ class EasyBuildOptions(GeneralOption):
             'package': ("Enabling packaging", None, 'store_true', False),
             'package-tool': ("Packaging tool to use", None, 'store_or_None', None),
             'package-type': ("Packaging type to output to", None, 'store_or_None', None),
-            'package-naming-scheme': ("Packaging naming scheme choice", 'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_scheme().keys()))
         })
 
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))

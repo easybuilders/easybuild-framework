@@ -37,14 +37,14 @@ class ActivePNS(object):
             raise EasyBuildError("Selected package naming scheme %s could not be found in %s",
                                     sel_pns, avail_pns.keys())
 
-    def name(self):
-        name = self.pns.name()
+    def name(self, ec):
+        name = self.pns.name(ec)
         return name
 
-    def version(self):
-        version = self.pns.version()
+    def version(self, ec):
+        version = self.pns.version(ec)
         return version
 
-    def release(self):
+    def release(self, ec):
         release = self.pns.release()
         return release

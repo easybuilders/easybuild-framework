@@ -19,21 +19,23 @@ class EasyBuildPNS(PackagingNamingScheme):
     def name(self, ec):
         name_template = "eb-%(name)s-%(version)s-%(toolchain)s"
         pkg_name = name_template % {
-            'toolchain' : self.toolchain(ec),
+            'toolchain' : self._toolchain(ec),
             'version': '-'.join([x for x in [ec.get('versionprefix', ''), ec['version'], ec['versionsuffix'].lstrip('-')] if x]),
-            'name' : eb.name,
-    }
+            'name' : ec.name,
+        }
+        return pkg_name
 
-    def _toolchain(self, eb):
+    def _toolchain(self, ec):
         toolchain_template = "%(toolchain_name)s-%(toolchain_version)s"
         pkg_toolchain = toolchain_template % {
-            'toolchain_name': eb.toolchain.name,
-            'toolchain_version': eb.toolchain.version,
+            'toolchain_name': ec.toolchain.name,
+            'toolchain_version': ec.toolchain.version,
         }
+        return pkg_toolchain
 
 
-    def version(self, eb):
-        return eb.cfg['version']
+    def version(self, ec):
+        return ec['version']
 
         
 

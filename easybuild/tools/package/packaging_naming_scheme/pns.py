@@ -11,14 +11,14 @@ class PackagingNamingScheme(object):
         """initialize logger."""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-    def name(self):
+    def name(self,ec):
         """Return name of the package, by default would include name, version, toolchain"""
 
         
-    def version(self):
+    def version(self,ec):
         """The version in the version part of the package"""
 
-    def release(self):
+    def release(self,ec):
         """Just the release"""
         return 1
 
