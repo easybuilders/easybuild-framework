@@ -727,7 +727,7 @@ class EasyConfig(object):
         def make_hashable(val):
             """Make a hashable value of the given value."""
             if isinstance(val, list):
-                val = tuple(val)
+                val = tuple([make_hashable(x) for x in val])
             elif isinstance(val, dict):
                 val = tuple([(key, make_hashable(val)) for (key, val) in sorted(val.items())])
             return val
