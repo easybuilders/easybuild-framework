@@ -138,7 +138,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['name'] == parent]
     # Populate the other toolchain possibilities
     current = parent
-    while:
+    while True:
         # Get the next subtoolchain
         if subtoolchains[current]:
             # See if we have the corresponding easyconfig in our list so we can get the version
@@ -146,7 +146,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             if len(toolchain_easyconfig) == 1:
                 toolchains += [{'name': toolchain_easyconfig[0]['ec']['name'],
                                 'version': det_full_ec_version(toolchain_easyconfig[0])}]
-            else if len(toolchain_easyconfig) == 0:
+            elif len(toolchain_easyconfig) == 0:
                 _log.info("Your toolchain hierarchy is not fully populated!")
                 _log.info("No version found for subtoolchain %s of %s with parent software %s",
                           subtoolchains[current], current, parent
@@ -154,7 +154,8 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             else:
                 _log_error("Multiple easyconfigs found in list for toolchain %s", subtoolchains[current])
             current = subtoolchains[current]
-        else break
+        else:
+            break
     _log.info("Found toolchain hierarchy ", toolchains)
 
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
@@ -196,12 +197,11 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     resolved_easyconfigs.append(parsed_ec[0]['ec'])
                     resolved = True
                     break
-
-         if not resolved:
-             raise EasyBuildError(
-                        "Failed to find any easyconfig file for '%s' when determining minimal toolchain for: %s",
-                        ec['name'], ec
-                        )
+        if not resolved:
+            raise EasyBuildError(
+                "Failed to find any easyconfig file for '%s' when determining minimal toolchain for: %s",
+                ec['name'], ec
+            )
     # Check each piece of software in the initial list appears in the final list
     initial_names = [ec['ec']['name'] for ec in item_specs]
     final_names = [ec['ec']['name'] for ec in resolved_easyconfigs]
