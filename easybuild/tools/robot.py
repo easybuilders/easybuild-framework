@@ -205,7 +205,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     initial_names = [ec['ec']['name'] for ec in item_specs]
     final_names = [ec['ec']['name'] for ec in resolved_easyconfigs]
     if not set(initial_names) == set(final_names):
-        _log.error("Not all software in initial list appears in final list:%s :: %s" %initial_names %final_names)
+        _log.error('Not all software in initial list appears in final list:%s :: %s' %initial_names %final_names)
 
     # Update dependencies within the final list so that all toolchains correspond correctly
     for dep_ec in resolved_easyconfigs:
