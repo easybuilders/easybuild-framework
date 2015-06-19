@@ -155,7 +155,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             current = subtoolchains[current]
         else:
             break
-    _log.info("Found toolchain hierarchy ", toolchains)
+    _log.info("Found toolchain hierarchy %s", toolchains)
 
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
