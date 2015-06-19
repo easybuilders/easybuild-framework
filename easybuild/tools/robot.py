@@ -193,7 +193,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                             "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
                         )
                         self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-                    resolved_easyconfigs.append(parsed_ec[0]['ec'])
+                    resolved_easyconfigs.append(parsed_ec[0])
                     resolved = True
                     break
         if not resolved:
@@ -212,9 +212,9 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # Search through all other easyconfigs for matching dependencies
         for ec in resolved_easyconfigs:
             for dependency in ec['ec']['dependencies']:
-                if dependency['name'] == dep_ec['name']:
+                if dependency['name'] == dep_ec['ec']['name']:
                     # Update toolchain
-                    dependency['toolchain'] = dep_ec['toolchain']
+                    dependency['toolchain'] = dep_ec['ec']['toolchain']
                     if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
                         dependency['toolchain']['dummy'] = True
                     # Update module name
@@ -251,7 +251,7 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
             )
             # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
             # fully consistent versions)
-            item_specs = nub(items_specs)
+            item_specs = nub(item_specs)
             for check in item_specs:
                 if not next((x for x in item_specs[check:] if x['name'] == check['name']), False):
                     _log.error("Conflicting dependency versions for %s easyconfig: %s" % ec['name'] % check['name'])
