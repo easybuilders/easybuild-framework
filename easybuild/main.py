@@ -336,7 +336,7 @@ def main(testing_data=(None, None, None)):
 
 
 if __name__ == "__main__":
-    try:
+#    try:
         main()
-    except EasyBuildError, e:
-        print_error(e.msg)
+#    except EasyBuildError, e:
+#        print_error(e.msg)
