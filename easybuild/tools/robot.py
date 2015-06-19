@@ -135,7 +135,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
     # Let's grab the toolchain of the parent
-    toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == parent]
+    toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['name'] == parent]
     # Populate the other toolchain possibilities
     current = parent
     while:
@@ -202,7 +202,14 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                         "Failed to find any easyconfig file for '%s' when determining minimal toolchain for: %s",
                         ec['name'], ec
                         )
-    # Should check that all software appears in both lists and correct any updates to dependencies
+    # Check each piece of software in the initial list appears in the final list
+    initial_names = [ec['ec']['name'] for ec in item_specs]
+    final_names = [ec['ec']['name'] for ec in resolved_easyconfigs]
+    if not set(initial_names) == set(final_names):
+        _log.error("Not all software in initial list appears in final list:%s :: %s" %initial_names %final_names)
+
+    # Update dependencies within the final list so that all versions correspond correctly
+    # THIS IS HARD
 
     return resolved_easyconfigs
 
