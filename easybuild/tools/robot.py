@@ -221,8 +221,6 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     # Update module name
                     ActiveMNS().det_short_module_name(dependency)
                     ActiveMNS().det_full_module_name(dependency)
-
-
     return resolved_easyconfigs
 
 def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
