@@ -167,14 +167,14 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # Check that the toolchain of the item is already in the hierarchy, if not, do nothing
         if not cand_dep['ec']['toolchain'] in toolchains:
             _log.info("Toolchain of %s does not match parent" %cand_dep)
-            resolved_easyconfigs.append(cand_dep)
+            resolved_easyconfigs.append(cand_dep['ec'])
             resolved = True
 
         if not resolved and (use_any_existing_modules and not retain_all_deps):
             for tc in reversed(toolchains):
                 cand_dep['ec']['toolchain'] = tc
                 if ActiveMNS().det_full_module_name(cand_dep) in avail_modules:
-                    resolved_easyconfigs.append(cand_dep)
+                    resolved_easyconfigs.append(cand_dep['ec'])
                     resolved = True
                     break
         # Look for any matching easyconfig starting from the bottom
@@ -193,7 +193,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                             "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
                         )
                         self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-                    resolved_easyconfigs.append(parsed_ec[0])
+                    resolved_easyconfigs.append(parsed_ec[0]['ec'])
                     resolved = True
                     break
         if not resolved:
@@ -203,7 +203,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             )
     # Check each piece of software in the initial list appears in the final list
     initial_names = [ec['ec']['name'] for ec in item_specs]
-    final_names = [ec['ec']['name'] for ec in resolved_easyconfigs]
+    final_names = [ec['name'] for ec in resolved_easyconfigs]
     if not set(initial_names) == set(final_names):
         _log.error('Not all software in initial list appears in final list:%s :: %s' %initial_names %final_names)
 
@@ -211,10 +211,10 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     for dep_ec in resolved_easyconfigs:
         # Search through all other easyconfigs for matching dependencies
         for ec in resolved_easyconfigs:
-            for dependency in ec['ec']['dependencies']:
-                if dependency['name'] == dep_ec['ec']['name']:
+            for dependency in ec['dependencies']:
+                if dependency['name'] == dep_ec['name']:
                     # Update toolchain
-                    dependency['toolchain'] = dep_ec['ec']['toolchain']
+                    dependency['toolchain'] = dep_ec['toolchain']
                     if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
                         dependency['toolchain']['dummy'] = True
                     # Update module name
