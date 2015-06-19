@@ -50,6 +50,7 @@ from easybuild.tools.toolchain.utilities import search_toolchain
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
     """Determine robot path."""
@@ -141,15 +142,17 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # Get the next subtoolchain
         if subtoolchains[current]:
             # See if we have the corresponding easyconfig in our list so we can get the version
-            toolchain = ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == \
-                subtoolchains[current]
-            if toolchain:
-                toolchains += [toolchain]
-            else:
+            toolchain_easyconfig = [ec for ec in item_specs if ec['ec']['name'] == subtoolchains[current]]
+            if len(toolchain_easyconfig) == 1:
+                toolchains += [{'name': toolchain_easyconfig[0]['name'],
+                                'version': det_full_ec_version(toolchain_easyconfig[0])}]
+            else if len(toolchain_easyconfig) == 0:
                 _log.info("Your toolchain hierarchy is not fully populated!")
                 _log.info("No version found for subtoolchain %s of %s with parent software %s",
                           subtoolchains[current], current, parent
                           )
+            else:
+                _log_error("Multiple easyconfigs found in list for toolchain %s", subtoolchains[current])
             current = subtoolchains[current]
         else break
     _log.info("Found toolchain hierarchy ", toolchains)
