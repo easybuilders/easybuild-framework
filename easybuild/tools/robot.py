@@ -171,7 +171,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             resolved = True
 
         if not resolved and (use_any_existing_modules and not retain_all_deps):
-            for tc in reversed(toolchains):
+            for tc in toolchains:
                 cand_dep['ec']['toolchain'] = tc
                 if ActiveMNS().det_full_module_name(cand_dep) in avail_modules:
                     resolved_easyconfigs.append(cand_dep)
@@ -179,11 +179,11 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     break
         # Look for any matching easyconfig starting from the bottom
         if not resolved:
-            for tc in toolchains:
+            for tc in reversed(toolchains):
                 cand_dep['ec']['toolchain'] = tc
                 eb_file = robot_find_easyconfig(cand_dep['ec']['name'], det_full_ec_version(cand_dep['ec']))
                 if eb_file is not None:
-                    _log.info("Robot: resolving dependency %s with %s" % (cand_dep, eb_file))
+                    _log.info("Robot: Minimally resolving dependency %s with %s" % (cand_dep, eb_file))
                     # build specs should not be passed down to resolved dependencies,
                     # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
                     hidden = cand_dep.get('hidden', False)
