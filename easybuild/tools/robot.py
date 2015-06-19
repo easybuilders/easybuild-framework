@@ -142,15 +142,14 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # Get the next subtoolchain
         if subtoolchains[current]:
             # See if we have the corresponding easyconfig in our list so we can get the version
-            toolchain_easyconfig = [ec for ec in item_specs if ec['ec']['name'] == subtoolchains[current]]
-            if len(toolchain_easyconfig) == 1:
-                toolchains += [{'name': toolchain_easyconfig[0]['ec']['name'],
-                                'version': det_full_ec_version(toolchain_easyconfig[0])}]
-            elif len(toolchain_easyconfig) == 0:
+            toolchain_easyconfigs = [ec for ec in item_specs if ec['ec']['name'] == subtoolchains[current]]
+            if len(toolchain_easyconfigs) == 1:
+                toolchains += [{'name': toolchain_easyconfigs[0]['ec']['name'],
+                                'version': det_full_ec_version(toolchain_easyconfigs[0]['ec'])}]
+            elif len(toolchain_easyconfigs) == 0:
                 _log.info("Your toolchain hierarchy is not fully populated!")
-                _log.info("No version found for subtoolchain %s of %s with parent software %s",
-                          subtoolchains[current], current, parent
-                          )
+                _log.info("No version found for subtoolchain %s of %s with parent software %s"
+                          % (subtoolchains[current], current, parent))
             else:
                 _log_error("Multiple easyconfigs found in list for toolchain %s", subtoolchains[current])
             current = subtoolchains[current]
