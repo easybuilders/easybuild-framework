@@ -187,7 +187,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     # build specs should not be passed down to resolved dependencies,
                     # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
                     hidden = cand_dep.get('hidden', False)
-                    parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=hidden)
+                    parsed_ec = process_easyconfig(eb_file, hidden=hidden)
                     if len(parsed_ec) > 1:
                         self.log.warning(
                             "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
@@ -268,9 +268,6 @@ def resolve_dependencies(unprocessed, retain_all_deps=False):
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
-
-    print [x.get('full_mod_name', x) for x in unprocessed]
-    print [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
 
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
