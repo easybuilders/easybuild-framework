@@ -137,7 +137,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     # Let's grab the toolchain of the parent
     toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['name'] == parent]
     # Populate the other toolchain possibilities
-    current = parent
+    current = toolchains[0]['name']
     while True:
         # Get the next subtoolchain
         if subtoolchains[current]:
@@ -245,7 +245,7 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
             # Now we have a complete list of the dependencies, let's do a
             # search/replace for the toolchain, removing existing elements from the list according to retain_all_deps
             item_specs = replace_toolchain_with_hierarchy(
-                item_specs, parent=ec['name'],
+                item_specs, parent=ec['ec']['name'],
                 retain_all_deps=retain_all_deps,
                 use_any_existing_modules=use_any_existing_modules,
                 subtoolchains=subtoolchains
