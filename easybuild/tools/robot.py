@@ -140,12 +140,20 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     while:
         # Get the next subtoolchain
         if subtoolchains[current]:
-            current = subtoolchains[current]
             # See if we have the corresponding easyconfig in our list so we can get the version
-            toolchains += [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['toolchain']['name'] == current]
+            if:
+                toolchains += [
+                    ec['ec']['toolchain']
+                    for ec in item_specs if ec['ec']['toolchain']['name'] == subtoolchains[current]
+                    ]
+            else:
+                _log.info("Your toolchain hierarchy is not fully populated!")
+                _log.info("No version found for subtoolchain %s of %s with parent software %s",
+                          subtoolchains[current], current, parent
+                          )
+            current = subtoolchains[current]
         else break
     _log.info("Found toolchain hierarchy ", toolchains)
-
 
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
@@ -161,18 +169,33 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     resolved_easyconfigs.append(cand_dep)
                     resolved = True
                     break
-        # Look for a matching easyconfig starting from the bottom
+        # Look for any matching easyconfig starting from the bottom
         if not resolved:
             for tc in toolchains:
                 cand_dep.toolchain = tc
-                path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
-                if not path is None:
-                    resolved_easyconfigs.append(cand_dep)
+                eb_file = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
+                if eb_file is not None:
+                    _log.info("Robot: resolving dependency %s with %s" % (cand_dep, eb_file))
+                    # build specs should not be passed down to resolved dependencies,
+                    # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
+                    hidden = cand_dep.get('hidden', False)
+                    parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=hidden)
+                    if len(parsed_ec) > 1:
+                        self.log.warning(
+                            "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
+                        )
+                        self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
+                    resolved_easyconfigs.append(parsed_ec[0]['ec'])
                     resolved = True
                     break
+
          if not resolved:
-             _log.error("Coould not resolve minimal dependency at all, this should be impossible!")
-    # Should do some checking that all software appears in both lists and correct any updates to dependencies
+             raise EasyBuildError(
+                        "Failed to find any easyconfig file for '%s' when determining minimal toolchain for: %s",
+                        ec['name'], ec
+                        )
+    # Should check that all software appears in both lists and correct any updates to dependencies
+
     return resolved_easyconfigs
 
 def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
