@@ -252,9 +252,9 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
             # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
             # fully consistent versions)
             item_specs = nub(item_specs)
-            for check in item_specs:
-                if not next((x for x in item_specs[check:] if x['name'] == check['name']), False):
-                    _log.error("Conflicting dependency versions for %s easyconfig: %s" % ec['name'] % check['name'])
+            for idx, check in enumerate(item_specs):
+                if len([x for x in item_specs[idx:] if x['name'] == check['name']]) > 1:
+                    _log.error("Conflicting dependency versions for %s easyconfig: %s", ec['name'], check['name'])
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
         minimal_list = nub(minimal_list) # Unique items only
         return resolve_dependencies(minimal_list, retain_all_deps=False)
