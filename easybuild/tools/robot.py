@@ -167,14 +167,14 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         # Check that the toolchain of the item is already in the hierarchy, if not, do nothing
         if not cand_dep['ec']['toolchain'] in toolchains:
             _log.info("Toolchain of %s does not match parent" %cand_dep)
-            resolved_easyconfigs.append(cand_dep['ec'])
+            resolved_easyconfigs.append(cand_dep)
             resolved = True
 
         if not resolved and (use_any_existing_modules and not retain_all_deps):
             for tc in reversed(toolchains):
                 cand_dep['ec']['toolchain'] = tc
                 if ActiveMNS().det_full_module_name(cand_dep) in avail_modules:
-                    resolved_easyconfigs.append(cand_dep['ec'])
+                    resolved_easyconfigs.append(cand_dep)
                     resolved = True
                     break
         # Look for any matching easyconfig starting from the bottom
@@ -193,7 +193,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                             "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
                         )
                         self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-                    resolved_easyconfigs.append(parsed_ec[0]['ec'])
+                    resolved_easyconfigs.append(parsed_ec[0])
                     resolved = True
                     break
         if not resolved:
@@ -203,7 +203,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
             )
     # Check each piece of software in the initial list appears in the final list
     initial_names = [ec['ec']['name'] for ec in item_specs]
-    final_names = [ec['name'] for ec in resolved_easyconfigs]
+    final_names = [ec['ec']['name'] for ec in resolved_easyconfigs]
     if not set(initial_names) == set(final_names):
         _log.error('Not all software in initial list appears in final list:%s :: %s' %initial_names %final_names)
 
@@ -211,10 +211,10 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
     for dep_ec in resolved_easyconfigs:
         # Search through all other easyconfigs for matching dependencies
         for ec in resolved_easyconfigs:
-            for dependency in ec['dependencies']:
-                if dependency['name'] == dep_ec['name']:
+            for dependency in ec['ec']['dependencies']:
+                if dependency['name'] == dep_ec['ec']['name']:
                     # Update toolchain
-                    dependency['toolchain'] = dep_ec['toolchain']
+                    dependency['toolchain'] = dep_ec['ec']['toolchain']
                     if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
                         dependency['toolchain']['dummy'] = True
                     # Update module name
@@ -234,7 +234,6 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
     else:
         _, all_tc_classes = search_toolchain('')
         subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
-        print [(key, val) for (key, val) in subtoolchains.items() if key in ['intel-para', 'ipsmpi', 'iccifort', 'impich']]
 
         # Look over all elements of the list individually
         minimal_list = []
@@ -251,15 +250,15 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
             )
             # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
             # fully consistent versions)
-            item_specs = nub(item_specs)
+            #item_specs = nub(item_specs)  # FIXME nub on list of dicts
             for idx, check in enumerate(item_specs):
-                if len([x for x in item_specs[idx:] if x['name'] == check['name']]) > 1:
+                if len([x for x in item_specs[idx:] if x['ec']['name'] == check['ec']['name']]) > 1:
                     _log.error("Conflicting dependency versions for %s easyconfig: %s", ec['name'], check['name'])
 
             minimal_list.extend(item_specs)
 
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
-        minimal_list = nub(minimal_list) # Unique items only
+        #minimal_list = nub(minimal_list) # Unique items only  # FIXME nub on list of dicts
         return resolve_dependencies(minimal_list, retain_all_deps=retain_all_deps)
 
 def resolve_dependencies(unprocessed, retain_all_deps=False):
@@ -269,6 +268,8 @@ def resolve_dependencies(unprocessed, retain_all_deps=False):
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
+
+    print [x.get('full_mod_name', x) for x in unprocessed]
 
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
