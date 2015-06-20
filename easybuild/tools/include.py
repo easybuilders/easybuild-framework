@@ -36,14 +36,19 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 # these are imported just to we can reload them later
-import easybuild.easyblocks
-import easybuild.easyblocks.generic
 import easybuild.tools.module_naming_scheme
 import easybuild.toolchains
 import easybuild.toolchains.compiler
 import easybuild.toolchains.fft
 import easybuild.toolchains.linalg
 import easybuild.toolchains.mpi
+# importing easyblocks namespace may fail if easybuild-easyblocks is not available
+# for now, we don't really care
+try:
+    import easybuild.easyblocks
+    import easybuild.easyblocks.generic
+except ImportError:
+    pass
 
 
 _log = fancylogger.getLogger('tools.include', fname=False)
@@ -89,6 +94,15 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None):
         pkgpath = os.path.dirname(pkgpath)
 
 
+def expand_glob_paths(glob_paths):
+    """Expand specified glob paths to a list of unique non-glob paths to only files."""
+    paths = []
+    for glob_path in glob_paths:
+        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
+
+    return nub(paths)
+
+
 def safe_symlink(source_path, symlink_path):
     """Create a symlink at the specified path for the given path."""
     try:
@@ -106,7 +120,7 @@ def include_easyblocks(tmpdir, paths):
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
-    allpaths = nub([y for x in paths for y in glob.glob(x)])
+    allpaths = expand_glob_paths(paths)
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 
@@ -126,8 +140,12 @@ def include_easyblocks(tmpdir, paths):
 
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, easyblocks_path)
-    reload(easybuild.easyblocks)
-    reload(easybuild.easyblocks.generic)
+    reload(easybuild)
+    if 'easybuild.easyblocks' in sys.modules:
+        reload(easybuild.easyblocks)
+        reload(easybuild.easyblocks.generic)
+
+    return easyblocks_path
 
 
 def include_module_naming_schemes(tmpdir, paths):
@@ -138,7 +156,7 @@ def include_module_naming_schemes(tmpdir, paths):
 
     mns_dir = os.path.join(mns_path, 'easybuild', 'tools', 'module_naming_scheme')
 
-    allpaths = nub([y for x in paths for y in glob.glob(x)])
+    allpaths = expand_glob_paths(paths)
     for mns_module in allpaths:
         filename = os.path.basename(mns_module)
         target_path = os.path.join(mns_dir, filename)
@@ -151,6 +169,8 @@ def include_module_naming_schemes(tmpdir, paths):
     sys.path.insert(0, mns_path)
     reload(easybuild.tools.module_naming_scheme)
 
+    return mns_path
+
 
 def include_toolchains(tmpdir, paths):
     """Include toolchains and toolchain components at specified locations."""
@@ -161,7 +181,7 @@ def include_toolchains(tmpdir, paths):
 
     toolchains_dir = os.path.join(toolchains_path, 'easybuild', 'toolchains')
 
-    allpaths = nub([y for x in paths for y in glob.glob(x)])
+    allpaths = expand_glob_paths(paths)
     for toolchain_module in allpaths:
         filename = os.path.basename(toolchain_module)
 
@@ -186,3 +206,5 @@ def include_toolchains(tmpdir, paths):
     reload(easybuild.toolchains)
     for subpkg in toolchain_subpkgs:
         reload(sys.modules['easybuild.toolchains.%s' % subpkg])
+
+    return toolchains_path
