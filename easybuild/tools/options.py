@@ -501,9 +501,14 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_include(self, tmpdir):
         """Postprocess --include options."""
         # set up included easyblocks, module naming schemes and toolchains/toolchain components
-        include_easyblocks(tmpdir, self.options.include_easyblocks)
-        include_module_naming_schemes(tmpdir, self.options.include_module_naming_schemes)
-        include_toolchains(tmpdir, self.options.include_toolchains)
+        if self.options.include_easyblocks:
+            include_easyblocks(tmpdir, self.options.include_easyblocks)
+
+        if self.options.include_module_naming_schemes:
+            include_module_naming_schemes(tmpdir, self.options.include_module_naming_schemes)
+
+        if self.options.include_toolchains:
+            include_toolchains(tmpdir, self.options.include_toolchains)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
