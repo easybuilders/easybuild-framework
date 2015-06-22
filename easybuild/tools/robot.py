@@ -148,7 +148,7 @@ def get_toolchain_hierarchy(parent_toolchain):
                     _log.info("No version found for subtoolchain %s in dependencies of %s"
                               % (subtoolchains[current], current))
             else:
-                _log_error("Multiple versions of %s found in dependencies o toolchain %s"
+                _log_error("Multiple versions of %s found in dependencies of toolchain %s"
                            % (subtoolchains[current], current))
             current = dep_versions[0]
         else:
