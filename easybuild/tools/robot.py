@@ -147,9 +147,13 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                 toolchains += [{'name': toolchain_easyconfigs[0]['ec']['name'],
                                 'version': det_full_ec_version(toolchain_easyconfigs[0]['ec'])}]
             elif len(toolchain_easyconfigs) == 0:
-                _log.info("Your toolchain hierarchy is not fully populated!")
-                _log.info("No version found for subtoolchain %s of %s with parent software %s"
-                          % (subtoolchains[current], current, parent))
+                # Check if we have dummy toolchain
+                if subtoolchains[current] == DUMMY_TOOLCHAIN_NAME:
+                    toolchains += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
+                else:
+                    _log.info("Your toolchain hierarchy is not fully populated!")
+                    _log.info("No version found for subtoolchain %s of %s with parent software %s"
+                              % (subtoolchains[current], current, parent))
             else:
                 _log_error("Multiple easyconfigs found in list for toolchain %s", subtoolchains[current])
             current = subtoolchains[current]
@@ -166,7 +170,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         resolved = False
         # Check that the toolchain of the item is already in the hierarchy, if not, do nothing
         if not cand_dep['ec']['toolchain'] in toolchains:
-            _log.info("Toolchain of %s does not match parent" %cand_dep)
+            _log.info("Toolchain of %s does not match parent...skipping" %cand_dep)
             resolved_easyconfigs.append(cand_dep)
             resolved = True
 
