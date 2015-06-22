@@ -176,33 +176,11 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
-    # Let's grab the toolchain of the parent
+    # Let's grab the toolchain hierarchy based on the parent
     toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['name'] == parent]
     # Populate the other toolchain possibilities
-    current = toolchains[0]['name']
-    while True:
-        # Get the next subtoolchain
-        if subtoolchains[current]:
-            # See if we have the corresponding easyconfig in our list so we can get the version
-            toolchain_easyconfigs = [ec for ec in item_specs if ec['ec']['name'] == subtoolchains[current]]
-            if len(toolchain_easyconfigs) == 1:
-                toolchains += [{'name': toolchain_easyconfigs[0]['ec']['name'],
-                                'version': det_full_ec_version(toolchain_easyconfigs[0]['ec'])}]
-            elif len(toolchain_easyconfigs) == 0:
-                # Check if we have dummy toolchain
-                if subtoolchains[current] == DUMMY_TOOLCHAIN_NAME:
-                    toolchains += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
-                else:
-                    _log.info("Your toolchain hierarchy is not fully populated!")
-                    _log.info("No version found for subtoolchain %s of %s with parent software %s"
-                              % (subtoolchains[current], current, parent))
-            else:
-                _log_error("Multiple easyconfigs found in list for toolchain %s", subtoolchains[current])
-            current = subtoolchains[current]
-        else:
-            break
-    _log.info("Found toolchain hierarchy %s", toolchains)
-    _log.info("Compare this with %s", get_toolchain_hierarchy(toolchains[0]))
+    toolchains = get_toolchain_hierarchy(toolchains[0])
+
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
     resolved_easyconfigs =[]
@@ -305,7 +283,7 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
 
         # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
         #minimal_list = nub(minimal_list) # Unique items only  # FIXME nub on list of dicts
-        return resolve_dependencies(minimal_list, retain_all_deps=retain_all_deps)
+        return minimal_list
 
 def resolve_dependencies(unprocessed, retain_all_deps=False):
     """
