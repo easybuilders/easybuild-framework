@@ -115,6 +115,48 @@ def dry_run(easyconfigs, short=False):
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
     return '\n'.join(lines)
 
+def get_toolchain_hierarchy(parent_toolchain):
+    # Grab all possible subtoolchains
+    _, all_tc_classes = search_toolchain('')
+    subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+    # The parent is the first element in the list
+    toolchain_list = [parent_toolchain]
+    current = parent_toolchain
+    while True:
+        # Get the next subtoolchain
+        if subtoolchains[current['name']]:
+            # Grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
+            path = robot_find_easyconfig(current['name'],current['version'])
+            if path is None:
+                _log.error("Could not find easyconfig for toolchain %s " % current)
+            # Parse the easyconfig
+            parsed_ec = process_easyconfig(path)
+            # Search the dependencies for the version of the subtoolchain
+            dep_versions = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
+                                           if dep_toolchain['toolchain']['name'] == subtoolchains[current['name']]]
+            # Check we have a unique version and add it to the list
+            unique_versions = set(ver for ver in dep_versions['version'])
+
+            if len(unique_versions) == 1:
+                toolchain_list += [dep_versions[0]]
+            elif len(unique_versions) == 0:
+                # Check if we have dummy toolchain
+                if subtoolchains[current] == DUMMY_TOOLCHAIN_NAME:
+                    toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
+                else:
+                    _log.info("Your toolchain hierarchy is not fully populated!")
+                    _log.info("No version found for subtoolchain %s in dependencies of %s"
+                              % (subtoolchains[current], current))
+            else:
+                _log_error("Multiple versions of %s found in dependencies of toolchain %s"
+                           % (subtoolchains[current], current))
+            current = dep_versions[0]
+        else:
+            break
+    _log.info("Found toolchain hierarchy %s", toolchain_list)
+
+    return toolchain_list
+
 def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_any_existing_modules, subtoolchains):
     """
     Work through the list to determine and replace toolchains with minimal possible value (respecting arguments)
@@ -160,7 +202,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
         else:
             break
     _log.info("Found toolchain hierarchy %s", toolchains)
-
+    _log.info("Compare this with %s", get_toolchain_hierarchy(toolchains[0]))
     # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
     # 'dummy') search for a replacement.
     resolved_easyconfigs =[]
