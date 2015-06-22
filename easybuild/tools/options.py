@@ -425,10 +425,10 @@ class EasyBuildOptions(GeneralOption):
             fancylogger.logToFile(self.options.unittest_file)
 
         # set tmpdir
-        self.options.tmpdir = set_tmpdir(self.options.tmpdir)
+        tmpdir = set_tmpdir(self.options.tmpdir)
 
         # take --include options into account
-        self._postprocess_include()
+        self._postprocess_include(tmpdir)
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
@@ -498,12 +498,12 @@ class EasyBuildOptions(GeneralOption):
         self.options.external_modules_metadata = parsed_external_modules_metadata
         self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
 
-    def _postprocess_include(self):
+    def _postprocess_include(self, tmpdir):
         """Postprocess --include options."""
         # set up included easyblocks, module naming schemes and toolchains/toolchain components
-        include_easyblocks(self.options.tmpdir, self.options.include_easyblocks)
-        include_module_naming_schemes(self.options.tmpdir, self.options.include_module_naming_schemes)
-        include_toolchains(self.options.tmpdir, self.options.include_toolchains)
+        include_easyblocks(tmpdir, self.options.include_easyblocks)
+        include_module_naming_schemes(tmpdir, self.options.include_module_naming_schemes)
+        include_toolchains(tmpdir, self.options.include_toolchains)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
@@ -680,8 +680,8 @@ class EasyBuildOptions(GeneralOption):
                 mod = classes[root]['module']
                 loc = ''
                 if mod in locations:
-                    loc = '@ %s' % locations[mod]
-                txt.append("%s (%s %s)" % (root, mod, loc))
+                    loc = ' @ %s' % locations[mod]
+                txt.append("%s (%s%s)" % (root, mod, loc))
             else:
                 txt.append("%s" % root)
             if 'children' in classes[root]:

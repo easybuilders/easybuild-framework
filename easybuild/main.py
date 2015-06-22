@@ -38,6 +38,7 @@ Main entry point for EasyBuild: build software from .eb input file
 import copy
 import os
 import sys
+import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -51,7 +52,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
+from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -163,6 +164,9 @@ def main(testing_data=(None, None, None)):
         new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
 
+    # set by option parsers via set_tmpdir
+    eb_tmpdir = tempfile.gettempdir()
+
     # initialise logging for main
     global _log
     _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, testing=testing)
@@ -174,7 +178,7 @@ def main(testing_data=(None, None, None)):
 
     # log startup info
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
-    log_start(eb_cmd_line, options.tmpdir)
+    log_start(eb_cmd_line, eb_tmpdir)
 
     if options.umask is not None:
         _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
@@ -186,7 +190,7 @@ def main(testing_data=(None, None, None)):
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_path, pr_path = alt_easyconfig_paths(options.tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
+    tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
     auto_robot = try_to_generate or options.dep_graph or options.search or options.search_short
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
     _log.debug("Full robot path: %s" % robot_path)
@@ -263,7 +267,7 @@ def main(testing_data=(None, None, None)):
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
-        cleanup(logfile, options.tmpdir, testing)
+        cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # skip modules that are already installed unless forced
@@ -296,7 +300,7 @@ def main(testing_data=(None, None, None)):
         job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now: %s" % job_info_txt)
-            cleanup(logfile, options.tmpdir, testing)
+            cleanup(logfile, eb_tmpdir, testing)
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when testing)
@@ -325,10 +329,10 @@ def main(testing_data=(None, None, None)):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
-    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in options.tmpdir)
+    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
-        cleanup(logfile, options.tmpdir, testing)
+        cleanup(logfile, eb_tmpdir, testing)
 
 
 if __name__ == "__main__":

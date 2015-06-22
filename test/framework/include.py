@@ -49,10 +49,6 @@ class IncludeTest(EnhancedTestCase):
 
     logfile = None
 
-    def tearDown(self):
-        # FIXME avoid cleanup
-        pass
-
     def test_include_easyblocks(self):
         """Test include_easyblocks()."""
         test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
