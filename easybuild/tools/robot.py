@@ -130,12 +130,12 @@ def get_toolchain_hierarchy(parent_toolchain):
             if path is None:
                 _log.error("Could not find easyconfig for toolchain %s " % current)
             # Parse the easyconfig
-            parsed_ec = process_easyconfig(path)
+            parsed_ec = process_easyconfig(path)[0]
             # Search the dependencies for the version of the subtoolchain
             dep_versions = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
                                            if dep_toolchain['toolchain']['name'] == subtoolchains[current['name']]]
             # Check we have a unique version and add it to the list
-            unique_versions = set(ver for ver in dep_versions['version'])
+            unique_versions = set(ver['version'] for ver in dep_versions)
 
             if len(unique_versions) == 1:
                 toolchain_list += [dep_versions[0]]
