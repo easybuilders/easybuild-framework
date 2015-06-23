@@ -200,10 +200,9 @@ def refresh_dependencies(initial_dependencies,altered_dep):
     new_dependencies = []
     for d in initial_dependencies:
         if d['name'] == altered_dep['name']:
-            new_dependencies += altered_dep
+            new_dependencies += [altered_dep]
         else:
-            new_dependencies += d
-
+            new_dependencies += [d]
     return new_dependencies
 
 def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
