@@ -97,6 +97,7 @@ BUILD_OPTIONS_CMDLINE = {
         'optarch',
         'package_tool',
         'package_type',
+        'package_release',
         'regtest_output_dir',
         'skip',
         'stop',

@@ -1514,7 +1514,7 @@ class EasyBlock(object):
                 src_filename = os.path.basename(src_file)
                 dest_file = os.path.join(packagedir_dest, src_filename)
                 if os.path.exists(dest_file) and not opt_force:
-                    raise EasyBuildError("Unable to copy file, dest already exists. Look in src for packages dest: %s src: %s ", dest_file, src_file)
+                    raise EasyBuildError("Unable to copy package: %s as it already exists in %s. Your package should still be in %s", src_filename, dest_file, packagedir_src)
                 else:
                     shutil.copy(src_file, packagedir_dest)
         else:

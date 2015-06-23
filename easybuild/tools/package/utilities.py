@@ -96,6 +96,7 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
         '-t', package_type, # target
         '-s', 'dir', # source
         '--version', pkgver,
+        '--iteration', pkgrel,
     ]
     cmdlist.extend([ depstring ])
     cmdlist.extend([

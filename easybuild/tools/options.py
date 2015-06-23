@@ -362,6 +362,7 @@ class EasyBuildOptions(GeneralOption):
             'package': ("Enabling packaging", None, 'store_true', False),
             'package-tool': ("Packaging tool to use", None, 'store_or_None', None),
             'package-type': ("Packaging type to output to", None, 'store_or_None', None),
+            'package-release': ("Package release iteration number", None, 'store', "1"),
         })
 
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))
