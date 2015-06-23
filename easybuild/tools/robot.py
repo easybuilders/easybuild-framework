@@ -48,7 +48,6 @@ from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
@@ -345,7 +344,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
-                        entry = refresh_dependency(entry, cand_dep)
+                        entry['dependencies'] = refresh_dependencies(entry['dependencies'], cand_dep)
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]
                         dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:

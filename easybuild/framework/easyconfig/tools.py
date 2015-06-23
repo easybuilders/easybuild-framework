@@ -42,6 +42,7 @@ import sys
 from vsc.utils import fancylogger
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 # optional Python packages, these might be missing
 # failing imports are just ignored
 # a NameError should be catched where these are used
@@ -192,8 +193,8 @@ def refresh_dependencies(initial_dependencies,altered_dep):
     if altered_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
         altered_dep['toolchain']['dummy'] = True
     # Update module name
-    altered_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
-    altered_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
+    altered_dep['short_mod_name'] = ActiveMNS().det_short_module_name(altered_dep)
+    altered_dep['full_mod_name'] = ActiveMNS().det_full_module_name(altered_dep)
 
     # Now replace the dependency in the list
     new_dependencies = []
