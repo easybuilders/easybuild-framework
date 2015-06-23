@@ -39,6 +39,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.tools import find_minimally_resolved_modules, get_toolchain_hierarchy, refresh_dependencies
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -115,47 +116,7 @@ def dry_run(easyconfigs, short=False):
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
     return '\n'.join(lines)
 
-def get_toolchain_hierarchy(parent_toolchain):
-    # Grab all possible subtoolchains
-    _, all_tc_classes = search_toolchain('')
-    subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
-    # The parent is the first element in the list
-    toolchain_list = [parent_toolchain]
-    current = parent_toolchain
-    while True:
-        # Get the next subtoolchain
-        if subtoolchains[current['name']]:
-            # Grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
-            path = robot_find_easyconfig(current['name'],current['version'])
-            if path is None:
-                _log.error("Could not find easyconfig for toolchain %s " % current)
-            # Parse the easyconfig
-            parsed_ec = process_easyconfig(path)[0]
-            # Search the dependencies for the version of the subtoolchain
-            dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
-                                           if dep_toolchain['toolchain']['name'] == subtoolchains[current['name']]]
-            # Check we have a unique version and add it to the list
-            unique_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
 
-            if len(unique_versions) == 1:
-                toolchain_list += [dep_tcs[0]]
-            elif len(unique_versions) == 0:
-                # Check if we have dummy toolchain
-                if subtoolchains[current] == DUMMY_TOOLCHAIN_NAME:
-                    toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
-                else:
-                    _log.info("Your toolchain hierarchy is not fully populated!")
-                    _log.info("No version found for subtoolchain %s in dependencies of %s"
-                              % (subtoolchains[current], current))
-            else:
-                _log_error("Multiple versions of %s found in dependencies of toolchain %s"
-                           % (subtoolchains[current], current))
-            current = dep_tcs[0]
-        else:
-            break
-    _log.info("Found toolchain hierarchy %s", toolchain_list)
-
-    return toolchain_list
 
 def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_any_existing_modules, subtoolchains):
     """
@@ -213,10 +174,10 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                     hidden = cand_dep.get('hidden', False)
                     parsed_ec = process_easyconfig(eb_file, hidden=hidden)
                     if len(parsed_ec) > 1:
-                        self.log.warning(
+                        _log.warning(
                             "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
                         )
-                        self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
+                        _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                     resolved_easyconfigs.append(parsed_ec[0])
                     resolved = True
                     break
@@ -239,11 +200,7 @@ def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_an
                 if dependency['name'] == dep_ec['ec']['name']:
                     # Update toolchain
                     dependency['toolchain'] = dep_ec['ec']['toolchain']
-                    if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
-                        dependency['toolchain']['dummy'] = True
-                    # Update module name
-                    dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
-                    dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
+                    ec['ec']['dependencies']=refresh_dependencies(ec['ec']['dependencies'],dependency)
     return resolved_easyconfigs
 
 def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
@@ -281,16 +238,18 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
 
             minimal_list.extend(item_specs)
 
-        # Finally, we pass our minimal list back through resolve_dependencies again to clean up the ordering
         #minimal_list = nub(minimal_list) # Unique items only  # FIXME nub on list of dicts
         return minimal_list
 
-def resolve_dependencies(unprocessed, retain_all_deps=False):
+def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=False, use_any_existing_modules=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
+    @param minimal_toolchains: boolean for whether to try to resolve dependencies with minimum possible toolchain
+    @param use_any_existing_modules: boolean for whether to prioritise the reuse of existing modules (works in
+                                     combination with minimal_toolchains)
     """
 
     robot = build_option('robot_path')
@@ -330,7 +289,11 @@ def resolve_dependencies(unprocessed, retain_all_deps=False):
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
-            res = find_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps)
+            if minimal_toolchains:
+                res = find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps,
+                                                      use_any_existing_modules=use_any_existing_modules)
+            else:
+                res = find_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps)
             more_ecs, unprocessed, avail_modules = res
             for ec in more_ecs:
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
@@ -362,7 +325,10 @@ def resolve_dependencies(unprocessed, retain_all_deps=False):
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
                     # note: robot_find_easyconfig may return None
-                    path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
+                    if minimal_toolchains:
+                        cand_dep, path = robot_find_minimal_easyconfig(cand_dep)
+                    else:
+                        path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
@@ -379,6 +345,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False):
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
+                        entry = refresh_dependency(entry, cand_dep)
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]
                         dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:

@@ -40,7 +40,8 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 import os
 import sys
 from vsc.utils import fancylogger
-
+from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 # optional Python packages, these might be missing
 # failing imports are just ignored
 # a NameError should be catched where these are used
@@ -78,7 +79,6 @@ from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
-
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -141,6 +141,129 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
 
     return ordered_ecs, new_unprocessed, new_avail_modules
 
+def get_toolchain_hierarchy(parent_toolchain):
+    # Grab all possible subtoolchains
+    _, all_tc_classes = search_toolchain('')
+    subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+    # The parent is the first element in the list
+    toolchain_list = [parent_toolchain]
+    current = parent_toolchain
+    while True:
+        # Get the next subtoolchain
+        if subtoolchains[current['name']]:
+            # Grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
+            path = robot_find_easyconfig(current['name'],current['version'])
+            if path is None:
+                _log.error("Could not find easyconfig for toolchain %s " % current)
+            # Parse the easyconfig
+            parsed_ec = process_easyconfig(path)[0]
+            # Search the dependencies for the version of the subtoolchain
+            dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
+                                           if dep_toolchain['toolchain']['name'] == subtoolchains[current['name']]]
+            # Check we have a unique version and add it to the list
+            unique_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
+
+            if len(unique_versions) == 1:
+                toolchain_list += [dep_tcs[0]]
+            elif len(unique_versions) == 0:
+                # Check if we have dummy toolchain
+                if subtoolchains[current] == DUMMY_TOOLCHAIN_NAME:
+                    toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
+                else:
+                    _log.info("Your toolchain hierarchy is not fully populated!")
+                    _log.info("No version found for subtoolchain %s in dependencies of %s"
+                              % (subtoolchains[current], current))
+            else:
+                _log.error("Multiple versions of %s found in dependencies of toolchain %s"
+                           % (subtoolchains[current], current))
+            current = dep_tcs[0]
+        else:
+            break
+    _log.info("Found toolchain hierarchy %s", toolchain_list)
+
+    return toolchain_list
+
+def refresh_dependencies(initial_dependencies,altered_dep):
+    """
+    Refresh derived arguments in a dependency
+    @param dependency: The dependency to be refreshed
+
+    """
+    if altered_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+        altered_dep['toolchain']['dummy'] = True
+    # Update module name
+    altered_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
+    altered_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
+
+    # Now replace the dependency in the list
+    new_dependencies = []
+    for d in initial_dependencies:
+        if d['name'] == altered_dep['name']:
+            new_dependencies += altered_dep
+        else:
+            new_dependencies += d
+
+    return new_dependencies
+
+def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
+    """
+    Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
+    """
+    ordered_ecs = []
+    new_avail_modules = avail_modules[:]
+    new_unprocessed = []
+    modtool = modules_tool()
+
+    for ec in unprocessed:
+        new_ec = ec.copy()
+        deps = []
+        # Populate the toolchain hierarchy
+        toolchains = get_toolchain_hierarchy(new_ec['ec']['toolchain'])
+        for dep in new_ec['dependencies']:
+            if use_any_existing_modules:
+                if dep['toolchain'] in toolchains:
+                    for tc in toolchains[dep['toolchain']:]:
+                        dep['toolchain'] = tc
+                        full_mod_name = ActiveMNS().det_full_module_name(dep)
+                        dep_resolved = full_mod_name in avail_modules
+                        # hidden modules need special care, since they may not be included in list of available modules
+                        if not retain_all_deps:
+                            dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+                        if dep_resolved:
+                            # Need to update the dependency in the original easyconfig
+                            ec['dependencies']=refresh_dependencies(ec['dependencies'],dep)
+                            break
+                else:
+                    full_mod_name = dep.get('full_mod_name', None)
+                    if full_mod_name is None:
+                        full_mod_name = ActiveMNS().det_full_module_name(dep)
+
+                    dep_resolved = full_mod_name in new_avail_modules
+                    if not retain_all_deps:
+                        # hidden modules need special care, since they may not be included in list of available modules
+                        dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+
+                if not dep_resolved:
+                    # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+                    # since no corresponding easyconfig can be found for them
+                    if retain_all_deps and dep.get('external_module', False):
+                        _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                    else:
+                        # no module available (yet) => retain dependency as one to be resolved
+                        deps.append(dep)
+
+        new_ec['dependencies'] = deps
+
+        if len(new_ec['dependencies']) == 0:
+            _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
+            ordered_ecs.append(ec)
+            new_avail_modules.append(ec['full_mod_name'])
+
+        else:
+            # Don't want to overwrite the dependencies in the minimal case
+            new_unprocessed.append(ec)
+
+    return ordered_ecs, new_unprocessed, new_avail_modules
 
 def _dep_graph(fn, specs, silent=False):
     """
