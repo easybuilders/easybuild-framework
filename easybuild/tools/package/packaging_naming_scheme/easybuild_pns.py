@@ -18,11 +18,12 @@ class EasyBuildPNS(PackagingNamingScheme):
 
     def name(self, ec):
         self.log.debug("easyconfig dict for name looks like %s " % ec )
-        name_template = "eb-%(name)s-%(version)s-%(toolchain)s"
+        name_template = "eb%(eb_ver)s-%(name)s-%(version)s-%(toolchain)s"
         pkg_name = name_template % {
             'toolchain' : self._toolchain(ec),
             'version': '-'.join([x for x in [ec.get('versionprefix', ''), ec['version'], ec['versionsuffix'].lstrip('-')] if x]),
             'name' : ec['name'],
+            'eb_ver': self.eb_ver,
         }
         return pkg_name
 
