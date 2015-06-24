@@ -266,7 +266,7 @@ class PbsJob(object):
         pbs_attributes[0].name = pbs.ATTR_N  # Job_Name
         pbs_attributes[0].value = self.name
 
-        output_dir = build_option('output_dir')
+        output_dir = build_option('job_output_dir')
         pbs_attributes[1].name = pbs.ATTR_o
         pbs_attributes[1].value = os.path.join(output_dir, '%s.o$PBS_JOBID' % self.name)
 
