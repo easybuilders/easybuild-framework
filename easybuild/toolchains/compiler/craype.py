@@ -37,6 +37,7 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
+import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
 from easybuild.tools.build_log import EasyBuildError
@@ -67,9 +68,9 @@ class CrayPECompiler(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'shared': 'shared',
-        'dynamic': 'dynamic',
-        'static': 'static',
+        # handle shared and dynamic always via $CRAYPE_LINK_TYPE environment variable, don't pass flags to wrapper
+        'shared': '',
+        'dynamic': '',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
     }
@@ -111,6 +112,14 @@ class CrayPECompiler(Compiler):
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
+
+    def prepare(self, *args, **kwargs):
+        """Prepare to use this toolchain; define $CRAYPE_LINK_TYPE if 'dynamic' toolchain option is enabled."""
+        super(CrayPECompiler, self).prepare(*args, **kwargs)
+
+        if self.options['dynamic'] or self.options['shared']:
+            self.log.debug("Enabling building of shared libs/dynamically linked executables via $CRAYPE_LINK_TYPE")
+            env.setvar('CRAYPE_LINK_TYPE', 'dynamic')
 
 
 class CrayPEGCC(CrayPECompiler):

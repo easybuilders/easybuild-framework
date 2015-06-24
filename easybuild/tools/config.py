@@ -44,6 +44,7 @@ from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
+from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_cmd
 
@@ -65,6 +66,7 @@ DEFAULT_PATH_SUBDIRS = {
 }
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+DEFAULT_STRICT = run.WARN
 
 
 # utility function for obtaining default paths
@@ -92,7 +94,6 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_dirs',
         'modules_footer',
         'only_blocks',
-        'module_only',
         'optarch',
         'regtest_output_dir',
         'skip',
@@ -108,6 +109,7 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'force',
         'hidden',
+        'module_only',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -118,6 +120,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+    ],
+    DEFAULT_STRICT: [
+        'strict',
     ],
 }
 # build option that do not have a perfectly matching command line option

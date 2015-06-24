@@ -38,8 +38,9 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
+from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_path, source_paths, install_path, get_repositorypath
+from easybuild.tools.config import build_option, build_path, source_paths, install_path, get_repositorypath
 from easybuild.tools.config import set_tmpdir, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
@@ -251,13 +252,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         """Test use of new-style configuration file."""
         self.purge_environment()
 
-        oldstyle_config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
         config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
 
         testpath1 = os.path.join(self.tmpdir, 'test1')
         testpath2 = os.path.join(self.tmpdir, 'testtwo')
-
-        write_file(oldstyle_config_file, '')
 
         # test with config file passed via command line
         cfgtxt = '\n'.join([
@@ -636,6 +634,16 @@ class EasyBuildConfigTest(EnhancedTestCase):
         args = ['--external-modules-metadata=%s' % testcfg]
         err_msg = "Different length for lists of names/versions in metadata for external module"
         self.assertErrorRegex(EasyBuildError, err_msg, init_config, args=args)
+
+    def test_strict(self):
+        """Test use of --strict."""
+        # check default
+        self.assertEqual(build_option('strict'), run.WARN)
+
+        for strict_str, strict_val in [('error', run.ERROR), ('ignore', run.IGNORE), ('warn', run.WARN)]:
+            options = init_config(args=['--strict=%s' % strict_str])
+            init_config(build_options={'strict': options.strict})
+            self.assertEqual(build_option('strict'), strict_val)
 
 
 def suite():
