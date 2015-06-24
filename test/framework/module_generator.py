@@ -93,7 +93,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help = [[%s]]' % gzip_txt,
+                'help([[%s]])' % gzip_txt,
                 "whatis([[Name: gzip]])" ,
                 "whatis([[Version: 1.4]])" ,
                 "whatis([[Description: %s]])" % gzip_txt,
@@ -179,7 +179,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "prepend-path\tkey\t\t$root/path2\n",
                 "prepend-path\tkey\t\t$root\n",
             ])
-            self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2", '']))
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
 
             expected = "prepend-path\tbar\t\t$root/foo\n"
             self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
@@ -269,6 +272,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         build_options = {
             'check_osdeps': False,
+            'external_modules_metadata': {},
             'robot_path': [ecs_dir],
             'valid_stops': all_stops,
             'validate': False,
