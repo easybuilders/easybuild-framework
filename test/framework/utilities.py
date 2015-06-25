@@ -138,9 +138,9 @@ class EnhancedTestCase(_EnhancedTestCase):
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         modtool = modules_tool()
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
         # purge out any loaded modules with original $MODULEPATH before running each test
         modtool.purge()
+        self.reset_modulepath([os.path.join(testdir, 'modules')])
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -196,9 +196,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         if logfile is None:
             logfile = self.logfile
         # clear log file
-        f = open(logfile, 'w')
-        f.write('')
-        f.close()
+        if logfile:
+            f = open(logfile, 'w')
+            f.write('')
+            f.close()
 
         env_before = copy.deepcopy(os.environ)
 
@@ -211,7 +212,10 @@ class EnhancedTestCase(_EnhancedTestCase):
             if verbose:
                 print "err: %s" % err
 
-        logtxt = read_file(logfile)
+        if logfile:
+            logtxt = read_file(logfile)
+        else:
+            logtxt = None
 
         os.chdir(self.cwd)
 

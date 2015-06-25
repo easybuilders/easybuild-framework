@@ -324,9 +324,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # cleanup
             os.remove(fn)
 
+        stdoutorig = sys.stdout
+        sys.stdout = open("/dev/null", 'w')
+
+        toy_ecfile = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        self.logfile = None
+        out = self.eb_main([toy_ecfile, '--debug', '-l', '--force'], raise_error=True)
+
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
-        fancylogger.logToFile(self.logfile)
+
+        sys.stdout.close()
+        sys.stdout = stdoutorig
 
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
