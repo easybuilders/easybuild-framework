@@ -189,7 +189,7 @@ class GC3Pie(JobBackend):
             'stdout': 'eb-%s-gc3pie-job.log' % name,
         })
 
-        # resources
+        # walltime
         max_walltime = build_option('job_max_walltime')
         if hours is None:
             hours = max_walltime
@@ -200,6 +200,10 @@ class GC3Pie(JobBackend):
 
         if cores:
             named_args['requested_cores'] = cores
+        elif build_option('job_cores'):
+            named_args['requested_cores'] = build_option('job_cores')
+        else:
+            # FIXME: ask GC3Pie to guess core count per node (see _get_ppn in job/pbs_python.py)
 
         return Application(['/bin/sh', '-c', script], **named_args)
 
