@@ -1029,8 +1029,7 @@ class EasyBlock(object):
         fake_mod_path = self.make_module_step(True)
 
         # load fake module
-        modtool = modules_tool()
-        modtool.prepend_module_path(fake_mod_path)
+        self.modules_tool.prepend_module_path(fake_mod_path)
         self.load_module(purge=purge)
 
         return (fake_mod_path, env)
@@ -1044,9 +1043,8 @@ class EasyBlock(object):
         # self.full_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.full_mod_name is not None:
             try:
-                modtool = modules_tool()
-                modtool.unload([self.full_mod_name])
-                modtool.remove_module_path(fake_mod_path)
+                self.modules_tool.unload([self.full_mod_name])
+                self.modules_tool.remove_module_path(fake_mod_path)
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)

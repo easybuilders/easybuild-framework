@@ -226,18 +226,21 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        for i, path in enumerate(paths):
+        abspaths = []
+        for path in paths:
             if os.path.isabs(path) and not allow_abs:
                 raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
                                      path)
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for (non-empty) relative paths
                 if path:
-                    paths[i] = os.path.join('$root', path)
+                    abspaths.append(os.path.join('$root', path))
                 else:
-                    paths[i] = '$root'
+                    abspaths.append('$root')
+            else:
+                abspaths.append(path)
 
-        statements = [template % (key, p) for p in paths]
+        statements = [template % (key, p) for p in abspaths]
         return ''.join(statements)
 
     def use(self, paths):

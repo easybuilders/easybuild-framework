@@ -201,7 +201,8 @@ def stop_logging(logfile, logtostdout=False):
     """Stop logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
-    fancylogger.logToFile(logfile, enable=False)
+    if logfile is not None:
+        fancylogger.logToFile(logfile, enable=False)
 
 
 def get_log(name=None):
