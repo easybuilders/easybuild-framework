@@ -67,7 +67,8 @@ except ImportError as err:
         """Decorator which raises an EasyBuildError because pbs_python is not available."""
         def fail(*args, **kwargs):
             """Raise EasyBuildError since `pbs_python` is not available."""
-            errmsg = "PBSQuery or pbs modules not available. Please make sure `pbs_python` is installed and usable: %s"
+            errmsg = "Python modules 'PBSQuery' and 'pbs' are not available. "
+            errmsg += "Please make sure `pbs_python` is installed and usable: %s"
             raise EasyBuildError(errmsg, err)
 
         return fail
@@ -265,7 +266,7 @@ class PbsJob(object):
         pbs_attributes[0].name = pbs.ATTR_N  # Job_Name
         pbs_attributes[0].value = self.name
 
-        output_dir = build_option('output_dir')
+        output_dir = build_option('job_output_dir')
         pbs_attributes[1].name = pbs.ATTR_o
         pbs_attributes[1].value = os.path.join(output_dir, '%s.o$PBS_JOBID' % self.name)
 
