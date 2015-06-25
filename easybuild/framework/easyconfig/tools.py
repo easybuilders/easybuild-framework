@@ -43,6 +43,9 @@ from vsc.utils import fancylogger
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.config import build_option
+
 # optional Python packages, these might be missing
 # failing imports are just ignored
 # a NameError should be catched where these are used
@@ -74,12 +77,12 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
+import tempfile
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -223,9 +226,10 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
             dep_resolved = False
             orig_dep = dep
             if dep['toolchain'] in toolchains:
+                deptoolchains = toolchains[toolchains.index(dep['toolchain']):]
                 if use_any_existing_modules:
                     # Only search for toolchains further down the chain
-                    for tc in toolchains[dep['toolchain']:]:
+                    for tc in deptoolchains:
                         dep['toolchain'] = tc
                         full_mod_name = ActiveMNS().det_full_module_name(dep)
                         dep_resolved = full_mod_name in avail_modules
@@ -239,9 +243,9 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                 if not dep_resolved:
                     # If we can't resolve it, we find the minimal easyconfig for the resolution and update the dependency
                     found_minimal_easyconfig = False
-                    for tc in reversed(toolchains[dep['toolchain']:]):
+                    for tc in reversed(deptoolchains):
                         dep['toolchain'] = tc
-                        eb_file = robot_find_easyconfig(dep['ec']['name'], det_full_ec_version(dep['ec']))
+                        eb_file = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
                         if eb_file is not None:
                             if dep['toolchain'] != orig_dep['toolchain']:
                                 _log.info("Minimally resolving dependency %s of %s with %s" %
@@ -278,8 +282,8 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     deps.append(dep)
 
         if len(deps) == 0:
-            minimal_dir = os.path.join(build_option('tmpdir'), 'minimal-easyconfigs')
-            newspec = os.path.join(minimal_dir, "%s-%s.eb" % (ec['name'], det_full_ec_version(new_ec)))
+            minimal_dir = tempfile.mkdtemp(prefix='minimal-easyconfigs')
+            newspec = os.path.join(minimal_dir, "%s-%s.eb" % (new_ec['ec']['name'], det_full_ec_version(new_ec['ec'])))
             _log.debug("Attempting to dumping minimal easyconfig to %s and adding it to final list" % newspec)
             try:
 
@@ -288,7 +292,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     _log.debug("Not creating easyconfig file %s since file exists" % newspec)
                 else:
                     new_ec['spec'] = newspec
-                    write_file(newspec, new_ec.dump())
+                    new_ec['ec'].dump(newspec)
                     ordered_ecs.append(new_ec)
                     _log.debug("Created easyconfig file %s" % newspec)
             except (IOError, OSError), err:
