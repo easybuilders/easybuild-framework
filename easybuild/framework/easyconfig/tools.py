@@ -190,8 +190,8 @@ def get_toolchain_hierarchy(parent_toolchain):
 def refresh_dependencies(initial_dependencies,altered_dep):
     """
     Refresh derived arguments in a dependency
-    @param dependency: The dependency to be refreshed
-
+    @param initial_dependencies: initial dependency list
+    @param altered_dep: The dependency to be refreshed
     """
     if altered_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
         altered_dep['toolchain']['dummy'] = True
@@ -207,6 +207,18 @@ def refresh_dependencies(initial_dependencies,altered_dep):
         else:
             new_dependencies += [d]
     return new_dependencies
+
+def deep_refresh_dependencies(ec,altered_dep):
+    """
+    Deep refresh derived arguments in a dependency
+    @param ec: the original easyconifg instance
+    @param altered_dep: The dependency to be refreshed
+
+    """
+    new_ec = ec.copy()
+
+
+    return new_ec
 
 def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
     """
@@ -238,7 +250,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
                         if dep_resolved:
                             # Need to update the dependency in the original easyconfig
-                            ec['dependencies']=refresh_dependencies(ec['dependencies'],dep)
+                            new_ec=deep_refresh_dependencies(new_ec,dep)
                             break
                 if not dep_resolved:
                     # If we can't resolve it, we find the minimal easyconfig for the resolution and update the dependency
@@ -250,7 +262,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             if dep['toolchain'] != orig_dep['toolchain']:
                                 _log.info("Minimally resolving dependency %s of %s with %s" %
                                           (cand_dep, ec['name'], eb_file))
-                                ec['dependencies']=refresh_dependencies(ec['dependencies'],dep)
+                                new_ec = deep_refresh_dependencies(new_ec, dep)
                             found_minimal_easyconfig = True
                             break
                     # Now check for the existence of the module of the dep
@@ -281,7 +293,9 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     # no module available (yet) => retain dependency as one to be resolved
                     deps.append(dep)
 
-        if len(deps) == 0:
+        new_ec['dependencies'] = deps
+
+        if len(new_ec['dependencies']) == 0:
             minimal_dir = tempfile.mkdtemp(prefix='minimal-easyconfigs')
             newspec = os.path.join(minimal_dir, "%s-%s.eb" % (new_ec['ec']['name'], det_full_ec_version(new_ec['ec'])))
             _log.debug("Attempting to dumping minimal easyconfig to %s and adding it to final list" % newspec)
@@ -295,17 +309,16 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     new_ec['ec'].dump(newspec)
                     ordered_ecs.append(new_ec)
                     _log.debug("Created easyconfig file %s" % newspec)
+                    _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
+                    new_avail_modules.append(ec['full_mod_name'])
             except (IOError, OSError), err:
                 print_error("Failed to create easyconfig %s: %s" % (newspec, err))
-
-
-
-            new_avail_modules.append(new_ec['full_mod_name'])
         else:
-            # Don't want to overwrite the dependencies in the minimal case
-            new_unprocessed.append(ec)
+            new_unprocessed.append(new_ec)
 
     return ordered_ecs, new_unprocessed, new_avail_modules
+
+
 
 def _dep_graph(fn, specs, silent=False):
     """
