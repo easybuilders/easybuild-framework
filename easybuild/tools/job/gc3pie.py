@@ -46,6 +46,7 @@ _log = fancylogger.getLogger('gc3pie', fname=False)
 
 try:
     import gc3libs
+    import gc3libs.exceptions
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
@@ -219,7 +220,11 @@ class GC3Pie(JobBackend):
         Create engine, and progress it until all jobs have terminated.
         """
         # create an instance of `Engine` using the list of configuration files
-        self._engine = create_engine(*self.config_files)
+        try:
+            self._engine = create_engine(*self.config_files)
+
+        except gc3libs.exceptions.Error as err:
+            raise EasyBuildError("Failed to create GC3Pie engine: %s", err)
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
