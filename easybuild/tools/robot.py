@@ -80,7 +80,7 @@ def dry_run(easyconfigs, short=False):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = minimally_resolve_dependencies(easyconfigs, retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs, retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
@@ -240,7 +240,7 @@ def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_e
         #minimal_list = nub(minimal_list) # Unique items only  # FIXME nub on list of dicts
         return minimal_list
 
-def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=False, use_any_existing_modules=False):
+def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=True, use_any_existing_modules=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
@@ -289,6 +289,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
             if minimal_toolchains:
+                # We update the dependencies and check for existing modules
                 res = find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps,
                                                       use_any_existing_modules=use_any_existing_modules)
             else:
@@ -319,15 +320,16 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
                 candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
+                # For minimal resolution we cannot rely on dependencies being removed as they are resolved so
+                # we need to find the first dep that's not already in the avail_modules list
+                if minimal_toolchains:
+                    candidates = [d for d in candidates if not ActiveMNS().det_full_module_name(d) in avail_modules]
                 if candidates:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
                     # note: robot_find_easyconfig may return None
-                    if minimal_toolchains:
-                        cand_dep, path = robot_find_minimal_easyconfig(cand_dep)
-                    else:
-                        path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
+                    path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies

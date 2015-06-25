@@ -220,8 +220,11 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
         # Populate the toolchain hierarchy
         toolchains = get_toolchain_hierarchy(new_ec['ec']['toolchain'])
         for dep in new_ec['dependencies']:
-            if use_any_existing_modules:
-                if dep['toolchain'] in toolchains:
+            dep_resolved = False
+            orig_dep = dep
+            if dep['toolchain'] in toolchains:
+                if use_any_existing_modules:
+                    # Only search for toolchains further down the chain
                     for tc in toolchains[dep['toolchain']:]:
                         dep['toolchain'] = tc
                         full_mod_name = ActiveMNS().det_full_module_name(dep)
@@ -233,32 +236,67 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             # Need to update the dependency in the original easyconfig
                             ec['dependencies']=refresh_dependencies(ec['dependencies'],dep)
                             break
-                else:
-                    full_mod_name = dep.get('full_mod_name', None)
-                    if full_mod_name is None:
-                        full_mod_name = ActiveMNS().det_full_module_name(dep)
-
-                    dep_resolved = full_mod_name in new_avail_modules
-                    if not retain_all_deps:
-                        # hidden modules need special care, since they may not be included in list of available modules
-                        dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
-
                 if not dep_resolved:
-                    # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
-                    # since no corresponding easyconfig can be found for them
-                    if retain_all_deps and dep.get('external_module', False):
-                        _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                    # If we can't resolve it, we find the minimal easyconfig for the resolution and update the dependency
+                    found_minimal_easyconfig = False
+                    for tc in reversed(toolchains[dep['toolchain']:]):
+                        dep['toolchain'] = tc
+                        eb_file = robot_find_easyconfig(dep['ec']['name'], det_full_ec_version(dep['ec']))
+                        if eb_file is not None:
+                            if dep['toolchain'] != orig_dep['toolchain']:
+                                _log.info("Minimally resolving dependency %s of %s with %s" %
+                                          (cand_dep, ec['name'], eb_file))
+                                ec['dependencies']=refresh_dependencies(ec['dependencies'],dep)
+                            found_minimal_easyconfig = True
+                            break
+                    # Now check for the existence of the module of the dep
+                    if found_minimal_easyconfig:
+                        full_mod_name = ActiveMNS().det_full_module_name(dep)
+                        dep_resolved = full_mod_name in avail_modules
+                        if not retain_all_deps:
+                            dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
                     else:
-                        # no module available (yet) => retain dependency as one to be resolved
-                        deps.append(dep)
+                        _log.debug("Irresolvable minimal dependency found: %s" % orig_dep)
+            else:
+                # in the case where the toolchain of a dependency is different to the parent toolchain we do nothing
+                full_mod_name = dep.get('full_mod_name', None)
+                if full_mod_name is None:
+                    full_mod_name = ActiveMNS().det_full_module_name(dep)
 
-        new_ec['dependencies'] = deps
+                dep_resolved = full_mod_name in new_avail_modules
+                if not retain_all_deps:
+                    # hidden modules need special care, since they may not be included in list of available modules
+                    dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
 
-        if len(new_ec['dependencies']) == 0:
-            _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
-            ordered_ecs.append(ec)
-            new_avail_modules.append(ec['full_mod_name'])
+            if not dep_resolved:
+                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+                # since no corresponding easyconfig can be found for them
+                if retain_all_deps and dep.get('external_module', False):
+                    _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                else:
+                    # no module available (yet) => retain dependency as one to be resolved
+                    deps.append(dep)
 
+        if len(deps) == 0:
+            minimal_dir = os.path.join(build_option('tmpdir'), 'minimal-easyconfigs')
+            newspec = os.path.join(minimal_dir, "%s-%s.eb" % (ec['name'], det_full_ec_version(new_ec)))
+            _log.debug("Attempting to dumping minimal easyconfig to %s and adding it to final list" % newspec)
+            try:
+
+                # only copy if the files are not the same file already (yes, it happens)
+                if os.path.exists(newspec):
+                    _log.debug("Not creating easyconfig file %s since file exists" % newspec)
+                else:
+                    new_ec['spec'] = newspec
+                    write_file(newspec, new_ec.dump())
+                    ordered_ecs.append(new_ec)
+                    _log.debug("Created easyconfig file %s" % newspec)
+            except (IOError, OSError), err:
+                print_error("Failed to create easyconfig %s: %s" % (newspec, err))
+
+
+
+            new_avail_modules.append(new_ec['full_mod_name'])
         else:
             # Don't want to overwrite the dependencies in the minimal case
             new_unprocessed.append(ec)
