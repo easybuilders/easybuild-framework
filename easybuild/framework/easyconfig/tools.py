@@ -218,16 +218,19 @@ def deep_refresh_dependencies(ec,altered_dep):
     new_ec = ec.copy()
 
     # Change all the various places the dependencies can appear
-    for deps in [new_ec['dependencies'],
-                 new_ec['hiddendependencies'],
-                 new_ec['unresolved_deps'],
-                 new_ec['builddependencies'],
-                 new_ec['ec']['dependencies'],
-                 new_ec['ec']['hiddendependencies'],
-                 new_ec['ec']['builddependencies']
-                 ]:
-        if deps:
-            deps = refresh_dependencies(deps,altered_dep)
+    for key in ['dependencies',
+                'hiddendependencies',
+                'unresolved_deps',
+                'builddependencies'
+                ]:
+        if new_ec[key]:
+            new_ec[key] = refresh_dependencies(new_ec[key],altered_dep)
+    for key in ['dependencies',
+                'hiddendependencies',
+                'builddependencies'
+                ]:
+        if new_ec['ec'][key]:
+            new_ec['ec'][key] = refresh_dependencies(new_ec['ec'][key],altered_dep)
 
     return new_ec
 

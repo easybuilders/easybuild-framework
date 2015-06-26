@@ -373,7 +373,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
         raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
 
     _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
-    
+
     return ordered_ecs
 
 
