@@ -109,7 +109,7 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'force',
         'hidden',
-        'minimal_toolchains'
+        'minimal_toolchains',
         'module_only',
         'robot',
         'sequential',
