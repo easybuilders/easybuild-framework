@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
+from easybuild.tools.config import install_path, log_path, source_paths
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -1519,13 +1519,18 @@ class EasyBlock(object):
                 raise EasyBuildError("Unable to change group permissions of file(s): %s", err)
             self.log.info("Successfully made software only available for group %s (gid %s)" % self.group)
 
-        if read_only_installdir():
+        if build_option('read_only_installdir'):
             # remove write permissions for everyone
             perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
+        elif build_option('group_writable_installdir'):
+            # enable write permissions for group
+            perms = stat.S_IWGRP
+            adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully enabled write permissions recursively for group on install dir.")
         else:
-            # remove write permissions for group and other to protect installation
+            # remove write permissions for group and other
             perms = stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
