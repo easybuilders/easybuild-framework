@@ -47,7 +47,6 @@ from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.toolchain.utilities import search_toolchain
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
@@ -114,130 +113,6 @@ def dry_run(easyconfigs, short=False):
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
     return '\n'.join(lines)
 
-
-
-def replace_toolchain_with_hierarchy(item_specs, parent, retain_all_deps, use_any_existing_modules, subtoolchains):
-    """
-    Work through the list to determine and replace toolchains with minimal possible value (respecting arguments)
-    @param item_specs: list of easyconfigs
-    @param parent: the name of the parent software in the list
-    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability
-    @param use_any_existing_modules: if you find an existing module for any TC, don't replace it
-    """
-    # Collect available modules
-    if retain_all_deps:
-        # assume that no modules are available when forced, to retain all dependencies
-        avail_modules = []
-        _log.info("Forcing all dependencies to be retained.")
-    else:
-        # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = modules_tool().available()
-        if len(avail_modules) == 0:
-            _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
-
-    # Let's grab the toolchain hierarchy based on the parent
-    toolchains = [ec['ec']['toolchain'] for ec in item_specs if ec['ec']['name'] == parent]
-    # Populate the other toolchain possibilities
-    toolchains = get_toolchain_hierarchy(toolchains[0])
-
-    # For each element in the list check the toolchain, if it sits in the hierarchy (and is not at the bottom or
-    # 'dummy') search for a replacement.
-    resolved_easyconfigs =[]
-    for ec in item_specs:
-        # First go down the list looking for an existing module, removing the list item if we find one
-        cand_dep = ec
-        resolved = False
-        # Check that the toolchain of the item is already in the hierarchy, if not, do nothing
-        if not cand_dep['ec']['toolchain'] in toolchains:
-            _log.info("Toolchain of %s does not match parent...skipping" %cand_dep)
-            resolved_easyconfigs.append(cand_dep)
-            resolved = True
-
-        if not resolved and (use_any_existing_modules and not retain_all_deps):
-            for tc in toolchains:
-                cand_dep['ec']['toolchain'] = tc
-                if ActiveMNS().det_full_module_name(cand_dep) in avail_modules:
-                    resolved_easyconfigs.append(cand_dep)
-                    resolved = True
-                    break
-        # Look for any matching easyconfig starting from the bottom
-        if not resolved:
-            for tc in reversed(toolchains):
-                cand_dep['ec']['toolchain'] = tc
-                eb_file = robot_find_easyconfig(cand_dep['ec']['name'], det_full_ec_version(cand_dep['ec']))
-                if eb_file is not None:
-                    _log.info("Robot: Minimally resolving dependency %s with %s" % (cand_dep, eb_file))
-                    # build specs should not be passed down to resolved dependencies,
-                    # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
-                    hidden = cand_dep.get('hidden', False)
-                    parsed_ec = process_easyconfig(eb_file, hidden=hidden)
-                    if len(parsed_ec) > 1:
-                        _log.warning(
-                            "More than one parsed easyconfig obtained from %s, only retaining first" % eb_file
-                        )
-                        _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-                    resolved_easyconfigs.append(parsed_ec[0])
-                    resolved = True
-                    break
-        if not resolved:
-            raise EasyBuildError(
-                "Failed to find any easyconfig file for '%s' when determining minimal toolchain for: %s",
-                ec['name'], ec
-            )
-    # Check each piece of software in the initial list appears in the final list
-    initial_names = [ec['ec']['name'] for ec in item_specs]
-    final_names = [ec['ec']['name'] for ec in resolved_easyconfigs]
-    if not set(initial_names) == set(final_names):
-        _log.error('Not all software in initial list appears in final list:%s :: %s' %initial_names %final_names)
-
-    # Update dependencies within the final list so that all toolchains correspond correctly
-    for dep_ec in resolved_easyconfigs:
-        # Search through all other easyconfigs for matching dependencies
-        for ec in resolved_easyconfigs:
-            for dependency in ec['ec']['dependencies']:
-                if dependency['name'] == dep_ec['ec']['name']:
-                    # Update toolchain
-                    dependency['toolchain'] = dep_ec['ec']['toolchain']
-                    ec['ec']['dependencies']=refresh_dependencies(ec['ec']['dependencies'],dependency)
-    return resolved_easyconfigs
-
-def minimally_resolve_dependencies(unprocessed, retain_all_deps=False, use_any_existing_modules=False):
-    """
-    Work through the list of easyconfigs to determine an optimal order with minimal dependency resolution
-    @param unprocessed: list of easyconfigs
-    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability
-    """
-    if build_option('robot_path') is None:
-        _log.info("No robot path : not (minimally) resolving dependencies")
-        return resolve_dependencies(unprocessed, retain_all_deps=retain_all_deps)
-    else:
-        _, all_tc_classes = search_toolchain('')
-        subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
-
-        # Look over all elements of the list individually
-        minimal_list = []
-        for ec in unprocessed:
-            item_specs = resolve_dependencies([ec], retain_all_deps=True)
-
-            # Now we have a complete list of the dependencies, let's do a
-            # search/replace for the toolchain, removing existing elements from the list according to retain_all_deps
-            item_specs = replace_toolchain_with_hierarchy(
-                item_specs, parent=ec['ec']['name'],
-                retain_all_deps=retain_all_deps,
-                use_any_existing_modules=use_any_existing_modules,
-                subtoolchains=subtoolchains
-            )
-            # There should be no duplicate software in the final list, spit the dummy if there is (unless they are
-            # fully consistent versions)
-            #item_specs = nub(item_specs)  # FIXME nub on list of dicts
-            for idx, check in enumerate(item_specs):
-                if len([x for x in item_specs[idx:] if x['ec']['name'] == check['ec']['name']]) > 1:
-                    _log.error("Conflicting dependency versions for %s easyconfig: %s", ec['name'], check['name'])
-
-            minimal_list.extend(item_specs)
-
-        #minimal_list = nub(minimal_list) # Unique items only  # FIXME nub on list of dicts
-        return minimal_list
 
 def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=True, use_any_existing_modules=False):
     """

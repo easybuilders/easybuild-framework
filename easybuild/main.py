@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
-from easybuild.tools.robot import det_robot_path, dry_run, minimally_resolve_dependencies, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
@@ -281,8 +281,7 @@ def main(testing_data=(None, None, None)):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            #ordered_ecs = resolve_dependencies(easyconfigs)
-            ordered_ecs = minimally_resolve_dependencies(easyconfigs)
+            ordered_ecs = resolve_dependencies(easyconfigs)
         else:
             ordered_ecs = easyconfigs
     else:
@@ -336,7 +335,7 @@ def main(testing_data=(None, None, None)):
 
 
 if __name__ == "__main__":
-#    try:
+    try:
         main()
-#    except EasyBuildError, e:
-#        print_error(e.msg)
+    except EasyBuildError, e:
+        print_error(e.msg)
