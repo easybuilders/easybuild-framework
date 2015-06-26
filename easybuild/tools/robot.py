@@ -34,9 +34,7 @@ Dependency resolution functionality, a.k.a. robot.
 @author: Ward Poelmans (Ghent University)
 """
 import os
-from easybuild import toolchains
 from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.framework.easyconfig.tools import find_minimally_resolved_modules

@@ -40,11 +40,6 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 import os
 import sys
 from vsc.utils import fancylogger
-from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.config import build_option
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -82,6 +77,11 @@ from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
+from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.config import build_option
 import tempfile
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
