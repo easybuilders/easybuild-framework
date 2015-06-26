@@ -158,7 +158,7 @@ def get_toolchain_hierarchy(parent_toolchain):
             # Grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
             path = robot_find_easyconfig(current['name'],current['version'])
             if path is None:
-                _log.error("Could not find easyconfig for toolchain %s " % current)
+                raise EasyBuildError("Could not find easyconfig for toolchain %s " % current)
             # Parse the easyconfig
             parsed_ec = process_easyconfig(path)[0]
             # Search the dependencies for the version of the subtoolchain
@@ -178,8 +178,8 @@ def get_toolchain_hierarchy(parent_toolchain):
                     _log.info("No version found for subtoolchain %s in dependencies of %s"
                               % (subtoolchains[current], current))
             else:
-                _log.error("Multiple versions of %s found in dependencies of toolchain %s"
-                           % (subtoolchains[current], current))
+                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s"
+                                     % (subtoolchains[current], current))
             current = dep_tcs[0]
         else:
             break
