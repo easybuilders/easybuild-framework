@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
-from easybuild.framework.easyconfig.tools import find_minimally_resolved_modules, get_toolchain_hierarchy, refresh_dependencies
+from easybuild.framework.easyconfig.tools import find_minimally_resolved_modules
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -193,7 +193,6 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
                 candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
-
                 if candidates:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
@@ -216,7 +215,6 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
-                        entry['dependencies'] = refresh_dependencies(entry['dependencies'], cand_dep)
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]
                         dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:
@@ -248,7 +246,6 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
         raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
 
     _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
-
     return ordered_ecs
 
 
