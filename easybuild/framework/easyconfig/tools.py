@@ -217,6 +217,17 @@ def deep_refresh_dependencies(ec,altered_dep):
     """
     new_ec = ec.copy()
 
+    # Change all the various places the dependencies can appear
+    for deps in [new_ec['dependencies'],
+                 new_ec['hiddendependencies'],
+                 new_ec['unresolved_deps'],
+                 new_ec['builddependencies'],
+                 new_ec['ec']['dependencies'],
+                 new_ec['ec']['hiddendependencies'],
+                 new_ec['ec']['builddependencies']
+                 ]:
+        if deps:
+            deps = refresh_dependencies(deps,altered_dep)
 
     return new_ec
 
@@ -250,7 +261,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
                         if dep_resolved:
                             # Need to update the dependency in the original easyconfig
-                            new_ec=deep_refresh_dependencies(new_ec,dep)
+                            new_ec = deep_refresh_dependencies(new_ec,dep)
                             break
                 if not dep_resolved:
                     # If we can't resolve it, we find the minimal easyconfig for the resolution and update the dependency
@@ -262,7 +273,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             if dep['toolchain'] != orig_dep['toolchain']:
                                 _log.info("Minimally resolving dependency %s of %s with %s" %
                                           (cand_dep, ec['name'], eb_file))
-                                new_ec = deep_refresh_dependencies(new_ec, dep)
+                            new_ec = deep_refresh_dependencies(new_ec, dep)
                             found_minimal_easyconfig = True
                             break
                     # Now check for the existence of the module of the dep

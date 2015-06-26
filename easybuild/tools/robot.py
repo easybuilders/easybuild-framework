@@ -49,7 +49,6 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.toolchain.utilities import search_toolchain
 
-
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
@@ -289,7 +288,6 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
             if minimal_toolchains:
-                # We update the dependencies and check for existing modules
                 res = find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps,
                                                       use_any_existing_modules=use_any_existing_modules)
             else:
@@ -320,10 +318,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
                 candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
-                # For minimal resolution we cannot rely on dependencies being removed as they are resolved so
-                # we need to find the first dep that's not already in the avail_modules list
-                if minimal_toolchains:
-                    candidates = [d for d in candidates if not ActiveMNS().det_full_module_name(d) in avail_modules]
+
                 if candidates:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
@@ -378,6 +373,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
         raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
 
     _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
+    
     return ordered_ecs
 
 
