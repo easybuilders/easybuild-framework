@@ -206,7 +206,7 @@ class EasyBuildOptions(GeneralOption):
                             'strlist', 'extend', None),
             'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
-            'minimal_toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
+            'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
@@ -220,7 +220,7 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
-            'use_any_existing_modules': ("Use any existing module in minimal dependency resolution", None,
+            'use-any-existing_modules': ("Use any existing module in minimal dependency resolution", None,
                                          'store_true', False),
         })
 
