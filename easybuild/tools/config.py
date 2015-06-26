@@ -109,6 +109,7 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'force',
         'hidden',
+        'minimal_toolchains'
         'module_only',
         'robot',
         'sequential',
@@ -117,6 +118,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_any_existing_modules',
     ],
     True: [
         'cleanup_builddir',

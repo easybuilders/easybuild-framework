@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
+from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir, build_option
 from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -281,7 +281,9 @@ def main(testing_data=(None, None, None)):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs)
+            ordered_ecs = resolve_dependencies(easyconfigs,
+                                               minimal_toolchains = build_option('minimal_toolchains'),
+                                               use_any_existing_modules = build_option('use_any_existing_modules'))
         else:
             ordered_ecs = easyconfigs
     else:

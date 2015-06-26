@@ -76,7 +76,10 @@ def dry_run(easyconfigs, short=False):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs,
+                                         minimal_toolchains = build_option('minimal_toolchains'),
+                                         use_any_existing_modules = build_option('use_any_existing_modules'),
+                                         retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
@@ -112,7 +115,7 @@ def dry_run(easyconfigs, short=False):
     return '\n'.join(lines)
 
 
-def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=True, use_any_existing_modules=False):
+def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=False, use_any_existing_modules=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
@@ -244,6 +247,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
         raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
 
     _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
+    exit()
     return ordered_ecs
 
 
