@@ -71,17 +71,17 @@ except ImportError, err:
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.config import build_option
 import tempfile
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
