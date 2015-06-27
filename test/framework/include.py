@@ -97,7 +97,7 @@ class IncludeTest(EnhancedTestCase):
 
         # existing (test) easyblocks are unaffected
         import easybuild.easyblocks.foofoo
-        foofoo_path = os.path.dirname(easybuild.easyblocks.foofoo.__file__)
+        foofoo_path = os.path.dirname(os.path.dirname(easybuild.easyblocks.foofoo.__file__))
         self.assertTrue(os.path.samefile(foofoo_path, test_easyblocks))
 
     def test_include_easyblocks_priority(self):
@@ -106,7 +106,7 @@ class IncludeTest(EnhancedTestCase):
 
         # make sure that test 'foo' easyblocks is there
         import easybuild.easyblocks.foo
-        foo_path = os.path.dirname(easybuild.easyblocks.foo.__file__)
+        foo_path = os.path.dirname(os.path.dirname(easybuild.easyblocks.foo.__file__))
         self.assertTrue(os.path.samefile(foo_path, test_easyblocks))
 
         # inject custom 'foo' easyblocks
@@ -199,6 +199,7 @@ class IncludeTest(EnhancedTestCase):
         my_tc_pyc_path = easybuild.toolchains.my_tc.__file__
         my_tc_real_py_path = os.path.realpath(os.path.join(os.path.dirname(my_tc_pyc_path), 'my_tc.py'))
         self.assertTrue(os.path.samefile(up(my_tc_real_py_path, 1), my_toolchains))
+
 
 def suite():
     """ returns all the testcases in this module """

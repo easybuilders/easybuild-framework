@@ -425,10 +425,10 @@ class EasyBuildOptions(GeneralOption):
             fancylogger.logToFile(self.options.unittest_file)
 
         # set tmpdir
-        tmpdir = set_tmpdir(self.options.tmpdir)
+        self.tmpdir = set_tmpdir(self.options.tmpdir)
 
         # take --include options into account
-        self._postprocess_include(tmpdir)
+        self._postprocess_include()
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
@@ -498,17 +498,17 @@ class EasyBuildOptions(GeneralOption):
         self.options.external_modules_metadata = parsed_external_modules_metadata
         self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
 
-    def _postprocess_include(self, tmpdir):
+    def _postprocess_include(self):
         """Postprocess --include options."""
         # set up included easyblocks, module naming schemes and toolchains/toolchain components
         if self.options.include_easyblocks:
-            include_easyblocks(tmpdir, self.options.include_easyblocks)
+            include_easyblocks(self.tmpdir, self.options.include_easyblocks)
 
         if self.options.include_module_naming_schemes:
-            include_module_naming_schemes(tmpdir, self.options.include_module_naming_schemes)
+            include_module_naming_schemes(self.tmpdir, self.options.include_module_naming_schemes)
 
         if self.options.include_toolchains:
-            include_toolchains(tmpdir, self.options.include_toolchains)
+            include_toolchains(self.tmpdir, self.options.include_toolchains)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
@@ -596,9 +596,9 @@ class EasyBuildOptions(GeneralOption):
 
         # cleanup tmpdir
         try:
-            shutil.rmtree(self.options.tmpdir)
+            shutil.rmtree(self.tmpdir)
         except OSError as err:
-            raise EasyBuildError("Failed to clean up temporary directory %s: %s", self.options.tmpdir, err)
+            raise EasyBuildError("Failed to clean up temporary directory %s: %s", self.tmpdir, err)
 
         sys.exit(0)
 
@@ -658,8 +658,12 @@ class EasyBuildOptions(GeneralOption):
                         res = module_regexp.match(f)
                         if res:
                             easyblock = '%s.%s' % (package, res.group(1))
-                            __import__(easyblock)
-                            locations.update({easyblock: os.path.join(path, f)})
+                            if easyblock not in locations:
+                                __import__(easyblock)
+                                locations.update({easyblock: os.path.join(path, f)})
+                            else:
+                                self.log.debug("%s already imported from %s, ignoring %s",
+                                               easyblock, locations[easyblock], path)
 
         def add_class(classes, cls):
             """Add a new class, and all of its subclasses."""
@@ -693,7 +697,7 @@ class EasyBuildOptions(GeneralOption):
                 txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed))
                 txt.append("")
 
-        return "\n".join(txt)
+        return '\n'.join(txt)
 
     def avail_toolchains(self):
         """Show list of known toolchains."""

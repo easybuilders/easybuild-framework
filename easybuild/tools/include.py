@@ -28,13 +28,12 @@ Support for including additional Python modules, for easyblocks, module naming s
 
 @author: Kenneth Hoste (Ghent University)
 """
-import glob
 import os
 import sys
-from vsc.utils.missing import nub
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import expand_glob_paths, symlink
 # these are imported just to we can reload them later
 import easybuild.tools.module_naming_scheme
 import easybuild.toolchains
@@ -54,12 +53,34 @@ except ImportError:
 _log = fancylogger.getLogger('tools.include', fname=False)
 
 
+# body for __init__.py file in package directory, which takes care of making sure the package can be distributed
+# across multiple directories
 PKG_INIT_BODY = """
 from pkgutil import extend_path
+
+# extend path so Python knows this is not the only place to look for modules in this package
 __path__ = extend_path(__path__, __name__)
 """
 
-def create_pkg(path):
+# more extensive __init__.py specific to easybuild.easyblocks package;
+# this is required because of the way in which the easyblock Python modules are organised in the easybuild-easyblocks
+# repository, i.e. in first-letter subdirectories
+EASYBLOCKS_PKG_INIT_BODY = """
+from pkgutil import extend_path
+
+# extend path so Python finds our easyblocks in the subdirectories where they are located
+subdirs = [chr(l) for l in range(ord('a'), ord('z') + 1)] + ['0']
+for subdir in subdirs:
+    __path__ = extend_path(__path__, '%s.%s' % (__name__, subdir))
+
+# extend path so Python knows this is not the only place to look for modules in this package
+__path__ = extend_path(__path__, __name__)
+
+del subdir, subdirs, l
+"""
+
+
+def create_pkg(path, pkg_init_body=None):
     """Write package __init__.py file at specified path."""
     init_path = os.path.join(path, '__init__.py')
     try:
@@ -69,15 +90,25 @@ def create_pkg(path):
 
         # put __init__.py files in place, with required pkgutil.extend_path statement
         # note: can't use write_file, since that required build options to be initialised
-        handle = open(init_path, 'w')
-        handle.write(PKG_INIT_BODY)
-        handle.close()
+        with open(init_path, 'w') as handle:
+            if pkg_init_body is None:
+                handle.write(PKG_INIT_BODY)
+            else:
+                handle.write(pkg_init_body)
+
     except (IOError, OSError) as err:
-        raise EasyBuildError("Failed to write %s: %s", init_path, err)
+        raise EasyBuildError("Failed to create package at %s: %s", path, err)
 
 
-def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None):
-    """Set up new easybuild subnamespace in specified path."""
+def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None):
+    """
+    Set up new easybuild subnamespace in specified path.
+
+    @param parent_path: directory to create package in, using 'easybuild' namespace
+    @param eb_pkg_name: full package name, must start with 'easybuild'
+    @param subpkgs: list of subpackages to create
+    @parak pkg_init_body: body of package's __init__.py file (does not apply to subpackages)
+    """
     if not eb_pkg_name.startswith('easybuild'):
         raise EasyBuildError("Specified EasyBuild package name does not start with 'easybuild': %s", eb_pkg_name)
 
@@ -90,33 +121,16 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None):
 
     # creata package dirs on each level
     while pkgpath != parent_path:
-        create_pkg(pkgpath)
+        create_pkg(pkgpath, pkg_init_body=pkg_init_body)
         pkgpath = os.path.dirname(pkgpath)
-
-
-def expand_glob_paths(glob_paths):
-    """Expand specified glob paths to a list of unique non-glob paths to only files."""
-    paths = []
-    for glob_path in glob_paths:
-        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
-
-    return nub(paths)
-
-
-def safe_symlink(source_path, symlink_path):
-    """Create a symlink at the specified path for the given path."""
-    try:
-        os.symlink(os.path.abspath(source_path), symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
     easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
 
-    set_up_eb_package(easyblocks_path, 'easybuild.easyblocks', subpkgs=['generic'])
+    set_up_eb_package(easyblocks_path, 'easybuild.easyblocks',
+                      subpkgs=['generic'], pkg_init_body=EASYBLOCKS_PKG_INIT_BODY)
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
@@ -131,12 +145,12 @@ def include_easyblocks(tmpdir, paths):
         else:
             target_path = os.path.join(easyblocks_dir, filename)
 
-        safe_symlink(easyblock_module, target_path)
+        symlink(easyblock_module, target_path)
 
     included_easyblocks = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
     included_generic_easyblocks = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
-    _log.debug("Included generic easyblocks: %s", included_easyblocks)
-    _log.debug("Included software-specific easyblocks: %s", included_generic_easyblocks)
+    _log.debug("Included generic easyblocks: %s", included_generic_easyblocks)
+    _log.debug("Included software-specific easyblocks: %s", included_easyblocks)
 
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, easyblocks_path)
@@ -160,7 +174,7 @@ def include_module_naming_schemes(tmpdir, paths):
     for mns_module in allpaths:
         filename = os.path.basename(mns_module)
         target_path = os.path.join(mns_dir, filename)
-        safe_symlink(mns_module, target_path)
+        symlink(mns_module, target_path)
 
     included_mns = [x for x in os.listdir(mns_dir) if x not in ['__init__.py']]
     _log.debug("Included module naming schemes: %s", included_mns)
@@ -193,7 +207,7 @@ def include_toolchains(tmpdir, paths):
         else:
             target_path = os.path.join(toolchains_dir, filename)
 
-        safe_symlink(toolchain_module, target_path)
+        symlink(toolchain_module, target_path)
 
     included_toolchains = [x for x in os.listdir(toolchains_dir) if x not in ['__init__.py'] + toolchain_subpkgs]
     _log.debug("Included toolchains: %s", included_toolchains)
