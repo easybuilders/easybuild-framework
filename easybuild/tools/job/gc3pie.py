@@ -46,6 +46,7 @@ _log = fancylogger.getLogger('gc3pie', fname=False)
 
 try:
     import gc3libs
+    import gc3libs.exceptions
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
@@ -88,7 +89,7 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
-    REQ_VERSION = '2.3.0'
+    REQ_VERSION = '2.3'
     DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
     REQ_SVN_REVISION = 4223  # use integer value, not a string!
 
@@ -103,7 +104,7 @@ class GC3Pie(JobBackend):
         if res:
             version = res.group('version')
             svn_rev = int(res.group('svn_rev'))
-            _log.debug("Parsed GC3Pie version info: '%s' (SVN rev: '%s')", version, svn_rev)
+            self.log.debug("Parsed GC3Pie version info: '%s' (SVN rev: '%s')", version, svn_rev)
 
             if version == self.DEVELOPMENT_VERSION:
                 # fall back to checking SVN revision for development versions
@@ -133,7 +134,7 @@ class GC3Pie(JobBackend):
         if cfgfile:
             self.config_files.append(cfgfile)
 
-        # additional subdirectory, since GC3Pie cleans up the output dir?!
+        # additional subdirectory, since GC3Pie cleans up the output dir!
         self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
 
@@ -182,13 +183,12 @@ class GC3Pie(JobBackend):
             # join stdout/stderr in a single log
             'join': True,
             # location for log file
-            # FIXME: does GC3Pie blindly remove this entire directory?!
             'output_dir': self.output_dir,
             # log file name
             'stdout': 'eb-%s-gc3pie-job.log' % name,
         })
 
-        # resources
+        # walltime
         max_walltime = build_option('job_max_walltime')
         if hours is None:
             hours = max_walltime
@@ -199,6 +199,10 @@ class GC3Pie(JobBackend):
 
         if cores:
             named_args['requested_cores'] = cores
+        elif build_option('job_cores'):
+            named_args['requested_cores'] = build_option('job_cores')
+        else:
+            self.log.warn("Number of cores to request not specified, falling back to whatever GC3Pie does by default")
 
         return Application(['/bin/sh', '-c', script], **named_args)
 
@@ -219,7 +223,11 @@ class GC3Pie(JobBackend):
         Create engine, and progress it until all jobs have terminated.
         """
         # create an instance of `Engine` using the list of configuration files
-        self._engine = create_engine(*self.config_files)
+        try:
+            self._engine = create_engine(*self.config_files)
+
+        except gc3libs.exceptions.Error as err:
+            raise EasyBuildError("Failed to create GC3Pie engine: %s", err)
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of

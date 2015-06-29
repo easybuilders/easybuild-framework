@@ -141,12 +141,12 @@ class PbsPython(JobBackend):
         """
         for job in self._submitted:
             if job.has_holds():
-                _log.info("releasing user hold on job %s" % job.jobid)
+                self.log.info("releasing user hold on job %s" % job.jobid)
                 job.release_hold()
         self.disconnect_from_server()
         if self._submitted:
             submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
-            _log.info("List of submitted jobs: %s", submitted_jobs)
+            self.log.info("List of submitted jobs: %s", submitted_jobs)
 
     @pbs_python_imported
     def disconnect_from_server(self):
@@ -170,7 +170,7 @@ class PbsPython(JobBackend):
 
             # return most frequent
             freq_count, freq_np = max([(j, i) for i, j in res.items()])
-            _log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+            self.log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
 
             self._ppn = freq_np
 
