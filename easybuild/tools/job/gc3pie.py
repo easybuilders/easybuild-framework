@@ -134,7 +134,7 @@ class GC3Pie(JobBackend):
         if cfgfile:
             self.config_files.append(cfgfile)
 
-        # additional subdirectory, since GC3Pie cleans up the output dir?!
+        # additional subdirectory, since GC3Pie cleans up the output dir!
         self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
 
@@ -183,7 +183,6 @@ class GC3Pie(JobBackend):
             # join stdout/stderr in a single log
             'join': True,
             # location for log file
-            # FIXME: does GC3Pie blindly remove this entire directory?!
             'output_dir': self.output_dir,
             # log file name
             'stdout': 'eb-%s-gc3pie-job.log' % name,
@@ -203,7 +202,7 @@ class GC3Pie(JobBackend):
         elif build_option('job_cores'):
             named_args['requested_cores'] = build_option('job_cores')
         else:
-            # FIXME: ask GC3Pie to guess core count per node (see _get_ppn in job/pbs_python.py)
+            self.log.warn("Number of cores to request not specified, falling back to whatever GC3Pie does by default")
 
         return Application(['/bin/sh', '-c', script], **named_args)
 
