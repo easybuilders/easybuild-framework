@@ -56,11 +56,13 @@ def flatten(lst):
     return res
 
 
-def quote_str(x):
+def quote_str(x, force_str=False):
     """
     Obtain a new value to be used in string replacement context.
 
     For non-string values, it just returns the exact same value.
+    Non-string values can be converted to string by setting the second
+    parameter to True.
 
     For string values, it tries to escape the string in quotes, e.g.,
     foo becomes 'foo', foo'bar becomes "foo'bar",
@@ -68,14 +70,17 @@ def quote_str(x):
     """
 
     if isinstance(x, basestring):
-        if "'" in x and '"' in x:
+        if '\n' in x or ("'" in x and '"' in x):
             return '"""%s"""' % x
         elif '"' in x:
             return "'%s'" % x
         else:
             return '"%s"' % x
     else:
-        return x
+	if force_str:
+            return str(x)
+	else:
+	    return x
 
 
 def remove_unwanted_chars(inputstring):

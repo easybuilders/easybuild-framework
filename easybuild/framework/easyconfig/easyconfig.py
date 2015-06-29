@@ -54,7 +54,7 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import remove_unwanted_chars, quote_str
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -472,18 +472,6 @@ class EasyConfig(object):
         """
         eb_file = file(fp, "w")
 
-        def to_str(x):
-            """Return quoted version of x"""
-            if isinstance(x, basestring):
-                if '\n' in x or ('"' in x and "'" in x):
-                    return '"""%s"""' % x
-                elif "'" in x:
-                    return '"%s"' % x
-                else:
-                    return "'%s'" % x
-            else:
-                return "%s" % x
-
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
             ['name', 'version', 'versionprefix', 'versionsuffix'],
@@ -505,14 +493,14 @@ class EasyConfig(object):
                 for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
                     # only print parameters that are different from the default value
                     if key1 == key2 and val != def_val:
-                        ebtxt.append("%s = %s" % (key1, to_str(val)))
+                        ebtxt.append("%s = %s" % (key1, quote_str(val, True)))
                         printed_keys.append(key1)
             ebtxt.append("")
 
         # print other easyconfig parameters at the end
         for key, [val, _, _] in DEFAULT_CONFIG.items():
             if not key in printed_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, to_str(self._config[key][0])))
+                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], True)))
 
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
