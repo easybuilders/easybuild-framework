@@ -56,7 +56,7 @@ def flatten(lst):
     return res
 
 
-def quote_str(x, force_str=False):
+def quote_str(x):
     """
     Obtain a new value to be used in string replacement context.
 
@@ -77,10 +77,7 @@ def quote_str(x, force_str=False):
         else:
             return '"%s"' % x
     else:
-	if force_str:
-            return str(x)
-	else:
-	    return x
+	return x
 
 
 def remove_unwanted_chars(inputstring):

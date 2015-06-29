@@ -1,0 +1,20 @@
+name = "Libint"
+version = "1.1.4"
+
+homepage = "https://sourceforge.net/p/libint/"
+description = """Libint library is used to evaluate the traditional (electron repulsion) and certain novel two-body
+matrix elements (integrals) over Cartesian Gaussian functions used in modern atomic and molecular theory."""
+
+toolchain = {'version': '1.4.10', 'name': 'goolf'}
+toolchainopts = {'opt': True, 'optarch': True, 'pic': True}
+
+source_urls = ('http://sourceforge.net/projects/libint/files/v1-releases/', 'download')
+sources = ['%(namelower)s-%(version)s.tar.gz']
+
+
+
+
+
+moduleclass = "chem"
+sanity_check_paths = {'files': ['include/libderiv/libderiv.h', 'include/libint/libint.h', 'include/libr12/libr12.h', 'include/libint/hrr_header.h', 'include/libint/vrr_header.h', 'lib/libderiv.a', 'lib/libint.a', 'lib/libr12.a', 'lib/libderiv.so', 'lib/libint.so', 'lib/libr12.so'], 'dirs': []}
+configopts = "--enable-deriv --enable-r12"
