@@ -55,6 +55,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
 
@@ -1131,6 +1132,25 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'], [])
+
+    def test_quote_str(self):
+        """Test quote_str function."""
+        self.assertEqual(quote_str('foo'), '"foo"')
+        # FIXME: add more test cases
+
+    def test_dump(self):
+        """Test EasyConfig's dump() method."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+        ec.dump(test_ec)
+        ectxt = read_file(test_ec)
+        version_regex = re.compile('^version = "0.0"', re.M)
+        self.assertTrue(version_regex.search(ectxt))
+        # FIXME: add more test cases (using easyconfigs available in test/framework/easyconfigs)
+
 
 def suite():
     """ returns all the testcases in this module """
