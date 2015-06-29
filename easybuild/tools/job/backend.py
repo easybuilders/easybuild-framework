@@ -27,6 +27,7 @@
 
 from abc import ABCMeta, abstractmethod
 
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.config import get_job_backend
@@ -38,6 +39,7 @@ class JobBackend(object):
 
     def __init__(self):
         """Constructor."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self._check_version()
 
     @abstractmethod

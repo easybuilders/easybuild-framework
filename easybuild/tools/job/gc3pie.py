@@ -89,7 +89,7 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
-    REQ_VERSION = '2.3.0'
+    REQ_VERSION = '2.3'
     DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
     REQ_SVN_REVISION = 4223  # use integer value, not a string!
 
@@ -104,7 +104,7 @@ class GC3Pie(JobBackend):
         if res:
             version = res.group('version')
             svn_rev = int(res.group('svn_rev'))
-            _log.debug("Parsed GC3Pie version info: '%s' (SVN rev: '%s')", version, svn_rev)
+            self.log.debug("Parsed GC3Pie version info: '%s' (SVN rev: '%s')", version, svn_rev)
 
             if version == self.DEVELOPMENT_VERSION:
                 # fall back to checking SVN revision for development versions
