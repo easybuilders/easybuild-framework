@@ -1136,7 +1136,20 @@ class EasyConfigTest(EnhancedTestCase):
     def test_quote_str(self):
         """Test quote_str function."""
         self.assertEqual(quote_str('foo'), '"foo"')
-        # FIXME: add more test cases
+	self.assertEqual(quote_str('foo\'bar'), '"foo\'bar"')
+	self.assertEqual(quote_str('foo\'bar"baz'), '"""foo\'bar"baz"""')
+	self.assertEqual(quote_str("foo'bar\"baz"), '"""foo\'bar"baz"""')
+	self.assertEqual(quote_str("foo \n bar"), '"""foo \n bar"""')	
+
+	""" Non-string values """
+	n = 42
+	self.assertEqual(quote_str(n), 42)
+	l = ["foo", "bar"]
+        self.assertEqual(quote_str(l), ["foo", "bar"])
+	t = ('foo', 'bar')
+	self.assertEqual(quote_str(t), ('foo', 'bar')) 
+	 
+	
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
