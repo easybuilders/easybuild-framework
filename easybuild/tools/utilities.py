@@ -61,8 +61,6 @@ def quote_str(x):
     Obtain a new value to be used in string replacement context.
 
     For non-string values, it just returns the exact same value.
-    Non-string values can be converted to string by setting the second
-    parameter to True.
 
     For string values, it tries to escape the string in quotes, e.g.,
     foo becomes 'foo', foo'bar becomes "foo'bar",
