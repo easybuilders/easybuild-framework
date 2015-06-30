@@ -134,7 +134,7 @@ class GC3Pie(JobBackend):
         if cfgfile:
             self.config_files.append(cfgfile)
 
-        # additional subdirectory, since GC3Pie cleans up the output dir!
+        # additional subdirectory, since GC3Pie renames the output dir if it already exists
         self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
 
