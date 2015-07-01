@@ -1155,9 +1155,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(quote_str(n), 42)
         l = ["foo", "bar"]
         self.assertEqual(quote_str(l), ["foo", "bar"])
-        self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar')) 
-	 
-	
+        self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
+
+
     def test_dump(self):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
@@ -1168,12 +1168,12 @@ class EasyConfigTest(EnhancedTestCase):
             ec = EasyConfig(os.path.join(test_ecs_dir, f))
             ec.dump(test_ec)
             ectxt = read_file(test_ec)
-            name_regex = re.compile('^name = "[^"]*"', re.M)
-            description_regex = re.compile('^description = "[^"]*"', re.M)
-            version_regex = re.compile('^version = [0-9\.]*', re.M)
-            self.assertTrue(name_regex.search(ectxt))
-            self.assertTrue(description_regex.search(ectxt))
-            self.assertTrue(version_regex.search(ectxt))
+
+            patterns = [r'^name = ["\']', r'^version = ["0-9\.]', r'^description = ["\']']
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
             # parse result again
             dumped_ec = EasyConfig(test_ec)
 

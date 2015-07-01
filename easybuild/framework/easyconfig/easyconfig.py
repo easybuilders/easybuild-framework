@@ -488,10 +488,7 @@ class EasyConfig(object):
             ['parallel', 'maxparallel'],
         ]
 
-        last_keys = [
-            ['sanity_check_paths'],
-            ['moduleclass'],
-        ]
+        last_keys = ['sanity_check_paths', 'moduleclass']
 
         def check_and_print(keyset):
             """
@@ -499,13 +496,13 @@ class EasyConfig(object):
             """
             for group in keyset:
                 printed = False
-                for key1 in group:
-                    val = self._config[key1][0]
-                    for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
-                        # only print parameters that are different from the default value
-                        if key1 == key2 and val != def_val:
-                            ebtxt.append("%s = %s" % (key1, quote_str(val, escape_newline=True)))
-                            printed_keys.append(key1)
+                for key in group:
+                    val = self._config[key][0]
+                    if key in DEFAULT_CONFIG:
+                        def_val = DEFAULT_CONFIG[key]
+                        if val not in def_val:
+                            ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
+                            printed_keys.append(key)
                             printed = True
                 if printed:
                     ebtxt.append("")
@@ -517,12 +514,12 @@ class EasyConfig(object):
         check_and_print(grouped_keys)
 
         # print other easyconfig parameters at the end
-        for key, [val, _, _] in DEFAULT_CONFIG.items():
-            if not key in printed_keys and not key in [k for sublist in last_keys for k in sublist] and val != self._config[key][0]:
+        for key, [val, _, _] in sorted(DEFAULT_CONFIG.items()):
+            if key not in printed_keys and key not in last_keys and val != self._config[key][0]:
                 ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], escape_newline=True)))
 
         # print last two parameters
-        check_and_print(last_keys)
+        check_and_print([[k] for k in last_keys])
 
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
