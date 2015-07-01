@@ -249,16 +249,16 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report(['total', 'NEW', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
+            self._print_status_report(['NEW', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
 
             # Wait a few seconds...
             time.sleep(self.poll_interval)
 
         # final status report
-        self._print_status_report(['total', 'ok', 'failed'])
+        self._print_status_report(['ok', 'failed'])
 
     @gc3pie_imported
-    def _print_status_report(self, states=('total', 'ok', 'failed')):
+    def _print_status_report(self, states=('ok', 'failed')):
         """
         Print a job status report to STDOUT and the log file.
 
@@ -269,5 +269,6 @@ class GC3Pie(JobBackend):
         report the number of total jobs right from the start.
         """
         stats = self._engine.stats(only=Application)
-        job_overview = ', '.join(["%d %s" % (stats[s], s.lower()) for s in states if stats[s]])
-        print_msg("GC3Pie job overview: %s" % job_overview, log=_log, silent=build_option('silent'))
+        overview = ', '.join(["%d %s" % (stats[s], s.lower()) for s in states if stats[s]])
+        total = len(self.jobs)
+        print_msg("GC3Pie job overview: %s (total: %s)" % (overview, total), log=_log, silent=build_option('silent'))
