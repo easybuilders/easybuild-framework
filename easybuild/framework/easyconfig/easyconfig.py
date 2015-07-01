@@ -39,7 +39,6 @@ import copy
 import difflib
 import os
 import re
-import textwrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
