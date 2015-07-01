@@ -497,15 +497,12 @@ class EasyConfig(object):
             for group in keyset:
                 printed = False
                 for key in group:
-                    if key in DEFAULT_CONFIG:
-                        val = self._config[key][0]
-                        def_val = DEFAULT_CONFIG[key]
-                        if val not in def_val:
-                            ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
-                            printed_keys.append(key)
-                            printed = True
-                    else:
-                        raise KeyError('"' + key + '" is not a valid key')
+                    val = self._config[key][0]
+                    def_val = DEFAULT_CONFIG[key]
+                    if val not in def_val:
+                        ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
+                        printed_keys.append(key)
+                        printed = True
                 if printed:
                     ebtxt.append("")
 
