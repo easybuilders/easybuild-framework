@@ -75,7 +75,7 @@ def quote_str(x, esc_newline=False):
         else:
             return '"%s"' % x
     else:
-	    return x
+        return x
 
 
 def remove_unwanted_chars(inputstring):
