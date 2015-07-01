@@ -69,12 +69,12 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
 
-    job_backend = job_backend()
-    if job_backend is None:
+    live_job_backend = job_backend()
+    if live_job_backend is None:
         raise EasyBuildError("Can not use --job if no job backend is available.")
 
     try:
-        job_backend.init()
+        live_job_backend.init()
     except RuntimeError as err:
         raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
 
@@ -94,13 +94,13 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(job_backend, build_command, ec, output_dir=output_dir)
+        new_job = create_job(live_job_backend, build_command, ec, output_dir=output_dir)
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [module_to_job[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in module_to_job]
 
         # actually (try to) submit job
-        job_backend.queue(new_job, job_deps)
+        live_job_backend.queue(new_job, job_deps)
         _log.info(
             "job %s for module %s has been submitted"
             % (new_job, new_job.module))
@@ -109,7 +109,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
         module_to_job[new_job.module] = new_job
         jobs.append(new_job)
 
-    job_backend.complete()
+    live_job_backend.complete()
 
     return jobs
 
