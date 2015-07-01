@@ -30,7 +30,7 @@ Interface for submitting jobs via GC3Pie.
 @author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
-import os
+from time import gmtime, strftime
 import re
 import time
 
@@ -134,8 +134,7 @@ class GC3Pie(JobBackend):
         if cfgfile:
             self.config_files.append(cfgfile)
 
-        # additional subdirectory, since GC3Pie renames the output dir if it already exists
-        self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
+        self.output_dir = build_option('job_output_dir')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
 
         # after polling for job status, sleep for this time duration
@@ -184,8 +183,8 @@ class GC3Pie(JobBackend):
             'join': True,
             # location for log file
             'output_dir': self.output_dir,
-            # log file name
-            'stdout': 'eb-%s-gc3pie-job.log' % name,
+            # log file name (including timestamp to try and ensure unique filename)
+            'stdout': 'eb-%s-gc3pie-job-%s.log' % (name, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
         })
 
         # walltime
@@ -228,6 +227,10 @@ class GC3Pie(JobBackend):
 
         except gc3libs.exceptions.Error as err:
             raise EasyBuildError("Failed to create GC3Pie engine: %s", err)
+
+        # make sure that all job log files end up in the same directory, rather than renaming the output directory
+        # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
+        self._engine.fetch_output_overwrites = True
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
