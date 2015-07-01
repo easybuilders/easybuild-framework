@@ -39,6 +39,7 @@ import copy
 import difflib
 import os
 import re
+import textwrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
@@ -507,33 +508,10 @@ class EasyConfig(object):
             if not key in printed_keys and val != self._config[key][0]:
                 ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], esc_newline=True)))
 
-        eb_file.write(self.wrap('\n'.join(ebtxt), width=120))
+        eb_file.write('\n'.join(ebtxt))
         eb_file.close()
 
     
-    def wrap(self, text, width=80):
-        """ 
-        Word-wrap function to use in dump()
-        Source: http://code.activestate.com/recipes/148061-one-liner-word-wrap-function/
-        """
-        lines = []
-        for paragraph in text.split('\n'):
-            line = []
-            len_line = 0
-            for word in paragraph.split(' '):
-                len_word = len(word)
-                if len_line + len_word <= width:
-                    line.append(word)
-                    len_line += len_word + 1
-                else:
-                    lines.append(' '.join(line))
-                    line = [word]
-                    len_line = len_word + 1
-            lines.append(' '.join(line))
-        return '\n'.join(lines)
-
-
-
     def _validate(self, attr, values):  # private method
         """
         validation helper method. attr is the attribute it will check, values are the possible values.
