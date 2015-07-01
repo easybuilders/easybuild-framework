@@ -489,12 +489,14 @@ class EasyConfig(object):
         ]
 
         last_keys = [
-            ['sanity_check_paths'], 
+            ['sanity_check_paths'],
             ['moduleclass'],
         ]
 
-        # internal function; checks for default values
         def check_and_print(keyset):
+            """
+            Internal function checking for default values
+            """
             for group in keyset:
                 printed = False
                 for key1 in group:
@@ -516,7 +518,7 @@ class EasyConfig(object):
 
         # print other easyconfig parameters at the end
         for key, [val, _, _] in DEFAULT_CONFIG.items():
-            if not key in printed_keys and not key in ['sanity_check_paths', 'moduleclass'] and val != self._config[key][0]:
+            if not key in printed_keys and not key in [k for sublist in last_keys for k in sublist] and val != self._config[key][0]:
                 ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], escape_newline=True)))
 
         # print last two parameters
@@ -524,7 +526,7 @@ class EasyConfig(object):
 
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
-    
+
     def _validate(self, attr, values):  # private method
         """
         validation helper method. attr is the attribute it will check, values are the possible values.
