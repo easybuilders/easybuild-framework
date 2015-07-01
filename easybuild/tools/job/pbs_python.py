@@ -148,7 +148,7 @@ class PbsPython(JobBackend):
 
         # print list of submitted jobs
         submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
-        print_msg("List of submitted jobs (%d): %s" % (len(submitted_jobs), submitted_jobs), log=self.log)
+        print_msg("List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs), log=self.log)
 
         # determine leaf nodes in dependency graph, and report them
         all_deps = set()
