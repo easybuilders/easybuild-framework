@@ -249,27 +249,25 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report(['NEW', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
+            self._print_status_report()
 
             # Wait a few seconds...
             time.sleep(self.poll_interval)
 
         # final status report
         print_msg("Done processing jobs", log=self.log)
-        self._print_status_report(['ok', 'failed'])
+        self._print_status_report()
 
     @gc3pie_imported
-    def _print_status_report(self, states=('ok', 'failed')):
+    def _print_status_report(self):
         """
         Print a job status report to STDOUT and the log file.
 
-        The number of jobs in any of the given states is reported; the
+        The number of jobs in each states is reported; the
         figures are extracted from the `stats()` method of the
-        currently-running GC3Pie engine.  Additional keyword arguments
-        can override specific stats; this is used, e.g., to correctly
-        report the number of total jobs right from the start.
+        currently-running GC3Pie engine.
         """
         stats = self._engine.stats(only=Application)
-        overview = ', '.join(["%d %s" % (stats[s], s.lower()) for s in states if stats[s]])
+        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if stats[s]])
         total = len(self.jobs)
-        print_msg("GC3Pie job overview: %s (total: %s)" % (overview, total), log=self.log, silent=build_option('silent'))
+        print_msg("GC3Pie job overview: %s (total: %s)" % (states, total), log=self.log, silent=build_option('silent'))
