@@ -53,9 +53,7 @@ def _to_key(dep):
     """Determine key for specified dependency."""
     return ActiveMNS().det_full_module_name(dep)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs,
-                                  output_dir='easybuild-build',
-                                  prepare_first=True):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', prepare_first=True):
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
     Return list of jobs submitted.
@@ -67,15 +65,16 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
     @param build_command: build command to use
     @param easyconfigs: list of easyconfig files
     @param output_dir: output directory
+    @param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
 
-    job_server = job_backend()
-    if job_server is None:
+    job_backend = job_backend()
+    if job_backend is None:
         raise EasyBuildError("Can not use --job if no job backend is available.")
 
     try:
-        job_server.init()
+        job_backend.init()
     except RuntimeError as err:
         raise EasyBuildError("connection to server failed (%s: %s), can't submit jobs.", err.__class__.__name__, err)
 
@@ -95,13 +94,13 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(job_server, build_command, ec, output_dir=output_dir)
+        new_job = create_job(job_backend, build_command, ec, output_dir=output_dir)
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [module_to_job[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in module_to_job]
 
         # actually (try to) submit job
-        job_server.queue(new_job, job_deps)
+        job_backend.queue(new_job, job_deps)
         _log.info(
             "job %s for module %s has been submitted"
             % (new_job, new_job.module))
@@ -110,7 +109,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs,
         module_to_job[new_job.module] = new_job
         jobs.append(new_job)
 
-    job_server.complete()
+    job_backend.complete()
 
     return jobs
 
@@ -139,15 +138,14 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
-        jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
-        return ("%d jobs required for build." % (len(jobs),))
+        build_easyconfigs_in_parallel(command, ordered_ecs)
 
 
-def create_job(job_server, build_command, easyconfig, output_dir='easybuild-build'):
+def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build'):
     """
     Creates a job to build a *single* easyconfig.
 
-    @param job_server: A factory object for querying server parameters and creating actual job objects
+    @param job_backend: A factory object for querying server parameters and creating actual job objects
     @param build_command: format string for command, full path to an easyconfig file will be substituted in it
     @param easyconfig: easyconfig as processed by process_easyconfig
     @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
@@ -184,7 +182,7 @@ def create_job(job_server, build_command, easyconfig, output_dir='easybuild-buil
         previous_time = buildstats[-1]['build_time']
         extra['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = job_server.make_job(command, name, easybuild_vars, **extra)
+    job = job_backend.make_job(command, name, easybuild_vars, **extra)
     job.module = easyconfig['ec'].full_mod_name
 
     return job

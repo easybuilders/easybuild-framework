@@ -255,6 +255,7 @@ class GC3Pie(JobBackend):
             time.sleep(self.poll_interval)
 
         # final status report
+        print_msg("Done processing jobs", log=self.log)
         self._print_status_report(['ok', 'failed'])
 
     @gc3pie_imported
@@ -271,4 +272,4 @@ class GC3Pie(JobBackend):
         stats = self._engine.stats(only=Application)
         overview = ', '.join(["%d %s" % (stats[s], s.lower()) for s in states if stats[s]])
         total = len(self.jobs)
-        print_msg("GC3Pie job overview: %s (total: %s)" % (overview, total), log=_log, silent=build_option('silent'))
+        print_msg("GC3Pie job overview: %s (total: %s)" % (overview, total), log=self.log, silent=build_option('silent'))

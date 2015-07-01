@@ -35,7 +35,7 @@ import re
 import tempfile
 from vsc.utils import fancylogger
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.job.backend import JobBackend
 
@@ -143,10 +143,24 @@ class PbsPython(JobBackend):
             if job.has_holds():
                 self.log.info("releasing user hold on job %s" % job.jobid)
                 job.release_hold()
+
         self.disconnect_from_server()
-        if self._submitted:
-            submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
-            self.log.info("List of submitted jobs: %s", submitted_jobs)
+
+        # print list of submitted jobs
+        submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
+        print_msg("List of submitted jobs (%d): %s" % (len(submitted_jobs), submitted_jobs), log=self.log)
+
+        # determine leaf nodes in dependency graph, and report them
+        all_deps = set()
+        for job in self._submitted:
+            all_deps = all_deps.union(job.deps)
+
+        leaf_nodes = []
+        for job in self._submitted:
+            if job.jobid not in all_deps:
+                leaf_nodes.append(str(job.jobid).split('.')[0])
+
+        self.log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
 
     @pbs_python_imported
     def disconnect_from_server(self):
