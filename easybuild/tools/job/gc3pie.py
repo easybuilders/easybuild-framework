@@ -268,6 +268,6 @@ class GC3Pie(JobBackend):
         currently-running GC3Pie engine.
         """
         stats = self._engine.stats(only=Application)
-        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if stats[s]])
+        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
         total = len(self.jobs)
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, total), log=self.log, silent=build_option('silent'))
