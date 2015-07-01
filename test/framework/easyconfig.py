@@ -1135,12 +1135,22 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_quote_str(self):
         """Test quote_str function."""
-        self.assertEqual(quote_str('foo'), '"foo"')
-        self.assertEqual(quote_str('foo\'bar'), '"foo\'bar"')
-        self.assertEqual(quote_str('foo\'bar"baz'), '"""foo\'bar"baz"""')
-        self.assertEqual(quote_str("foo'bar\"baz"), '"""foo\'bar"baz"""')
+        teststrings = {
+            'foo' : '"foo"',
+            'foo\'bar' : '"foo\'bar"',
+            'foo\'bar"baz' : '"""foo\'bar"baz"""',
+            "foo'bar\"baz" : '"""foo\'bar"baz"""',
+            "foo\nbar" : '"foo\nbar"'
+        }
 
-        """ Non-string values """
+        for t in teststrings:
+            self.assertEqual(quote_str(t), teststrings[t])
+
+        # test escape_newline
+        self.assertEqual(quote_str("foo\nbar", escape_newline=False), '"foo\nbar"')
+        self.assertEqual(quote_str("foo\nbar", escape_newline=True), '"""foo\nbar"""')
+
+        # non-string values
         n = 42
         self.assertEqual(quote_str(n), 42)
         l = ["foo", "bar"]
@@ -1152,28 +1162,20 @@ class EasyConfigTest(EnhancedTestCase):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
 
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec2 = os.path.join(self.test_prefix, 'test2.eb')
+        for f in ['toy-0.0.eb', 'goolf-1.4.10.eb', 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb']:
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
 
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
-        ec.dump(test_ec)
-        ectxt = read_file(test_ec)
-        version_regex = re.compile('^version = "0.0"', re.M)
-        self.assertTrue(version_regex.search(ectxt))
-        description_regex = re.compile('^description = "Toy C program."', re.M)
-        self.assertTrue(description_regex.search(ectxt))
-        """ Parse the result again """ 
-        dumped_ec = EasyConfig(test_ec)
-
-        ec2 = EasyConfig(os.path.join(test_ecs_dir, 'goolf-1.4.10.eb'))
-        ec2.dump(test_ec2)
-        ectxt2 = read_file(test_ec2)
-        name_regex = re.compile('^name = "goolf"', re.M)
-        self.assertTrue(name_regex.search(ectxt2))
-        moduleclass_regex = re.compile('^moduleclass = "toolchain"', re.M)
-        self.assertTrue(moduleclass_regex.search(ectxt2))
-
-        dumped_ec2 = EasyConfig(test_ec2)
+            ec = EasyConfig(os.path.join(test_ecs_dir, f))
+            ec.dump(test_ec)
+            ectxt = read_file(test_ec)
+            name_regex = re.compile('^name = "[^"]*"', re.M)
+            description_regex = re.compile('^description = "[^"]*"', re.M)
+            version_regex = re.compile('^version = [0-9\.]*', re.M)
+            self.assertTrue(name_regex.search(ectxt))
+            self.assertTrue(description_regex.search(ectxt))
+            self.assertTrue(version_regex.search(ectxt))
+            # parse result again
+            dumped_ec = EasyConfig(test_ec)
 
 
 def suite():

@@ -466,7 +466,6 @@ class EasyConfig(object):
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
 
-
     def dump(self, fp):
         """
         Dump this easyconfig to file, with the given filename.
@@ -482,34 +481,49 @@ class EasyConfig(object):
             ['sources', 'source_urls'],
             ['patches'],
             ['builddependencies', 'dependencies', 'hiddendependencies'],
-            ['parallel', 'maxparallel'],
             ['osdependencies'],
-            ['prebuildopts', 'preinstallopts', 'preconfigopts'],
-            ['sanity_check_paths'],
-            ['moduleclass']
+            ['preconfigopts', 'configopts'],
+            ['prebuildopts', 'buildopts'],
+            ['preinstallopts', 'installopts'],
+            ['parallel', 'maxparallel'],
         ]
+
+        last_keys = [
+            ['sanity_check_paths'], 
+            ['moduleclass'],
+        ]
+
+        # internal function; checks for default values
+        def check_and_print(keyset):
+            for group in keyset:
+                printed = False
+                for key1 in group:
+                    val = self._config[key1][0]
+                    for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
+                        # only print parameters that are different from the default value
+                        if key1 == key2 and val != def_val:
+                            ebtxt.append("%s = %s" % (key1, quote_str(val, escape_newline=True)))
+                            printed_keys.append(key1)
+                            printed = True
+                if printed:
+                    ebtxt.append("")
+
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
         printed_keys = []
-        for group in grouped_keys:
-            for key1 in group:
-                val = self._config[key1][0]
-                for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
-                    # only print parameters that are different from the default value
-                    if key1 == key2 and val != def_val:
-                        ebtxt.append("%s = %s" % (key1, quote_str(val, esc_newline=True)))
-                        printed_keys.append(key1)
-            ebtxt.append("")
+        check_and_print(grouped_keys)
 
         # print other easyconfig parameters at the end
         for key, [val, _, _] in DEFAULT_CONFIG.items():
-            if not key in printed_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], esc_newline=True)))
+            if not key in printed_keys and not key in ['sanity_check_paths', 'moduleclass'] and val != self._config[key][0]:
+                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], escape_newline=True)))
+
+        # print last two parameters
+        check_and_print(last_keys)
 
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
-
     
     def _validate(self, attr, values):  # private method
         """

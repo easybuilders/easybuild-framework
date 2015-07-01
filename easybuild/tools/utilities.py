@@ -56,19 +56,21 @@ def flatten(lst):
     return res
 
 
-def quote_str(x, esc_newline=False):
+def quote_str(x, escape_newline=False):
     """
     Obtain a new value to be used in string replacement context.
 
     For non-string values, it just returns the exact same value.
-
+    
     For string values, it tries to escape the string in quotes, e.g.,
     foo becomes 'foo', foo'bar becomes "foo'bar",
     foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
+
+    @param escape_newline: wrap strings that include a newline in triple quotes
     """
 
     if isinstance(x, basestring):
-        if ("'" in x and '"' in x) or (esc_newline and '\n' in x):
+        if ("'" in x and '"' in x) or (escape_newline and '\n' in x):
             return '"""%s"""' % x
         elif '"' in x:
             return "'%s'" % x
