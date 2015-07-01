@@ -249,8 +249,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             tcl_load_msg = '\n'.join([
                 '',
                 "if { [ module-info mode load ] } {",
-                "    puts stderr \"\"\"test \\$test \\$test",
-                "test \\$foo \\$bar\"\"\"",
+                "    puts stderr \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
                 "}",
                 '',
             ])

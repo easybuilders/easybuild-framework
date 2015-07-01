@@ -466,6 +466,7 @@ class EasyConfig(object):
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
 
+
     def dump(self, fp):
         """
         Dump this easyconfig to file, with the given filename.
@@ -474,14 +475,18 @@ class EasyConfig(object):
 
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
+            ['easyblock'],
             ['name', 'version', 'versionprefix', 'versionsuffix'],
             ['homepage', 'description'],
             ['toolchain', 'toolchainopts'],
-            ['source_urls', 'sources'],
+            ['sources', 'source_urls'],
             ['patches'],
             ['builddependencies', 'dependencies', 'hiddendependencies'],
             ['parallel', 'maxparallel'],
-            ['osdependencies']
+            ['osdependencies'],
+            ['prebuildopts', 'preinstallopts', 'preconfigopts'],
+            ['sanity_check_paths'],
+            ['moduleclass']
         ]
 
         # print easyconfig parameters ordered and in groups specified above
@@ -493,17 +498,41 @@ class EasyConfig(object):
                 for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
                     # only print parameters that are different from the default value
                     if key1 == key2 and val != def_val:
-                        ebtxt.append("%s = %s" % (key1, quote_str(val)))
+                        ebtxt.append("%s = %s" % (key1, quote_str(val, esc_newline=True)))
                         printed_keys.append(key1)
             ebtxt.append("")
 
         # print other easyconfig parameters at the end
         for key, [val, _, _] in DEFAULT_CONFIG.items():
             if not key in printed_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0])))
+                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], esc_newline=True)))
 
-        eb_file.write('\n'.join(ebtxt))
+        eb_file.write(self.wrap('\n'.join(ebtxt), width=120))
         eb_file.close()
+
+    
+    def wrap(self, text, width=80):
+        """ 
+        Word-wrap function to use in dump()
+        Source: http://code.activestate.com/recipes/148061-one-liner-word-wrap-function/
+        """
+        lines = []
+        for paragraph in text.split('\n'):
+            line = []
+            len_line = 0
+            for word in paragraph.split(' '):
+                len_word = len(word)
+                if len_line + len_word <= width:
+                    line.append(word)
+                    len_line += len_word + 1
+                else:
+                    lines.append(' '.join(line))
+                    line = [word]
+                    len_line = len_word + 1
+            lines.append(' '.join(line))
+        return '\n'.join(lines)
+
+
 
     def _validate(self, attr, values):  # private method
         """
