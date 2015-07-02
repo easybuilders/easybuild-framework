@@ -30,7 +30,7 @@ Interface for submitting jobs via GC3Pie.
 @author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
-import os
+from time import gmtime, strftime
 import re
 import time
 
@@ -134,8 +134,7 @@ class GC3Pie(JobBackend):
         if cfgfile:
             self.config_files.append(cfgfile)
 
-        # additional subdirectory, since GC3Pie renames the output dir if it already exists
-        self.output_dir = os.path.join(build_option('job_output_dir'), 'eb-gc3pie-jobs')
+        self.output_dir = build_option('job_output_dir')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
 
         # after polling for job status, sleep for this time duration
@@ -184,8 +183,8 @@ class GC3Pie(JobBackend):
             'join': True,
             # location for log file
             'output_dir': self.output_dir,
-            # log file name
-            'stdout': 'eb-%s-gc3pie-job.log' % name,
+            # log file name (including timestamp to try and ensure unique filename)
+            'stdout': 'eb-%s-gc3pie-job-%s.log' % (name, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
         })
 
         # walltime
@@ -229,6 +228,10 @@ class GC3Pie(JobBackend):
         except gc3libs.exceptions.Error as err:
             raise EasyBuildError("Failed to create GC3Pie engine: %s", err)
 
+        # make sure that all job log files end up in the same directory, rather than renaming the output directory
+        # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
+        self._engine.fetch_output_overwrites = True
+
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
@@ -249,25 +252,25 @@ class GC3Pie(JobBackend):
             self._engine.progress()
 
             # report progress
-            self._print_status_report(['total', 'NEW', 'SUBMITTED', 'RUNNING', 'ok', 'failed'])
+            self._print_status_report()
 
             # Wait a few seconds...
             time.sleep(self.poll_interval)
 
         # final status report
-        self._print_status_report(['total', 'ok', 'failed'])
+        print_msg("Done processing jobs", log=self.log)
+        self._print_status_report()
 
     @gc3pie_imported
-    def _print_status_report(self, states=('total', 'ok', 'failed')):
+    def _print_status_report(self):
         """
         Print a job status report to STDOUT and the log file.
 
-        The number of jobs in any of the given states is reported; the
+        The number of jobs in each states is reported; the
         figures are extracted from the `stats()` method of the
-        currently-running GC3Pie engine.  Additional keyword arguments
-        can override specific stats; this is used, e.g., to correctly
-        report the number of total jobs right from the start.
+        currently-running GC3Pie engine.
         """
         stats = self._engine.stats(only=Application)
-        job_overview = ', '.join(["%d %s" % (stats[s], s.lower()) for s in states if stats[s]])
-        print_msg("GC3Pie job overview: %s" % job_overview, log=_log, silent=build_option('silent'))
+        states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
+        total = len(self.jobs)
+        print_msg("GC3Pie job overview: %s (total: %s)" % (states, total), log=self.log, silent=build_option('silent'))
