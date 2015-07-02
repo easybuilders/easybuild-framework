@@ -28,13 +28,14 @@ Unit tests for parallelbuild.py
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import stat
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
@@ -137,10 +138,16 @@ class ParallelBuildTest(EnhancedTestCase):
         gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
         write_file(gc3pie_cfgfile, GC3PIE_LOCAL_CONFIGURATION % {'resourcedir': resourcedir})
 
+        output_dir = os.path.join(self.test_prefix, 'subdir', 'gc3pie_output_dir')
+        mkdir(output_dir, parents=True)
+        # remove write permissions on parent dir of specified output dir,
+        # to check that GC3Pie does not try to rename the (already existing) output directory...
+        adjust_permissions(os.path.dirname(output_dir), stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
+
         build_options = {
             'job_backend_config': gc3pie_cfgfile,
             'job_max_walltime': 24,
-            'job_output_dir': self.test_prefix,
+            'job_output_dir': output_dir,
             'job_polling_interval': 0.2,  # quick polling
             'job_target_resource': 'ebtestlocalhost',
             'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),

@@ -57,6 +57,10 @@ try:
     # make handling of log.error compatible with stdlib logging
     gc3libs.log.raiseError = False
 
+    # instruct GC3Pie to not ignore errors, but raise exceptions instead
+    #gc3libs.UNIGNORE_ALL_ERRORS = True
+    gc3libs.UNIGNORE_ERRORS = set(['fetch_output'])
+
     # GC3Pie is available, no need guard against import errors
     def gc3pie_imported(fn):
         """No-op decorator."""
