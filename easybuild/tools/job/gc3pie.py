@@ -58,8 +58,7 @@ try:
     gc3libs.log.raiseError = False
 
     # instruct GC3Pie to not ignore errors, but raise exceptions instead
-    #gc3libs.UNIGNORE_ALL_ERRORS = True
-    gc3libs.UNIGNORE_ERRORS = set(['fetch_output'])
+    gc3libs.UNIGNORE_ALL_ERRORS = True
 
     # GC3Pie is available, no need guard against import errors
     def gc3pie_imported(fn):
@@ -237,7 +236,7 @@ class GC3Pie(JobBackend):
 
         # make sure that all job log files end up in the same directory, rather than renaming the output directory
         # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
-        self._engine.fetch_output_overwrites = True
+        self._engine.retrieve_overwrites = True
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
@@ -265,7 +264,7 @@ class GC3Pie(JobBackend):
             time.sleep(self.poll_interval)
 
         # final status report
-        print_msg("Done processing jobs", log=self.log)
+        print_msg("Done processing jobs", log=self.log, silent=build_option('silent'))
         self._print_status_report()
 
     @gc3pie_imported
