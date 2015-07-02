@@ -1177,6 +1177,28 @@ class EasyConfigTest(EnhancedTestCase):
             # parse result again
             dumped_ec = EasyConfig(test_ec)
 
+    def test_dump_extra(self):
+        """Test EasyConfig's dump() method for files containing extra values"""
+
+        rawtxt = '\n'.join([
+            "easyblock = 'EB_foo'",
+            "name = 'foo'",
+            "version = '0.0.1'",
+            "description = 'foo description'",
+            "homepage = 'http://foo.com/'",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "foo_extra1 = 'foobar'",
+        ])
+
+        testec = os.path.join(self.test_prefix, 'test.eb')
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(testec)
+        extra_regex = re.compile(r'^foo_extra1 = "foobar"', re.M)
+        self.assertTrue(extra_regex.search(read_file(testec)))
+
+        dumped_ec = EasyConfig(testec)
+
 
 def suite():
     """ returns all the testcases in this module """
