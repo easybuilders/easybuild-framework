@@ -214,6 +214,7 @@ class GC3Pie(JobBackend):
         @param dependencies: jobs on which this job depends.
         """
         self.jobs.add(job, dependencies)
+        # since it's not trivial to determine the correct job count from self.jobs, we keep track of a count ourselves
         self.job_cnt += 1
 
     @gc3pie_imported
