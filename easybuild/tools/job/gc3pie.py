@@ -136,6 +136,7 @@ class GC3Pie(JobBackend):
 
         self.output_dir = build_option('job_output_dir')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
+        self.job_cnt = 0
 
         # after polling for job status, sleep for this time duration
         # before polling again (in seconds)
@@ -213,6 +214,7 @@ class GC3Pie(JobBackend):
         @param dependencies: jobs on which this job depends.
         """
         self.jobs.add(job, dependencies)
+        self.job_cnt += 1
 
     @gc3pie_imported
     def complete(self):
@@ -266,11 +268,11 @@ class GC3Pie(JobBackend):
         """
         Print a job status report to STDOUT and the log file.
 
-        The number of jobs in each states is reported; the
+        The number of jobs in each state is reported; the
         figures are extracted from the `stats()` method of the
         currently-running GC3Pie engine.
         """
         stats = self._engine.stats(only=Application)
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
-        total = len(self.jobs)
-        print_msg("GC3Pie job overview: %s (total: %s)" % (states, total), log=self.log, silent=build_option('silent'))
+        print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
+                  log=self.log, silent=build_option('silent'))
