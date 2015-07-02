@@ -502,9 +502,8 @@ class EasyConfig(object):
             for group in keyset:
                 printed = False
                 for key in group:
-                    val = self._config[key][0]
-                    if val != default_values[key]:
-                        ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
+                    if self[key] != default_values[key]:
+                        ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
                         printed_keys.append(key)
                         printed = True
                 if printed:
@@ -516,9 +515,10 @@ class EasyConfig(object):
         include_defined_parameters(grouped_keys)
 
         # print other easyconfig parameters at the end
-        for (key, val) in default_values.items():
-            if key not in printed_keys and key not in last_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], escape_newline=True)))
+        keys_to_ignore = printed_keys + last_keys
+        for key in default_values:
+            if key not in keys_to_ignore and default_values[key] != self[key]:
+                ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
         ebtxt.append("")
 
         # print last two parameters
