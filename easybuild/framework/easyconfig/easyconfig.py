@@ -490,9 +490,9 @@ class EasyConfig(object):
 
         last_keys = ['sanity_check_paths', 'moduleclass']
 
-        def check_and_print(keyset):
+        def include_defined_parameters(keyset):
             """
-            Internal function checking for default values
+            Internal function to include parameters in the dumped easyconfig file which have a non-default value.
             """
             for group in keyset:
                 printed = False
@@ -510,15 +510,16 @@ class EasyConfig(object):
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
         printed_keys = []
-        check_and_print(grouped_keys)
+        include_defined_parameters(grouped_keys)
 
         # print other easyconfig parameters at the end
         for key, [val, _, _] in sorted(DEFAULT_CONFIG.items()):
             if key not in printed_keys and key not in last_keys and val != self._config[key][0]:
                 ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], escape_newline=True)))
+        ebtxt.append("")
 
         # print last two parameters
-        check_and_print([[k] for k in last_keys])
+        include_defined_parameters([[k] for k in last_keys])
 
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
