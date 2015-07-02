@@ -57,6 +57,9 @@ try:
     # make handling of log.error compatible with stdlib logging
     gc3libs.log.raiseError = False
 
+    # instruct GC3Pie to not ignore errors, but raise exceptions instead
+    gc3libs.UNIGNORE_ALL_ERRORS = True
+
     # GC3Pie is available, no need guard against import errors
     def gc3pie_imported(fn):
         """No-op decorator."""
@@ -136,6 +139,7 @@ class GC3Pie(JobBackend):
 
         self.output_dir = build_option('job_output_dir')
         self.jobs = DependentTaskCollection(output_dir=self.output_dir)
+        self.job_cnt = 0
 
         # after polling for job status, sleep for this time duration
         # before polling again (in seconds)
@@ -213,6 +217,8 @@ class GC3Pie(JobBackend):
         @param dependencies: jobs on which this job depends.
         """
         self.jobs.add(job, dependencies)
+        # since it's not trivial to determine the correct job count from self.jobs, we keep track of a count ourselves
+        self.job_cnt += 1
 
     @gc3pie_imported
     def complete(self):
@@ -230,7 +236,7 @@ class GC3Pie(JobBackend):
 
         # make sure that all job log files end up in the same directory, rather than renaming the output directory
         # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
-        self._engine.fetch_output_overwrites = True
+        self._engine.retrieve_overwrites = True
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
@@ -258,7 +264,7 @@ class GC3Pie(JobBackend):
             time.sleep(self.poll_interval)
 
         # final status report
-        print_msg("Done processing jobs", log=self.log)
+        print_msg("Done processing jobs", log=self.log, silent=build_option('silent'))
         self._print_status_report()
 
     @gc3pie_imported
@@ -266,11 +272,11 @@ class GC3Pie(JobBackend):
         """
         Print a job status report to STDOUT and the log file.
 
-        The number of jobs in each states is reported; the
+        The number of jobs in each state is reported; the
         figures are extracted from the `stats()` method of the
         currently-running GC3Pie engine.
         """
         stats = self._engine.stats(only=Application)
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
-        total = len(self.jobs)
-        print_msg("GC3Pie job overview: %s (total: %s)" % (states, total), log=self.log, silent=build_option('silent'))
+        print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
+                  log=self.log, silent=build_option('silent'))

@@ -28,13 +28,14 @@ Unit tests for parallelbuild.py
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import stat
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
@@ -56,6 +57,7 @@ architecture = x86_64
 auth = none
 override = no
 resourcedir = %(resourcedir)s
+time_cmd = %(time)s
 """
 
 def mock(*args, **kwargs):
@@ -135,12 +137,25 @@ class ParallelBuildTest(EnhancedTestCase):
         # put GC3Pie config in place to use local host and fork/exec
         resourcedir = os.path.join(self.test_prefix, 'gc3pie')
         gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
-        write_file(gc3pie_cfgfile, GC3PIE_LOCAL_CONFIGURATION % {'resourcedir': resourcedir})
+        gc3pie_cfgtxt = GC3PIE_LOCAL_CONFIGURATION % {
+            'resourcedir': resourcedir,
+            'time': which('time'),
+        }
+        write_file(gc3pie_cfgfile, gc3pie_cfgtxt)
+
+        output_dir = os.path.join(self.test_prefix, 'subdir', 'gc3pie_output_dir')
+        # purposely pre-create output dir, and put a file in it (to check whether GC3Pie tries to rename the output dir)
+        mkdir(output_dir, parents=True)
+        write_file(os.path.join(output_dir, 'foo'), 'bar')
+        # remove write permissions on parent dir of specified output dir,
+        # to check that GC3Pie does not try to rename the (already existing) output directory...
+        adjust_permissions(os.path.dirname(output_dir), stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH,
+                           add=False, recursive=False)
 
         build_options = {
             'job_backend_config': gc3pie_cfgfile,
             'job_max_walltime': 24,
-            'job_output_dir': self.test_prefix,
+            'job_output_dir': output_dir,
             'job_polling_interval': 0.2,  # quick polling
             'job_target_resource': 'ebtestlocalhost',
             'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
@@ -160,6 +175,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0'))
         self.assertTrue(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy'))
+
 
 def suite():
     """ returns all the testcases in this module """
