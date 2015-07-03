@@ -1699,6 +1699,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
+        # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.foo']
+
         # include extra test easyblocks
         foo_txt = '\n'.join([
             'from easybuild.framework.easyblock import EasyBlock',
