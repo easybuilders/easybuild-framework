@@ -517,14 +517,14 @@ class EasyConfig(object):
         # print other easyconfig parameters at the end
         keys_to_ignore = printed_keys + last_keys
         for key in default_values:
-            if key not in keys_to_ignore and default_values[key] != self[key]:
+            if key not in keys_to_ignore and self[key] != default_values[key]:
                 ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
         ebtxt.append("")
 
         # print last two parameters
         include_defined_parameters([[k] for k in last_keys])
 
-        eb_file.write('\n'.join(ebtxt))
+        eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
 
     def _validate(self, attr, values):  # private method
