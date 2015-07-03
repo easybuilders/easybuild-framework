@@ -176,8 +176,8 @@ def get_toolchain_hierarchy(parent_toolchain):
                     break
                 else:
                     _log.info("Your toolchain hierarchy is not fully populated!")
-                    _log.info("No version found for subtoolchain %s in dependencies of %s"
-                              % (subtoolchains[current], current))
+                    EasyBuildError("No version found for subtoolchain %s in dependencies of %s"
+                                   % (subtoolchains[current], current))
             else:
                 raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s"
                                      % (subtoolchains[current], current))
