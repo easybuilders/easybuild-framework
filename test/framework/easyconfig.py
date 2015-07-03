@@ -56,6 +56,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
 
@@ -1154,6 +1155,79 @@ class EasyConfigTest(EnhancedTestCase):
         # set/nub also work
         self.assertEqual(list(set([ec_gcc463, ec_gcc463_bis, ec_gcc463])), [ec_gcc463])
         self.assertEqual(nub([ec_gcc463, ec_gcc492, ec_gcc463_bis]), [ec_gcc463_bis, ec_gcc492])
+
+    def test_quote_str(self):
+        """Test quote_str function."""
+        teststrings = {
+            'foo' : '"foo"',
+            'foo\'bar' : '"foo\'bar"',
+            'foo\'bar"baz' : '"""foo\'bar"baz"""',
+            "foo'bar\"baz" : '"""foo\'bar"baz"""',
+            "foo\nbar" : '"foo\nbar"'
+        }
+
+        for t in teststrings:
+            self.assertEqual(quote_str(t), teststrings[t])
+
+        # test escape_newline
+        self.assertEqual(quote_str("foo\nbar", escape_newline=False), '"foo\nbar"')
+        self.assertEqual(quote_str("foo\nbar", escape_newline=True), '"""foo\nbar"""')
+
+        # non-string values
+        n = 42
+        self.assertEqual(quote_str(n), 42)
+        l = ["foo", "bar"]
+        self.assertEqual(quote_str(l), ["foo", "bar"])
+        self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
+
+
+    def test_dump(self):
+        """Test EasyConfig's dump() method."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        for f in ['toy-0.0.eb', 'goolf-1.4.10.eb', 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb']:
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+            ec = EasyConfig(os.path.join(test_ecs_dir, f))
+            ec.dump(test_ec)
+            ectxt = read_file(test_ec)
+
+            patterns = [r'^name = ["\']', r'^version = ["0-9\.]', r'^description = ["\']']
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+            # parse result again
+            dumped_ec = EasyConfig(test_ec)
+
+    def test_dump_extra(self):
+        """Test EasyConfig's dump() method for files containing extra values"""
+
+        rawtxt = '\n'.join([
+            'easyblock = "EB_foo"',
+            '',
+            'name = "foo"',
+            'version = "0.0.1"',
+            '',
+            'homepage = "http://foo.com/"',
+            'description = "foo description"',
+            '',
+            'toolchain = {\'version\': \'dummy\', \'name\': \'dummy\'}',
+            '',
+            'foo_extra1 = "foobar"',
+        ])
+
+        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        os.close(handle)
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(testec)
+        ectxt = read_file(testec)
+        self.assertEqual(rawtxt, ectxt)
+
+        dumped_ec = EasyConfig(testec)
+
+>>>>>>> ef23a12a9b8866c77fb1ae68b3e73cab51e19bdd
 
 def suite():
     """ returns all the testcases in this module """
