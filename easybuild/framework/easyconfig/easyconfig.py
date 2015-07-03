@@ -498,7 +498,12 @@ class EasyConfig(object):
         default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
         default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
+        self.generate_template_values()
         templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
+        templ_const.update([(self.template_values[key], key) for key in self.template_values if key != ''])
+
+        for i in templ_const:
+            print i
 
         def include_defined_parameters(keyset):
             """
@@ -933,6 +938,7 @@ def replace_templates(value, templ_const):
         - templ_const is a dictionary of constants
     """
     if isinstance(value, basestring):
+        # TODO replace template values, not only constants
         value = templ_const.get(value, value)
 
     else:
