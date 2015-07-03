@@ -1191,8 +1191,6 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             'toolchain = {\'version\': \'dummy\', \'name\': \'dummy\'}',
             '',
-            'sources = [\'%(name)sV%(version)s.TAR.gz\']',
-            '',
             'foo_extra1 = "foobar"',
         ])
 
@@ -1205,6 +1203,32 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(rawtxt, ectxt)
 
         dumped_ec = EasyConfig(testec)
+
+    def test_dump_template(self):
+        """ Test EasyConfig's dump() method for files containing templates"""
+        rawtxt = '\n'.join([
+            'easyblock = "EB_toy"',
+            '',
+            'name = "foo"',
+            'version = "0.0.1"',
+            '',
+            'homepage = "http://foo.com/"',
+            'description = "foo description"',
+            '',
+            'toolchain = {\'version\': \'dummy\', \'name\': \'dummy\'}',
+            '',
+            'sources = [\'%(namelower)s-%(version)s.TAR.gz\']',
+        ])
+
+        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        os.close(handle)
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(testec)
+        ectxt = read_file(testec)
+
+        regex = re.compile(r'sources \= \[\'SOURCELOWER_TAR_GZ\'\]', re.M)
+        self.assertTrue(regex.search(ectxt))
 
 
 def suite():
