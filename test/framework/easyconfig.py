@@ -1178,7 +1178,7 @@ class EasyConfigTest(EnhancedTestCase):
             dumped_ec = EasyConfig(test_ec)
 
     def test_dump_extra(self):
-        """Test EasyConfig's dump() method for files containing extra values and templates"""
+        """Test EasyConfig's dump() method for files containing extra values"""
 
         rawtxt = '\n'.join([
             'easyblock = "EB_foo"',
