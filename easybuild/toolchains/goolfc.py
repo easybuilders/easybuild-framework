@@ -33,7 +33,7 @@ from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
-class Goolfc(GccCUDA, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
+class Goolfc(Gompic, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolfc'
     SUBTOOLCHAIN = Gompic.NAME
