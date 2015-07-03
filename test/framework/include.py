@@ -122,12 +122,15 @@ class IncludeTest(EnhancedTestCase):
             "   pass",
         ])
         write_file(os.path.join(myeasyblocks, 'foo.py'), foo_easyblock_txt)
-        included_easyblocks_path = include_easyblocks(self.test_prefix, [os.path.join(myeasyblocks, 'foo.py')])
+        include_easyblocks(self.test_prefix, [os.path.join(myeasyblocks, 'foo.py')])
 
         foo_pyc_path = easybuild.easyblocks.foo.__file__
         foo_real_py_path = os.path.realpath(os.path.join(os.path.dirname(foo_pyc_path), 'foo.py'))
         self.assertFalse(os.path.samefile(os.path.dirname(foo_pyc_path), test_easyblocks))
         self.assertTrue(os.path.samefile(foo_real_py_path, os.path.join(myeasyblocks, 'foo.py')))
+
+        # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.foo']
 
     def test_include_mns(self):
         """Test include_module_naming_schemes()."""
