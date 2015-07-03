@@ -125,6 +125,24 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
         pkgpath = os.path.dirname(pkgpath)
 
 
+def verify_imports(pymods, pypkg, from_path):
+    """Verify that import of specified modules from specified package and expected location works."""
+    for pymod in pymods:
+        pymod_spec = '%s.%s' % (pypkg, pymod)
+        try:
+            pymod = __import__(pymod_spec, fromlist=[pypkg])
+        # different types of exceptions may be thrown, not only ImportErrors
+        # e.g. when module being imported contains syntax errors or undefined variables
+        except Exception as err:
+            raise EasyBuildError("Failed to import easyblock %s from %s: %s", pymod_spec, from_path, err)
+
+        if not os.path.samefile(os.path.dirname(pymod.__file__), from_path):
+            raise EasyBuildError("Module %s not imported from expected location (%s): %s",
+                                 pymod_spec, from_path, pymod.__file__)
+
+        _log.debug("Import of %s from %s verified", pymod_spec, from_path)
+
+
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
     easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
@@ -147,10 +165,10 @@ def include_easyblocks(tmpdir, paths):
 
         symlink(easyblock_module, target_path)
 
-    included_easyblocks = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
-    included_generic_easyblocks = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
-    _log.debug("Included generic easyblocks: %s", included_generic_easyblocks)
-    _log.debug("Included software-specific easyblocks: %s", included_easyblocks)
+    included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
+    included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
+    _log.debug("Included generic easyblocks: %s", included_generic_ebs)
+    _log.debug("Included software-specific easyblocks: %s", included_ebs)
 
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, easyblocks_path)
@@ -158,6 +176,12 @@ def include_easyblocks(tmpdir, paths):
     if 'easybuild.easyblocks' in sys.modules:
         reload(easybuild.easyblocks)
         reload(easybuild.easyblocks.generic)
+
+    # sanity check: verify that included easyblocks can be imported (from expected location)
+    for subdir, ebs in [('', included_ebs), ('generic', included_generic_ebs)]:
+        pkg = '.'.join(['easybuild', 'easyblocks', subdir]).strip('.')
+        loc = os.path.join(easyblocks_dir, subdir)
+        verify_imports([os.path.splitext(eb)[0] for eb in ebs], pkg, loc)
 
     return easyblocks_path
 
@@ -183,6 +207,9 @@ def include_module_naming_schemes(tmpdir, paths):
     sys.path.insert(0, mns_path)
     reload(easybuild.tools.module_naming_scheme)
 
+    # sanity check: verify that included module naming schemes can be imported (from expected location)
+    verify_imports([os.path.splitext(mns)[0] for mns in included_mns], 'easybuild.tools.module_naming_scheme', mns_dir)
+
     return mns_path
 
 
@@ -193,7 +220,7 @@ def include_toolchains(tmpdir, paths):
 
     set_up_eb_package(toolchains_path, 'easybuild.toolchains', subpkgs=toolchain_subpkgs)
 
-    toolchains_dir = os.path.join(toolchains_path, 'easybuild', 'toolchains')
+    tcs_dir = os.path.join(toolchains_path, 'easybuild', 'toolchains')
 
     allpaths = expand_glob_paths(paths)
     for toolchain_module in allpaths:
@@ -203,22 +230,31 @@ def include_toolchains(tmpdir, paths):
 
         # generic toolchains are expected to be in a directory named 'generic'
         if parent_dir in toolchain_subpkgs:
-            target_path = os.path.join(toolchains_dir, parent_dir, filename)
+            target_path = os.path.join(tcs_dir, parent_dir, filename)
         else:
-            target_path = os.path.join(toolchains_dir, filename)
+            target_path = os.path.join(tcs_dir, filename)
 
         symlink(toolchain_module, target_path)
 
-    included_toolchains = [x for x in os.listdir(toolchains_dir) if x not in ['__init__.py'] + toolchain_subpkgs]
+    included_toolchains = [x for x in os.listdir(tcs_dir) if x not in ['__init__.py'] + toolchain_subpkgs]
     _log.debug("Included toolchains: %s", included_toolchains)
+
+    included_subpkg_modules = {}
     for subpkg in toolchain_subpkgs:
-        included_subpkg_modules = [x for x in os.listdir(os.path.join(toolchains_dir, subpkg)) if x != '__init__.py']
-        _log.debug("Included toolchain %s components: %s", subpkg, included_subpkg_modules)
+        included_subpkg_modules[subpkg] = [x for x in os.listdir(os.path.join(tcs_dir, subpkg)) if x != '__init__.py']
+        _log.debug("Included toolchain %s components: %s", subpkg, included_subpkg_modules[subpkg])
 
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, toolchains_path)
     reload(easybuild.toolchains)
     for subpkg in toolchain_subpkgs:
         reload(sys.modules['easybuild.toolchains.%s' % subpkg])
+
+    # sanity check: verify that included toolchain modules can be imported (from expected location)
+    verify_imports([os.path.splitext(mns)[0] for mns in included_toolchains], 'easybuild.toolchains', tcs_dir)
+    for subpkg in toolchain_subpkgs:
+        pkg = '.'.join(['easybuild', 'toolchains', subpkg])
+        loc = os.path.join(tcs_dir, subpkg)
+        verify_imports([os.path.splitext(tcmod)[0] for tcmod in included_subpkg_modules[subpkg]], pkg, loc)
 
     return toolchains_path
