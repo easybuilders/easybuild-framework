@@ -491,6 +491,9 @@ class EasyConfig(object):
 
         last_keys = ['sanity_check_paths', 'moduleclass']
 
+        tmp = self.enable_templating
+        self.enable_templating = False
+
         # build dict of default values
         default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
         default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
@@ -526,6 +529,8 @@ class EasyConfig(object):
 
         eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
+
+        self.enable_tamplating = tmp
 
     def _validate(self, attr, values):  # private method
         """
