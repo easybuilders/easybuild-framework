@@ -35,3 +35,4 @@ class Gpsmpi(Gmpich):
     NAME = 'gpsmpi'
     # Use Parastation naming
     MPI_MODULE_NAME = ["psmpi"]
+    SUBTOOLCHAIN = Gmpich.SUBTOOLCHAIN
