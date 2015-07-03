@@ -945,7 +945,7 @@ def replace_templates(value, templ_const):
     return value
 
 
-def process_easyconfig(path,ecess_easyconfigbuild_specs=None, validate=True, parse_only=False, hidden=None):
+def process_easyconfig(path,build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
