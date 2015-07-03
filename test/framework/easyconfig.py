@@ -1227,8 +1227,6 @@ class EasyConfigTest(EnhancedTestCase):
 
         dumped_ec = EasyConfig(testec)
 
->>>>>>> ef23a12a9b8866c77fb1ae68b3e73cab51e19bdd
-
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(EasyConfigTest)
