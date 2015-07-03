@@ -171,8 +171,9 @@ def get_toolchain_hierarchy(parent_toolchain):
                 toolchain_list += [dep_tcs[0]]
             elif len(unique_versions) == 0:
                 # Check if we have dummy toolchain
-                if subtoolchains[current] == DUMMY_TOOLCHAIN_NAME:
+                if subtoolchains[current['name']] == DUMMY_TOOLCHAIN_NAME:
                     toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
+                    break
                 else:
                     _log.info("Your toolchain hierarchy is not fully populated!")
                     _log.info("No version found for subtoolchain %s in dependencies of %s"
