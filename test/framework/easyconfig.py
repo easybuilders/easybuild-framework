@@ -1189,7 +1189,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://foo.com/"',
             'description = "foo description"',
             '',
-            'toolchain = {\'version\': \'dummy\', \'name\': \'dummy\'}',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             'foo_extra1 = "foobar"',
         ])
@@ -1215,9 +1215,9 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://foo.com/"',
             'description = "foo description"',
             '',
-            'toolchain = {\'version\': \'dummy\', \'name\': \'dummy\'}',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
-            'sources = [\'%(namelower)s-%(version)s.TAR.gz\']',
+            "sources = ['%(namelower)s-%(version)s.tar.gz']",
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')

@@ -63,8 +63,8 @@ from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import template_constant_dict
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import template_constant_dict, TEMPLATE_CONSTANTS
+
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
@@ -491,30 +491,14 @@ class EasyConfig(object):
 
         last_keys = ['sanity_check_paths', 'moduleclass']
 
-        tmp = self.enable_templating
-        self.enable_templating = False
+        orig_enable_templating = self.enable_templating
+        self.enable_templating = False # templated values should be dumped unresolved
 
         # build dict of default values
         default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
         default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
-        template_values = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
-
-        def replace_templates(value):
-            """ Internal function to replace certain values with constants"""
-            if isinstance(value, basestring):
-                value = template_values.get(value.lower(), value)
-
-            else:
-                if isinstance(value, list):
-                    value = [replace_templates(v) for v in value]
-                elif isinstance(value, tuple):
-                    value = tuple(replace_templates(list(value)))
-                elif isinstance(value, dict):
-                    value = dict([(key, replace_templates(v)) for key, v in value.items()])
-
-            return value
-
+        templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
 
         def include_defined_parameters(keyset):
             """
@@ -524,7 +508,7 @@ class EasyConfig(object):
                 printed = False
                 for key in group:
                     if self[key] != default_values[key]:
-                        val = replace_templates(self[key])
+                        val = replace_templates(self[key], templ_const)
                         ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
                         printed_keys.append(key)
                         printed = True
@@ -549,7 +533,7 @@ class EasyConfig(object):
         eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
 
-        self.enable_tamplating = tmp
+        self.enable_tamplating = orig_enable_templating
 
     def _validate(self, attr, values):  # private method
         """
@@ -942,8 +926,26 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
+def replace_templates(value, templ_const):
+    """
+    Given a value, try to substitute constants where possible.
+        - value can be a string, list, tuple, dict or combination thereof
+        - templ_const is a dictionary of constants
+    """
+    if isinstance(value, basestring):
+        value = templ_const.get(value, value)
 
-def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
+    else:
+        if isinstance(value, list):
+            value = [replace_templates(v, templ_const) for v in value]
+        elif isinstance(value, tuple):
+            value = tuple(replace_templates(list(value), templ_const))
+        elif isinstance(value, dict):
+            value = dict([(key, replace_templates(v, templ_const)) for key, v in value.items()])
+    return value
+
+
+def process_easyconfig(path,ecess_easyconfigbuild_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
