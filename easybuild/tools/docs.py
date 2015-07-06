@@ -34,25 +34,27 @@ Documentation-related functionality
 @author: Ward Poelmans (Ghent University)
 """
 import copy
+import os
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
+from easybuild.easyblocks.generic.configuremake import ConfigureMake
 
 
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
+
+def det_col_width(entries, title):
+    """Determine column width based on column title and list of entries."""
+    return max(map(len, entries + [title]))
 
 
 def avail_easyconfig_params_rst(title, grouped_params):
     """
     Compose overview of available easyconfig parameters, in RST format.
     """
-    def det_col_width(entries, title):
-        """Determine column width based on column title and list of entries."""
-        return max(map(len, entries + [title]))
-
     # main title
     lines = [
         title,
@@ -160,3 +162,56 @@ def avail_easyconfig_params(easyblock, output_format):
         FORMAT_TXT: avail_easyconfig_params_txt,
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
+
+def generic_easyblocks(classname):
+    """
+    Compose overview of available generic easyblocks in rst format
+    """
+    block = globals()[classname]
+    lines = [
+        '``' + classname + '``',
+        '=' * (len(classname)+4),
+        '',
+    ]
+
+    derived = '(derives from '
+    for base in block.__bases__:
+        derived += '``'+base.__name__+'`` '
+    derived += ')'
+    lines.extend([derived, ''])
+
+    lines.extend([block.__doc__.strip(), ''])
+
+    if block.extra_options(None):
+        extra_parameters = 'Extra easyconfig parameters specific to ``' + classname + '`` easyblock'
+        lines.extend([extra_parameters, '-' * len(extra_parameters), ''])
+        ex_opt = block.extra_options()
+
+        ectitle = 'easyconfig parameter'
+        desctitle = 'description'
+        dftitle = 'default value'
+
+        # figure out column widths
+        nw = det_col_width([key for key in ex_opt], ectitle) + 4 # +4 for backticks
+        dw = det_col_width([val[1] for val in ex_opt.values()], desctitle)
+        dfw = det_col_width([str(val[0]) for val in ex_opt.values()], dftitle) + 4 # +4 for backticks
+
+        # table aligning - I may have stolen this from above but hey ho I'll fix that later
+        line_tmpl = "{0:{c}<%s}   {1:{c}<%s}   {2:{c}<%s}" % (nw, dw, dfw)
+        table_line = line_tmpl.format('', '', '', c='=', nw=nw, dw=dw, dfw=dfw)
+
+        lines.append(table_line)
+        lines.append(line_tmpl.format(ectitle, desctitle, dftitle, c=' '))
+        lines.append(table_line)
+
+        for key in ex_opt:
+           lines.append(line_tmpl.format('``'+key+'``', ex_opt[key][1], '``' + str(quote_str(ex_opt[key][0])) + '``', c=' '))
+        lines.append(table_line)
+
+        commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
+        lines.extend(['', commonly_used, '-' * len(commonly_used)])
+
+    print '\n'.join(lines)
+
+
+
