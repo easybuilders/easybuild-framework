@@ -228,7 +228,7 @@ def include_toolchains(tmpdir, paths):
 
         parent_dir = os.path.basename(os.path.dirname(toolchain_module))
 
-        # generic toolchains are expected to be in a directory named 'generic'
+        # toolchain components are expected to be in a directory named according to the type of component
         if parent_dir in toolchain_subpkgs:
             target_path = os.path.join(tcs_dir, parent_dir, filename)
         else:
