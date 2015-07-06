@@ -1209,7 +1209,7 @@ class EasyConfigTest(EnhancedTestCase):
         rawtxt = '\n'.join([
             'easyblock = "EB_toy"',
             '',
-            'name = "foo"',
+            'name = "Foo"',
             'version = "0.0.1"',
             '',
             'homepage = "http://foo.com/"',
@@ -1217,7 +1217,7 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
-            "sources = ['%(namelower)s-%(version)s.tar.gz']",
+            "sources = ['foo-0.0.1.tar.gz']",
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1227,8 +1227,8 @@ class EasyConfigTest(EnhancedTestCase):
         ec.dump(testec)
         ectxt = read_file(testec)
 
-        regex = re.compile(r'sources \= \[\'SOURCELOWER_TAR_GZ\'\]', re.M)
-        self.assertTrue(regex.search(ectxt))
+        regex = re.compile(r"sources \= \['SOURCELOWER_TAR_GZ'\]", re.M)
+        self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
 
 def suite():

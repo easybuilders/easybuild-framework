@@ -1,4 +1,4 @@
-# #
+
 # Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
@@ -500,10 +500,9 @@ class EasyConfig(object):
 
         self.generate_template_values()
         templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
-        templ_const.update([(self.template_values[key], key) for key in self.template_values if key != ''])
+        templ_val = dict([(self.template_values[key], key) for key in self.template_values if len(self.template_values[key]) > 2])
 
-        for i in templ_const:
-            print i
+        exclude_keys = ['name', 'version', 'description', 'homepage', 'toolchain'] # values will not be templated for these keys
 
         def include_defined_parameters(keyset):
             """
@@ -512,8 +511,10 @@ class EasyConfig(object):
             for group in keyset:
                 printed = False
                 for key in group:
-                    if self[key] != default_values[key]:
-                        val = replace_templates(self[key], templ_const)
+                    val = self[key]
+                    if val != default_values[key]:
+                        if key not in exclude_keys:
+                            val = replace_templates(val, templ_const, templ_val)
                         ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
                         printed_keys.append(key)
                         printed = True
@@ -931,27 +932,35 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
-def replace_templates(value, templ_const):
+def replace_templates(value, templ_const, templ_val):
     """
-    Given a value, try to substitute constants where possible.
+    Given a value, try to substitute template strings where possible.
         - value can be a string, list, tuple, dict or combination thereof
-        - templ_const is a dictionary of constants
+        - templ_const is a dictionary of template strings (constants)
+        - templ_val is a dictionary of template strings specific for this easyconfig file
     """
     if isinstance(value, basestring):
-        # TODO replace template values, not only constants
-        value = templ_const.get(value, value)
+        old_value = ""
+        while value != old_value:
+            old_value = value
+            if value in templ_const:
+                value = templ_const[value]
+            else:
+                # check for template values - longest strings first
+                for v in sorted(templ_val, key=lambda v: len(v), reverse=True):
+                    value = re.sub(r"\b" + re.escape(v) + r"\b", r'%(' + templ_val[v] + ')s', value)
 
     else:
         if isinstance(value, list):
-            value = [replace_templates(v, templ_const) for v in value]
+            value = [replace_templates(v, templ_const, templ_val) for v in value]
         elif isinstance(value, tuple):
-            value = tuple(replace_templates(list(value), templ_const))
+            value = tuple(replace_templates(list(value), templ_const, templ_val))
         elif isinstance(value, dict):
-            value = dict([(key, replace_templates(v, templ_const)) for key, v in value.items()])
+            value = dict([(key, replace_templates(v, templ_const, templ_val)) for key, v in value.items()])
     return value
 
 
-def process_easyconfig(path,build_specs=None, validate=True, parse_only=False, hidden=None):
+def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
