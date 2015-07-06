@@ -92,9 +92,9 @@ class GC3Pie(JobBackend):
     terminated.
     """
 
-    REQ_VERSION = '2.3'
+    REQ_VERSION = '2.4.0'
     DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
-    REQ_SVN_REVISION = 4255  # use integer value, not a string!
+    REQ_SVN_REVISION = 4287  # use integer value, not a string!
 
     @gc3pie_imported
     def _check_version(self):
@@ -229,7 +229,7 @@ class GC3Pie(JobBackend):
         """
         # create an instance of `Engine` using the list of configuration files
         try:
-            self._engine = create_engine(*self.config_files)
+            self._engine = create_engine(*self.config_files, resource_errors_are_fatal=True)
 
         except gc3libs.exceptions.Error as err:
             raise EasyBuildError("Failed to create GC3Pie engine: %s", err)
