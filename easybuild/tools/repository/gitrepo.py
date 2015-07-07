@@ -77,7 +77,7 @@ class GitRepository(FileRepository):
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
-        All the real logic is in the setup_repo and create_wroking_copy methods
+        All the real logic is in the setup_repo and create_working_copy methods
         """
         self.client = None
         FileRepository.__init__(self, *args)
