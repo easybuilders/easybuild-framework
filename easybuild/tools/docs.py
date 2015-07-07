@@ -164,7 +164,9 @@ def generic_easyblocks():
                 docs.append(doc_easyblock(eb_class))
                 seen.append(name)
 
-    return sorted(docs)
+    toc = ['.. contents:: Available generic easyblocks', '    :depth: 1', '']
+
+    return toc + sorted(docs)
 
 
 def doc_easyblock(eb_class):
@@ -257,14 +259,3 @@ def mk_rst_table(titles, values):
 
 def backtick(string):
     return '``' + string + '``'
-
-
-
-
-
-
-
-
-
-
-
