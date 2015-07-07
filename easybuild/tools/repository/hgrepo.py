@@ -43,6 +43,7 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 
@@ -88,7 +89,7 @@ class HgRepository(FileRepository):
         Set up mercurial repository.
         """
         if not HAVE_HG:
-            self.log.error("The python-hglib Python module is not available, which is required for Mercurial support.")
+            raise EasyBuildError("python-hglib is not available, which is required for Mercurial support.")
 
         self.wc = tempfile.mkdtemp(prefix='hg-wc-')
 
@@ -110,18 +111,18 @@ class HgRepository(FileRepository):
             self.log.debug("connection to mercurial repo in %s" % self.wc)
             self.client = hglib.open(self.wc)
         except HgServerError, err:
-            self.log.error("Could not connect to local mercurial repo: %s" % err)
+            raise EasyBuildError("Could not connect to local mercurial repo: %s", err)
         except (HgCapabilityError, HgResponseError), err:
-            self.log.error("Server response: %s", err)
+            raise EasyBuildError("Server response: %s", err)
         except (OSError, ValueError), err:
-            self.log.error("Could not create a local mercurial repo in wc %s: %s" % (self.wc, err))
+            raise EasyBuildError("Could not create a local mercurial repo in wc %s: %s", self.wc, err)
 
         # try to get the remote data in the local repo
         try:
             self.client.pull()
             self.log.debug("pulled succesfully in %s" % self.wc)
         except (HgCommandError, HgServerError, HgResponseError, OSError, ValueError), err:
-            self.log.error("pull in working copy %s went wrong: %s" % (self.wc, err))
+            raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
@@ -167,4 +168,4 @@ class HgRepository(FileRepository):
         try:
             rmtree2(self.wc)
         except IOError, err:
-            self.log.error("Can't remove working copy %s: %s" % (self.wc, err))
+            raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)
