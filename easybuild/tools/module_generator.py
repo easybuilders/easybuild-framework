@@ -216,9 +216,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
         cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
         return '\n'.join(['', cond_unload])
 
-    def prepend_paths(self, key, paths, allow_abs=False):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths.
+
+        @param key: environment variable to prepend paths to
+        @param paths: list of paths to prepend
+        @param allow_abs: allow providing of absolute paths
+        @param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         template = "prepend-path\t%s\t\t%s\n"
 
@@ -234,7 +239,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for (non-empty) relative paths
                 if path:
-                    abspaths.append(os.path.join('$root', path))
+                    if expand_relpaths:
+                        abspaths.append(os.path.join('$root', path))
+                    else:
+                        abspaths.append(path)
                 else:
                     abspaths.append('$root')
             else:
@@ -373,29 +381,38 @@ class ModuleGeneratorLua(ModuleGenerator):
         cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
         return '\n'.join(['', cond_unload])
 
-    def prepend_paths(self, key, paths, allow_abs=False):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths
+
+        @param key: environment variable to prepend paths to
+        @param paths: list of paths to prepend
+        @param allow_abs: allow providing of absolute paths
+        @param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s", paths, key)
             paths = [paths]
 
-        for i, path in enumerate(paths):
+        abspaths = []
+        for path in paths:
             if os.path.isabs(path):
                 if allow_abs:
-                    paths[i] = quote_str(path)
+                    abspaths.append(quote_str(path))
                 else:
                     raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
                                          path)
             else:
                 # use pathJoin for (non-empty) relative paths
                 if path:
-                    paths[i] = self.PATH_JOIN_TEMPLATE % path
+                    if expand_relpaths:
+                        abspaths.append(self.PATH_JOIN_TEMPLATE % path)
+                    else:
+                        abspaths.append(quote_str(path))
                 else:
-                    paths[i] = 'root'
+                    abspaths.append('root')
 
-        statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in paths]
+        statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in abspaths]
         return ''.join(statements)
 
     def use(self, paths):

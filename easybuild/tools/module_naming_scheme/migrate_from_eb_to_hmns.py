@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of a test module naming scheme that can be used to migrate from EasyBuildMNS to HierarchicalMNS.
+Implementation of a module naming scheme that can be used to migrate from EasyBuildMNS to HierarchicalMNS.
 
 @author: Kenneth Hoste (Ghent University)
 """
