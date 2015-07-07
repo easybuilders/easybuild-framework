@@ -34,14 +34,14 @@ Documentation-related functionality
 @author: Ward Poelmans (Ghent University)
 """
 import copy
+import inspect
 import os
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import quote_str
-from easybuild.easyblocks.generic.configuremake import ConfigureMake
-
+from easybuild.tools.utilities import quote_str, import_available_modules
+from easybuild.tools.filetools import read_file
 
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
@@ -163,29 +163,56 @@ def avail_easyconfig_params(easyblock, output_format):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
-def generic_easyblocks(classname):
+def generic_easyblocks():
     """
-    Compose overview of available generic easyblocks in rst format
+    Compose overview of all generic easyblocks
     """
-    block = globals()[classname]
+    modules = import_available_modules('easybuild.easyblocks.generic')
+    docs = []
+    seen = []
+
+    for m in modules:
+        for name,obj in inspect.getmembers(m, inspect.isclass):
+            eb_class = getattr(m, name)
+            # skip imported classes that are not easyblocks
+            if eb_class.__module__.startswith('easybuild.easyblocks.generic') and name not in seen:
+                docs.append(doc_easyblock(eb_class))
+                seen.append(name)
+
+    return docs
+
+
+def doc_easyblock(eb_class):
+    """
+    Compose overview of one easyblock given class object of the easyblock in rst format
+    """
+    classname = eb_class.__name__
+
+    common_params = {
+        'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
+        # to be continued
+    }
+
     lines = [
         '``' + classname + '``',
         '=' * (len(classname)+4),
         '',
     ]
 
-    derived = '(derives from '
-    for base in block.__bases__:
-        derived += '``'+base.__name__+'`` '
-    derived += ')'
+    bases = ['``' + base.__name__ + '``' for base in eb_class.__bases__]
+    derived = '(derives from ' + ', '.join(bases) + ')'
+
+
     lines.extend([derived, ''])
 
-    lines.extend([block.__doc__.strip(), ''])
+    # Description (docstring)
+    lines.extend([eb_class.__doc__.strip(), ''])
 
-    if block.extra_options(None):
+    # Add extra options, if any
+    if eb_class.extra_options():
         extra_parameters = 'Extra easyconfig parameters specific to ``' + classname + '`` easyblock'
         lines.extend([extra_parameters, '-' * len(extra_parameters), ''])
-        ex_opt = block.extra_options()
+        ex_opt = eb_class.extra_options()
 
         ectitle = 'easyconfig parameter'
         desctitle = 'description'
@@ -196,7 +223,7 @@ def generic_easyblocks(classname):
         dw = det_col_width([val[1] for val in ex_opt.values()], desctitle)
         dfw = det_col_width([str(val[0]) for val in ex_opt.values()], dftitle) + 4 # +4 for backticks
 
-        # table aligning - I may have stolen this from above but hey ho I'll fix that later
+        # table aligning
         line_tmpl = "{0:{c}<%s}   {1:{c}<%s}   {2:{c}<%s}" % (nw, dw, dfw)
         table_line = line_tmpl.format('', '', '', c='=', nw=nw, dw=dw, dfw=dfw)
 
@@ -206,12 +233,26 @@ def generic_easyblocks(classname):
 
         for key in ex_opt:
            lines.append(line_tmpl.format('``'+key+'``', ex_opt[key][1], '``' + str(quote_str(ex_opt[key][0])) + '``', c=' '))
-        lines.append(table_line)
+        lines.extend([table_line, ''])
 
+
+    if classname in common_params:
         commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
-        lines.extend(['', commonly_used, '-' * len(commonly_used)])
+        lines.extend([commonly_used, '-' * len(commonly_used)])
 
-    print '\n'.join(lines)
+        for opt in common_params[classname]:
+            param = '* ``' + opt + '`` - ' + DEFAULT_CONFIG[opt][1]
+            lines.append(param)
+
+
+    if classname + '.eb' in os.listdir(os.path.join(os.path.dirname(__file__), 'doc_examples')):
+        lines.extend(['', 'Example', '-' * 8, '', '::', ''])
+        f = open(os.path.join(os.path.dirname(__file__), 'doc_examples', classname+'.eb'), "r")
+        for line in f.readlines():
+            lines.append('    ' + line.strip())
+        lines.append('') # empty line after literal block
+
+    return '\n'.join(lines)
 
 
 
