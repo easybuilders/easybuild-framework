@@ -67,29 +67,14 @@ def avail_easyconfig_params_rst(title, grouped_params):
         lines.append("%s parameters" % grpname)
         lines.extend(['-' * len(lines[-1]), ''])
 
-        name_title = "**Parameter name**"
-        descr_title = "**Description**"
-        dflt_title = "**Default value**"
+        titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        values = [
+            [backtick(name) for name in grouped_params[grpname].keys()],
+            [x[0] for x in grouped_params[grpname].values()],
+            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]
+        ]
 
-        # figure out column widths
-        nw = det_col_width(grouped_params[grpname].keys(), name_title) + 4  # +4 for raw format ("``foo``")
-        dw = det_col_width([x[0] for x in grouped_params[grpname].values()], descr_title)
-        dfw = det_col_width([str(quote_str(x[1])) for x in grouped_params[grpname].values()], dflt_title)
-
-        # 3 columns (name, description, default value), left-aligned, {c} is fill char
-        line_tmpl = "{0:{c}<%s}   {1:{c}<%s}   {2:{c}<%s}" % (nw, dw, dfw)
-        table_line = line_tmpl.format('', '', '', c='=', nw=nw, dw=dw, dfw=dfw)
-
-        # table header
-        lines.append(table_line)
-        lines.append(line_tmpl.format(name_title, descr_title, dflt_title, c=' '))
-        lines.append(line_tmpl.format('', '', '', c='-'))
-
-        # table rows by parameter
-        for name, (descr, dflt) in sorted(grouped_params[grpname].items()):
-            rawname = '``%s``' % name
-            lines.append(line_tmpl.format(rawname, descr, str(quote_str(dflt)), c=' '))
-        lines.append(table_line)
+        lines.extend(mk_rst_table(titles, values))
         lines.append('')
 
     return '\n'.join(lines)
@@ -201,8 +186,6 @@ def doc_easyblock(eb_class):
 
     bases = ['``' + base.__name__ + '``' for base in eb_class.__bases__]
     derived = '(derives from ' + ', '.join(bases) + ')'
-
-
     lines.extend([derived, ''])
 
     # Description (docstring)
@@ -210,7 +193,7 @@ def doc_easyblock(eb_class):
 
     # Add extra options, if any
     if eb_class.extra_options():
-        extra_parameters = 'Extra easyconfig parameters specific to ``' + classname + '`` easyblock'
+        extra_parameters = 'Extra easyconfig parameters specific to ' + backtick(classname) + ' easyblock'
         lines.extend([extra_parameters, '-' * len(extra_parameters), ''])
         ex_opt = eb_class.extra_options()
 
@@ -218,14 +201,14 @@ def doc_easyblock(eb_class):
         values = [[backtick(key) for key in ex_opt], [val[1] for val in ex_opt.values()], [backtick(str(quote_str(val[0]))) for val in ex_opt.values()]]
 
         lines.extend(mk_rst_table(titles, values))
-
+        lines.append('')
 
     if classname in common_params:
-        commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
+        commonly_used = 'Commonly used easyconfig parameters with ' + backtick(classname) + ' easyblock'
         lines.extend([commonly_used, '-' * len(commonly_used)])
 
         for opt in common_params[classname]:
-            param = '* ``' + opt + '`` - ' + DEFAULT_CONFIG[opt][1]
+            param = '* ' + backtick(opt) + ' - ' + DEFAULT_CONFIG[opt][1]
             lines.append(param)
 
 
@@ -241,7 +224,7 @@ def doc_easyblock(eb_class):
 
 def mk_rst_table(titles, values):
     """
-    Returns an rst table with given titles and string values
+    Returns an rst table with given titles and values (a nested list of string values for each column)
     """
     num_col = len(titles)
     table = []
