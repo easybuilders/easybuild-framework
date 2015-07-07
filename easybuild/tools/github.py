@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,13 +30,14 @@ Utility module for working with github
 """
 import base64
 import os
-import re
 import socket
 import tempfile
 import urllib
 import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
+
+from easybuild.tools.build_log import EasyBuildError
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -56,6 +57,7 @@ except ImportError, err:
     _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, mkdir
 
 
@@ -64,6 +66,7 @@ GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
+GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
@@ -139,7 +142,7 @@ class Githubfs(object):
             return listing[1]
         else:
             self.log.warning("error: %s" % str(listing))
-            self.log.exception("Invalid response from github (I/O error)")
+            raise EasyBuildError("Invalid response from github (I/O error)")
 
     def walk(self, top=None, topdown=True):
         """
@@ -192,6 +195,11 @@ class GithubError(Exception):
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
 
+    if github_user is None:
+        github_user = build_option('github_user')
+    if path is None:
+        path = build_option('pr_path')
+
     def download(url, path=None):
         """Download file from specified URL to specified path."""
         if path is not None:
@@ -199,15 +207,15 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
                 _, httpmsg = urllib.urlretrieve(url, path)
                 _log.debug("Downloaded %s to %s" % (url, path))
             except IOError, err:
-                _log.error("Failed to download %s to %s: %s" % (url, path, err))
+                raise EasyBuildError("Failed to download %s to %s: %s", url, path, err)
 
             if not httpmsg.type == 'text/plain':
-                _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
+                raise EasyBuildError("Unexpected file type for %s: %s", path, httpmsg.type)
         else:
             try:
                 return urllib2.urlopen(url).read()
             except urllib2.URLError, err:
-                _log.error("Failed to open %s for reading: %s" % (url, err))
+                raise EasyBuildError("Failed to open %s for reading: %s", url, err)
 
     # a GitHub token is optional here, but can be used if available in order to be less susceptible to rate limiting
     github_token = fetch_github_token(github_user)
@@ -229,14 +237,14 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         status, pr_data = 0, None
     _log.debug("status: %d, data: %s" % (status, pr_data))
     if not status == HTTP_STATUS_OK:
-        tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
-        _log.error("Failed to get data for PR #%d from %s/%s (status: %d %s)" % tup)
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
     # 'clean' on successful (or missing) test, 'unstable' on failed tests
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
     if not stable:
-        tup = (pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
-        _log.warning("Mergeable state for PR #%d is not '%s': %s." % tup)
+        _log.warning("Mergeable state for PR #%d is not '%s': %s.",
+                     pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
     for key, val in sorted(pr_data.items()):
         _log.debug("\n%s:\n\n%s\n" % (key, val))
@@ -245,12 +253,15 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = download(pr_data['diff_url'])
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
-    _log.debug("List of patches files: %s" % patched_files)
+    _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
-    status, commits_data = pr_url.commits.get()
+    # get all commits, increase to (max of) 100 per page
+    if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
+        raise EasyBuildError("PR #%s contains more than %s commits, can't obtain last commit", pr, GITHUB_MAX_PER_PAGE)
+    status, commits_data = pr_url.commits.get(per_page=GITHUB_MAX_PER_PAGE)
     last_commit = commits_data[-1]
-    _log.debug("Commits: %s" % commits_data)
+    _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
     # obtain most recent version of patched files
     for patched_file in patched_files:
@@ -263,7 +274,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     all_files = [os.path.basename(x) for x in patched_files]
     tmp_files = os.listdir(path)
     if not sorted(tmp_files) == sorted(all_files):
-        _log.error("Not all patched files were downloaded to %s: %s vs %s" % (path, tmp_files, all_files))
+        raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
 
     ec_files = [os.path.join(path, fn) for fn in tmp_files]
 
@@ -289,7 +300,7 @@ def create_gist(txt, fn, descr=None, github_user=None):
     status, data = g.gists.post(body=body)
 
     if not status == HTTP_STATUS_CREATED:
-        _log.error("Failed to create gist; status %s, data: %s" % (status, data))
+        raise EasyBuildError("Failed to create gist; status %s, data: %s", status, data)
 
     return data['html_url']
 
@@ -300,7 +311,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         try:
             issue = int(issue)
         except ValueError, err:
-            _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (issue, err))
+            raise EasyBuildError("Failed to parse specified pull request number '%s' as an int: %s; ", issue, err)
     github_token = fetch_github_token(github_user)
 
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
@@ -308,7 +319,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
 
     status, data = pr_url.comments.post(body={'body': txt})
     if not status == HTTP_STATUS_CREATED:
-        _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
+        raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
 class GithubToken(object):

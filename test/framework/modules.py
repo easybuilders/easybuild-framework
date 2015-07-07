@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,12 +37,16 @@ import shutil
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
+from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir, modules_tool
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 38
+TEST_MODULES_COUNT = 63
 
 
 class ModulesTest(EnhancedTestCase):
@@ -57,12 +61,7 @@ class ModulesTest(EnhancedTestCase):
         """Initialize set of test modules for test."""
         if test_modules_paths is None:
             test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
-        mod_paths = self.testmods.mod_paths[:]
-        for path in test_modules_paths:
-            self.testmods.prepend_module_path(path)
-        for path in mod_paths:
-            if path not in test_modules_paths:
-                self.testmods.remove_module_path(path)
+        self.reset_modulepath(test_modules_paths)
 
     # for Lmod, this test has to run first, to avoid that it fails;
     # no modules are found if another test ran before it, but using a (very) long module path works fine interactively
@@ -110,19 +109,42 @@ class ModulesTest(EnhancedTestCase):
     def test_exists(self):
         """Test if testing for module existence works."""
         self.init_testmods()
-        self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
-        self.assertTrue(not self.testmods.exists(mod_name='foo/1.2.3'))
+        self.assertEqual(self.testmods.exist(['OpenMPI/1.6.4-GCC-4.6.4']), [True])
+        self.assertEqual(self.testmods.exist(['foo/1.2.3']), [False])
+        # exists should not return True for incomplete module names
+        self.assertEqual(self.testmods.exist(['GCC']), [False])
+
+        # exists works on hidden modules
+        self.assertEqual(self.testmods.exist(['toy/.0.0-deps']), [True])
+
+        # exists also works on lists of module names
+        # list should be sufficiently long, since for short lists 'show' is always used
+        mod_names = ['OpenMPI/1.6.4-GCC-4.6.4', 'foo/1.2.3', 'GCC',
+                     'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED',
+                     'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
+                     'Compiler/GCC/4.7.2/OpenMPI/1.6.4', 'toy/.0.0-deps']
+        self.assertEqual(self.testmods.exist(mod_names), [True, False, False, False, True, True, True])
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
         self.init_testmods()
         ms = self.testmods.available()
-        ms = [m for m in ms if not m.startswith('Core/') and not m.startswith('Compiler/')]
+        # exclude modules not on the top level of a hierarchy
+        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
+                                    m.startswith('CategorizedHMNS'))]
 
         for m in ms:
             self.testmods.load([m])
             self.assertTrue(m in self.testmods.loaded_modules())
             self.testmods.purge()
+
+        # trying to load a module not on the top level of a hierarchy should fail
+        mods = [
+            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing dep
+        ]
+        for mod in mods:
+            self.assertErrorRegex(EasyBuildError, '.*', self.testmods.load, [mod])
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
@@ -216,6 +238,145 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
         self.assertEqual(modtool.mod_paths[1], test_modules_path)
         self.assertTrue(len(modtool.available()) > 0)
+
+    def test_path_to_top_of_module_tree(self):
+        """Test function to determine path to top of the module tree."""
+
+        modtool = modules_tool()
+
+        path = modtool.path_to_top_of_module_tree([], 'gompi/1.3.12', '', ['GCC/4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4'])
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree([], 'toy/.0.0-deps', '', ['gompi/1.3.12'])
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree([], 'toy/0.0', '', [])
+        self.assertEqual(path, [])
+
+    def test_path_to_top_of_module_tree_hierarchical_mns(self):
+        """Test function to determine path to top of the module tree for a hierarchical module naming scheme."""
+
+        modtool = modules_tool()
+
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+        modtool = modules_tool()
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        init_modpaths = [os.path.join(mod_prefix, 'Core')]
+
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3', 'OpenBLAS/0.2.6-LAPACK-3.4.2',
+                'ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'goolf/1.4.10', os.path.join(mod_prefix, 'Core'), deps)
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/4.7.2', os.path.join(mod_prefix, 'Core'), [])
+        self.assertEqual(path, [])
+        full_mod_subdir = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2')
+        deps = ['GCC/4.7.2', 'hwloc/1.6.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'OpenMPI/1.6.4', full_mod_subdir, deps)
+        self.assertEqual(path, ['GCC/4.7.2'])
+        full_mod_subdir = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
+        self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
+
+    def test_path_to_top_of_module_tree_categorized_hmns(self):
+        """
+        Test function to determine path to top of the module tree for a categorized hierarchical module naming
+        scheme.
+        """
+
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
+        init_config(build_options=build_options)
+        self.setup_categorized_hmns_modules()
+        modtool = modules_tool()
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        init_modpaths = [os.path.join(mod_prefix, 'Core', 'compiler'), os.path.join(mod_prefix, 'Core', 'toolchain')]
+
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3', 'OpenBLAS/0.2.6-LAPACK-3.4.2',
+                'ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'goolf/1.4.10', os.path.join(mod_prefix, 'Core', 'toolchain'), deps)
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/4.7.2', os.path.join(mod_prefix, 'Core', 'compiler'), [])
+        self.assertEqual(path, [])
+        full_mod_subdir = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'mpi')
+        deps = ['GCC/4.7.2', 'hwloc/1.6.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'OpenMPI/1.6.4', full_mod_subdir, deps)
+        self.assertEqual(path, ['GCC/4.7.2'])
+        full_mod_subdir = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'numlib')
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
+        self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
+
+    def test_modules_tool_stateless(self):
+        """Check whether ModulesTool instance is stateless between runs."""
+        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+
+        # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
+        shutil.copytree(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
+        shutil.copytree(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
+
+        modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '4.7.2'))
+        modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2')
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        write_file(os.path.join(self.test_prefix, 'Core', 'GCC', '4.7.2'), modtxt)
+
+        modtxt = read_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'))
+        modpath_extension = os.path.join(self.test_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        mkdir(modpath_extension, parents=True)
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        write_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'), modtxt)
+
+        # force reset of any singletons by reinitiating config
+        init_config()
+
+        os.environ['MODULEPATH'] = os.path.join(self.test_prefix, 'Core')
+        modtool = modules_tool()
+
+        if isinstance(modtool, Lmod):
+            load_err_msg = "cannot[\s\n]*be[\s\n]*loaded"
+        else:
+            load_err_msg = "Unable to locate a modulefile"
+
+        # GCC/4.6.3 is *not* an available Core module
+        self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['GCC/4.6.3'])
+
+        # GCC/4.7.2 is one of the available Core modules
+        modtool.load(['GCC/4.7.2'])
+
+        # OpenMPI/1.6.4 becomes available after loading GCC/4.7.2 module
+        modtool.load(['OpenMPI/1.6.4'])
+        modtool.purge()
+
+        # reset $MODULEPATH, obtain new ModulesTool instance,
+        # which should not remember anything w.r.t. previous $MODULEPATH value
+        os.environ['MODULEPATH'] = test_modules_path
+        modtool = modules_tool()
+
+        # GCC/4.6.3 is available
+        modtool.load(['GCC/4.6.3'])
+        modtool.purge()
+
+        # GCC/4.7.2 is available (note: also as non-Core module outside of hierarchy)
+        modtool.load(['GCC/4.7.2'])
+
+        # OpenMPI/1.6.4 is *not* available with current $MODULEPATH (loaded GCC/4.7.2 was not a hierarchical module)
+        self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['OpenMPI/1.6.4'])
+
 
 def suite():
     """ returns all the testcases in this module """

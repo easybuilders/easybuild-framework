@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,7 @@ Svn repository
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import getpass
 import os
@@ -43,6 +43,7 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 
@@ -86,8 +87,8 @@ class SvnRepository(FileRepository):
         """
         self.repo = os.path.join(self.repo, self.subdir)
         if not HAVE_PYSVN:
-            self.log.error("pysvn not available. Make sure it is installed properly. " +
-                           "Run 'python -c \"import pysvn\"' to test.")
+            raise EasyBuildError("pysvn not available (%s). Make sure it is installed properly. "
+                                 "Run 'python -c \"import pysvn\"' to test.")
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -95,13 +96,13 @@ class SvnRepository(FileRepository):
             self.client = pysvn.Client()
             self.client.exception_style = 0
         except ClientError:
-            self.log.error("Svn Client initialization failed.")
+            raise EasyBuildError("Svn Client initialization failed.")
 
         try:
             if not self.client.is_url(self.repo):
-                self.log.error("Provided repository %s is not a valid svn url" % self.repo)
+                raise EasyBuildError("Provided repository %s is not a valid svn url", self.repo)
         except ClientError:
-            self.log.error("Can't connect to svn repository %s" % self.repo)
+            raise EasyBuildError("Can't connect to svn repository %s", self.repo)
 
     def create_working_copy(self):
         """
@@ -114,16 +115,16 @@ class SvnRepository(FileRepository):
         try:
             self.client.info2(self.repo, recurse=False)
         except ClientError:
-            self.log.error("Getting info from %s failed." % self.wc)
+            raise EasyBuildError("Getting info from %s failed.", self.wc)
 
         try:
             res = self.client.update(self.wc)
             self.log.debug("Updated to revision %s in %s" % (res, self.wc))
         except ClientError:
-            self.log.error("Update in wc %s went wrong" % self.wc)
+            raise EasyBuildError("Update in wc %s went wrong", self.wc)
 
         if len(res) == 0:
-            self.log.error("Update returned empy list (working copy: %s)" % (self.wc))
+            raise EasyBuildError("Update returned empy list (working copy: %s)", self.wc)
 
         if res[0].number == -1:
             # revision number of update is -1
@@ -132,7 +133,7 @@ class SvnRepository(FileRepository):
                 res = self.client.checkout(self.repo, self.wc)
                 self.log.debug("Checked out revision %s in %s" % (res.number, self.wc))
             except ClientError, err:
-                self.log.error("Checkout of path / in working copy %s went wrong: %s" % (self.wc, err))
+                raise EasyBuildError("Checkout of path / in working copy %s went wrong: %s", self.wc, err)
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
@@ -158,7 +159,7 @@ class SvnRepository(FileRepository):
         try:
             self.client.checkin(self.wc, completemsg, recurse=True)
         except ClientError, err:
-            self.log.error("Commit from working copy %s (msg: %s) failed: %s" % (self.wc, msg, err))
+            raise EasyBuildError("Commit from working copy %s (msg: %s) failed: %s", self.wc, msg, err)
 
     def cleanup(self):
         """
@@ -167,4 +168,4 @@ class SvnRepository(FileRepository):
         try:
             rmtree2(self.wc)
         except OSError, err:
-            self.log.error("Can't remove working copy %s: %s" % (self.wc, err))
+            raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

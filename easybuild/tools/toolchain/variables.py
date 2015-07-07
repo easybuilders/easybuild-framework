@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Toolchain specific variables
 @author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.variables import StrList, AbsPathList
 
 
@@ -141,7 +142,7 @@ class LinkerFlagList(StrList):
                 else:
                     self.insert(idx, toggle_map[name])
             else:
-                self.log.raiseException("%s name %s not found in map %s" % (descr, name, toggle_map))
+                raise EasyBuildError("%s name %s not found in map %s", descr, name, toggle_map)
 
     def toggle_startgroup(self):
         """Append start group"""

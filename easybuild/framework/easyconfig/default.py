@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,37 +35,30 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 """
 from vsc.utils import fancylogger
 
-from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
 
 # we use a tuple here so we can sort them based on the numbers
-HIDDEN = "HIDDEN"
-MANDATORY = "MANDATORY"
-CUSTOM = "CUSTOM"
-TOOLCHAIN = "TOOLCHAIN"
-BUILD = "BUILD"
-FILEMANAGEMENT = "FILEMANAGEMENT"
-DEPENDENCIES = "DEPENDENCIES"
-LICENSE = "LICENSE"
-EXTENSIONS = "EXTENSIONS"
-MODULES = "MODULES"
-OTHER = "OTHER"
-
 ALL_CATEGORIES = {
-    HIDDEN: (-1, 'hidden'),
-    MANDATORY: (0, 'mandatory'),
-    CUSTOM: (1, 'easyblock-specific'),
-    TOOLCHAIN: (2, 'toolchain'),
-    BUILD: (3, 'build'),
-    FILEMANAGEMENT: (4, 'file-management'),
-    DEPENDENCIES: (5, 'dependencies'),
-    LICENSE: (6, 'license'),
-    EXTENSIONS: (7, 'extensions'),
-    MODULES: (8, 'modules'),
-    OTHER: (9, 'other'),
+    'HIDDEN': (-1, 'hidden'),
+    'MANDATORY': (0, 'mandatory'),
+    'CUSTOM': (1, 'easyblock-specific'),
+    'TOOLCHAIN': (2, 'toolchain'),
+    'BUILD': (3, 'build'),
+    'FILEMANAGEMENT': (4, 'file-management'),
+    'DEPENDENCIES': (5, 'dependencies'),
+    'LICENSE': (6, 'license'),
+    'EXTENSIONS': (7, 'extensions'),
+    'MODULES': (8, 'modules'),
+    'OTHER': (9, 'other'),
 }
+# define constants so they can be used below
+# avoid that pylint complains about unknown variables in this file
+# pylint: disable=E0602
+globals().update(ALL_CATEGORIES)
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -92,7 +85,8 @@ DEFAULT_CONFIG = {
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
-    'easyblock': ['ConfigureMake', "EasyBlock to use for building", BUILD],
+    'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
+                        "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
@@ -116,7 +110,7 @@ DEFAULT_CONFIG = {
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
-    'unpack_options': [None, "Extra options for unpacking source", BUILD],
+    'unpack_options': ['', "Extra options for unpacking source", BUILD],
     'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", BUILD],
     'versionprefix': ['', ('Additional prefix for software version '
                            '(placed before version and toolchain name)'), BUILD],
@@ -143,6 +137,7 @@ DEFAULT_CONFIG = {
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
+    'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
@@ -163,11 +158,13 @@ DEFAULT_CONFIG = {
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
+    'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
+    'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
@@ -183,32 +180,10 @@ def sorted_categories():
     return categories
 
 
-def convert_to_help(opts, has_default=False):
-    """
-    Converts the given list to a mapping of category -> [(name, help)] (OrderedDict)
-        @param: has_default, if False, add the DEFAULT_CONFIG list
-    """
-    mapping = OrderedDict()
-    if isinstance(opts, dict):
-        opts = opts.items()
-    if not has_default:
-        defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
-        opts = defs + opts
-
-    # sort opts
-    opts.sort()
-
-    for cat in sorted_categories():
-        mapping[cat[1]] = [(opt[0], "%s (default: %s)" % (opt[1][1], opt[1][0]))
-                           for opt in opts if opt[1][2] == cat]
-
-    return mapping
-
-
 def get_easyconfig_parameter_default(param):
     """Get default value for given easyconfig parameter."""
     if param not in DEFAULT_CONFIG:
-        _log.error("Unkown easyconfig parameter: %s (known: %s)" % (param, sorted(DEFAULT_CONFIG.keys())))
+        raise EasyBuildError("Unkown easyconfig parameter: %s (known: %s)", param, sorted(DEFAULT_CONFIG.keys()))
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]

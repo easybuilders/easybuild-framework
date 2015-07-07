@@ -32,9 +32,10 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies
+from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config, parallelbuild
 from easybuild.tools.parallelbuild import PbsJob, build_easyconfigs_in_parallel
+from easybuild.tools.robot import resolve_dependencies
 
 
 def mock(*args, **kwargs):
@@ -71,6 +72,7 @@ class ParallelBuildTest(EnhancedTestCase):
         build_options = {
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             'valid_module_classes': config.module_classes(),
+            'validate': False,
         }
         init_config(build_options=build_options)
 
@@ -83,9 +85,10 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_build_easyconfigs_in_parallel(self):
         """Basic test for build_easyconfigs_in_parallel function."""
         easyconfig_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
-        easyconfigs = process_easyconfig(easyconfig_file, validate=False)
+        easyconfigs = process_easyconfig(easyconfig_file)
         ordered_ecs = resolve_dependencies(easyconfigs)
-        build_easyconfigs_in_parallel("echo %(spec)s", ordered_ecs)
+        jobs = build_easyconfigs_in_parallel("echo %(spec)s", ordered_ecs, prepare_first=False)
+        self.assertEqual(len(jobs), 8)
 
 def suite():
     """ returns all the testcases in this module """

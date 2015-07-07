@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2014 Ghent University
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Unit tests for ModulesTool class.
 """
 import os
 import re
+import stat
 import tempfile
 from vsc.utils import fancylogger
 
@@ -41,7 +42,7 @@ import easybuild.tools.options as eboptions
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import which
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.modules import modules_tool, Lmod
 from test.framework.utilities import init_config
 
@@ -76,7 +77,7 @@ class ModulesToolTest(EnhancedTestCase):
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
         # ue empty mod_path list, otherwise the install_path is called
-        mmt = MockModulesTool(mod_paths=[])
+        mmt = MockModulesTool(mod_paths=[], testing=True)
 
         # the version of the MMT is the commandline option
         self.assertEqual(mmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
@@ -91,16 +92,16 @@ class ModulesToolTest(EnhancedTestCase):
         os.environ['module'] = "() { %s $*\n}" % BrokenMockModulesTool.COMMAND
 
         try:
-            bmmt = BrokenMockModulesTool(mod_paths=[])
+            bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
             self.assertTrue(False, 'BrokenMockModulesTool should fail')
         except EasyBuildError, err:
-            self.assertTrue('command is not available' in str(err))
+            err_msg = "command is not available"
+            self.assertTrue(err_msg in str(err), "'%s' found in: %s" % (err_msg, err))
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
-        BrokenMockModulesTool._instances.pop(BrokenMockModulesTool, None)
-        bmmt = BrokenMockModulesTool(mod_paths=[])
+        bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
         cmd_abspath = which(MockModulesTool.COMMAND)
 
         self.assertEqual(bmmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
@@ -112,8 +113,9 @@ class ModulesToolTest(EnhancedTestCase):
     def test_module_mismatch(self):
         """Test whether mismatch detection between modules tool and 'module' function works."""
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
-        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
-        self.assertErrorRegex(EasyBuildError, ".*pattern .* not found in defined 'module' function", MockModulesTool)
+        os.environ['module'] = "() {  eval `/tmp/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        error_regex = ".*pattern .* not found in defined 'module' function"
+        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
@@ -123,7 +125,7 @@ class ModulesToolTest(EnhancedTestCase):
 
         fancylogger.logToFile(self.logfile)
 
-        mt = MockModulesTool()
+        mt = MockModulesTool(testing=True)
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
@@ -132,14 +134,12 @@ class ModulesToolTest(EnhancedTestCase):
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
-        MockModulesTool._instances.pop(MockModulesTool)
-        mt = MockModulesTool()
+        mt = MockModulesTool(testing=True)
         self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
-        MockModulesTool._instances.pop(MockModulesTool)
-        mt = MockModulesTool()
+        mt = MockModulesTool(testing=True)
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
@@ -155,8 +155,12 @@ class ModulesToolTest(EnhancedTestCase):
         if lmod_abspath is not None:
             build_options = {
                 'allow_modules_tool_mismatch': True,
+                'update_modules_tool_cache': True,
             }
             init_config(build_options=build_options)
+
+            lmod = Lmod(testing=True)
+            self.assertEqual(lmod.cmd, lmod_abspath)
 
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
@@ -171,10 +175,19 @@ class ModulesToolTest(EnhancedTestCase):
             # make sure $MODULEPATH contains path that provides some modules
             os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
-            # initialize Lmod modules tool, pass full path to 'lmod' via $LMOD_CMD
+            # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
+            fake_path = os.path.join(self.test_installpath, 'lmod')
+            write_file(fake_path, '#!/bin/bash\necho "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION)
+            os.chmod(fake_path, stat.S_IRUSR|stat.S_IXUSR)
+            os.environ['LMOD_CMD'] = fake_path
+            init_config(build_options=build_options)
+            lmod = Lmod(testing=True)
+            self.assertEqual(lmod.cmd, fake_path)
+
+            # use correct full path for 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
-            lmod = Lmod()
-            lmod.testing = True
+            init_config(build_options=build_options)
+            lmod = Lmod(testing=True)
 
             # obtain list of availabe modules, should be non-empty
             self.assertTrue(lmod.available(), "List of available modules obtained using Lmod is non-empty")

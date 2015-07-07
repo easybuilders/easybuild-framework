@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -36,9 +36,9 @@ from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gmpolf(Gcc, Mpich2, OpenBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, MPICH2, OpenBLAS, ScaLAPACK and FFTW."""
+class Gmpolf(Gcc, Mpich, OpenBLAS, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpolf'
