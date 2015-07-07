@@ -48,11 +48,10 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
+from easybuild.tools import build_log, config, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
-from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
-from easybuild.tools.config import DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import DEFAULT_STRICT, get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
@@ -63,9 +62,7 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
-import easybuild.tools.package.utilities as packaging
-from easybuild.tools.package.utilities import DEFAULT_PNS
-from easybuild.tools.package.activepns import avail_package_naming_scheme
+from easybuild.tools.package.utilities import DEFAULT_PNS, avail_package_naming_schemes, check_pkg_support
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -267,7 +264,7 @@ class EasyBuildOptions(GeneralOption):
             'packagepath': ("The destination path for the packages built by package-tool",
                              None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice", 
-                                      'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_scheme().keys())),
+                                      'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
@@ -472,14 +469,11 @@ class EasyBuildOptions(GeneralOption):
 
         self._postprocess_config()
 
-        #Check experimental option dependencies (for now packaging)
-        #print "Got config_options: %s" % packaging.config_options
-        package_options = [ getattr(self.options, x) for x in packaging.config_options if getattr(self.options, x) ]
-        if any( package_options ):
-            packaging.option_postprocess()
+        # check whether packaging is supported when it's being used
+        if any([self.options.package_tool, self.options.package_type]):
+            check_pkg_support()
         else:
             self.log.debug("Didn't find any packaging options")
-
 
     def _postprocess_external_modules_metadata(self):
         """Parse file(s) specifying metadata for external modules."""
