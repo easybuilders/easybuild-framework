@@ -179,7 +179,7 @@ def generic_easyblocks():
                 docs.append(doc_easyblock(eb_class))
                 seen.append(name)
 
-    return docs
+    return sorted(docs)
 
 
 def doc_easyblock(eb_class):
@@ -214,26 +214,10 @@ def doc_easyblock(eb_class):
         lines.extend([extra_parameters, '-' * len(extra_parameters), ''])
         ex_opt = eb_class.extra_options()
 
-        ectitle = 'easyconfig parameter'
-        desctitle = 'description'
-        dftitle = 'default value'
+        titles = ['easyconfig parameter', 'description', 'default value']
+        values = [[backtick(key) for key in ex_opt], [val[1] for val in ex_opt.values()], [backtick(str(quote_str(val[0]))) for val in ex_opt.values()]]
 
-        # figure out column widths
-        nw = det_col_width([key for key in ex_opt], ectitle) + 4 # +4 for backticks
-        dw = det_col_width([val[1] for val in ex_opt.values()], desctitle)
-        dfw = det_col_width([str(val[0]) for val in ex_opt.values()], dftitle) + 4 # +4 for backticks
-
-        # table aligning
-        line_tmpl = "{0:{c}<%s}   {1:{c}<%s}   {2:{c}<%s}" % (nw, dw, dfw)
-        table_line = line_tmpl.format('', '', '', c='=', nw=nw, dw=dw, dfw=dfw)
-
-        lines.append(table_line)
-        lines.append(line_tmpl.format(ectitle, desctitle, dftitle, c=' '))
-        lines.append(table_line)
-
-        for key in ex_opt:
-           lines.append(line_tmpl.format('``'+key+'``', ex_opt[key][1], '``' + str(quote_str(ex_opt[key][0])) + '``', c=' '))
-        lines.extend([table_line, ''])
+        lines.extend(mk_rst_table(titles, values))
 
 
     if classname in common_params:
@@ -253,6 +237,51 @@ def doc_easyblock(eb_class):
         lines.append('') # empty line after literal block
 
     return '\n'.join(lines)
+
+
+def mk_rst_table(titles, values):
+    """
+    Returns an rst table with given titles and string values
+    """
+    num_col = len(titles)
+    table = []
+    col_widths = []
+    tmpl = []
+    line= []
+
+    # figure out column widths
+    for i in range(0, num_col):
+        col_widths.append(det_col_width(values[i], titles[i]))
+
+        # make line template
+        tmpl.append('{' + str(i) + ':{c}<' + str(col_widths[i]) + '}')
+        line.append('') # needed for table line
+
+    line_tmpl = '   '.join(tmpl)
+    table_line = line_tmpl.format(*line, c="=")
+
+    table.append(table_line)
+    table.append(line_tmpl.format(*titles, c=' '))
+    table.append(table_line)
+
+    for i in range(0, len(values[0])):
+        table.append(line_tmpl.format(*[v[i] for v in values], c=' '))
+
+    table.extend([table_line, ''])
+
+    return table
+
+
+def backtick(string):
+    return '``' + string + '``'
+
+
+
+
+
+
+
+
 
 
 
