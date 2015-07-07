@@ -87,7 +87,13 @@ class IntelIccIfort(Compiler):
         'dynamic':'-Bdynamic',
     }
 
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
+    LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        class_constants = kwargs.setdefault('class_constants', [])
+        class_constants.append('LIB_MULTITHREAD')
+        super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
