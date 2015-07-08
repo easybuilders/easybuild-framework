@@ -63,7 +63,7 @@ from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import template_constant_dict, TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -500,9 +500,10 @@ class EasyConfig(object):
 
         self.generate_template_values()
         templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
-        templ_val = dict([(self.template_values[key], key) for key in self.template_values if len(self.template_values[key]) > 2])
-
-        exclude_keys = ['name', 'version', 'description', 'homepage', 'toolchain'] # values will not be templated for these keys
+        # reverse map of templates longer than 2 characters, to inject template values where possible
+        templ_val = sorted(dict([(val, key) for key, val in self.template_values.items() if len(val) > 2]), key=len(val), reverse=True)
+        # values will not be templated for these keys
+        exclude_keys = ['name', 'version', 'description', 'homepage', 'toolchain']
 
         def include_defined_parameters(keyset):
             """
@@ -514,7 +515,9 @@ class EasyConfig(object):
                     val = self[key]
                     if val != default_values[key]:
                         if key not in exclude_keys:
+                            self.log.debug("Original value before replacing matching template values: %s", val)
                             val = replace_templates(val, templ_const, templ_val)
+                            self.log.debug("New value after replacing matching template values: %s", val)
                         ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
                         printed_keys.append(key)
                         printed = True
@@ -539,7 +542,7 @@ class EasyConfig(object):
         eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
 
-        self.enable_tamplating = orig_enable_templating
+        self.enable_templating = orig_enable_templating
 
     def _validate(self, attr, values):  # private method
         """
@@ -940,7 +943,7 @@ def replace_templates(value, templ_const, templ_val):
         - templ_val is a dictionary of template strings specific for this easyconfig file
     """
     if isinstance(value, basestring):
-        old_value = ""
+        old_value = None
         while value != old_value:
             old_value = value
             if value in templ_const:
