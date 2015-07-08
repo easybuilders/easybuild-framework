@@ -167,9 +167,10 @@ def generic_easyblocks(path_to_examples, common_params={}, doc_functions=[]):
     for eb_class in all_blocks:
         docs.append(doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
 
-    toc = ['.. contents:: Available generic easyblocks', '    :depth: 1', '']
+    title = 'Overview of generic easyblocks'
 
-    return toc + sorted(docs)
+    heading = ['=' * len(title), title, '=' * len(title), '', '.. contents:: Available generic easyblocks', '    :depth: 1', '']
+    return heading + sorted(docs)
 
 def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
     """
