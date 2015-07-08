@@ -154,21 +154,24 @@ def generic_easyblocks(path_to_examples, common_params={}, doc_functions=[]):
     """
     modules = import_available_modules('easybuild.easyblocks.generic')
     docs = []
-    seen = []
+    all_blocks = []
 
+    # get all blocks
     for m in modules:
         for name,obj in inspect.getmembers(m, inspect.isclass):
             eb_class = getattr(m, name)
             # skip imported classes that are not easyblocks
-            if eb_class.__module__.startswith('easybuild.easyblocks.generic') and name not in seen:
-                docs.append(doc_easyblock(eb_class, path_to_examples, common_params, doc_functions))
-                seen.append(name)
+            if eb_class.__module__.startswith('easybuild.easyblocks.generic') and eb_class not in all_blocks:
+                all_blocks.append(eb_class)
+
+    for eb_class in all_blocks:
+        docs.append(doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
 
     toc = ['.. contents:: Available generic easyblocks', '    :depth: 1', '']
 
     return toc + sorted(docs)
 
-def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions):
+def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
     """
     Compose overview of one easyblock given class object of the easyblock in rst format
     """
@@ -180,7 +183,11 @@ def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions):
         '',
     ]
 
-    bases = ['``' + base.__name__ + '``' for base in eb_class.__bases__]
+    bases = []
+    for b in eb_class.__bases__:
+        base = b.__name__ + '_' if b in all_blocks else b.__name__
+        bases.append(base)
+
     derived = '(derives from ' + ', '.join(bases) + ')'
     lines.extend([derived, ''])
 
