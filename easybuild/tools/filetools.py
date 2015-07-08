@@ -43,8 +43,8 @@ import time
 import urllib2
 import zlib
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
-import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, print_msg  # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.config import build_option
 from easybuild.tools import run
@@ -849,6 +849,24 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 raise EasyBuildError("Failed to set groud ID/sticky bit: %s", err)
     else:
         _log.debug("Not creating existing path %s" % path)
+
+
+def expand_glob_paths(glob_paths):
+    """Expand specified glob paths to a list of unique non-glob paths to only files."""
+    paths = []
+    for glob_path in glob_paths:
+        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
+
+    return nub(paths)
+
+
+def symlink(source_path, symlink_path):
+    """Create a symlink at the specified path to the given path."""
+    try:
+        os.symlink(os.path.abspath(source_path), symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
+    except OSError as err:
+        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def path_matches(path, paths):
