@@ -22,8 +22,12 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""Abstract interface for submitting jobs and related utilities."""
+"""
+Abstract interface for submitting jobs and related utilities.
 
+@author: Riccardo Murri (University of Zurich)
+@author: Kenneth Hoste (Ghent University)
+"""
 
 from abc import ABCMeta, abstractmethod
 
