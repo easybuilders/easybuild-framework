@@ -46,11 +46,6 @@ from easybuild.tools.filetools import read_file
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
 
-COMMON_PARAMS = {
-    'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
-    # to be continued
-}
-
 def det_col_width(entries, title):
     """Determine column width based on column title and list of entries."""
     return max(map(len, entries + [title]))
@@ -74,7 +69,7 @@ def avail_easyconfig_params_rst(title, grouped_params):
 
         titles = ["**Parameter name**", "**Description**", "**Default value**"]
         values = [
-            ['``' + name + '``' for name in grouped_params[grpname].keys()],
+            [backtick(name) for name in grouped_params[grpname].keys()],
             [x[0] for x in grouped_params[grpname].values()],
             [str(quote_str(x[1])) for x in grouped_params[grpname].values()]
         ]
@@ -158,7 +153,6 @@ def generic_easyblocks():
     Compose overview of all generic easyblocks
     """
     modules = import_available_modules('easybuild.easyblocks.generic')
-    path_to_examples = os.path.join(os.path.dirname(__file__), 'doc_examples') #TODO: move them somewhere else
     docs = []
     seen = []
 
@@ -167,18 +161,35 @@ def generic_easyblocks():
             eb_class = getattr(m, name)
             # skip imported classes that are not easyblocks
             if eb_class.__module__.startswith('easybuild.easyblocks.generic') and name not in seen:
-                docs.append(doc_easyblock(eb_class, path_to_examples))
+                docs.append(doc_easyblock(eb_class))
                 seen.append(name)
 
     toc = ['.. contents:: Available generic easyblocks', '    :depth: 1', '']
 
     return toc + sorted(docs)
 
-def doc_easyblock(eb_class, path_to_examples):
+def overriden_functions(eb_class, parent_class):
+    print eb_class.__name__
+    print eb_class
+    print parent_class
+    for func in eb_class.__dict__.keys():
+        child_func = getattr(eb_class, func)
+        parent_func = getattr(parent_class, func)
+        if child_func.__func__ is not parent_func.__func__:
+            print func
+
+
+
+def doc_easyblock(eb_class):
     """
     Compose overview of one easyblock given class object of the easyblock in rst format
     """
     classname = eb_class.__name__
+
+    common_params = {
+        'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
+        # to be continued
+    }
 
     lines = [
         '``' + classname + '``',
@@ -190,41 +201,42 @@ def doc_easyblock(eb_class, path_to_examples):
     derived = '(derives from ' + ', '.join(bases) + ')'
     lines.extend([derived, ''])
 
+    for base in eb_class.__bases__:
+        overriden_functions(eb_class, base)
+
     # Description (docstring)
     lines.extend([eb_class.__doc__.strip(), ''])
 
     # Add extra options, if any
     if eb_class.extra_options():
-        extra_parameters = 'Extra easyconfig parameters specific to ``' + classname + '`` easyblock'
+        extra_parameters = 'Extra easyconfig parameters specific to ' + backtick(classname) + ' easyblock'
         lines.extend([extra_parameters, '-' * len(extra_parameters), ''])
         ex_opt = eb_class.extra_options()
 
         titles = ['easyconfig parameter', 'description', 'default value']
-        values = [
-            ['``' + key + '``' for key in ex_opt],
-            [val[1] for val in ex_opt.values()],
-            ['``' + str(quote_str(val[0])) + '``' for val in ex_opt.values()]
-        ]
+        values = [[backtick(key) for key in ex_opt], [val[1] for val in ex_opt.values()], [backtick(str(quote_str(val[0]))) for val in ex_opt.values()]]
 
         lines.extend(mk_rst_table(titles, values))
         lines.append('')
 
-    if classname in COMMON_PARAMS:
-        commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
+    if classname in common_params:
+        commonly_used = 'Commonly used easyconfig parameters with ' + backtick(classname) + ' easyblock'
         lines.extend([commonly_used, '-' * len(commonly_used)])
 
-        for opt in COMMON_PARAMS[classname]:
-            param = '* ``' + opt + '`` - ' + DEFAULT_CONFIG[opt][1]
+        for opt in common_params[classname]:
+            param = '* ' + backtick(opt) + ' - ' + DEFAULT_CONFIG[opt][1]
             lines.append(param)
 
 
-    if classname + '.eb' in os.listdir(os.path.join(path_to_examples)):
+    if classname + '.eb' in os.listdir(os.path.join(os.path.dirname(__file__), 'doc_examples')):
         lines.extend(['', 'Example', '-' * 8, '', '::', ''])
-        for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
+        f = open(os.path.join(os.path.dirname(__file__), 'doc_examples', classname+'.eb'), "r")
+        for line in f.readlines():
             lines.append('    ' + line.strip())
         lines.append('') # empty line after literal block
 
     return '\n'.join(lines)
+
 
 def mk_rst_table(titles, values):
     """
@@ -258,3 +270,6 @@ def mk_rst_table(titles, values):
 
     return table
 
+
+def backtick(string):
+    return '``' + string + '``'
