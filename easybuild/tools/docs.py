@@ -219,16 +219,18 @@ def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_
             lines.append(param)
     lines.append('')
 
-    custom = []
     # Add docstring for custom steps
+    custom = []
+    inh = ''
     for func in doc_functions:
         if func in eb_class.__dict__:
             f = eb_class.__dict__[func]
         elif func in eb_class.__bases__[0].__dict__:
             f = eb_class.__bases__[0].__dict__[func]
+            inh = ' (inherited)'
 
         if f.__doc__:
-            custom.append('* ``' + func + '`` - ' + f.__doc__.strip())
+            custom.append('* ``' + func + '`` - ' + f.__doc__.strip() + inh)
 
     if custom:
         title = 'Customised steps'
