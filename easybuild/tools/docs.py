@@ -43,8 +43,10 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str, import_available_modules
 from easybuild.tools.filetools import read_file
 
+
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
+
 
 def det_col_width(entries, title):
     """Determine column width based on column title and list of entries."""
@@ -69,9 +71,9 @@ def avail_easyconfig_params_rst(title, grouped_params):
 
         titles = ["**Parameter name**", "**Description**", "**Default value**"]
         values = [
-            ['``' + name + '``' for name in grouped_params[grpname].keys()],
-            [x[0] for x in grouped_params[grpname].values()],
-            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]
+            ['``' + name + '``' for name in grouped_params[grpname].keys()],  # parameter name
+            [x[0] for x in grouped_params[grpname].values()],  # description
+            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  #default value
         ]
 
         lines.extend(mk_rst_table(titles, values))
@@ -148,9 +150,10 @@ def avail_easyconfig_params(easyblock, output_format):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
-def generic_easyblocks(path_to_examples, common_params={}, doc_functions=[]):
+
+def gen_easyblocks_overview_rst(path_to_examples, common_params={}, doc_functions=[]):
     """
-    Compose overview of all generic easyblocks
+    Compose overview of all generic easyblocks in rst format
     """
     modules = import_available_modules('easybuild.easyblocks.generic')
     docs = []
@@ -165,14 +168,14 @@ def generic_easyblocks(path_to_examples, common_params={}, doc_functions=[]):
                 all_blocks.append(eb_class)
 
     for eb_class in all_blocks:
-        docs.append(doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
+        docs.append(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
 
     title = 'Overview of generic easyblocks'
 
-    heading = ['=' * len(title), title, '=' * len(title), '', '.. contents:: Available generic easyblocks', '    :depth: 1', '']
+    heading = ['=' * len(title), title, '=' * len(title), '', '.. contents::', '    :depth: 1', '']
     return heading + sorted(docs)
 
-def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
+def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
     """
     Compose overview of one easyblock given class object of the easyblock in rst format
     """
@@ -203,9 +206,9 @@ def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions, all_
 
         titles = ['easyconfig parameter', 'description', 'default value']
         values = [
-            ['``' + key + '``' for key in ex_opt],
-            [val[1] for val in ex_opt.values()],
-            ['``' + str(quote_str(val[0])) + '``' for val in ex_opt.values()]
+            ['``' + key + '``' for key in ex_opt],  # parameter name
+            [val[1] for val in ex_opt.values()],  # description
+            ['``' + str(quote_str(val[0])) + '``' for val in ex_opt.values()]  # default value
         ]
 
         lines.extend(mk_rst_table(titles, values))
