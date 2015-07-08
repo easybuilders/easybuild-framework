@@ -46,11 +46,6 @@ from easybuild.tools.filetools import read_file
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
 
-COMMON_PARAMS = {
-    'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
-    # to be continued
-}
-
 def det_col_width(entries, title):
     """Determine column width based on column title and list of entries."""
     return max(map(len, entries + [title]))
@@ -153,12 +148,11 @@ def avail_easyconfig_params(easyblock, output_format):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
-def generic_easyblocks():
+def generic_easyblocks(path_to_examples, common_params={}, doc_functions=[]):
     """
     Compose overview of all generic easyblocks
     """
     modules = import_available_modules('easybuild.easyblocks.generic')
-    path_to_examples = os.path.join(os.path.dirname(__file__), 'doc_examples') #TODO: move them somewhere else
     docs = []
     seen = []
 
@@ -167,14 +161,14 @@ def generic_easyblocks():
             eb_class = getattr(m, name)
             # skip imported classes that are not easyblocks
             if eb_class.__module__.startswith('easybuild.easyblocks.generic') and name not in seen:
-                docs.append(doc_easyblock(eb_class, path_to_examples))
+                docs.append(doc_easyblock(eb_class, path_to_examples, common_params, doc_functions))
                 seen.append(name)
 
     toc = ['.. contents:: Available generic easyblocks', '    :depth: 1', '']
 
     return toc + sorted(docs)
 
-def doc_easyblock(eb_class, path_to_examples):
+def doc_easyblock(eb_class, path_to_examples, common_params, doc_functions):
     """
     Compose overview of one easyblock given class object of the easyblock in rst format
     """
@@ -207,17 +201,34 @@ def doc_easyblock(eb_class, path_to_examples):
         ]
 
         lines.extend(mk_rst_table(titles, values))
-        lines.append('')
 
-    if classname in COMMON_PARAMS:
+    # Add commonly used parameters
+    if classname in common_params:
         commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
         lines.extend([commonly_used, '-' * len(commonly_used)])
 
-        for opt in COMMON_PARAMS[classname]:
+        for opt in common_params[classname]:
             param = '* ``' + opt + '`` - ' + DEFAULT_CONFIG[opt][1]
             lines.append(param)
+    lines.append('')
 
+    custom = []
+    # Add docstring for custom steps
+    for func in doc_functions:
+        if func in eb_class.__dict__:
+            f = eb_class.__dict__[func]
+        elif func in eb_class.__bases__[0].__dict__:
+            f = eb_class.__bases__[0].__dict__[func]
 
+        if f.__doc__:
+            custom.append('* ``' + func + '`` - ' + f.__doc__.strip())
+
+    if custom:
+        title = 'Customised steps'
+        lines.extend([title, '-' * len(title)] + custom)
+        lines.append('')
+
+    # Add example if available
     if classname + '.eb' in os.listdir(os.path.join(path_to_examples)):
         lines.extend(['', 'Example', '-' * 8, '', '::', ''])
         for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
