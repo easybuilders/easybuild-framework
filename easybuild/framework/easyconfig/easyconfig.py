@@ -51,6 +51,7 @@ from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
@@ -500,8 +501,10 @@ class EasyConfig(object):
 
         self.generate_template_values()
         templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
-        # reverse map of templates longer than 2 characters, to inject template values where possible
-        templ_val = sorted(dict([(val, key) for key, val in self.template_values.items() if len(val) > 2]), key=len(val), reverse=True)
+        # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
+        templ_val = OrderedDict([(self.template_values[k], k)
+                        for k in sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
+                        if len(self.template_values[k]) > 2])
         # values will not be templated for these keys
         exclude_keys = ['name', 'version', 'description', 'homepage', 'toolchain']
 
@@ -940,7 +943,7 @@ def replace_templates(value, templ_const, templ_val):
     Given a value, try to substitute template strings where possible.
         - value can be a string, list, tuple, dict or combination thereof
         - templ_const is a dictionary of template strings (constants)
-        - templ_val is a dictionary of template strings specific for this easyconfig file
+        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
     """
     if isinstance(value, basestring):
         old_value = None
@@ -949,9 +952,9 @@ def replace_templates(value, templ_const, templ_val):
             if value in templ_const:
                 value = templ_const[value]
             else:
-                # check for template values - longest strings first
-                for v in sorted(templ_val, key=lambda v: len(v), reverse=True):
-                    value = re.sub(r"\b" + re.escape(v) + r"\b", r'%(' + templ_val[v] + ')s', value)
+                # check for template values
+                for k, v in templ_val.items():
+                    value = re.sub(r"\b" + re.escape(k) + r"\b", r'%(' + v + ')s', value)
 
     else:
         if isinstance(value, list):

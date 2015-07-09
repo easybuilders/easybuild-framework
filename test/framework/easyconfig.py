@@ -1153,8 +1153,7 @@ class EasyConfigTest(EnhancedTestCase):
         # non-string values
         n = 42
         self.assertEqual(quote_str(n), 42)
-        l = ["foo", "bar"]
-        self.assertEqual(quote_str(l), ["foo", "bar"])
+        self.assertEqual(quote_str(["foo", "bar"]), ["foo", "bar"])
         self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
 
 
@@ -1218,17 +1217,32 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             "sources = ['foo-0.0.1.tar.gz']",
+            '',
+            'configopts = "--opt1=0.0.1"',
+            '',
+            "sanity_check_paths = {'files': ['files/foo/bar'], 'dirs':[] }",
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.enable_templating = True
         ec.dump(testec)
         ectxt = read_file(testec)
 
-        regex = re.compile(r"sources \= \['SOURCELOWER_TAR_GZ'\]", re.M)
-        self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+        self.assertTrue(ec.enable_templating)
+
+        patterns = [
+            r"sources = \['SOURCELOWER_TAR_GZ'\]",
+            r'description = "foo description"',  # no templating for description
+            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/bar'\]",
+            r'configopts = "--opt1=%\(version\)s"',
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
 
 
 def suite():
