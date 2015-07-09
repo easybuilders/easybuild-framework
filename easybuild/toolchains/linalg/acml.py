@@ -58,6 +58,12 @@ class Acml(LinAlg):
         TC_CONSTANT_GCC: ['gfortran64', 'gfortran64_mp'],
     }
 
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        class_constants = kwargs.setdefault('class_constants', [])
+        class_constants.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
+        super(Acml, self).__init__(*args, **kwargs)
+
     def _set_blas_variables(self):
         """Fix the map a bit"""
         if self.options.get('32bit', None):
