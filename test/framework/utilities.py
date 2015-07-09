@@ -312,6 +312,8 @@ def cleanup():
     easyconfig._easyconfig_files_cache.clear()
     mns_toolchain._toolchain_details_cache.clear()
 
+    # reset to make sure tempfile picks up new temporary directory to use
+    tempfile.tempdir = None
 
 def init_config(args=None, build_options=None):
     """(re)initialize configuration"""

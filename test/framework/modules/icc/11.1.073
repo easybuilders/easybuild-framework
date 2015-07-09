@@ -1,0 +1,7 @@
+#%Module
+
+set root /tmp/icc/11.1.073
+
+setenv EBROOTICC "$root"
+setenv EBVERSIONICC "11.1.073"
+setenv  EBDEVELICC "$root/easybuild/icc-11.1.073-easybuild-devel"
