@@ -1218,7 +1218,8 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "sources = ['foo-0.0.1.tar.gz']",
             '',
-            'configopts = "--opt1=0.0.1"',
+            'preconfigopts = "--opt1=%s" % name',
+            'configopts = "--opt2=0.0.1"',
             '',
             "sanity_check_paths = {'files': ['files/foo/bar'], 'dirs':[] }",
         ])
@@ -1237,7 +1238,8 @@ class EasyConfigTest(EnhancedTestCase):
             r"sources = \['SOURCELOWER_TAR_GZ'\]",
             r'description = "foo description"',  # no templating for description
             r"sanity_check_paths = {'files': \['files/%\(namelower\)s/bar'\]",
-            r'configopts = "--opt1=%\(version\)s"',
+            r'preconfigopts = "--opt1=%\(name\)s"',
+            r'configopts = "--opt2=%\(version\)s"',
         ]
 
         for pattern in patterns:

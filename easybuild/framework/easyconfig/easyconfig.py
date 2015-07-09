@@ -75,6 +75,9 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
+# values for these keys will not be templated in dump()
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['name', 'version', 'description', 'homepage', 'toolchain']
+
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
@@ -505,8 +508,6 @@ class EasyConfig(object):
         templ_val = OrderedDict([(self.template_values[k], k)
                         for k in sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
                         if len(self.template_values[k]) > 2])
-        # values will not be templated for these keys
-        exclude_keys = ['name', 'version', 'description', 'homepage', 'toolchain']
 
         def include_defined_parameters(keyset):
             """
@@ -517,7 +518,7 @@ class EasyConfig(object):
                 for key in group:
                     val = self[key]
                     if val != default_values[key]:
-                        if key not in exclude_keys:
+                        if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
                             self.log.debug("Original value before replacing matching template values: %s", val)
                             val = replace_templates(val, templ_const, templ_val)
                             self.log.debug("New value after replacing matching template values: %s", val)
