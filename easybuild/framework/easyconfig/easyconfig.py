@@ -148,7 +148,8 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        self._config.update(self.extra_options)
+        # deep copy to make sure self.extra_options remains unchanged
+        self._config.update(copy.deepcopy(self.extra_options))
 
         self.mandatory = MANDATORY_PARAMS[:]
 
@@ -490,6 +491,10 @@ class EasyConfig(object):
 
         last_keys = ['sanity_check_paths', 'moduleclass']
 
+        # build dict of default values
+        default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
+        default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+
         def include_defined_parameters(keyset):
             """
             Internal function to include parameters in the dumped easyconfig file which have a non-default value.
@@ -497,15 +502,12 @@ class EasyConfig(object):
             for group in keyset:
                 printed = False
                 for key in group:
-                    val = self._config[key][0]
-                    def_val = DEFAULT_CONFIG[key]
-                    if val not in def_val:
-                        ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
+                    if self[key] != default_values[key]:
+                        ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
                         printed_keys.append(key)
                         printed = True
                 if printed:
                     ebtxt.append("")
-
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
@@ -513,15 +515,16 @@ class EasyConfig(object):
         include_defined_parameters(grouped_keys)
 
         # print other easyconfig parameters at the end
-        for key, [val, _, _] in sorted(DEFAULT_CONFIG.items()):
-            if key not in printed_keys and key not in last_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, quote_str(self._config[key][0], escape_newline=True)))
+        keys_to_ignore = printed_keys + last_keys
+        for key in default_values:
+            if key not in keys_to_ignore and self[key] != default_values[key]:
+                ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
         ebtxt.append("")
 
         # print last two parameters
         include_defined_parameters([[k] for k in last_keys])
 
-        eb_file.write('\n'.join(ebtxt))
+        eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
 
     def _validate(self, attr, values):  # private method
