@@ -313,17 +313,18 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
         if len(new_ec['dependencies']) == 0:
             minimal_dir = tempfile.mkdtemp(prefix='minimal-easyconfigs')
             newspec = os.path.join(minimal_dir, "%s-%s.eb" % (new_ec['ec']['name'], det_full_ec_version(new_ec['ec'])))
-            _log.debug("Attempting to dumping minimal easyconfig to %s and adding it to final list" % newspec)
+            _log.debug("Attempting dumping minimal easyconfig to %s and adding it to final list" % newspec)
             try:
 
                 # only copy if the files are not the same file already (yes, it happens)
                 if os.path.exists(newspec):
                     _log.debug("Not creating easyconfig file %s since file exists" % newspec)
                 else:
+                    oldspec = new_ec['spec']
                     new_ec['spec'] = newspec
                     new_ec['ec'].dump(newspec)
+                    _log.info("Updating %s : %s is new minimal toolchain version" % (oldspec, new_ec['spec']))
                     ordered_ecs.append(new_ec)
-                    _log.debug("Created easyconfig file %s" % newspec)
                     _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
                     new_avail_modules.append(ec['full_mod_name'])
             except (IOError, OSError), err:
