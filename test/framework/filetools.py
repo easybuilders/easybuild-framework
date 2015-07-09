@@ -343,7 +343,7 @@ class FileToolsTest(EnhancedTestCase):
         logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1',
                 os.path.basename(self.logfile),
                 'foo.log', 'foo.log.1']
-        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if not f.startswith('tmp')]), logs)
+        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if 'log' in f]), logs)
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
