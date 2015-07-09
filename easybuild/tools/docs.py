@@ -183,7 +183,6 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
 
     lines = [
         '.. ' + classname + ':',
-        '',
         '``' + classname + '``',
         '=' * (len(classname)+4),
         '',
