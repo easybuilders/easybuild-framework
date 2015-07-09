@@ -182,6 +182,8 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     classname = eb_class.__name__
 
     lines = [
+        '.. ' + classname + ':',
+        '',
         '``' + classname + '``',
         '=' * (len(classname)+4),
         '',
@@ -189,7 +191,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
 
     bases = []
     for b in eb_class.__bases__:
-        base = b.__name__ + '_' if b in all_blocks else b.__name__
+        base = ':ref:`' + b.__name__ +'`' if b in all_blocks else b.__name__
         bases.append(base)
 
     derived = '(derives from ' + ', '.join(bases) + ')'
@@ -237,18 +239,20 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
             custom.append('* ``' + func + '`` - ' + f.__doc__.strip() + inh)
 
     if custom:
-        title = 'Customised steps'
+        title = 'Customised steps in ``' + classname + '`` easyblock'
         lines.extend([title, '-' * len(title)] + custom)
         lines.append('')
 
     # Add example if available
-    if classname + '.eb' in os.listdir(os.path.join(path_to_examples)):
-        lines.extend(['', 'Example', '-' * 8, '', '::', ''])
+    if os.path.exists(os.path.join(path_to_examples, '%s.eb' % classname)):
+        title = 'Example for ``' + classname + '`` easyblock'
+        lines.extend(['', title, '-' * len(title), '', '::', ''])
         for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
             lines.append('    ' + line.strip())
         lines.append('') # empty line after literal block
 
     return '\n'.join(lines)
+
 
 def mk_rst_table(titles, values):
     """
@@ -281,4 +285,3 @@ def mk_rst_table(titles, values):
     table.extend([table_line, ''])
 
     return table
-
