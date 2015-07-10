@@ -30,14 +30,15 @@ Unit tests for packaging support.
 import os
 import stat
 
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.tools.build_log
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, write_file
-from easybuild.tools.package.utilities import avail_package_naming_schemes, check_pkg_support
+from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support
 
 
 class PackageTest(EnhancedTestCase):
@@ -68,6 +69,18 @@ class PackageTest(EnhancedTestCase):
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_active_pns(self):
+        """Test use of ActivePNS."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_easyconfigs, 'OpenMPI-1.6.4-GCC-4.6.4.eb'), validate=False)
+
+        pns = ActivePNS()
+
+        # default: EasyBuild package naming scheme, pkg release 1
+        self.assertEqual(pns.name(ec), 'eb2.2.0dev-OpenMPI-1.6.4-GCC-4.6.4')
+        self.assertEqual(pns.version(ec), '1.6.4')
+        self.assertEqual(pns.release(ec), '1')
 
 
 def suite():

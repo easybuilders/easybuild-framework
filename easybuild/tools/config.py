@@ -103,8 +103,6 @@ BUILD_OPTIONS_CMDLINE = {
         'only_blocks',
         'optarch',
         'package_tool',
-        'package_type',
-        'package_release',
         'regtest_output_dir',
         'skip',
         'stop',
@@ -134,6 +132,12 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_STRICT: [
         'strict',
+    ],
+    '1': [
+        'package_release',
+    ],
+    'rpm': [
+        'package_type',
     ],
 }
 # build option that do not have a perfectly matching command line option
