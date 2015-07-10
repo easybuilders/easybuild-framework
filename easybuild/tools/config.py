@@ -52,6 +52,7 @@ from easybuild.tools.run import run_cmd
 _log = fancylogger.getLogger('config', fname=False)
 
 
+DEFAULT_JOB_BACKEND = 'PbsPython'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Tcl'
@@ -92,6 +93,12 @@ BUILD_OPTIONS_CMDLINE = {
         'github_user',
         'group',
         'ignore_dirs',
+        'job_backend_config',
+        'job_cores',
+        'job_max_walltime',
+        'job_output_dir',
+        'job_polling_interval',
+        'job_target_resource',
         'modules_footer',
         'only_blocks',
         'optarch',
@@ -194,6 +201,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'installpath',
         'installpath_modules',
         'installpath_software',
+        'job_backend',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
@@ -393,6 +401,14 @@ def get_module_naming_scheme():
     Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
+
+
+def get_job_backend():
+    """
+    Return job execution backend (PBS, GC3Pie, ...)
+    """
+    # 'job_backend' key will only be present after EasyBuild config is initialized
+    return ConfigurationVariables().get('job_backend', None)
 
 
 def get_module_syntax():
