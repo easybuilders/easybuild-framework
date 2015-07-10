@@ -83,10 +83,10 @@ CLEANUP_STEP = 'cleanup'
 CONFIGURE_STEP = 'configure'
 EXTENSIONS_STEP = 'extensions'
 FETCH_STEP = 'fetch'
-FINALIZE_STEP = 'finalize'
 MODULE_STEP = 'module'
 PACKAGE_STEP = 'package'
 PATCH_STEP = 'patch'
+PERMISSIONS_STEP = 'permissions'
 POSTPROC_STEP = 'postproc'
 PREPARE_STEP = 'prepare'
 READY_STEP = 'ready'
@@ -1693,7 +1693,7 @@ class EasyBlock(object):
 
         return modpath
 
-    def finalize_step(self):
+    def permissions_step(self):
         """
         Finalize installation procedure: adjust permissions as configured, change group ownership (if requested).
         Installing user must be member of the group that it is changed to.
@@ -1879,7 +1879,7 @@ class EasyBlock(object):
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step()], False),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step()], False),
             (MODULE_STEP, 'creating module', [lambda x: x.make_module_step()], False),
-            (FINALIZE_STEP, 'finalizing', [lambda x: x.finalize_step()], False),
+            (PERMISSIONS_STEP, 'permissions', [lambda x: x.permissions_step()], False),
         ]
 
         # full list of steps, included iterated steps
