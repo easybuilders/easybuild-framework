@@ -68,10 +68,10 @@ from easybuild.tools.filetools import write_file, compute_checksum, verify_check
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
-from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
-from easybuild.tools.package.utilities import package_fpm
+from easybuild.tools.package.utilities import PKG_TOOL_FPM, package_fpm
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
@@ -1491,35 +1491,35 @@ class EasyBlock(object):
         self.clean_up_fake_module(fake_mod_data)
 
     def package_step(self):
-        """Prepare package software (e.g. into an RPM) with fpm."""
+        """Package installed software (e.g., into an RPM), if requested, using selected package tool."""
 
-        path_to_module_file = os.path.join(install_path('mod'), build_option('suffix_modules_path'), self.full_mod_name)
-        packagedir_dest = os.path.abspath(package_path())
+        if build_option('package'):
 
-        packaging_tool = build_option('package_tool')
-        opt_force = build_option('force')
+            path_to_module_file = self.module_generator.filename
+            pkgdir_dest = os.path.abspath(package_path())
 
-        if not build_option('package'):
-            _log.info("Skipping package step (not enabled)")
+            pkgtool = build_option('package_tool')
+            opt_force = build_option('force')
 
-        elif packaging_tool == "fpm":
-            packaging_type = build_option('package_type') if build_option('package_type') else "rpm"
+            if pkgtool == PKG_TOOL_FPM:
+                pkgtype = build_option('package_type')
+                self.log.info("Generating %s package using %s in %s", pkgtype, pkgtool, pkgdir_dest)
+                pkgdir_src = package_fpm(self, path_to_module_file, pkgtype)
 
-            packagedir_src = package_fpm(self, path_to_module_file, package_type=packaging_type)
+                mkdir(pkgdir_dest)
 
-            if not os.path.exists(packagedir_dest):
-                mkdir(packagedir_dest)
+                for src_file in glob.glob(os.path.join(pkgdir_src, "*.%s" % pkgtype)):
+                    dest_file = os.path.join(pkgdir_dest, os.path.basename(src_file))
+                    if os.path.exists(dest_file) and not opt_force:
+                        raise EasyBuildError("Unable to copy package %s to %s (already exists).", src_file, dest_file)
+                    else:
+                        self.log.info("Copied package %s to %s", src_file, pkgdir_dest)
+                        shutil.copy(src_file, pkgdir_dest)
+            else:
+                raise EasyBuildError("Unknown packaging tool specified: %s", pkgtool)
 
-            for src_file in glob.glob(os.path.join(packagedir_src, "*.%s" % packaging_type)):
-                src_filename = os.path.basename(src_file)
-                dest_file = os.path.join(packagedir_dest, src_filename)
-                if os.path.exists(dest_file) and not opt_force:
-                    raise EasyBuildError("Unable to copy package: %s as it already exists in %s. Your package should still be in %s", src_filename, dest_file, packagedir_src)
-                else:
-                    shutil.copy(src_file, packagedir_dest)
         else:
-            raise EasyBuildError("Unknown packaging tool specified: %s", packaging_tool)
-
+            self.log.info("Skipping package step (not enabled)")
 
     def post_install_step(self):
         """

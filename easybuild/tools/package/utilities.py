@@ -50,6 +50,8 @@ from easybuild.tools.utilities import import_available_modules
 
 
 DEFAULT_PNS = 'EasyBuildPNS'
+PKG_TOOL_FPM = 'fpm'
+
 
 _log = fancylogger.getLogger('tools.package')
 
@@ -63,7 +65,7 @@ def avail_package_naming_schemes():
     return class_dict
 
 
-def package_fpm(easyblock, modfile_path, package_type='rpm'):
+def package_fpm(easyblock, modfile_path, pkgtype):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
@@ -98,11 +100,11 @@ def package_fpm(easyblock, modfile_path, package_type='rpm'):
         depstring += " --depends '%s'" % dep_pkgname
 
     cmdlist = [
-        'fpm',
+        PKG_TOOL_FPM,
         '--workdir', workdir,
         '--name', pkgname,
         '--provides', pkgname,
-        '-t', package_type,  # target
+        '-t', pkgtype,  # target
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
@@ -114,7 +116,7 @@ def package_fpm(easyblock, modfile_path, package_type='rpm'):
     _log.debug("The flattened cmdlist looks like: %s", cmd)
     run_cmd(cmd, log_all=True, simple=True)
 
-    _log.info("Created %s package in %s", package_type, workdir)
+    _log.info("Created %s package in %s", pkgtype, workdir)
 
     return workdir
 
@@ -123,7 +125,7 @@ def check_pkg_support():
     """Check whether packaging is supported, i.e. whether the required dependencies are available."""
 
     _log.experimental("Support for packaging installed software.")
-    fpm_path = which('fpm')
+    fpm_path = which(PKG_TOOL_FPM)
     rpmbuild_path = which('rpmbuild')
     if fpm_path and rpmbuild_path:
         _log.info("fpm found at: %s", fpm_path)
