@@ -151,11 +151,11 @@ def avail_easyconfig_params(easyblock, output_format):
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
 
-def gen_easyblocks_overview_rst(path_to_examples, common_params={}, doc_functions=[]):
+def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
     """
-    Compose overview of all generic easyblocks in rst format
+    Compose overview of all easyblocks in the given package in rst format
     """
-    modules = import_available_modules('easybuild.easyblocks.generic')
+    modules = import_available_modules(package_name)
     docs = []
     all_blocks = []
 
@@ -164,7 +164,7 @@ def gen_easyblocks_overview_rst(path_to_examples, common_params={}, doc_function
         for name,obj in inspect.getmembers(m, inspect.isclass):
             eb_class = getattr(m, name)
             # skip imported classes that are not easyblocks
-            if eb_class.__module__.startswith('easybuild.easyblocks.generic') and eb_class not in all_blocks:
+            if eb_class.__module__.startswith(package_name) and eb_class not in all_blocks:
                 all_blocks.append(eb_class)
 
     for eb_class in all_blocks:
@@ -172,7 +172,7 @@ def gen_easyblocks_overview_rst(path_to_examples, common_params={}, doc_function
 
     title = 'Overview of generic easyblocks'
 
-    heading = ['=' * len(title), title, '=' * len(title), '', '.. contents::', '    :depth: 1', '']
+    heading = ['=' * len(title), title, '=' * len(title), '', '.. contents::', '    :depth: 2', '']
     return heading + sorted(docs)
 
 def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
@@ -182,7 +182,8 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     classname = eb_class.__name__
 
     lines = [
-        '.. ' + classname + ':',
+        '.. _' + classname + ':',
+        '',
         '``' + classname + '``',
         '=' * (len(classname)+4),
         '',
