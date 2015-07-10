@@ -54,7 +54,7 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import remove_unwanted_chars, quote_str
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -148,7 +148,8 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        self._config.update(self.extra_options)
+        # deep copy to make sure self.extra_options remains unchanged
+        self._config.update(copy.deepcopy(self.extra_options))
 
         self.mandatory = MANDATORY_PARAMS[:]
 
@@ -472,49 +473,58 @@ class EasyConfig(object):
         """
         eb_file = file(fp, "w")
 
-        def to_str(x):
-            """Return quoted version of x"""
-            if isinstance(x, basestring):
-                if '\n' in x or ('"' in x and "'" in x):
-                    return '"""%s"""' % x
-                elif "'" in x:
-                    return '"%s"' % x
-                else:
-                    return "'%s'" % x
-            else:
-                return "%s" % x
-
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
+            ['easyblock'],
             ['name', 'version', 'versionprefix', 'versionsuffix'],
             ['homepage', 'description'],
             ['toolchain', 'toolchainopts'],
-            ['source_urls', 'sources'],
+            ['sources', 'source_urls'],
             ['patches'],
             ['builddependencies', 'dependencies', 'hiddendependencies'],
+            ['osdependencies'],
+            ['preconfigopts', 'configopts'],
+            ['prebuildopts', 'buildopts'],
+            ['preinstallopts', 'installopts'],
             ['parallel', 'maxparallel'],
-            ['osdependencies']
         ]
+
+        last_keys = ['sanity_check_paths', 'moduleclass']
+
+        # build dict of default values
+        default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
+        default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+
+        def include_defined_parameters(keyset):
+            """
+            Internal function to include parameters in the dumped easyconfig file which have a non-default value.
+            """
+            for group in keyset:
+                printed = False
+                for key in group:
+                    if self[key] != default_values[key]:
+                        ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
+                        printed_keys.append(key)
+                        printed = True
+                if printed:
+                    ebtxt.append("")
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
         printed_keys = []
-        for group in grouped_keys:
-            for key1 in group:
-                val = self._config[key1][0]
-                for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
-                    # only print parameters that are different from the default value
-                    if key1 == key2 and val != def_val:
-                        ebtxt.append("%s = %s" % (key1, to_str(val)))
-                        printed_keys.append(key1)
-            ebtxt.append("")
+        include_defined_parameters(grouped_keys)
 
         # print other easyconfig parameters at the end
-        for key, [val, _, _] in DEFAULT_CONFIG.items():
-            if not key in printed_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, to_str(self._config[key][0])))
+        keys_to_ignore = printed_keys + last_keys
+        for key in default_values:
+            if key not in keys_to_ignore and self[key] != default_values[key]:
+                ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
+        ebtxt.append("")
 
-        eb_file.write('\n'.join(ebtxt))
+        # print last two parameters
+        include_defined_parameters([[k] for k in last_keys])
+
+        eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
 
     def _validate(self, attr, values):  # private method

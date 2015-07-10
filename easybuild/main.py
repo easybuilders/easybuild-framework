@@ -39,6 +39,7 @@ import copy
 import os
 import stat
 import sys
+import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -52,7 +53,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
+from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -171,8 +172,8 @@ def main(testing_data=(None, None, None)):
         new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
 
-    # set temporary directory to use
-    eb_tmpdir = set_tmpdir(options.tmpdir)
+    # set by option parsers via set_tmpdir
+    eb_tmpdir = tempfile.gettempdir()
 
     # initialise logging for main
     global _log
@@ -304,9 +305,9 @@ def main(testing_data=(None, None, None)):
 
     # submit build as job(s), clean up and exit
     if options.job:
-        job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
+        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
-            print_msg("Submitted parallel build jobs, exiting now: %s" % job_info_txt)
+            print_msg("Submitted parallel build jobs, exiting now")
             cleanup(logfile, eb_tmpdir, testing)
             sys.exit(0)
 
@@ -336,7 +337,7 @@ def main(testing_data=(None, None, None)):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
-    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir path)
+    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
         cleanup(logfile, eb_tmpdir, testing)

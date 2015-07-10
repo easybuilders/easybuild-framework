@@ -431,22 +431,22 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def setup_sandbox_for_intel_fftw(self):
+    def setup_sandbox_for_intel_fftw(self, imklver='10.3.12.361'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # rewrite $root in imkl module so we can put required lib*.a files in place
         tmpdir = tempfile.mkdtemp()
 
         test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-        imkl_module_path = os.path.join(test_modules_path, 'imkl', '10.3.12.361')
+        imkl_module_path = os.path.join(test_modules_path, 'imkl', imklver)
         imkl_module_txt = open(imkl_module_path, 'r').read()
         regex = re.compile('^(set\s*root).*$', re.M)
         imkl_module_alt_txt = regex.sub(r'\1\t%s' % tmpdir, imkl_module_txt)
         open(imkl_module_path, 'w').write(imkl_module_alt_txt)
 
         fftw_libs = ['fftw3xc_intel', 'fftw3x_cdft', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
-        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core']
-        for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64']:
+        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
             os.makedirs(os.path.join(tmpdir, subdir))
             for fftlib in fftw_libs:
                 write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
@@ -616,6 +616,77 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(modules.get_software_root('foobar'), '/foo/bar')
         self.assertEqual(modules.get_software_version('toy'), '1.2.3')
 
+    def test_old_new_iccifort(self):
+        """Test whether preparing for old/new Intel compilers works correctly."""
+        tmpdir1, imkl_module_path1, imkl_module_txt1 = self.setup_sandbox_for_intel_fftw(imklver='10.3.12.361')
+        tmpdir2, imkl_module_path2, imkl_module_txt2 = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
+
+        # incl. -lguide
+        libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_ictce3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
+
+        # no -lguide
+        libblas_mt_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_ictce4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+
+        # incl. -lmkl_solver*
+        libscalack_ictce3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
+        libscalack_ictce3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+
+        # no -lmkl_solver*
+        libscalack_ictce4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+
+        libblas_mt_goolfc = "-lopenblas -lgfortran"
+        libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
+
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        opts = {'i8': True}
+        tc.set_options(opts)
+        tc.prepare()
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+
+        # cleanup
+        shutil.rmtree(tmpdir1)
+        shutil.rmtree(tmpdir2)
+        write_file(imkl_module_path1, imkl_module_txt1)
+        write_file(imkl_module_path2, imkl_module_txt2)
 
 def suite():
     """ return all the tests"""

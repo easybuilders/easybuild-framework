@@ -36,6 +36,7 @@ Command line options for eb
 import glob
 import os
 import re
+import shutil
 import sys
 from distutils.version import LooseVersion
 from vsc.utils.missing import nub
@@ -48,14 +49,17 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import build_log, config, run  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
-from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
-from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
-from easybuild.tools.config import DEFAULT_STRICT, get_pretend_installpath, mk_full_default_path
+from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
+from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX
+from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT
+from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
+from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
+from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -244,12 +248,19 @@ class EasyBuildOptions(GeneralOption):
                                           'strlist', 'store', []),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
+            'include-easyblocks': ("Location(s) of extra or customized easyblocks", 'strlist', 'store', []),
+            'include-module-naming-schemes': ("Location(s) of extra or customized module naming schemes",
+                                              'strlist', 'store', []),
+            'include-toolchains': ("Location(s) of extra or customized toolchains or toolchain components",
+                                   'strlist', 'store', []),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
             'installpath-modules': ("Install path for modules (if None, combine --installpath and --subdir-modules)",
                                     None, 'store', None),
             'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
                                      None, 'store', None),
+            'job-backend': ("Backend to use for submitting jobs", 'choice', 'store',
+                            DEFAULT_JOB_BACKEND, sorted(avail_job_backends().keys())),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -358,6 +369,22 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='easyconfig')
 
+    def job_options(self):
+        """Option related to --job."""
+        descr = ("Options for job backend", "Options for job backend (only relevant when --job is used)")
+
+        opts = OrderedDict({
+            'backend-config': ("Configuration file for job backend", None, 'store', None),
+            'cores': ("Number of cores to request per job", 'int', 'store', None),
+            'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
+            'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
+            'polling-interval': ("Interval between polls for status of jobs (in seconds)", float, 'store', 30.0),
+            'target-resource': ("Target resource for jobs", None, 'store', None),
+        })
+
+        self.log.debug("job_options: descr %s opts %s", descr, opts)
+        self.add_group_parser(opts, descr, prefix='job')
+
     def easyblock_options(self):
         # easyblock options (to be passed to easyblock instance)
         descr = ("Options for Easyblocks", "Options to be passed to all Easyblocks.")
@@ -420,6 +447,12 @@ class EasyBuildOptions(GeneralOption):
         # log to specified value of --unittest-file
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
+
+        # set tmpdir
+        self.tmpdir = set_tmpdir(self.options.tmpdir)
+
+        # take --include options into account
+        self._postprocess_include()
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
@@ -488,6 +521,18 @@ class EasyBuildOptions(GeneralOption):
 
         self.options.external_modules_metadata = parsed_external_modules_metadata
         self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
+
+    def _postprocess_include(self):
+        """Postprocess --include options."""
+        # set up included easyblocks, module naming schemes and toolchains/toolchain components
+        if self.options.include_easyblocks:
+            include_easyblocks(self.tmpdir, self.options.include_easyblocks)
+
+        if self.options.include_module_naming_schemes:
+            include_module_naming_schemes(self.tmpdir, self.options.include_module_naming_schemes)
+
+        if self.options.include_toolchains:
+            include_toolchains(self.tmpdir, self.options.include_toolchains)
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
@@ -572,6 +617,13 @@ class EasyBuildOptions(GeneralOption):
             self.log.info(msg)
         else:
             print msg
+
+        # cleanup tmpdir
+        try:
+            shutil.rmtree(self.tmpdir)
+        except OSError as err:
+            raise EasyBuildError("Failed to clean up temporary directory %s: %s", self.tmpdir, err)
+
         sys.exit(0)
 
     def avail_cfgfile_constants(self):
@@ -591,17 +643,21 @@ class EasyBuildOptions(GeneralOption):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
         return '\n'.join(lines)
 
-    def avail_classes_tree(self, classes, classNames, detailed, depth=0):
+    def avail_classes_tree(self, classes, class_names, locations, detailed, depth=0):
         """Print list of classes as a tree."""
         txt = []
-        for className in classNames:
-            classInfo = classes[className]
+        for class_name in class_names:
+            class_info = classes[class_name]
             if detailed:
-                txt.append("%s|-- %s (%s)" % ("|   " * depth, className, classInfo['module']))
+                mod = class_info['module']
+                loc = ''
+                if mod in locations:
+                    loc = '@ %s' % locations[mod]
+                txt.append("%s|-- %s (%s %s)" % ("|   " * depth, class_name, mod, loc))
             else:
-                txt.append("%s|-- %s" % ("|   " * depth, className))
-            if 'children' in classInfo:
-                txt.extend(self.avail_classes_tree(classes, classInfo['children'], detailed, depth + 1))
+                txt.append("%s|-- %s" % ("|   " * depth, class_name))
+            if 'children' in class_info:
+                txt.extend(self.avail_classes_tree(classes, class_info['children'], locations, detailed, depth + 1))
         return txt
 
     def avail_easyblocks(self):
@@ -612,6 +668,7 @@ class EasyBuildOptions(GeneralOption):
         # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
         search_toolchain('')
 
+        locations = {}
         for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
             __import__(package)
 
@@ -624,7 +681,13 @@ class EasyBuildOptions(GeneralOption):
                     for f in os.listdir(path):
                         res = module_regexp.match(f)
                         if res:
-                            __import__("%s.%s" % (package, res.group(1)))
+                            easyblock = '%s.%s' % (package, res.group(1))
+                            if easyblock not in locations:
+                                __import__(easyblock)
+                                locations.update({easyblock: os.path.join(path, f)})
+                            else:
+                                self.log.debug("%s already imported from %s, ignoring %s",
+                                               easyblock, locations[easyblock], path)
 
         def add_class(classes, cls):
             """Add a new class, and all of its subclasses."""
@@ -647,14 +710,18 @@ class EasyBuildOptions(GeneralOption):
         for root in roots:
             root = root.__name__
             if detailed:
-                txt.append("%s (%s)" % (root, classes[root]['module']))
+                mod = classes[root]['module']
+                loc = ''
+                if mod in locations:
+                    loc = ' @ %s' % locations[mod]
+                txt.append("%s (%s%s)" % (root, mod, loc))
             else:
                 txt.append("%s" % root)
             if 'children' in classes[root]:
-                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], detailed))
+                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed))
                 txt.append("")
 
-        return "\n".join(txt)
+        return '\n'.join(txt)
 
     def avail_toolchains(self):
         """Show list of known toolchains."""
@@ -743,7 +810,7 @@ def parse_options(args=None):
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
                                  go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror)
-    except Exception, err:
+    except Exception as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
 
     return eb_go
