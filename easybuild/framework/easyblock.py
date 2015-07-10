@@ -56,7 +56,6 @@ from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_m
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
-from easybuild.tools.package.utilities import package_fpm
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -72,6 +71,7 @@ from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
+from easybuild.tools.package.utilities import package_fpm
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group

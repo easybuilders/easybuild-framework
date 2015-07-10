@@ -42,7 +42,8 @@ import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.configobj import ConfigObj
+from easybuild.tools.filetools import write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.robot import resolve_dependencies
 from test.framework.utilities import find_full_path
@@ -92,7 +93,7 @@ class RobotTest(EnhancedTestCase):
         super(RobotTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
-    def xtest_resolve_dependencies(self):
+    def test_resolve_dependencies(self):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
 
         # replace Modules class with something we have control over
@@ -112,6 +113,7 @@ class RobotTest(EnhancedTestCase):
         }
         build_options = {
             'allow_modules_tool_mismatch': True,
+            'external_modules_metadata': ConfigObj(),
             'robot_path': None,
             'validate': False,
         }
