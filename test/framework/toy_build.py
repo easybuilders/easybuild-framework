@@ -44,7 +44,7 @@ import easybuild.tools.module_naming_scheme  # required to dynamically load test
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
 from easybuild.tools.modules import modules_tool
 
 
@@ -476,6 +476,31 @@ class ToyBuildTest(EnhancedTestCase):
                 if group is not None:
                     path_gid = os.stat(fullpath).st_gid
                     self.assertEqual(path_gid, grp.getgrnam(group).gr_gid)
+
+        # restore original umask
+        os.umask(orig_umask)
+
+    def test_toy_permissions_installdir(self):
+        """Test --read-only-installdir and --group-write-installdir."""
+        # set umask hard to verify default reliably
+        orig_umask = os.umask(0022)
+
+        self.test_toy_build()
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        shutil.rmtree(self.test_installpath)
+
+        self.test_toy_build(extra_args=['--read-only-installdir'])
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
+        shutil.rmtree(self.test_installpath)
+
+        self.test_toy_build(extra_args=['--group-writable-installdir'])
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
 
         # restore original umask
         os.umask(orig_umask)
