@@ -1815,6 +1815,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
+    def test_package(self):
+        """Test use of --package."""
 
 def suite():
     """ returns all the testcases in this module """
