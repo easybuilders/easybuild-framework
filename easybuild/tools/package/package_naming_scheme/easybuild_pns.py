@@ -28,7 +28,7 @@ Implementation of the EasyBuild packaging naming scheme
 @author: Robert Schmidt (Ottawa Hospital Research Institute)
 @author: Kenneth Hoste (Ghent University)
 """
-
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -38,12 +38,10 @@ class EasyBuildPNS(PackageNamingScheme):
 
     def name(self, ec):
         """Determine package name"""
-        self.log.debug("easyconfig dict for name looks like %s " % ec )
-        name_template = "eb%(eb_ver)s-%(name)s-%(version)s-%(toolchain_name)s-%(toolchain_version)s"
+        self.log.debug("easyconfig dict for name looks like: %s ", ec)
+        name_template = "eb%(eb_ver)s-%(name)s-%(fullversion)s"
         pkg_name = name_template % {
-            'toolchain_name' : ec['toolchain']['name'],
-            'toolchain_version' : ec['toolchain']['version'],
-            'version': '-'.join([x for x in [ec.get('versionprefix', ''), ec['version'], ec['versionsuffix'].lstrip('-')] if x]),
+            'fullversion': det_full_ec_version(ec),
             'name' : ec['name'],
             'eb_ver': EASYBUILD_VERSION,
         }
