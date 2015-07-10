@@ -40,16 +40,19 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.config import get_package_naming_scheme
+from easybuild.tools.config import build_option, get_package_naming_scheme
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
-from easybuild.tools.package.packaging_naming_scheme.pns import PackagingNamingScheme
+from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules
 
 
 DEFAULT_PNS = 'EasyBuildPNS'
+PKG_TOOL_FPM = 'fpm'
+PKG_TYPE_RPM = 'rpm'
+
 
 _log = fancylogger.getLogger('tools.package')
 
@@ -58,17 +61,31 @@ def avail_package_naming_schemes():
     """
     Returns the list of valed naming schemes that are in the easybuild.package.package_naming_scheme namespace
     """
-    import_available_modules('easybuild.tools.package.packaging_naming_scheme')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackagingNamingScheme)])
+    import_available_modules('easybuild.tools.package.package_naming_scheme')
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackageNamingScheme)])
     return class_dict
 
 
-def package_fpm(easyblock, modfile_path, package_type='rpm'):
+def package(easyblock):
+    """
+    Package installed software, according to active packaging configuration settings."""
+    pkgtool = build_option('package_tool')
+
+    if pkgtool == PKG_TOOL_FPM:
+        pkgdir = package_with_fpm(easyblock)
+    else:
+        raise EasyBuildError("Unknown packaging tool specified: %s", pkgtool)
+
+    return pkgdir
+
+
+def package_with_fpm(easyblock):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
-    workdir = tempfile.mkdtemp(prefix='eb-pkgs')
-    _log.info("Will be creating packages in %s", workdir)
+    workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
+    pkgtype = build_option('package_type')
+    _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
     try:
         os.chdir(workdir)
@@ -98,23 +115,23 @@ def package_fpm(easyblock, modfile_path, package_type='rpm'):
         depstring += " --depends '%s'" % dep_pkgname
 
     cmdlist = [
-        'fpm',
+        PKG_TOOL_FPM,
         '--workdir', workdir,
         '--name', pkgname,
         '--provides', pkgname,
-        '-t', package_type,  # target
+        '-t', pkgtype,  # target
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
         depstring,
         easyblock.installdir,
-        modfile_path,
+        easyblock.module_generator.filename,
     ]
     cmd = ' '.join(cmdlist)
     _log.debug("The flattened cmdlist looks like: %s", cmd)
     run_cmd(cmd, log_all=True, simple=True)
 
-    _log.info("Created %s package in %s", package_type, workdir)
+    _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
     return workdir
 
@@ -122,13 +139,24 @@ def package_fpm(easyblock, modfile_path, package_type='rpm'):
 def check_pkg_support():
     """Check whether packaging is supported, i.e. whether the required dependencies are available."""
 
+    # packaging support is considered experimental for now (requires using --experimental)
     _log.experimental("Support for packaging installed software.")
-    fpm_path = which('fpm')
-    rpmbuild_path = which('rpmbuild')
-    if fpm_path and rpmbuild_path:
-        _log.info("fpm found at: %s", fpm_path)
+
+    pkgtool = build_option('package_tool')
+    pkgtool_path = which(pkgtool)
+    if pkgtool_path:
+        _log.info("Selected packaging tool '%s' found at %s", pkgtool, pkgtool_path)
+
+        # rpmbuild is required for generating RPMs with FPM
+        if pkgtool == PKG_TOOL_FPM and build_option('package_type') == PKG_TYPE_RPM:
+            rpmbuild_path = which('rpmbuild')
+            if rpmbuild_path:
+                _log.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
+            else:
+                raise EasyBuildError("rpmbuild is required when generating RPM packages with FPM, but was not found")
+
     else:
-        raise EasyBuildError("Need both fpm and rpmbuild. Found fpm: %s rpmbuild: %s", fpm_path, rpmbuild_path)
+        raise EasyBuildError("Selected packaging tool '%s' not found", pkgtool)
 
 
 class ActivePNS(object):

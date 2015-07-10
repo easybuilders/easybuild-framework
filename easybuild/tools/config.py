@@ -102,9 +102,6 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'only_blocks',
         'optarch',
-        'package_tool',
-        'package_type',
-        'package_release',
         'regtest_output_dir',
         'skip',
         'stop',
@@ -134,6 +131,15 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_STRICT: [
         'strict',
+    ],
+    '1': [
+        'package_release',
+    ],
+    'fpm': [
+        'package_tool',
+    ],
+    'rpm': [
+        'package_type',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -376,17 +382,20 @@ def get_repositorypath():
     """
     return ConfigurationVariables()['repositorypath']
 
+
 def get_package_naming_scheme():
     """
     Return the package naming scheme
     """
     return ConfigurationVariables()['package_naming_scheme']
 
+
 def package_path():
     """
     Return the path where built packages are copied to
     """
     return ConfigurationVariables()['packagepath']
+
 
 def get_modules_tool():
     """

@@ -28,32 +28,19 @@ Implementation of the EasyBuild packaging naming scheme
 @author: Robert Schmidt (Ottawa Hospital Research Institute)
 @author: Kenneth Hoste (Ghent University)
 """
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-from easybuild.tools.package.packaging_naming_scheme.pns import PackagingNamingScheme
 
-
-class EasyBuildPNS(PackagingNamingScheme):
+class EasyBuildPNS(PackageNamingScheme):
     """Class implmenting the default EasyBuild packaging naming scheme."""
-
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain']
 
     def name(self, ec):
         """Determine package name"""
-        self.log.debug("easyconfig dict for name looks like %s " % ec )
-        name_template = "eb%(eb_ver)s-%(name)s-%(version)s-%(toolchain)s"
-        pkg_name = name_template % {
-            'toolchain' : self._toolchain(ec),
-            'version': '-'.join([x for x in [ec.get('versionprefix', ''), ec['version'], ec['versionsuffix'].lstrip('-')] if x]),
-            'name' : ec['name'],
-            'eb_ver': self.eb_ver,
-        }
-        return pkg_name
+        self.log.debug("Easyconfig dict passed to name() looks like: %s ", ec)
+        return '%s-%s' % (ec['name'], det_full_ec_version(ec))
 
-    def _toolchain(self, ec):
-        """Determine toolchain"""
-        toolchain_template = "%(toolchain_name)s-%(toolchain_version)s"
-        pkg_toolchain = toolchain_template % {
-            'toolchain_name': ec['toolchain']['name'],
-            'toolchain_version': ec['toolchain']['version'],
-        }
-        return pkg_toolchain
+    def version(self, ec):
+        """Determine package version: EasyBuild version used to build & install."""
+        return 'eb-%s' % EASYBUILD_VERSION

@@ -693,8 +693,8 @@ class ToyBuildTest(EnhancedTestCase):
         """Test toy build with extensions and non-dummy toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
-        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
-        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
     def test_toy_hidden(self):
         """Test installing a hidden module."""
