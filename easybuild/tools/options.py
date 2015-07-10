@@ -66,7 +66,8 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.package.utilities import DEFAULT_PNS, avail_package_naming_schemes, check_pkg_support
+from easybuild.tools.package.utilities import DEFAULT_PNS, PKG_TOOL_FPM, PKG_TYPE_RPM
+from easybuild.tools.package.utilities import avail_package_naming_schemes, check_pkg_support
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -368,8 +369,8 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'package': ("Enabling packaging", None, 'store_true', False),
-            'package-tool': ("Packaging tool to use", None, 'store_or_None', None),
-            'package-type': ("Type of package to generate", None, 'store_or_None', 'rpm'),
+            'package-tool': ("Packaging tool to use", None, 'store_or_None', PKG_TOOL_FPM),
+            'package-type': ("Type of package to generate", None, 'store_or_None', PKG_TYPE_RPM),
             'package-release': ("Package release iteration number", None, 'store', '1'),
         })
 
@@ -503,10 +504,10 @@ class EasyBuildOptions(GeneralOption):
         self._postprocess_config()
 
         # check whether packaging is supported when it's being used
-        if any([self.options.package_tool, self.options.package_type]):
+        if self.options.package:
             check_pkg_support()
         else:
-            self.log.debug("Didn't find any packaging options")
+            self.log.debug("Packaging not enabled, so not check for packaging support.")
 
     def _postprocess_external_modules_metadata(self):
         """Parse file(s) specifying metadata for external modules."""

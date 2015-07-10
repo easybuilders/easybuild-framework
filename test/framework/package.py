@@ -57,7 +57,7 @@ class PackageTest(EnhancedTestCase):
         # clear $PATH to make sure fpm/rpmbuild can not be found
         os.environ['PATH'] = ''
 
-        self.assertErrorRegex(EasyBuildError, "Need both fpm and rpmbuild", check_pkg_support)
+        self.assertErrorRegex(EasyBuildError, "Selected packaging tool 'fpm' not found", check_pkg_support)
 
         for binary in ['fpm', 'rpmbuild']:
             binpath = os.path.join(self.test_prefix, binary)
@@ -65,6 +65,7 @@ class PackageTest(EnhancedTestCase):
             adjust_permissions(binpath, stat.S_IXUSR, add=True)
         os.environ['PATH'] = self.test_prefix
 
+        # no errors => support check passes
         check_pkg_support()
 
         # restore

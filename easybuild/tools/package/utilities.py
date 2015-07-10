@@ -40,7 +40,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.config import get_package_naming_scheme
+from easybuild.tools.config import build_option, get_package_naming_scheme
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
 from easybuild.tools.package.packaging_naming_scheme.pns import PackagingNamingScheme
@@ -51,6 +51,7 @@ from easybuild.tools.utilities import import_available_modules
 
 DEFAULT_PNS = 'EasyBuildPNS'
 PKG_TOOL_FPM = 'fpm'
+PKG_TYPE_RPM = 'rpm'
 
 
 _log = fancylogger.getLogger('tools.package')
@@ -124,13 +125,24 @@ def package_fpm(easyblock, modfile_path, pkgtype):
 def check_pkg_support():
     """Check whether packaging is supported, i.e. whether the required dependencies are available."""
 
+    # packaging support is considered experimental for now (requires using --experimental)
     _log.experimental("Support for packaging installed software.")
-    fpm_path = which(PKG_TOOL_FPM)
-    rpmbuild_path = which('rpmbuild')
-    if fpm_path and rpmbuild_path:
-        _log.info("fpm found at: %s", fpm_path)
+
+    pkgtool = build_option('package_tool')
+    pkgtool_path = which(pkgtool)
+    if pkgtool_path:
+        _log.info("Selected packaging tool '%s' found at %s", pkgtool, pkgtool_path)
+
+        # rpmbuild is required for generating RPMs with FPM
+        if pkgtool == PKG_TOOL_FPM and build_option('package_type') == PKG_TYPE_RPM:
+            rpmbuild_path = which('rpmbuild')
+            if rpmbuild_path:
+                _log.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
+            else:
+                raise EasyBuildError("rpmbuild is required when generating RPM packages with FPM, but was not found")
+
     else:
-        raise EasyBuildError("Need both fpm and rpmbuild. Found fpm: %s rpmbuild: %s", fpm_path, rpmbuild_path)
+        raise EasyBuildError("Selected packaging tool '%s' not found", pkgtool)
 
 
 class ActivePNS(object):
