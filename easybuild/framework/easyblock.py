@@ -1495,16 +1495,14 @@ class EasyBlock(object):
 
         if build_option('package'):
 
-            path_to_module_file = self.module_generator.filename
-            pkgdir_dest = os.path.abspath(package_path())
-
             pkgtool = build_option('package_tool')
+            pkgdir_dest = os.path.abspath(package_path())
             opt_force = build_option('force')
 
             if pkgtool == PKG_TOOL_FPM:
                 pkgtype = build_option('package_type')
                 self.log.info("Generating %s package using %s in %s", pkgtype, pkgtool, pkgdir_dest)
-                pkgdir_src = package_fpm(self, path_to_module_file, pkgtype)
+                pkgdir_src = package_fpm(self, pkgtype)
 
                 mkdir(pkgdir_dest)
 

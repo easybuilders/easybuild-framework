@@ -38,7 +38,20 @@ import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, write_file
-from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support
+from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package_fpm
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
+
+
+MOCKED_FPM_RPM = """#!/bin/bash
+# only parse what we need to spit out the expected package file, ignore the rest
+workdir=`echo $@ | sed 's/--workdir \([^ ]*\).*/\\1/g'`
+name=`echo $@ | sed 's/.* --name \([^ ]*\).*/\\1/g'`
+version=`echo $@ | sed 's/.*--version \([^ ]*\).*/\\1/g'`
+iteration=`echo $@ | sed 's/.*--iteration \([^ ]*\).*/\\1/g'`
+target=`echo $@ | sed 's/.*-t \([^ ]*\).*/\\1/g'`
+
+echo "thisisan$target" > ${workdir}/${name}-${version}.${iteration}.${target}
+"""
 
 
 class PackageTest(EnhancedTestCase):
@@ -79,9 +92,33 @@ class PackageTest(EnhancedTestCase):
         pns = ActivePNS()
 
         # default: EasyBuild package naming scheme, pkg release 1
-        self.assertEqual(pns.name(ec), 'eb2.2.0dev-OpenMPI-1.6.4-GCC-4.6.4')
-        self.assertEqual(pns.version(ec), '1.6.4')
+        self.assertEqual(pns.name(ec), 'OpenMPI-1.6.4-GCC-4.6.4')
+        self.assertEqual(pns.version(ec), 'eb-%s' % EASYBUILD_VERSION)
         self.assertEqual(pns.release(ec), '1')
+
+    def test_package_fpm(self):
+        """Test package_fpm function."""
+        init_config(build_options={'silent': True})
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'), validate=False)
+
+        # put mocked 'fpm' command in place, just for testing purposes
+        fpm = os.path.join(self.test_prefix, 'fpm')
+        write_file(fpm, MOCKED_FPM_RPM)
+        adjust_permissions(fpm, stat.S_IXUSR, add=True)
+        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
+
+        # import needs to be done here, since test easyblocks are only included later
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(ec)
+
+        # build & install first
+        eb.run_all_steps(False)
+        pkgdir = package_fpm(eb, 'rpm')
+
+        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
 
 def suite():

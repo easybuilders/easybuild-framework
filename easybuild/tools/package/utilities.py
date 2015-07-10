@@ -66,11 +66,11 @@ def avail_package_naming_schemes():
     return class_dict
 
 
-def package_fpm(easyblock, modfile_path, pkgtype):
+def package_fpm(easyblock, pkgtype):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
-    workdir = tempfile.mkdtemp(prefix='eb-pkgs')
+    workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
     _log.info("Will be creating packages in %s", workdir)
 
     try:
@@ -111,7 +111,7 @@ def package_fpm(easyblock, modfile_path, pkgtype):
         '--iteration', pkgrel,
         depstring,
         easyblock.installdir,
-        modfile_path,
+        easyblock.module_generator.filename,
     ]
     cmd = ' '.join(cmdlist)
     _log.debug("The flattened cmdlist looks like: %s", cmd)

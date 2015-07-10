@@ -38,11 +38,9 @@ class EasyBuildPNS(PackageNamingScheme):
 
     def name(self, ec):
         """Determine package name"""
-        self.log.debug("easyconfig dict for name looks like: %s ", ec)
-        name_template = "eb%(eb_ver)s-%(name)s-%(fullversion)s"
-        pkg_name = name_template % {
-            'fullversion': det_full_ec_version(ec),
-            'name' : ec['name'],
-            'eb_ver': EASYBUILD_VERSION,
-        }
-        return pkg_name
+        self.log.debug("Easyconfig dict passed to name() looks like: %s ", ec)
+        return '%s-%s' % (ec['name'], det_full_ec_version(ec))
+
+    def version(self, ec):
+        """Determine package version: EasyBuild version used to build & install."""
+        return 'eb-%s' % EASYBUILD_VERSION
