@@ -23,8 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This declares the namespace for the tools.package submodule of EasyBuild,
-which contains support for packaging and package naming schemes that can be overriden to cover site customizations.
+This declares the namespace for the tools.package.package_naming_scheme submodule of EasyBuild.
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Dries Verdegem (Ghent University)

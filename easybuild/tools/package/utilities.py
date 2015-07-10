@@ -43,7 +43,7 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.config import build_option, get_package_naming_scheme
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
-from easybuild.tools.package.packaging_naming_scheme.pns import PackagingNamingScheme
+from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules
@@ -61,8 +61,8 @@ def avail_package_naming_schemes():
     """
     Returns the list of valed naming schemes that are in the easybuild.package.package_naming_scheme namespace
     """
-    import_available_modules('easybuild.tools.package.packaging_naming_scheme')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackagingNamingScheme)])
+    import_available_modules('easybuild.tools.package.package_naming_scheme')
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(PackageNamingScheme)])
     return class_dict
 
 

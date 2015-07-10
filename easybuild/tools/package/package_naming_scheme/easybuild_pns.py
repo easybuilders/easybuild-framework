@@ -22,34 +22,38 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-
 """
-General package naming scheme.
+Implementation of the EasyBuild packaging naming scheme
 
 @author: Robert Schmidt (Ottawa Hospital Research Institute)
 @author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils import fancylogger
-from easybuild.tools.config import build_option
-from easybuild.tools.version import VERSION as EASYBUILD_VERSION
+
+from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 
 
-class PackagingNamingScheme(object):
-    """Abstract class for package naming schemes"""
+class EasyBuildPNS(PackageNamingScheme):
+    """Class implmenting the default EasyBuild packaging naming scheme."""
 
-    def __init__(self):
-        """initialize logger."""
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.eb_ver = EASYBUILD_VERSION
+    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain']
 
     def name(self, ec):
         """Determine package name"""
-        raise NotImplementedError
+        self.log.debug("easyconfig dict for name looks like %s " % ec )
+        name_template = "eb%(eb_ver)s-%(name)s-%(version)s-%(toolchain)s"
+        pkg_name = name_template % {
+            'toolchain' : self._toolchain(ec),
+            'version': '-'.join([x for x in [ec.get('versionprefix', ''), ec['version'], ec['versionsuffix'].lstrip('-')] if x]),
+            'name' : ec['name'],
+            'eb_ver': self.eb_ver,
+        }
+        return pkg_name
 
-    def version(self, ec):
-        """Determine package version"""
-        return ec['version']
-
-    def release(self, ec=None):
-        """Determine package release"""
-        return build_option('package_release')
+    def _toolchain(self, ec):
+        """Determine toolchain"""
+        toolchain_template = "%(toolchain_name)s-%(toolchain_version)s"
+        pkg_toolchain = toolchain_template % {
+            'toolchain_name': ec['toolchain']['name'],
+            'toolchain_version': ec['toolchain']['version'],
+        }
+        return pkg_toolchain
