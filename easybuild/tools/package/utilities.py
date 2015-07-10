@@ -66,12 +66,26 @@ def avail_package_naming_schemes():
     return class_dict
 
 
-def package_fpm(easyblock, pkgtype):
+def package(easyblock):
+    """
+    Package installed software, according to active packaging configuration settings."""
+    pkgtool = build_option('package_tool')
+
+    if pkgtool == PKG_TOOL_FPM:
+        pkgdir = package_with_fpm(easyblock)
+    else:
+        raise EasyBuildError("Unknown packaging tool specified: %s", pkgtool)
+
+    return pkgdir
+
+
+def package_with_fpm(easyblock):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
     workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
-    _log.info("Will be creating packages in %s", workdir)
+    pkgtype = build_option('package_type')
+    _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
     try:
         os.chdir(workdir)
@@ -117,7 +131,7 @@ def package_fpm(easyblock, pkgtype):
     _log.debug("The flattened cmdlist looks like: %s", cmd)
     run_cmd(cmd, log_all=True, simple=True)
 
-    _log.info("Created %s package in %s", pkgtype, workdir)
+    _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
     return workdir
 
