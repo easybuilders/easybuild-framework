@@ -42,7 +42,7 @@ from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_sc
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
-MOCKED_FPM_RPM = """#!/bin/bash
+MOCKED_FPM = """#!/bin/bash
 # only parse what we need to spit out the expected package file, ignore the rest
 workdir=`echo $@ | sed 's/--workdir \([^ ]*\).*/\\1/g'`
 name=`echo $@ | sed 's/.* --name \([^ ]*\).*/\\1/g'`
@@ -52,6 +52,21 @@ target=`echo $@ | sed 's/.*-t \([^ ]*\).*/\\1/g'`
 
 echo "thisisan$target" > ${workdir}/${name}-${version}.${iteration}.${target}
 """
+
+
+def mock_fpm(tmpdir):
+    """Put mocked version of fpm command in place in specified tmpdir."""
+    # put mocked 'fpm' command in place, just for testing purposes
+    fpm = os.path.join(tmpdir, 'fpm')
+    write_file(fpm, MOCKED_FPM)
+    adjust_permissions(fpm, stat.S_IXUSR, add=True)
+
+    # also put mocked rpmbuild in place
+    rpmbuild = os.path.join(tmpdir, 'rpmbuild')
+    write_file(rpmbuild, '#!/bin/bash')  # only needs to be there, doesn't need to actually do something...
+    adjust_permissions(rpmbuild, stat.S_IXUSR, add=True)
+
+    os.environ['PATH'] = '%s:%s' % (tmpdir, os.environ['PATH'])
 
 
 class PackageTest(EnhancedTestCase):
@@ -103,11 +118,7 @@ class PackageTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         ec = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'), validate=False)
 
-        # put mocked 'fpm' command in place, just for testing purposes
-        fpm = os.path.join(self.test_prefix, 'fpm')
-        write_file(fpm, MOCKED_FPM_RPM)
-        adjust_permissions(fpm, stat.S_IXUSR, add=True)
-        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
+        mock_fpm(self.test_prefix)
 
         # import needs to be done here, since test easyblocks are only included later
         from easybuild.easyblocks.toy import EB_toy

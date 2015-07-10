@@ -88,6 +88,7 @@ def package_with_fpm(easyblock):
     _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
     try:
+        origdir = os.getcwd()
         os.chdir(workdir)
     except OSError, err:
         raise EasyBuildError("Failed to chdir into workdir %s: %s", workdir, err)
@@ -133,12 +134,16 @@ def package_with_fpm(easyblock):
 
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
+    try:
+        os.chdir(origdir)
+    except OSError, err:
+        raise EasyBuildError("Failed to chdir back to %s: %s", origdir, err)
+
     return workdir
 
 
 def check_pkg_support():
     """Check whether packaging is supported, i.e. whether the required dependencies are available."""
-
     # packaging support is considered experimental for now (requires using --experimental)
     _log.experimental("Support for packaging installed software.")
 
