@@ -24,30 +24,32 @@
 ##
 
 """
-General package naming scheme.
+Abstract implementation of a package naming scheme.
 
 @author: Robert Schmidt (Ottawa Hospital Research Institute)
 @author: Kenneth Hoste (Ghent University)
 """
+from abc import ABCMeta, abstractmethod
 from vsc.utils import fancylogger
+
 from easybuild.tools.config import build_option
-from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
 class PackageNamingScheme(object):
     """Abstract class for package naming schemes"""
+    __metaclass__ = ABCMeta
 
     def __init__(self):
         """initialize logger."""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.eb_ver = EASYBUILD_VERSION
 
+    @abstractmethod
     def name(self, ec):
         """Determine package name"""
-        raise NotImplementedError
+        pass
 
     def version(self, ec):
-        """Determine package version"""
+        """Determine package version."""
         return ec['version']
 
     def release(self, ec=None):
