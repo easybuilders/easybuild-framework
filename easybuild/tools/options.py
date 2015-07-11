@@ -52,7 +52,8 @@ from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
-from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX
+from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
@@ -66,6 +67,7 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -275,6 +277,10 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
+            'packagepath': ("The destination path for the packages built by package-tool",
+                             None, 'store', mk_full_default_path('packagepath')),
+            'package-naming-scheme': ("Packaging naming scheme choice", 
+                                      'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
@@ -359,6 +365,20 @@ class EasyBuildOptions(GeneralOption):
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
+    def package_options(self):
+        # package-related options
+        descr = ("Package options", "Control packaging performed by EasyBuild.")
+
+        opts = OrderedDict({
+            'package': ("Enabling packaging", None, 'store_true', False),
+            'package-tool': ("Packaging tool to use", None, 'store', DEFAULT_PKG_TOOL),
+            'package-type': ("Type of package to generate", None, 'store', DEFAULT_PKG_TYPE),
+            'package-release': ("Package release iteration number", None, 'store', DEFAULT_PKG_RELEASE),
+        })
+
+        self.log.debug("package_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def easyconfig_options(self):
@@ -539,7 +559,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
-            for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath']:
+            for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath', 'packagepath']:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
                         setattr(self.options, dest, DEFAULT_REPOSITORY)
