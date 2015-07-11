@@ -215,7 +215,7 @@ def main(testing_data=(None, None, None)):
     if options.package:
         check_pkg_support()
     else:
-        _log.debug("Packaging not enabled, so not check for packaging support.")
+        _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)

@@ -48,9 +48,10 @@ class PackageNamingScheme(object):
         """Determine package name"""
         pass
 
+    @abstractmethod
     def version(self, ec):
         """Determine package version."""
-        return ec['version']
+        pass
 
     def release(self, ec=None):
         """Determine package release"""

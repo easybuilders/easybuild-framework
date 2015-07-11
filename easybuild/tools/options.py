@@ -52,7 +52,8 @@ from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
-from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX
+from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
@@ -66,7 +67,6 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.package.utilities import DEFAULT_PNS, PKG_TOOL_FPM, PKG_TYPE_RPM
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -369,9 +369,9 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'package': ("Enabling packaging", None, 'store_true', False),
-            'package-tool': ("Packaging tool to use", None, 'store', PKG_TOOL_FPM),
-            'package-type': ("Type of package to generate", None, 'store', PKG_TYPE_RPM),
-            'package-release': ("Package release iteration number", None, 'store', '1'),
+            'package-tool': ("Packaging tool to use", None, 'store', DEFAULT_PKG_TOOL),
+            'package-type': ("Type of package to generate", None, 'store', DEFAULT_PKG_TYPE),
+            'package-release': ("Package release iteration number", None, 'store', DEFAULT_PKG_RELEASE),
         })
 
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))

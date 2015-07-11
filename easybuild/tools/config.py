@@ -52,6 +52,10 @@ from easybuild.tools.run import run_cmd
 _log = fancylogger.getLogger('config', fname=False)
 
 
+PKG_TOOL_FPM = 'fpm'
+PKG_TYPE_RPM = 'rpm'
+
+
 DEFAULT_JOB_BACKEND = 'PbsPython'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
@@ -66,6 +70,10 @@ DEFAULT_PATH_SUBDIRS = {
     'subdir_modules': 'modules',
     'subdir_software': 'software',
 }
+DEFAULT_PKG_RELEASE = '1'
+DEFAULT_PKG_TOOL = PKG_TOOL_FPM
+DEFAULT_PKG_TYPE = PKG_TYPE_RPM
+DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_STRICT = run.WARN
@@ -132,13 +140,13 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_STRICT: [
         'strict',
     ],
-    '1': [
+    DEFAULT_PKG_RELEASE: [
         'package_release',
     ],
-    'fpm': [
+    DEFAULT_PKG_TOOL: [
         'package_tool',
     ],
-    'rpm': [
+    DEFAULT_PKG_TYPE: [
         'package_type',
     ],
 }

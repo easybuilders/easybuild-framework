@@ -26,7 +26,7 @@
 """
 Various utilities related to packaging support.
 
-@author: Marc Litherland
+@author: Marc Litherland (Novartis)
 @author: Gianluca Santarossa (Novartis)
 @author: Robert Schmidt (Ottawa Hospital Research Institute)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
@@ -40,18 +40,13 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.config import build_option, get_package_naming_scheme
+from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules
-
-
-DEFAULT_PNS = 'EasyBuildPNS'
-PKG_TOOL_FPM = 'fpm'
-PKG_TYPE_RPM = 'rpm'
 
 
 _log = fancylogger.getLogger('tools.package')
