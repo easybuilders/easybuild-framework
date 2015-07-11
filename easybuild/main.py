@@ -56,6 +56,7 @@ from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
@@ -209,6 +210,12 @@ def main(testing_data=(None, None, None)):
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
+
+    # check whether packaging is supported when it's being used
+    if options.package:
+        check_pkg_support()
+    else:
+        _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
