@@ -123,9 +123,11 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'experimental',
         'force',
+        'group_writable_installdir',
         'hidden',
         'module_only',
         'package',
+        'read_only_installdir',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -496,16 +498,6 @@ def get_log_filename(name, version, add_salt=False):
         filepath = "%s.%d" % (filepath, counter)
 
     return filepath
-
-
-def read_only_installdir():
-    """
-    Return whether installation dir should be fully read-only after installation.
-    """
-    # FIXME (see issue #123): add a config option to set this, should be True by default (?)
-    # this also needs to be checked when --force is used;
-    # install dir will have to (temporarily) be made writeable again for owner in that case
-    return False
 
 
 def module_classes():

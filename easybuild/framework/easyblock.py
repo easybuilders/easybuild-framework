@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths, package_path
+from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -87,6 +87,7 @@ FETCH_STEP = 'fetch'
 MODULE_STEP = 'module'
 PACKAGE_STEP = 'package'
 PATCH_STEP = 'patch'
+PERMISSIONS_STEP = 'permissions'
 POSTPROC_STEP = 'postproc'
 PREPARE_STEP = 'prepare'
 READY_STEP = 'ready'
@@ -1519,8 +1520,6 @@ class EasyBlock(object):
         """
         Do some postprocessing
         - run post install commands if any were specified
-        - set file permissions ....
-        Installing user must be member of the group that it is changed to
         """
         if self.cfg['postinstallcmds'] is not None:
             # make sure we have a list of commands
@@ -1530,27 +1529,6 @@ class EasyBlock(object):
                 if not isinstance(cmd, basestring):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
-
-        if self.group is not None:
-            # remove permissions for others, and set group ID
-            try:
-                perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
-                adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=self.group[1],
-                                   relative=True, ignore_errors=True)
-            except EasyBuildError, err:
-                raise EasyBuildError("Unable to change group permissions of file(s): %s", err)
-            self.log.info("Successfully made software only available for group %s (gid %s)" % self.group)
-
-        if read_only_installdir():
-            # remove write permissions for everyone
-            perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
-            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
-        else:
-            # remove write permissions for group and other to protect installation
-            perms = stat.S_IWGRP | stat.S_IWOTH
-            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
 
     def sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """
@@ -1737,6 +1715,39 @@ class EasyBlock(object):
 
         return modpath
 
+    def permissions_step(self):
+        """
+        Finalize installation procedure: adjust permissions as configured, change group ownership (if requested).
+        Installing user must be member of the group that it is changed to.
+        """
+        if self.group is not None:
+            # remove permissions for others, and set group ID
+            try:
+                perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
+                adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=self.group[1],
+                                   relative=True, ignore_errors=True)
+            except EasyBuildError, err:
+                raise EasyBuildError("Unable to change group permissions of file(s): %s", err)
+            self.log.info("Successfully made software only available for group %s (gid %s)" % self.group)
+
+        if build_option('read_only_installdir'):
+            # remove write permissions for everyone
+            perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
+
+        elif build_option('group_writable_installdir'):
+            # enable write permissions for group
+            perms = stat.S_IWGRP
+            adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully enabled write permissions recursively for group on install dir.")
+
+        else:
+            # remove write permissions for group and other
+            perms = stat.S_IWGRP | stat.S_IWOTH
+            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
+
     def test_cases_step(self):
         """
         Run provided test cases.
@@ -1889,6 +1900,7 @@ class EasyBlock(object):
             (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step()], False),
             (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step()], False),
             (MODULE_STEP, 'creating module', [lambda x: x.make_module_step()], False),
+            (PERMISSIONS_STEP, 'permissions', [lambda x: x.permissions_step()], False),
             (PACKAGE_STEP, 'packaging', [lambda x: x.package_step()], False),
         ]
 
@@ -2003,6 +2015,9 @@ def build_and_install_one(ecdict, init_env):
                 new_log_dir = os.path.dirname(app.logfile)
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path())
+            if build_option('read_only_installdir'):
+                # temporarily re-enable write permissions for copying log/easyconfig to install dir
+                adjust_permissions(new_log_dir, stat.S_IWUSR, add=True, recursive=False)
 
             # collect build stats
             _log.info("Collecting build stats...")
@@ -2043,6 +2058,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+
+        if build_option('read_only_installdir'):
+            # take away user write permissions (again)
+            adjust_permissions(new_log_dir, stat.S_IWUSR, add=False, recursive=False)
 
     # build failed
     else:

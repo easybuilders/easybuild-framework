@@ -205,6 +205,8 @@ class EasyBuildOptions(GeneralOption):
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
+            'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
+                                          None, 'store_true', False),
             'hidden': ("Install 'hidden' module file(s) by prefixing their name with '.'", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
@@ -218,6 +220,8 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
+            'read-only-installdir': ("Set read-only permissions on installation directory after installation",
+                                     None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
