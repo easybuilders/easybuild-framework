@@ -181,7 +181,7 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
         '',
         '.. contents::',
         '    :depth: 2',
-        '    :local',
+        '    :local:',
         '    :backlinks: top',
         '',
     ]
