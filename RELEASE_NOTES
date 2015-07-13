@@ -29,7 +29,7 @@ feature + bugfix release
 - various bug fixes, including:
     - fix issue with cleaning up (no) logfile if --logtostdout/-l is used (#1298)
     - stop making ModulesTool class a singleton since it causes problems when multilple toolchains are in play (#1299)
-    - don't modify values of 'paths' list passed as argument to prepend_paths (#1300)
+    - don't modify values of 'paths' list passed as argument to prepend_paths in ModuleGenerator (#1300)
     - fix issue with EasyConfig.dump + cleanup (#1308, #1311)
     - reenable (and fix) accidentally disabled test (#1316)
 
