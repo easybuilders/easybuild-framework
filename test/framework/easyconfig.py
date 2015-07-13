@@ -1183,6 +1183,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'external_modules_metadata': ConfigObj(),
+        }
+        init_config(build_options=build_options)
 
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
@@ -1196,7 +1201,8 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
-            "dependencies = [('GCC', '4.6.4', '-test'), ('MPICH', '1.8', '', ('GCC', '4.6.4')), ('bar', '1.0')]",
+            "dependencies = [('GCC', '4.6.4', '-test'), ('MPICH', '1.8', '', ('GCC', '4.6.4')), " +
+                "('bar', '1.0'), ('foobar/1.2.3', EXTERNAL_MODULE)]",
             '',
             "foo_extra1 = 'foobar'",
         ])
