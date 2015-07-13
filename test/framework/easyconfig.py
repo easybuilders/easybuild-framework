@@ -1154,6 +1154,7 @@ class EasyConfigTest(EnhancedTestCase):
         # test prefer_single_quotes
         self.assertEqual(quote_str("foo", prefer_single_quotes=True), "'foo'")
         self.assertEqual(quote_str('foo bar', prefer_single_quotes=True), '"foo bar"')
+        self.assertEqual(quote_str("foo'bar", prefer_single_quotes=True), '"foo\'bar"')
 
         # non-string values
         n = 42

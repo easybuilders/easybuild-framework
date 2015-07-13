@@ -79,8 +79,9 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False):
         # single quotes to escape double quote used in strings
         elif '"' in val:
             return "'%s'" % val
-        # if single quotes are preferred, use single quotes
-        elif prefer_single_quotes and ' ' not in val:
+        # if single quotes are preferred, use single quotes;
+        # unless a space or a single quote are in the string
+        elif prefer_single_quotes and "'" not in val and ' ' not in val:
             return "'%s'" % val
         # fallback on double quotes (required in tcl syntax)
         else:
