@@ -25,6 +25,7 @@ feature + bugfix release
     - promote MigrateFromEBToHMNS to a 'production' MNS (#1302)
     - add support for --read-only-installdir and --group-writable-installdir configuration options (#1304)
     - add support for *not* expanding relative paths in prepend_paths (#1310)
+    - enhance EasyConfig.dump() method to use easyconfig templates where possible (#1314, #1319, #1320, #1321)
 - various bug fixes, including:
     - fix issue with cleaning up (no) logfile if --logtostdout/-l is used (#1298)
     - stop making ModulesTool class a singleton since it causes problems when multilple toolchains are in play (#1299)
