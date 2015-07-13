@@ -76,7 +76,7 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['name', 'version', 'description', 'homepage', 'toolchain']
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['easyblock', 'name', 'version', 'description', 'homepage', 'toolchain']
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -505,9 +505,8 @@ class EasyConfig(object):
         self.generate_template_values()
         templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
         # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
-        templ_val = OrderedDict([(self.template_values[k], k)
-                        for k in sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
-                        if len(self.template_values[k]) > 2])
+        keys = sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
+        templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
         def include_defined_parameters(keyset):
             """
@@ -954,8 +953,9 @@ def replace_templates(value, templ_const, templ_val):
                 value = templ_const[value]
             else:
                 # check for template values
-                for k, v in templ_val.items():
-                    value = re.sub(r"\b" + re.escape(k) + r"\b", r'%(' + v + ')s', value)
+                for temp_val, temp_name in templ_val.items():
+                    # only replace full words with templates, not substrings, by using \b in regex
+                    value = re.sub(r"\b" + re.escape(temp_val) + r"\b", r'%(' + temp_name + ')s', value)
 
     else:
         if isinstance(value, list):
@@ -963,7 +963,7 @@ def replace_templates(value, templ_const, templ_val):
         elif isinstance(value, tuple):
             value = tuple(replace_templates(list(value), templ_const, templ_val))
         elif isinstance(value, dict):
-            value = dict([(key, replace_templates(v, templ_const, templ_val)) for key, v in value.items()])
+            value = dict([(k, replace_templates(v, templ_const, templ_val)) for k, v in value.items()])
     return value
 
 
