@@ -520,7 +520,8 @@ class EasyConfig(object):
                     if val != default_values[key]:
                         # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                         if key in ['builddependencies', 'dependencies', 'hiddendependencies']:
-                            newval = to_template_str([self._dump_dependency(d) for d in val], templ_const, templ_val)
+                            dumped_deps = [self._dump_dependency(d, templ_const, templ_val) for d in val]
+                            newval = '[' + ', '.join(dumped_deps) + ']'
 
                         elif key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
                             self.log.debug("Original value before replacing matching template values: %s", val)
@@ -530,11 +531,11 @@ class EasyConfig(object):
                         else:
                             newval = quote_py_str(val)
 
-                        # quote string, but avoid that templated value refers to parameter that it defines
-                        if (r'%(' + key) not in newval:
-                            val = newval
-                        else:
+                        # avoid that templated value refers to parameter that it defines
+                        if r'%(' + key in newval:
                             val = quote_py_str(val)
+                        else:
+                            val = newval
 
                         ebtxt.append("%s = %s" % (key, val))
                         printed_keys.append(key)
@@ -696,21 +697,27 @@ class EasyConfig(object):
 
         return dependency
 
-    def _dump_dependency(self, dep):
+    def _dump_dependency(self, dep, templ_const, templ_val):
         """Dump parsed dependency in tuple format"""
-        # mininal spec: (name, version)
-        tup = (dep['name'], dep['version'])
 
-        if dep['toolchain'] != self['toolchain']:
-            if dep['dummy']:
-                tup += (dep['versionsuffix'], True)
-            else:
-                tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
+        if dep['external_module']:
+            res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['name'])
 
-        elif dep['versionsuffix']:
-            tup += (dep['versionsuffix'],)
+        else:
+            # mininal spec: (name, version)
+            tup = (dep['name'], dep['version'])
+            if dep['toolchain'] != self['toolchain']:
+                if dep['dummy']:
+                    tup += (dep['versionsuffix'], True)
+                else:
+                    tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
 
-        return tup
+            elif dep['versionsuffix']:
+                tup += (dep['versionsuffix'],)
+
+            res = to_template_str(tup, templ_const, templ_val)
+
+        return res
 
     def generate_template_values(self):
         """Try to generate all template values."""

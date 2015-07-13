@@ -332,7 +332,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://www.example.com"',
             'description = "dummy description"',
             'version = "3.14"',
-            'toolchain = {"name":"GCC","version":"4.6.3"}',
+            'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
         ]) % str(patches)
         self.prep()
@@ -1162,7 +1162,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(quote_str(["foo", "bar"]), ["foo", "bar"])
         self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
 
-
     def test_dump(self):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
@@ -1266,6 +1265,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # reparsing the dumped easyconfig file should work
         ecbis = EasyConfig(testec)
+
 
 def suite():
     """ returns all the testcases in this module """
