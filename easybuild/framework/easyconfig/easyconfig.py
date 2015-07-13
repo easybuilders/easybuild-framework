@@ -475,7 +475,7 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
         """
-        eb_file = file(fp, "w")
+        eb_file = file(fp, 'w')
 
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
@@ -503,7 +503,7 @@ class EasyConfig(object):
         default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
         self.generate_template_values()
-        templ_const = dict([(quote_str(const[1], escape_newline=True, prefer_single_quotes=True), const[0]) for const in TEMPLATE_CONSTANTS])
+        templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
         # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
         keys = sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
@@ -523,12 +523,12 @@ class EasyConfig(object):
                             val = to_template_str(val, templ_const, templ_val)
                             self.log.debug("New value after replacing matching template values: %s", val)
                         else:
-                            val = quote_str(val, escape_newline=True, prefer_single_quotes=True)
+                            val = quote_py_str(val)
                         ebtxt.append("%s = %s" % (key, val))
                         printed_keys.append(key)
                         printed = True
                 if printed:
-                    ebtxt.append("")
+                    ebtxt.append('')
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
@@ -539,8 +539,8 @@ class EasyConfig(object):
         keys_to_ignore = printed_keys + last_keys
         for key in default_values:
             if key not in keys_to_ignore and self[key] != default_values[key]:
-                ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True, prefer_single_quotes=True)))
-        ebtxt.append("")
+                ebtxt.append("%s = %s" % (key, quote_py_str(self[key])))
+        ebtxt.append('')
 
         # print last two parameters
         include_defined_parameters([[k] for k in last_keys])
@@ -941,16 +941,24 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
+
+def quote_py_str(val):
+    """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+
+
 def to_template_str(value, templ_const, templ_val):
     """
-    Given a value, try to substitute template strings where possible.
+    Create string representation of provided value, using template values where possible.
         - value can be a string, list, tuple, dict or combination thereof
         - templ_const is a dictionary of template strings (constants)
         - templ_val is an ordered dictionary of template strings specific for this easyconfig file
     """
     if isinstance(value, basestring):
+
+        # wrap string into quotes, except if it matches a template constant
         if value not in templ_const.values():
-            value = quote_str(value, escape_newline=True, prefer_single_quotes=True)
+            value = quote_py_str(value)
 
         old_value = None
         while value != old_value:
@@ -962,17 +970,17 @@ def to_template_str(value, templ_const, templ_val):
                 for temp_val, temp_name in templ_val.items():
                     # only replace full words with templates, not substrings, by using \b in regex
                     value = re.sub(r"\b" + re.escape(temp_val) + r"\b", r'%(' + temp_name + ')s', value)
-
     else:
         if isinstance(value, list):
             value = '[' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ']'
         elif isinstance(value, tuple):
             value = '(' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ')'
         elif isinstance(value, dict):
-            value = '{' + ', '.join(["%s: %s" % (quote_str(k, escape_newline=True, prefer_single_quotes=True), to_template_str(v, templ_const, templ_val))
+            value = '{' + ', '.join(["%s: %s" % (quote_py_str(k), to_template_str(v, templ_const, templ_val))
             for k, v in value.items()]) + '}'
         else:
             value = str(value)
+
     return value
 
 
