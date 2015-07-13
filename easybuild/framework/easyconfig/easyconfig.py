@@ -1,4 +1,4 @@
-# #
+
 # Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
@@ -503,7 +503,8 @@ class EasyConfig(object):
         default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
         self.generate_template_values()
-        templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
+        templ_const = dict([(quote_str(const[1], escape_newline=True, prefer_single_quotes=True), const[0]) for const in TEMPLATE_CONSTANTS])
+
         # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
         keys = sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
@@ -519,9 +520,11 @@ class EasyConfig(object):
                     if val != default_values[key]:
                         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
                             self.log.debug("Original value before replacing matching template values: %s", val)
-                            val = replace_templates(val, templ_const, templ_val)
+                            val = to_template_str(val, templ_const, templ_val)
                             self.log.debug("New value after replacing matching template values: %s", val)
-                        ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
+                        else:
+                            val = quote_str(val, escape_newline=True, prefer_single_quotes=True)
+                        ebtxt.append("%s = %s" % (key, val))
                         printed_keys.append(key)
                         printed = True
                 if printed:
@@ -536,7 +539,7 @@ class EasyConfig(object):
         keys_to_ignore = printed_keys + last_keys
         for key in default_values:
             if key not in keys_to_ignore and self[key] != default_values[key]:
-                ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
+                ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True, prefer_single_quotes=True)))
         ebtxt.append("")
 
         # print last two parameters
@@ -938,7 +941,7 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
-def replace_templates(value, templ_const, templ_val):
+def to_template_str(value, templ_const, templ_val):
     """
     Given a value, try to substitute template strings where possible.
         - value can be a string, list, tuple, dict or combination thereof
@@ -946,6 +949,9 @@ def replace_templates(value, templ_const, templ_val):
         - templ_val is an ordered dictionary of template strings specific for this easyconfig file
     """
     if isinstance(value, basestring):
+        if value not in templ_const.values():
+            value = quote_str(value, escape_newline=True, prefer_single_quotes=True)
+
         old_value = None
         while value != old_value:
             old_value = value
@@ -959,11 +965,14 @@ def replace_templates(value, templ_const, templ_val):
 
     else:
         if isinstance(value, list):
-            value = [replace_templates(v, templ_const, templ_val) for v in value]
+            value = '[' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ']'
         elif isinstance(value, tuple):
-            value = tuple(replace_templates(list(value), templ_const, templ_val))
+            value = '(' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ')'
         elif isinstance(value, dict):
-            value = dict([(k, replace_templates(v, templ_const, templ_val)) for k, v in value.items()])
+            value = '{' + ', '.join(["%s: %s" % (quote_str(k, escape_newline=True, prefer_single_quotes=True), to_template_str(v, templ_const, templ_val))
+            for k, v in value.items()]) + '}'
+        else:
+            value = str(value)
     return value
 
 

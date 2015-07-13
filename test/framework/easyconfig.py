@@ -1140,7 +1140,8 @@ class EasyConfigTest(EnhancedTestCase):
             'foo\'bar' : '"foo\'bar"',
             'foo\'bar"baz' : '"""foo\'bar"baz"""',
             "foo'bar\"baz" : '"""foo\'bar"baz"""',
-            "foo\nbar" : '"foo\nbar"'
+            "foo\nbar" : '"foo\nbar"',
+            'foo bar' : '"foo bar"'
         }
 
         for t in teststrings:
@@ -1149,6 +1150,10 @@ class EasyConfigTest(EnhancedTestCase):
         # test escape_newline
         self.assertEqual(quote_str("foo\nbar", escape_newline=False), '"foo\nbar"')
         self.assertEqual(quote_str("foo\nbar", escape_newline=True), '"""foo\nbar"""')
+
+        # test prefer_single_quotes
+        self.assertEqual(quote_str("foo", prefer_single_quotes=True), "'foo'")
+        self.assertEqual(quote_str('foo bar', prefer_single_quotes=True), '"foo bar"')
 
         # non-string values
         n = 42
@@ -1168,7 +1173,7 @@ class EasyConfigTest(EnhancedTestCase):
             ec.dump(test_ec)
             ectxt = read_file(test_ec)
 
-            patterns = [r'^name = ["\']', r'^version = ["0-9\.]', r'^description = ["\']']
+            patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
             for pattern in patterns:
                 regex = re.compile(pattern, re.M)
                 self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
@@ -1180,17 +1185,17 @@ class EasyConfigTest(EnhancedTestCase):
         """Test EasyConfig's dump() method for files containing extra values"""
 
         rawtxt = '\n'.join([
-            'easyblock = "EB_foo"',
+            "easyblock = 'EB_foo'",
             '',
-            'name = "foo"',
-            'version = "0.0.1"',
+            "name = 'foo'",
+            "version = '0.0.1'",
             '',
-            'homepage = "http://foo.com/"',
+            "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
-            'foo_extra1 = "foobar"',
+            "foo_extra1 = 'foobar'",
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1206,24 +1211,24 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
         rawtxt = '\n'.join([
-            'easyblock = "EB_foo"',
+            "easyblock = 'EB_foo'",
             '',
-            'name = "Foo"',
-            'version = "0.0.1"',
+            "name = 'Foo'",
+            "version = '0.0.1'",
             '',
-            'homepage = "http://foo.com/"',
+            "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             "sources = ['foo-0.0.1.tar.gz']",
             '',
-            'preconfigopts = "--opt1=%s" % name',
-            'configopts = "--opt2=0.0.1"',
+            "preconfigopts = '--opt1=%s' % name",
+            "configopts = '--opt2=0.0.1'",
             '',
             "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
             '',
-            'foo_extra1 = "foobar"'
+            "foo_extra1 = 'foobar'"
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1237,14 +1242,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(ec.enable_templating)  # templating should still be enabled after calling dump()
 
         patterns = [
-            r'easyblock = "EB_foo"',
-            r'name = "Foo"',
-            r'version = "0.0.1"',
-            r'homepage = "http://foo.com/"',
+            r"easyblock = 'EB_foo'",
+            r"name = 'Foo'",
+            r"version = '0.0.1'",
+            r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
-            r"sources = \['SOURCELOWER_TAR_GZ'\]",
-            r'preconfigopts = "--opt1=%\(name\)s"',
-            r'configopts = "--opt2=%\(version\)s"',
+            r"sources = \[SOURCELOWER_TAR_GZ\]",
+            r"preconfigopts = '--opt1=%\(name\)s'",
+            r"configopts = '--opt2=%\(version\)s'",
             r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar'\]",
         ]
 
