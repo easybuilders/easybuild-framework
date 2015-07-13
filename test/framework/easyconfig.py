@@ -332,7 +332,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://www.example.com"',
             'description = "dummy description"',
             'version = "3.14"',
-            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
         ]) % str(patches)
         self.prep()
@@ -1154,13 +1154,13 @@ class EasyConfigTest(EnhancedTestCase):
         # test prefer_single_quotes
         self.assertEqual(quote_str("foo", prefer_single_quotes=True), "'foo'")
         self.assertEqual(quote_str('foo bar', prefer_single_quotes=True), '"foo bar"')
+        self.assertEqual(quote_str("foo'bar", prefer_single_quotes=True), '"foo\'bar"')
 
         # non-string values
         n = 42
         self.assertEqual(quote_str(n), 42)
         self.assertEqual(quote_str(["foo", "bar"]), ["foo", "bar"])
         self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
-
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
@@ -1189,11 +1189,14 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "name = 'foo'",
             "version = '0.0.1'",
+            "versionsuffix = '_bar'",
             '',
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            '',
+            "dependencies = [('GCC', '4.6.4', '-test'), ('MPICH', '1.8', '', ('GCC', '4.6.4')), ('bar', '1.0')]",
             '',
             "foo_extra1 = 'foobar'",
         ])
@@ -1215,6 +1218,7 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "name = 'Foo'",
             "version = '0.0.1'",
+            "versionsuffix = '-test'",
             '',
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
@@ -1222,6 +1226,8 @@ class EasyConfigTest(EnhancedTestCase):
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             "sources = ['foo-0.0.1.tar.gz']",
+            '',
+            "dependencies = [('bar', '1.2.3', '-test')]",
             '',
             "preconfigopts = '--opt1=%s' % name",
             "configopts = '--opt2=0.0.1'",
@@ -1235,7 +1241,6 @@ class EasyConfigTest(EnhancedTestCase):
         os.close(handle)
 
         ec = EasyConfig(None, rawtxt=rawtxt)
-        ec.enable_templating = True
         ec.dump(testec)
         ectxt = read_file(testec)
 
@@ -1245,6 +1250,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"easyblock = 'EB_foo'",
             r"name = 'Foo'",
             r"version = '0.0.1'",
+            r"versionsuffix = '-test'",
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
@@ -1259,6 +1265,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # reparsing the dumped easyconfig file should work
         ecbis = EasyConfig(testec)
+
 
 def suite():
     """ returns all the testcases in this module """
