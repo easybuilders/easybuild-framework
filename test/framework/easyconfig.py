@@ -1153,8 +1153,7 @@ class EasyConfigTest(EnhancedTestCase):
         # non-string values
         n = 42
         self.assertEqual(quote_str(n), 42)
-        l = ["foo", "bar"]
-        self.assertEqual(quote_str(l), ["foo", "bar"])
+        self.assertEqual(quote_str(["foo", "bar"]), ["foo", "bar"])
         self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
 
 
@@ -1189,7 +1188,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://foo.com/"',
             'description = "foo description"',
             '',
-            'toolchain = {\'version\': \'dummy\', \'name\': \'dummy\'}',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             'foo_extra1 = "foobar"',
         ])
@@ -1204,6 +1203,57 @@ class EasyConfigTest(EnhancedTestCase):
 
         dumped_ec = EasyConfig(testec)
 
+    def test_dump_template(self):
+        """ Test EasyConfig's dump() method for files containing templates"""
+        rawtxt = '\n'.join([
+            'easyblock = "EB_foo"',
+            '',
+            'name = "Foo"',
+            'version = "0.0.1"',
+            '',
+            'homepage = "http://foo.com/"',
+            'description = "foo description"',
+            '',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            '',
+            "sources = ['foo-0.0.1.tar.gz']",
+            '',
+            'preconfigopts = "--opt1=%s" % name',
+            'configopts = "--opt2=0.0.1"',
+            '',
+            "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
+            '',
+            'foo_extra1 = "foobar"'
+        ])
+
+        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        os.close(handle)
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.enable_templating = True
+        ec.dump(testec)
+        ectxt = read_file(testec)
+
+        self.assertTrue(ec.enable_templating)  # templating should still be enabled after calling dump()
+
+        patterns = [
+            r'easyblock = "EB_foo"',
+            r'name = "Foo"',
+            r'version = "0.0.1"',
+            r'homepage = "http://foo.com/"',
+            r'description = "foo description"',  # no templating for description
+            r"sources = \['SOURCELOWER_TAR_GZ'\]",
+            r'preconfigopts = "--opt1=%\(name\)s"',
+            r'configopts = "--opt2=%\(version\)s"',
+            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar'\]",
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        # reparsing the dumped easyconfig file should work
+        ecbis = EasyConfig(testec)
 
 def suite():
     """ returns all the testcases in this module """

@@ -51,6 +51,7 @@ from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
@@ -63,7 +64,7 @@ from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -73,6 +74,9 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+
+# values for these keys will not be templated in dump()
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['easyblock', 'name', 'version', 'description', 'homepage', 'toolchain']
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -491,9 +495,18 @@ class EasyConfig(object):
 
         last_keys = ['sanity_check_paths', 'moduleclass']
 
+        orig_enable_templating = self.enable_templating
+        self.enable_templating = False # templated values should be dumped unresolved
+
         # build dict of default values
         default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
         default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+
+        self.generate_template_values()
+        templ_const = dict([(const[1], const[0]) for const in TEMPLATE_CONSTANTS])
+        # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
+        keys = sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
+        templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
         def include_defined_parameters(keyset):
             """
@@ -502,8 +515,13 @@ class EasyConfig(object):
             for group in keyset:
                 printed = False
                 for key in group:
-                    if self[key] != default_values[key]:
-                        ebtxt.append("%s = %s" % (key, quote_str(self[key], escape_newline=True)))
+                    val = self[key]
+                    if val != default_values[key]:
+                        if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
+                            self.log.debug("Original value before replacing matching template values: %s", val)
+                            val = replace_templates(val, templ_const, templ_val)
+                            self.log.debug("New value after replacing matching template values: %s", val)
+                        ebtxt.append("%s = %s" % (key, quote_str(val, escape_newline=True)))
                         printed_keys.append(key)
                         printed = True
                 if printed:
@@ -526,6 +544,8 @@ class EasyConfig(object):
 
         eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
+
+        self.enable_templating = orig_enable_templating
 
     def _validate(self, attr, values):  # private method
         """
@@ -916,6 +936,34 @@ def resolve_template(value, tmpl_dict):
         elif isinstance(value, dict):
             value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
 
+    return value
+
+def replace_templates(value, templ_const, templ_val):
+    """
+    Given a value, try to substitute template strings where possible.
+        - value can be a string, list, tuple, dict or combination thereof
+        - templ_const is a dictionary of template strings (constants)
+        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
+    """
+    if isinstance(value, basestring):
+        old_value = None
+        while value != old_value:
+            old_value = value
+            if value in templ_const:
+                value = templ_const[value]
+            else:
+                # check for template values
+                for temp_val, temp_name in templ_val.items():
+                    # only replace full words with templates, not substrings, by using \b in regex
+                    value = re.sub(r"\b" + re.escape(temp_val) + r"\b", r'%(' + temp_name + ')s', value)
+
+    else:
+        if isinstance(value, list):
+            value = [replace_templates(v, templ_const, templ_val) for v in value]
+        elif isinstance(value, tuple):
+            value = tuple(replace_templates(list(value), templ_const, templ_val))
+        elif isinstance(value, dict):
+            value = dict([(k, replace_templates(v, templ_const, templ_val)) for k, v in value.items()])
     return value
 
 
