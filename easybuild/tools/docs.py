@@ -39,9 +39,9 @@ import os
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import quote_str, import_available_modules
 from easybuild.tools.filetools import read_file
+from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.utilities import import_available_modules, quote_str
 
 
 FORMAT_RST = 'rst'
