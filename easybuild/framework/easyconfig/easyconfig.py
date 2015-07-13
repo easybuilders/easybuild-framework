@@ -701,7 +701,7 @@ class EasyConfig(object):
         """Dump parsed dependency in tuple format"""
 
         if dep['external_module']:
-            res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['name'])
+            res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
 
         else:
             # mininal spec: (name, version)
