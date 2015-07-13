@@ -34,24 +34,24 @@ class DocsTest(EnhancedTestCase):
 
     def test_rst_table(self):
         """ Test mk_rst_table function """
-        entries_1 = [['one', 'two', 'three']]
-        t1 = 'This title is long'
-        titles_1 = [t1]
+        entries = [['one', 'two', 'three']]
+        t = 'This title is longer than the entries in the column'
+        titles = [t]
 
         # small table
-        table_1 = '\n'.join(mk_rst_table(titles_1, entries_1))
-        check_1 = '\n'.join([
-            '=' * len(t1),
-            t1,
-            '=' * len(t1),
-            'one' + ' ' * (len(t1) - 3),
-            'two' + ' ' * (len(t1) -3),
-            'three' + ' ' * (len(t1) - 5),
-            '=' * len(t1),
+        table = '\n'.join(mk_rst_table(titles, entries))
+        check = '\n'.join([
+            '=' * len(t),
+            t,
+            '=' * len(t),
+            'one' + ' ' * (len(t) - 3),
+            'two' + ' ' * (len(t) -3),
+            'three' + ' ' * (len(t) - 5),
+            '=' * len(t),
             '',
         ])
 
-        self.assertEqual(table_1, check_1)
+        self.assertEqual(table, check)
 
 
 def suite():

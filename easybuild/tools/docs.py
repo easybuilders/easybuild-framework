@@ -73,13 +73,14 @@ def avail_easyconfig_params_rst(title, grouped_params):
         values = [
             ['``' + name + '``' for name in grouped_params[grpname].keys()],  # parameter name
             [x[0] for x in grouped_params[grpname].values()],  # description
-            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  #default value
+            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  # default value
         ]
 
         lines.extend(mk_rst_table(titles, values))
         lines.append('')
 
     return '\n'.join(lines)
+
 
 def avail_easyconfig_params_txt(title, grouped_params):
     """
@@ -105,6 +106,7 @@ def avail_easyconfig_params_txt(title, grouped_params):
         lines.append('')
 
     return '\n'.join(lines)
+
 
 def avail_easyconfig_params(easyblock, output_format):
     """
@@ -160,20 +162,30 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
     all_blocks = []
 
     # get all blocks
-    for m in modules:
-        for name,obj in inspect.getmembers(m, inspect.isclass):
-            eb_class = getattr(m, name)
+    for mod in modules:
+        for name,obj in inspect.getmembers(mod, inspect.isclass):
+            eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
             if eb_class.__module__.startswith(package_name) and eb_class not in all_blocks:
                 all_blocks.append(eb_class)
 
-    for eb_class in all_blocks:
+    for eb_class in sorted(all_blocks):
         docs.append(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
 
     title = 'Overview of generic easyblocks'
 
-    heading = ['=' * len(title), title, '=' * len(title), '', '.. contents::', '    :depth: 2', '']
-    return heading + sorted(docs)
+    heading = [
+        '=' * len(title),
+        title,
+        '=' * len(title),
+        '',
+        '.. contents::',
+        '    :depth: 2',
+        '',
+    ]
+
+    return heading + docs
+
 
 def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
     """
@@ -220,20 +232,23 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
         lines.extend([commonly_used, '-' * len(commonly_used)])
 
-        for opt in common_params[classname]:
-            param = '* ``' + opt + '`` - ' + DEFAULT_CONFIG[opt][1]
-            lines.append(param)
-    lines.append('')
+        titles = ['easyconfig parameter', 'description']
+        values = [
+            [common_params[classname]],
+            [DEFAULT_CONFIG[opt][1] for opt in common_params],
+        ]
+
+        lines.extend(mk_rst_table(titles, values))
+
+        lines.append('')
 
     # Add docstring for custom steps
     custom = []
     inh = ''
+    f = None
     for func in doc_functions:
         if func in eb_class.__dict__:
             f = eb_class.__dict__[func]
-        elif func in eb_class.__bases__[0].__dict__:
-            f = eb_class.__bases__[0].__dict__[func]
-            inh = ' (inherited)'
 
         if f.__doc__:
             custom.append('* ``' + func + '`` - ' + f.__doc__.strip() + inh)
