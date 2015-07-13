@@ -170,7 +170,6 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
                 all_blocks.append(eb_class)
 
     for eb_class in sorted(all_blocks, key=lambda c: c.__name__):
-        print eb_class
         docs.append(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
 
     title = 'Overview of generic easyblocks'
@@ -182,6 +181,8 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
         '',
         '.. contents::',
         '    :depth: 2',
+        '    :local',
+        '    :backlinks: top',
         '',
     ]
 
