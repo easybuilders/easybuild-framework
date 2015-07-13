@@ -506,7 +506,7 @@ class EasyConfig(object):
         templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
         # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
-        keys = sorted(self.template_values, key=lambda k:len(self.template_values[k]), reverse=True)
+        keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
         def include_defined_parameters(keyset):
@@ -518,12 +518,24 @@ class EasyConfig(object):
                 for key in group:
                     val = self[key]
                     if val != default_values[key]:
-                        if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
+                        # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
+                        if key in ['builddependencies', 'dependencies', 'hiddendependencies']:
+                            newval = to_template_str([self._dump_dependency(d) for d in val], templ_const, templ_val)
+
+                        elif key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
                             self.log.debug("Original value before replacing matching template values: %s", val)
-                            val = to_template_str(val, templ_const, templ_val)
-                            self.log.debug("New value after replacing matching template values: %s", val)
+                            newval = to_template_str(val, templ_const, templ_val)
+                            self.log.debug("New value after replacing matching template values: %s", newval)
+
+                        else:
+                            newval = quote_py_str(val)
+
+                        # quote string, but avoid that templated value refers to parameter that it defines
+                        if (r'%(' + key) not in newval:
+                            val = newval
                         else:
                             val = quote_py_str(val)
+
                         ebtxt.append("%s = %s" % (key, val))
                         printed_keys.append(key)
                         printed = True
@@ -683,6 +695,22 @@ class EasyConfig(object):
         dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
 
         return dependency
+
+    def _dump_dependency(self, dep):
+        """Dump parsed dependency in tuple format"""
+        # mininal spec: (name, version)
+        tup = (dep['name'], dep['version'])
+
+        if dep['toolchain'] != self['toolchain']:
+            if dep['dummy']:
+                tup += (dep['versionsuffix'], True)
+            else:
+                tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
+
+        elif dep['versionsuffix']:
+            tup += (dep['versionsuffix'],)
+
+        return tup
 
     def generate_template_values(self):
         """Try to generate all template values."""
@@ -966,10 +994,10 @@ def to_template_str(value, templ_const, templ_val):
             if value in templ_const:
                 value = templ_const[value]
             else:
-                # check for template values
-                for temp_val, temp_name in templ_val.items():
+                # check for template values (note: templ_val dict is 'upside-down')
+                for tval, tname in templ_val.items():
                     # only replace full words with templates, not substrings, by using \b in regex
-                    value = re.sub(r"\b" + re.escape(temp_val) + r"\b", r'%(' + temp_name + ')s', value)
+                    value = re.sub(r"\b" + re.escape(tval) + r"\b", r'%(' + tname + ')s', value)
     else:
         if isinstance(value, list):
             value = '[' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ']'
