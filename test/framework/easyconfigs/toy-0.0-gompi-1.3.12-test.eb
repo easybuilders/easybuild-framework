@@ -1,5 +1,6 @@
 name = 'toy'
 version = '0.0'
+versionsuffix = '-test'
 
 homepage = 'http://hpcugent.github.com/easybuild'
 description = "Toy C program."

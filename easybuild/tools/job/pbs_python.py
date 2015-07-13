@@ -29,84 +29,188 @@ Interface module to TORQUE (PBS).
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+from distutils.version import LooseVersion
 import os
+import re
 import tempfile
-import time
 from vsc.utils import fancylogger
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
+from easybuild.tools.job.backend import JobBackend
 
 
-_log = fancylogger.getLogger('pbs_job', fname=False)
+_log = fancylogger.getLogger('pbs_python', fname=False)
 
 
-MAX_WALLTIME = 72
 # extend paramater should be 'NULL' in some functions because this is required by the python api
 NULL = 'NULL'
 # list of known hold types
 KNOWN_HOLD_TYPES = []
 
-pbs_import_failed = None
 try:
-    from PBSQuery import PBSQuery
     import pbs
+    from PBSQuery import PBSQuery
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
-except ImportError:
-    _log.debug("Failed to import pbs from pbs_python. Silently ignoring, is only a real issue with --job")
-    pbs_import_failed = "PBSQuery or pbs modules not available. Please make sure pbs_python is installed and usable."
+
+    # `pbs_python` is available, no need guard against import errors
+    def pbs_python_imported(fn):
+        """No-op decorator."""
+        return fn
+
+except ImportError as err:
+    _log.debug("Failed to import pbs from pbs_python."
+               " Silently ignoring, this is a real issue only when pbs_python is used as backend for --job")
+
+    # `pbs_python` not available, turn method in a raised EasyBuildError
+    def pbs_python_imported(_):
+        """Decorator which raises an EasyBuildError because pbs_python is not available."""
+        def fail(*args, **kwargs):
+            """Raise EasyBuildError since `pbs_python` is not available."""
+            errmsg = "Python modules 'PBSQuery' and 'pbs' are not available. "
+            errmsg += "Please make sure `pbs_python` is installed and usable: %s"
+            raise EasyBuildError(errmsg, err)
+
+        return fail
 
 
-def connect_to_server(pbs_server=None):
-    """Connect to PBS server and return connection."""
-    if pbs_import_failed:
-        raise EasyBuildError(pbs_import_failed)
+class PbsPython(JobBackend):
+    """
+    Manage PBS server communication and create `PbsJob` objects.
+    """
 
-    if not pbs_server:
-        pbs_server = pbs.pbs_default()
-    return pbs.pbs_connect(pbs_server)
+    # pbs_python 4.1.0 introduces the pbs.version variable we rely on
+    REQ_VERSION = '4.1.0'
 
+    @pbs_python_imported
+    def _check_version(self):
+        """Check whether pbs_python version complies with required version."""
+        version_regex = re.compile('pbs_python version (?P<version>.*)')
+        res = version_regex.search(pbs.version)
+        if res:
+            version = res.group('version')
+            if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
+                raise EasyBuildError("Found pbs_python version %s, but version %s or more recent is required",
+                                     version, self.REQ_VERSION)
+        else:
+            raise EasyBuildError("Failed to parse pbs_python version string '%s' using pattern %s",
+                                 pbs.version, version_regex.pattern)
 
-def disconnect_from_server(conn):
-    """Disconnect a given connection."""
-    if pbs_import_failed:
-        raise EasyBuildError(pbs_import_failed)
+    def __init__(self, *args, **kwargs):
+        """Constructor."""
+        pbs_server = kwargs.pop('pbs_server', None)
 
-    pbs.pbs_disconnect(conn)
+        super(PbsPython, self).__init__(*args, **kwargs)
 
+        self.pbs_server = pbs_server or build_option('job_target_resource') or pbs.pbs_default()
+        self.conn = None
+        self._ppn = None
 
-def get_ppn():
-    """Guess the ppn for full node"""
+    def init(self):
+        """
+        Initialise the job backend.
 
-    log = fancylogger.getLogger('pbs_job.get_ppn')
+        Connect to the PBS server & reset list of submitted jobs.
+        """
+        self.connect_to_server()
+        self._submitted = []
 
-    pq = PBSQuery()
-    node_vals = pq.getnodes().values()  # only the values, not the names
-    interesting_nodes = ('free', 'job-exclusive',)
-    res = {}
-    for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
-        res.setdefault(np, 0)
-        res[np] += 1
+    @pbs_python_imported
+    def connect_to_server(self):
+        """Connect to PBS server, set and return connection."""
+        if not self.conn:
+            self.conn = pbs.pbs_connect(self.pbs_server)
+        return self.conn
 
-    # return most frequent
-    freq_count, freq_np = max([(j, i) for i, j in res.items()])
-    log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+    def queue(self, job, dependencies=frozenset()):
+        """
+        Add a job to the queue.
 
-    return freq_np
+        @param dependencies: jobs on which this job depends.
+        """
+        if dependencies:
+            job.add_dependencies(dependencies)
+        job._submit()
+        self._submitted.append(job)
+
+    def complete(self):
+        """
+        Complete a bulk job submission.
+
+        Release all user holds on submitted jobs, and disconnect from server.
+        """
+        for job in self._submitted:
+            if job.has_holds():
+                self.log.info("releasing user hold on job %s" % job.jobid)
+                job.release_hold()
+
+        self.disconnect_from_server()
+
+        # print list of submitted jobs
+        submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
+        print_msg("List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs), log=self.log)
+
+        # determine leaf nodes in dependency graph, and report them
+        all_deps = set()
+        for job in self._submitted:
+            all_deps = all_deps.union(job.deps)
+
+        leaf_nodes = []
+        for job in self._submitted:
+            if job.jobid not in all_deps:
+                leaf_nodes.append(str(job.jobid).split('.')[0])
+
+        self.log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
+
+    @pbs_python_imported
+    def disconnect_from_server(self):
+        """Disconnect current connection."""
+        pbs.pbs_disconnect(self.conn)
+        self.conn = None
+
+    @pbs_python_imported
+    def _get_ppn(self):
+        """Guess PBS' `ppn` value for a full node."""
+        # cache this value as it's not likely going to change over the
+        # `eb` script runtime ...
+        if not self._ppn:
+            pq = PBSQuery()
+            node_vals = pq.getnodes().values()  # only the values, not the names
+            interesting_nodes = ('free', 'job-exclusive',)
+            res = {}
+            for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
+                res.setdefault(np, 0)
+                res[np] += 1
+
+            # return most frequent
+            freq_count, freq_np = max([(j, i) for i, j in res.items()])
+            self.log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+
+            self._ppn = freq_np
+
+        return self._ppn
+
+    ppn = property(_get_ppn)
+
+    def make_job(self, script, name, env_vars=None, hours=None, cores=None):
+        """Create and return a `PbsJob` object with the given parameters."""
+        return PbsJob(self, script, name, env_vars, hours, cores, conn=self.conn, ppn=self.ppn)
 
 
 class PbsJob(object):
     """Interaction with TORQUE"""
 
-    def __init__(self, script, name, env_vars=None, resources={}, conn=None, ppn=None):
+    def __init__(self, server, script, name, env_vars=None,
+                 hours=None, cores=None, conn=None, ppn=None):
         """
         create a new Job to be submitted to PBS
         env_vars is a dictionary with key-value pairs of environment variables that should be passed on to the job
-        resources is a dictionary with optional keys: ['hours', 'cores'] both of these should be integer values.
-        hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
+        hours and cores should be integer values.
+        hours can be 1 - (max walltime), cores depends on which cluster it is being run.
         """
-        self.clean_conn = True
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+        self._server = server
         self.script = script
         if env_vars:
             self.env_vars = env_vars.copy()
@@ -114,41 +218,36 @@ class PbsJob(object):
             self.env_vars = {}
         self.name = name
 
-        if pbs_import_failed:
-            raise EasyBuildError(pbs_import_failed)
-
         try:
-            self.pbs_server = pbs.pbs_default()
-            if conn:
-                self.pbsconn = conn
-                self.clean_conn = False
-            else:
-                self.pbsconn = pbs.pbs_connect(self.pbs_server)
+            self.pbsconn = self._server.connect_to_server()
         except Exception, err:
             raise EasyBuildError("Failed to connect to the default pbs server: %s", err)
 
         # setup the resources requested
 
         # validate requested resources!
-        hours = resources.get('hours', MAX_WALLTIME)
-        if hours > MAX_WALLTIME:
-            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, MAX_WALLTIME))
-            hours = MAX_WALLTIME
+        max_walltime = build_option('job_max_walltime')
+        if hours is None:
+            hours = max_walltime
+        if hours > max_walltime:
+            self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, max_walltime))
+            hours = max_walltime
 
         if ppn is None:
-            max_cores = get_ppn()
+            max_cores = server.ppn
         else:
             max_cores = ppn
-        cores = resources.get('cores', max_cores)
+        if cores is None:
+            cores = max_cores
         if cores > max_cores:
             self.log.warn("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
             cores = max_cores
 
         # only allow cores and hours for now.
         self.resources = {
-                          "walltime": "%s:00:00" % hours,
-                          "nodes": "1:ppn=%s" % cores
-                         }
+            'walltime': '%s:00:00' % hours,
+            'nodes': '1:ppn=%s' % cores,
+        }
         # don't specify any queue name to submit to, use the default
         self.queue = None
         # job id of this job
@@ -158,53 +257,61 @@ class PbsJob(object):
         # list of holds that are placed on this job
         self.holds = []
 
-    def add_dependencies(self, job_ids):
+    def __str__(self):
+        """Return the job ID as a string."""
+        return (str(self.jobid) if self.jobid is not None
+                else repr(self))
+
+    def add_dependencies(self, jobs):
         """
         Add dependencies to this job.
-        job_ids is an array of job ids (e.g.: 8453.master2.gengar....)
-        if only one job_id is provided this function will also work
+
+        Argument `jobs` is a sequence of `PbsJob` objects.
         """
-        if isinstance(job_ids, str):
-            job_ids = list(job_ids)
+        self.deps.extend(jobs)
 
-        self.deps.extend(job_ids)
-
-    def submit(self, with_hold=False):
+    def _submit(self):
         """Submit the jobscript txt, set self.jobid"""
         txt = self.script
         self.log.debug("Going to submit script %s" % txt)
 
         # Build default pbs_attributes list
-        pbs_attributes = pbs.new_attropl(1)
+        pbs_attributes = pbs.new_attropl(3)
         pbs_attributes[0].name = pbs.ATTR_N  # Job_Name
         pbs_attributes[0].value = self.name
 
+        output_dir = build_option('job_output_dir')
+        pbs_attributes[1].name = pbs.ATTR_o
+        pbs_attributes[1].value = os.path.join(output_dir, '%s.o$PBS_JOBID' % self.name)
+
+        pbs_attributes[2].name = pbs.ATTR_e
+        pbs_attributes[2].value = os.path.join(output_dir, '%s.e$PBS_JOBID' % self.name)
+
         # set resource requirements
-        resourse_attributes = pbs.new_attropl(len(self.resources))
+        resource_attributes = pbs.new_attropl(len(self.resources))
         idx = 0
         for k, v in self.resources.items():
-            resourse_attributes[idx].name = pbs.ATTR_l  # Resource_List
-            resourse_attributes[idx].resource = k
-            resourse_attributes[idx].value = v
+            resource_attributes[idx].name = pbs.ATTR_l  # Resource_List
+            resource_attributes[idx].resource = k
+            resource_attributes[idx].value = v
             idx += 1
-        pbs_attributes.extend(resourse_attributes)
+        pbs_attributes.extend(resource_attributes)
 
         # add job dependencies to attributes
         if self.deps:
             deps_attributes = pbs.new_attropl(1)
             deps_attributes[0].name = pbs.ATTR_depend
-            deps_attributes[0].value = ",".join(["afterany:%s" % dep for dep in self.deps])
+            deps_attributes[0].value = ",".join(["afterany:%s" % dep.jobid for dep in self.deps])
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
-        # submit job with (user) hold if requested
-        if with_hold:
-            hold_attributes = pbs.new_attropl(1)
-            hold_attributes[0].name = pbs.ATTR_h
-            hold_attributes[0].value = pbs.USER_HOLD
-            pbs_attributes.extend(hold_attributes)
-            self.holds.append(pbs.USER_HOLD)
-            self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
+        # submit job with (user) hold
+        hold_attributes = pbs.new_attropl(1)
+        hold_attributes[0].name = pbs.ATTR_h
+        hold_attributes[0].value = pbs.USER_HOLD
+        pbs_attributes.extend(hold_attributes)
+        self.holds.append(pbs.USER_HOLD)
+        self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
 
         # add a bunch of variables (added by qsub)
         # also set PBS_O_WORKDIR to os.getcwd()
@@ -356,11 +463,6 @@ class PbsJob(object):
             for idx, attr in enumerate(types):
                 jobattr[idx].name = attr
 
-
-        # get a new connection (otherwise this seems to fail)
-        if self.clean_conn:
-            pbs.pbs_disconnect(self.pbsconn)
-            self.pbsconn = pbs.pbs_connect(self.pbs_server)
         jobs = pbs.pbs_statjob(self.pbsconn, self.jobid, jobattr, NULL)
         if len(jobs) == 0:
             # no job found, return None info
@@ -388,9 +490,3 @@ class PbsJob(object):
             raise EasyBuildError("Failed to delete job %s: error %s", self.jobid, result)
         else:
             self.log.debug("Succesfully deleted job %s" % self.jobid)
-
-    def cleanup(self):
-        """Cleanup: disconnect from server."""
-        if self.clean_conn:
-            self.log.debug("Disconnecting from server.")
-            pbs.pbs_disconnect(self.pbsconn)
