@@ -1003,8 +1003,10 @@ def to_template_str(value, templ_const, templ_val):
             else:
                 # check for template values (note: templ_val dict is 'upside-down')
                 for tval, tname in templ_val.items():
-                    # only replace full words with templates, not substrings, by using \b in regex
-                    value = re.sub(r"\b" + re.escape(tval) + r"\b", r'%(' + tname + ')s', value)
+                    # only replace full words with templates: word to replace should be at the beginning of a line
+                    # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
+                    # by another non-alphanumeric.
+                    value = re.sub(r"(^|\W)" + re.escape(tval) + r"(^|\W)", r'\1%(' + tname + r')s\2', value)
     else:
         if isinstance(value, list):
             value = '[' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ']'

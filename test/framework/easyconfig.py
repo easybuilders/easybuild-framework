@@ -1232,7 +1232,7 @@ class EasyConfigTest(EnhancedTestCase):
             "preconfigopts = '--opt1=%s' % name",
             "configopts = '--opt2=0.0.1'",
             '',
-            "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
+            "sanity_check_paths = {'files': ['files/foo/foobar', 'files/x-test'], 'dirs':[] }",
             '',
             "foo_extra1 = 'foobar'"
         ])
@@ -1254,9 +1254,10 @@ class EasyConfigTest(EnhancedTestCase):
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
+            r"dependencies = \[\('bar', '1.2.3', '%\(versionsuffix\)s'\)\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
-            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar'\]",
+            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
 
         for pattern in patterns:
