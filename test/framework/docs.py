@@ -26,9 +26,15 @@
 Unit tests for docs.py.
 """
 
+import os
+import re
+import sys
+import inspect
+
+from easybuild.tools.docs import gen_easyblocks_overview_rst, mk_rst_table
+from easybuild.tools.utilities import import_available_modules
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
-from easybuild.tools.docs import mk_rst_table
 
 class DocsTest(EnhancedTestCase):
 
@@ -52,6 +58,60 @@ class DocsTest(EnhancedTestCase):
         ])
 
         self.assertEqual(table, check)
+
+    def test_gen_easyblocks(self):
+        """ Test gen_easyblocks_overview_rst function """
+        module = 'easybuild.easyblocks.generic'
+        modules = import_available_modules(module)
+        common_params = {
+            'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
+        }
+        doc_functions = ['build_step', 'configure_step', 'test_step']
+
+        eb_overview = gen_easyblocks_overview_rst(module, 'easyconfigs', common_params, doc_functions)
+        ebdoc = '\n'.join(eb_overview)
+
+        # extensive check for ConfigureMake easyblock
+        check_configuremake = '\n'.join([
+            ".. _ConfigureMake:",
+            '',
+            "``ConfigureMake``",
+            "=================",
+            '',
+            "(derives from EasyBlock)",
+            '',
+            "Dummy support for building and installing applications with configure/make/make install.",
+            '',
+            "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
+            "--------------------------------------------------------------------",
+            "====================   ================================================================",
+            "easyconfig parameter   description                                                     ",
+            "====================   ================================================================",
+            "configopts             Extra options passed to configure (default already has --prefix)",
+            "buildopts              Extra options passed to make step (default already has -j X)    ",
+            "installopts            Extra options for installation                                  ",
+            "====================   ================================================================",
+        ])
+
+        self.assertTrue(check_configuremake in ebdoc)
+
+        for mod in modules:
+            for name, obj in inspect.getmembers(mod, inspect.isclass):
+                eb_class = getattr(mod, name)
+                # skip imported classes that are not easyblocks
+                if eb_class.__module__.startswith(module):
+                    self.assertTrue(name in ebdoc)
+
+        patterns = [
+            r'..contents::',
+            r'    :depth: 1',
+            r'    :local:',
+            r'    :backlinks: top'
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
 
 
 def suite():

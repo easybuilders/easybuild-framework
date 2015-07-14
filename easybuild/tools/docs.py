@@ -180,8 +180,8 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
         '=' * len(title),
         '',
         '.. contents::',
-        '    :depth: 2',
-        '    :local',
+        '    :depth: 1',
+        '    :local:',
         '    :backlinks: top',
         '',
     ]
@@ -236,8 +236,8 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
 
         titles = ['easyconfig parameter', 'description']
         values = [
-            [common_params[classname]],
-            [DEFAULT_CONFIG[opt][1] for opt in common_params],
+            [opt for opt in common_params[classname]],
+            [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
         ]
 
         lines.extend(mk_rst_table(titles, values))
