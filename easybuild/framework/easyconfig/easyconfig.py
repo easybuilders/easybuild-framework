@@ -990,7 +990,6 @@ def to_template_str(value, templ_const, templ_val):
         - templ_val is an ordered dictionary of template strings specific for this easyconfig file
     """
     if isinstance(value, basestring):
-
         # wrap string into quotes, except if it matches a template constant
         if value not in templ_const.values():
             value = quote_py_str(value)
@@ -1006,7 +1005,7 @@ def to_template_str(value, templ_const, templ_val):
                     # only replace full words with templates: word to replace should be at the beginning of a line
                     # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
                     # by another non-alphanumeric.
-                    value = re.sub(r'(^|(?<=\W))' + re.escape(tval) + r'((?=\W)|$)', r'%(' + tname + r')s', value)
+                    value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
     else:
         if isinstance(value, list):
             value = '[' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ']'

@@ -45,7 +45,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str, to_template_str
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
@@ -1266,6 +1266,26 @@ class EasyConfigTest(EnhancedTestCase):
 
         # reparsing the dumped easyconfig file should work
         ecbis = EasyConfig(testec)
+
+    def test_to_template_str(self):
+        """ Test for to_template_str method """
+        templ_const = {
+            quote_py_str('template'):'TEMPLATE_VALUE',
+            quote_py_str('%(name)s-%(version)s'): 'NAME_VERSION',
+        }
+
+        templ_val = {
+            'foo':'name',
+            '0.0.1':'version',
+            '-test':'special_char',
+        }
+
+        self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
+        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "'%(name)s/bar/%(version)s/'")
+        self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
+        self.assertEqual(to_template_str(['-test', 'dontreplacenamehere'], templ_const, templ_val), "['%(special_char)s', 'dontreplacenamehere']")
+        self.assertEqual(to_template_str({'a':'foo', 'b':'notemplate'}, templ_const, templ_val), "{'a': '%(name)s', 'b': 'notemplate'}")
+        self.assertEqual(to_template_str(('foo', '0.0.1'), templ_const, templ_val), "('%(name)s', '%(version)s')")
 
 
 def suite():
