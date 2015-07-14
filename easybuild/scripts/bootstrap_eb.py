@@ -66,6 +66,9 @@ site.ENABLE_USER_SITE = False
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
 
+EASYBUILD_BOOTSTRAP_SOURCEPATH = os.environ.pop('EASYBUILD_BOOTSTRAP_SOURCEPATH', None)
+EASYBUILD_BOOTSTRAP_SKIP_STAGE0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
+
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
@@ -439,11 +442,9 @@ def main():
         error("Usage: %s <install path>" % sys.argv[0])
     install_path = os.path.abspath(sys.argv[1])
 
-    sourcepath = os.environ.pop('EASYBUILD_BOOTSTRAP_SOURCEPATH', None)
+    sourcepath = EASYBUILD_BOOTSTRAP_SOURCEPATH
     if sourcepath is not None:
         info("Fetching sources from %s..." % sourcepath)
-
-    skip_stage0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
 
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
@@ -478,7 +479,7 @@ def main():
     # install EasyBuild in stages
 
     # STAGE 0: install distribute, which delivers easy_install
-    if skip_stage0:
+    if EASYBUILD_BOOTSTRAP_SKIP_STAGE0:
         distribute_egg_dir = None
         info("Skipping stage0, using local distribute/setuptools providing easy_install")
     else:
