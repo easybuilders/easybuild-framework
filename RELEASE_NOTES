@@ -15,7 +15,7 @@ feature + bugfix release
 - various other enhancements, including:
     - use https for PyPI URL templates (#1286)
     - add GNU toolchain definition (#1287)
-    - make bootstrap script more robust:
+    - make bootstrap script more robust (#1289, #1325):
         - exclude 'easyblocks' pkg from sys.path to avoid that setup.py for easybuild-easyblocks picks up wrong version
         - undefine $EASYBUILD_BOOTSTRAP* environment variables, since they do not correspond with known config options
     - improve error reporting/robustness in fix_broken_easyconfigs.py script (#1290)
