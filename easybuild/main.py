@@ -37,7 +37,9 @@ Main entry point for EasyBuild: build software from .eb input file
 """
 import copy
 import os
+import stat
 import sys
+import tempfile
 import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
@@ -51,10 +53,11 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
-from easybuild.tools.filetools import cleanup, write_file
+from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
@@ -128,7 +131,14 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
         if 'log_file' in ec_res:
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
-            write_file(test_report_fp, test_report_txt)
+            parent_dir = os.path.dirname(test_report_fp)
+            # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
+            if os.stat(parent_dir).st_mode & 0200:
+                write_file(test_report_fp, test_report_txt)
+            else:
+                adjust_permissions(parent_dir, stat.S_IWUSR, add=True, recursive=False)
+                write_file(test_report_fp, test_report_txt)
+                adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:
             if 'traceback' in ec_res:
@@ -163,8 +173,8 @@ def main(testing_data=(None, None, None)):
         new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
 
-    # set temporary directory to use
-    eb_tmpdir = set_tmpdir(options.tmpdir)
+    # set by option parsers via set_tmpdir
+    eb_tmpdir = tempfile.gettempdir()
 
     # initialise logging for main
     global _log
@@ -208,6 +218,12 @@ def main(testing_data=(None, None, None)):
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
+
+    # check whether packaging is supported when it's being used
+    if options.package:
+        check_pkg_support()
+    else:
+        _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
@@ -296,9 +312,9 @@ def main(testing_data=(None, None, None)):
 
     # submit build as job(s), clean up and exit
     if options.job:
-        job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
+        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
-            print_msg("Submitted parallel build jobs, exiting now: %s" % job_info_txt)
+            print_msg("Submitted parallel build jobs, exiting now")
             cleanup(logfile, eb_tmpdir, testing)
             sys.exit(0)
 
@@ -328,7 +344,7 @@ def main(testing_data=(None, None, None)):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
-    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir path)
+    # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
     if overall_success:
         cleanup(logfile, eb_tmpdir, testing)

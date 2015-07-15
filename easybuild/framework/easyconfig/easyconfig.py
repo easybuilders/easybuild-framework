@@ -51,10 +51,11 @@ from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import remove_unwanted_chars, quote_str
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -63,7 +64,7 @@ from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -73,6 +74,9 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+
+# values for these keys will not be templated in dump()
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['easyblock', 'name', 'version', 'description', 'homepage', 'toolchain']
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -148,7 +152,8 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        self._config.update(self.extra_options)
+        # deep copy to make sure self.extra_options remains unchanged
+        self._config.update(copy.deepcopy(self.extra_options))
 
         self.mandatory = MANDATORY_PARAMS[:]
 
@@ -421,9 +426,9 @@ class EasyConfig(object):
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
+        self.log.debug("Dependencies BEFORE filtering: %s" % deps)
         filter_deps = build_option('filter_deps')
         if filter_deps:
-            self.log.debug("Dependencies BEFORE filtering: %s" % deps)
             filtered_deps = []
             for dep in deps:
                 if dep['name'] not in filter_deps:
@@ -470,52 +475,93 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
         """
-        eb_file = file(fp, "w")
-
-        def to_str(x):
-            """Return quoted version of x"""
-            if isinstance(x, basestring):
-                if '\n' in x or ('"' in x and "'" in x):
-                    return '"""%s"""' % x
-                elif "'" in x:
-                    return '"%s"' % x
-                else:
-                    return "'%s'" % x
-            else:
-                return "%s" % x
+        eb_file = file(fp, 'w')
 
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
+            ['easyblock'],
             ['name', 'version', 'versionprefix', 'versionsuffix'],
             ['homepage', 'description'],
             ['toolchain', 'toolchainopts'],
-            ['source_urls', 'sources'],
+            ['sources', 'source_urls'],
             ['patches'],
             ['builddependencies', 'dependencies', 'hiddendependencies'],
+            ['osdependencies'],
+            ['preconfigopts', 'configopts'],
+            ['prebuildopts', 'buildopts'],
+            ['preinstallopts', 'installopts'],
             ['parallel', 'maxparallel'],
-            ['osdependencies']
         ]
+
+        last_keys = ['sanity_check_paths', 'moduleclass']
+
+        orig_enable_templating = self.enable_templating
+        self.enable_templating = False # templated values should be dumped unresolved
+
+        # build dict of default values
+        default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
+        default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
+
+        self.generate_template_values()
+        templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
+
+        # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
+        keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
+        templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
+
+        def include_defined_parameters(keyset):
+            """
+            Internal function to include parameters in the dumped easyconfig file which have a non-default value.
+            """
+            for group in keyset:
+                printed = False
+                for key in group:
+                    val = self[key]
+                    if val != default_values[key]:
+                        # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
+                        if key in ['builddependencies', 'dependencies', 'hiddendependencies']:
+                            dumped_deps = [self._dump_dependency(d, templ_const, templ_val) for d in val]
+                            newval = '[' + ', '.join(dumped_deps) + ']'
+
+                        elif key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
+                            self.log.debug("Original value before replacing matching template values: %s", val)
+                            newval = to_template_str(val, templ_const, templ_val)
+                            self.log.debug("New value after replacing matching template values: %s", newval)
+
+                        else:
+                            newval = quote_py_str(val)
+
+                        # avoid that templated value refers to parameter that it defines
+                        if r'%(' + key in newval:
+                            val = quote_py_str(val)
+                        else:
+                            val = newval
+
+                        ebtxt.append("%s = %s" % (key, val))
+                        printed_keys.append(key)
+                        printed = True
+                if printed:
+                    ebtxt.append('')
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
         printed_keys = []
-        for group in grouped_keys:
-            for key1 in group:
-                val = self._config[key1][0]
-                for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
-                    # only print parameters that are different from the default value
-                    if key1 == key2 and val != def_val:
-                        ebtxt.append("%s = %s" % (key1, to_str(val)))
-                        printed_keys.append(key1)
-            ebtxt.append("")
+        include_defined_parameters(grouped_keys)
 
         # print other easyconfig parameters at the end
-        for key, [val, _, _] in DEFAULT_CONFIG.items():
-            if not key in printed_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, to_str(self._config[key][0])))
+        keys_to_ignore = printed_keys + last_keys
+        for key in default_values:
+            if key not in keys_to_ignore and self[key] != default_values[key]:
+                ebtxt.append("%s = %s" % (key, quote_py_str(self[key])))
+        ebtxt.append('')
 
-        eb_file.write('\n'.join(ebtxt))
+        # print last two parameters
+        include_defined_parameters([[k] for k in last_keys])
+
+        eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
         eb_file.close()
+
+        self.enable_templating = orig_enable_templating
 
     def _validate(self, attr, values):  # private method
         """
@@ -650,6 +696,28 @@ class EasyConfig(object):
         dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
 
         return dependency
+
+    def _dump_dependency(self, dep, templ_const, templ_val):
+        """Dump parsed dependency in tuple format"""
+
+        if dep['external_module']:
+            res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
+
+        else:
+            # mininal spec: (name, version)
+            tup = (dep['name'], dep['version'])
+            if dep['toolchain'] != self['toolchain']:
+                if dep['dummy']:
+                    tup += (dep['versionsuffix'], True)
+                else:
+                    tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
+
+            elif dep['versionsuffix']:
+                tup += (dep['versionsuffix'],)
+
+            res = to_template_str(tup, templ_const, templ_val)
+
+        return res
 
     def generate_template_values(self):
         """Try to generate all template values."""
@@ -905,6 +973,48 @@ def resolve_template(value, tmpl_dict):
             value = tuple(resolve_template(list(value), tmpl_dict))
         elif isinstance(value, dict):
             value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
+
+    return value
+
+
+def quote_py_str(val):
+    """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+
+
+def to_template_str(value, templ_const, templ_val):
+    """
+    Create string representation of provided value, using template values where possible.
+        - value can be a string, list, tuple, dict or combination thereof
+        - templ_const is a dictionary of template strings (constants)
+        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
+    """
+    if isinstance(value, basestring):
+
+        # wrap string into quotes, except if it matches a template constant
+        if value not in templ_const.values():
+            value = quote_py_str(value)
+
+        old_value = None
+        while value != old_value:
+            old_value = value
+            if value in templ_const:
+                value = templ_const[value]
+            else:
+                # check for template values (note: templ_val dict is 'upside-down')
+                for tval, tname in templ_val.items():
+                    # only replace full words with templates, not substrings, by using \b in regex
+                    value = re.sub(r"\b" + re.escape(tval) + r"\b", r'%(' + tname + ')s', value)
+    else:
+        if isinstance(value, list):
+            value = '[' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ']'
+        elif isinstance(value, tuple):
+            value = '(' + ', '.join([to_template_str(v, templ_const, templ_val) for v in value]) + ')'
+        elif isinstance(value, dict):
+            value = '{' + ', '.join(["%s: %s" % (quote_py_str(k), to_template_str(v, templ_const, templ_val))
+            for k, v in value.items()]) + '}'
+        else:
+            value = str(value)
 
     return value
 

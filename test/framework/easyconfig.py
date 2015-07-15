@@ -55,6 +55,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
 
@@ -331,7 +332,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://www.example.com"',
             'description = "dummy description"',
             'version = "3.14"',
-            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
         ]) % str(patches)
         self.prep()
@@ -1131,6 +1132,146 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'], [])
+
+    def test_quote_str(self):
+        """Test quote_str function."""
+        teststrings = {
+            'foo' : '"foo"',
+            'foo\'bar' : '"foo\'bar"',
+            'foo\'bar"baz' : '"""foo\'bar"baz"""',
+            "foo'bar\"baz" : '"""foo\'bar"baz"""',
+            "foo\nbar" : '"foo\nbar"',
+            'foo bar' : '"foo bar"'
+        }
+
+        for t in teststrings:
+            self.assertEqual(quote_str(t), teststrings[t])
+
+        # test escape_newline
+        self.assertEqual(quote_str("foo\nbar", escape_newline=False), '"foo\nbar"')
+        self.assertEqual(quote_str("foo\nbar", escape_newline=True), '"""foo\nbar"""')
+
+        # test prefer_single_quotes
+        self.assertEqual(quote_str("foo", prefer_single_quotes=True), "'foo'")
+        self.assertEqual(quote_str('foo bar', prefer_single_quotes=True), '"foo bar"')
+        self.assertEqual(quote_str("foo'bar", prefer_single_quotes=True), '"foo\'bar"')
+
+        # non-string values
+        n = 42
+        self.assertEqual(quote_str(n), 42)
+        self.assertEqual(quote_str(["foo", "bar"]), ["foo", "bar"])
+        self.assertEqual(quote_str(('foo', 'bar')), ('foo', 'bar'))
+
+    def test_dump(self):
+        """Test EasyConfig's dump() method."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        for f in ['toy-0.0.eb', 'goolf-1.4.10.eb', 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb']:
+            test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+            ec = EasyConfig(os.path.join(test_ecs_dir, f))
+            ec.dump(test_ec)
+            ectxt = read_file(test_ec)
+
+            patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+            # parse result again
+            dumped_ec = EasyConfig(test_ec)
+
+    def test_dump_extra(self):
+        """Test EasyConfig's dump() method for files containing extra values"""
+        build_options = {
+            'valid_module_classes': module_classes(),
+            'external_modules_metadata': ConfigObj(),
+        }
+        init_config(build_options=build_options)
+
+        rawtxt = '\n'.join([
+            "easyblock = 'EB_foo'",
+            '',
+            "name = 'foo'",
+            "version = '0.0.1'",
+            "versionsuffix = '_bar'",
+            '',
+            "homepage = 'http://foo.com/'",
+            'description = "foo description"',
+            '',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            '',
+            "dependencies = [('GCC', '4.6.4', '-test'), ('MPICH', '1.8', '', ('GCC', '4.6.4')), " +
+                "('bar', '1.0'), ('foobar/1.2.3', EXTERNAL_MODULE)]",
+            '',
+            "foo_extra1 = 'foobar'",
+        ])
+
+        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        os.close(handle)
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(testec)
+        ectxt = read_file(testec)
+        self.assertEqual(rawtxt, ectxt)
+
+        dumped_ec = EasyConfig(testec)
+
+    def test_dump_template(self):
+        """ Test EasyConfig's dump() method for files containing templates"""
+        rawtxt = '\n'.join([
+            "easyblock = 'EB_foo'",
+            '',
+            "name = 'Foo'",
+            "version = '0.0.1'",
+            "versionsuffix = '-test'",
+            '',
+            "homepage = 'http://foo.com/'",
+            'description = "foo description"',
+            '',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            '',
+            "sources = ['foo-0.0.1.tar.gz']",
+            '',
+            "dependencies = [('bar', '1.2.3', '-test')]",
+            '',
+            "preconfigopts = '--opt1=%s' % name",
+            "configopts = '--opt2=0.0.1'",
+            '',
+            "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
+            '',
+            "foo_extra1 = 'foobar'"
+        ])
+
+        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        os.close(handle)
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(testec)
+        ectxt = read_file(testec)
+
+        self.assertTrue(ec.enable_templating)  # templating should still be enabled after calling dump()
+
+        patterns = [
+            r"easyblock = 'EB_foo'",
+            r"name = 'Foo'",
+            r"version = '0.0.1'",
+            r"versionsuffix = '-test'",
+            r"homepage = 'http://foo.com/'",
+            r'description = "foo description"',  # no templating for description
+            r"sources = \[SOURCELOWER_TAR_GZ\]",
+            r"preconfigopts = '--opt1=%\(name\)s'",
+            r"configopts = '--opt2=%\(version\)s'",
+            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar'\]",
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        # reparsing the dumped easyconfig file should work
+        ecbis = EasyConfig(testec)
+
 
 def suite():
     """ returns all the testcases in this module """

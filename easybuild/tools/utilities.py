@@ -32,7 +32,10 @@ import os
 import string
 import sys
 from vsc.utils import fancylogger
+
 import easybuild.tools.environment as env
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('tools.utilities')
 
@@ -56,7 +59,7 @@ def flatten(lst):
     return res
 
 
-def quote_str(x):
+def quote_str(val, escape_newline=False, prefer_single_quotes=False):
     """
     Obtain a new value to be used in string replacement context.
 
@@ -65,17 +68,26 @@ def quote_str(x):
     For string values, it tries to escape the string in quotes, e.g.,
     foo becomes 'foo', foo'bar becomes "foo'bar",
     foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
+
+    @param escape_newline: wrap strings that include a newline in triple quotes
     """
 
-    if isinstance(x, basestring):
-        if "'" in x and '"' in x:
-            return '"""%s"""' % x
-        elif '"' in x:
-            return "'%s'" % x
+    if isinstance(val, basestring):
+        # forced triple double quotes
+        if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
+            return '"""%s"""' % val
+        # single quotes to escape double quote used in strings
+        elif '"' in val:
+            return "'%s'" % val
+        # if single quotes are preferred, use single quotes;
+        # unless a space or a single quote are in the string
+        elif prefer_single_quotes and "'" not in val and ' ' not in val:
+            return "'%s'" % val
+        # fallback on double quotes (required in tcl syntax)
         else:
-            return '"%s"' % x
+            return '"%s"' % val
     else:
-        return x
+        return val
 
 
 def remove_unwanted_chars(inputstring):
@@ -99,5 +111,9 @@ def import_available_modules(namespace):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])
                 _log.debug("importing module %s" % modpath)
-                modules.append(__import__(modpath, globals(), locals(), ['']))
+                try:
+                    mod = __import__(modpath, globals(), locals(), [''])
+                except ImportError as err:
+                    raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
+                modules.append(mod)
     return modules
