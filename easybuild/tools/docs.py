@@ -175,11 +175,11 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
     title = 'Overview of generic easyblocks'
 
     heading = [
+        '*(this page was generated automatically using* ``easybuild.tools.docs.gen_easyblocks_overview_rst()`` *)*',
+        '',
         '=' * len(title),
         title,
         '=' * len(title),
-        '',
-        '*(this page was generated automatically using* ``easybuild.tools.docs.gen_easyblocks_overview_rst()`` *)*',
         '',
     ]
 
