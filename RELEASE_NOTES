@@ -12,6 +12,7 @@ feature + bugfix release
 - add support for --include-* configuration options to include additional easyblocks, toolchains, etc. (#1301)
     - see http://easybuild.readthedocs.org/en/latest/Including_additional_Python_modules.html
 - add (experimental) support for packaging installed software using FPM (#1224)
+    - see http://easybuild.readthedocs.org/en/latest/Packaging_support.html
 - various other enhancements, including:
     - use https for PyPI URL templates (#1286)
     - add GNU toolchain definition (#1287)
