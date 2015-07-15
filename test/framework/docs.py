@@ -94,6 +94,7 @@ class DocsTest(EnhancedTestCase):
         ])
 
         self.assertTrue(check_configuremake in ebdoc)
+        names = []
 
         for mod in modules:
             for name, obj in inspect.getmembers(mod, inspect.isclass):
@@ -101,17 +102,13 @@ class DocsTest(EnhancedTestCase):
                 # skip imported classes that are not easyblocks
                 if eb_class.__module__.startswith(module):
                     self.assertTrue(name in ebdoc)
+                    names.append(name)
 
-        patterns = [
-            r'..contents::',
-            r'    :depth: 1',
-            r'    :local:',
-            r'    :backlinks: top'
-        ]
+        toc = [":ref:`" + n + "`" for n in sorted(names)]
+        pattern = " - ".join(toc)
 
-        for pattern in patterns:
-            regex = re.compile(pattern)
-            self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
+        regex = re.compile(pattern)
+        self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
 
 
 def suite():

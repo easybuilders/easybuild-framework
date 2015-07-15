@@ -179,12 +179,14 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
         title,
         '=' * len(title),
         '',
-        '.. contents::',
-        '    :depth: 1',
-        '    :local:',
-        '    :backlinks: top',
+        '*(this page was generated automatically using* ``easybuild.tools.docs.gen_easyblocks_overview_rst()`` *)*',
         '',
     ]
+
+    contents = [":ref:`" + b.__name__ + "`" for b in sorted(all_blocks, key=lambda b: b.__name__)]
+    toc = ' - '.join(contents)
+    heading.append(toc)
+    heading.append('')
 
     return heading + docs
 
