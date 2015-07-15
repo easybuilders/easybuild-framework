@@ -34,25 +34,29 @@ Documentation-related functionality
 @author: Ward Poelmans (Ghent University)
 """
 import copy
+import inspect
+import os
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import import_available_modules, quote_str
 
 
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
 
 
+def det_col_width(entries, title):
+    """Determine column width based on column title and list of entries."""
+    return max(map(len, entries + [title]))
+
+
 def avail_easyconfig_params_rst(title, grouped_params):
     """
     Compose overview of available easyconfig parameters, in RST format.
     """
-    def det_col_width(entries, title):
-        """Determine column width based on column title and list of entries."""
-        return max(map(len, entries + [title]))
-
     # main title
     lines = [
         title,
@@ -65,32 +69,18 @@ def avail_easyconfig_params_rst(title, grouped_params):
         lines.append("%s parameters" % grpname)
         lines.extend(['-' * len(lines[-1]), ''])
 
-        name_title = "**Parameter name**"
-        descr_title = "**Description**"
-        dflt_title = "**Default value**"
+        titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        values = [
+            ['``' + name + '``' for name in grouped_params[grpname].keys()],  # parameter name
+            [x[0] for x in grouped_params[grpname].values()],  # description
+            [str(quote_str(x[1])) for x in grouped_params[grpname].values()]  # default value
+        ]
 
-        # figure out column widths
-        nw = det_col_width(grouped_params[grpname].keys(), name_title) + 4  # +4 for raw format ("``foo``")
-        dw = det_col_width([x[0] for x in grouped_params[grpname].values()], descr_title)
-        dfw = det_col_width([str(quote_str(x[1])) for x in grouped_params[grpname].values()], dflt_title)
-
-        # 3 columns (name, description, default value), left-aligned, {c} is fill char
-        line_tmpl = "{0:{c}<%s}   {1:{c}<%s}   {2:{c}<%s}" % (nw, dw, dfw)
-        table_line = line_tmpl.format('', '', '', c='=', nw=nw, dw=dw, dfw=dfw)
-
-        # table header
-        lines.append(table_line)
-        lines.append(line_tmpl.format(name_title, descr_title, dflt_title, c=' '))
-        lines.append(line_tmpl.format('', '', '', c='-'))
-
-        # table rows by parameter
-        for name, (descr, dflt) in sorted(grouped_params[grpname].items()):
-            rawname = '``%s``' % name
-            lines.append(line_tmpl.format(rawname, descr, str(quote_str(dflt)), c=' '))
-        lines.append(table_line)
+        lines.extend(mk_rst_table(titles, values))
         lines.append('')
 
     return '\n'.join(lines)
+
 
 def avail_easyconfig_params_txt(title, grouped_params):
     """
@@ -116,6 +106,7 @@ def avail_easyconfig_params_txt(title, grouped_params):
         lines.append('')
 
     return '\n'.join(lines)
+
 
 def avail_easyconfig_params(easyblock, output_format):
     """
@@ -160,3 +151,156 @@ def avail_easyconfig_params(easyblock, output_format):
         FORMAT_TXT: avail_easyconfig_params_txt,
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
+
+
+def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
+    """
+    Compose overview of all easyblocks in the given package in rst format
+    """
+    modules = import_available_modules(package_name)
+    docs = []
+    all_blocks = []
+
+    # get all blocks
+    for mod in modules:
+        for name,obj in inspect.getmembers(mod, inspect.isclass):
+            eb_class = getattr(mod, name)
+            # skip imported classes that are not easyblocks
+            if eb_class.__module__.startswith(package_name) and eb_class not in all_blocks:
+                all_blocks.append(eb_class)
+
+    for eb_class in sorted(all_blocks, key=lambda c: c.__name__):
+        docs.append(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
+
+    title = 'Overview of generic easyblocks'
+
+    heading = [
+        '*(this page was generated automatically using* ``easybuild.tools.docs.gen_easyblocks_overview_rst()`` *)*',
+        '',
+        '=' * len(title),
+        title,
+        '=' * len(title),
+        '',
+    ]
+
+    contents = [":ref:`" + b.__name__ + "`" for b in sorted(all_blocks, key=lambda b: b.__name__)]
+    toc = ' - '.join(contents)
+    heading.append(toc)
+    heading.append('')
+
+    return heading + docs
+
+
+def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
+    """
+    Compose overview of one easyblock given class object of the easyblock in rst format
+    """
+    classname = eb_class.__name__
+
+    lines = [
+        '.. _' + classname + ':',
+        '',
+        '``' + classname + '``',
+        '=' * (len(classname)+4),
+        '',
+    ]
+
+    bases = []
+    for b in eb_class.__bases__:
+        base = ':ref:`' + b.__name__ +'`' if b in all_blocks else b.__name__
+        bases.append(base)
+
+    derived = '(derives from ' + ', '.join(bases) + ')'
+    lines.extend([derived, ''])
+
+    # Description (docstring)
+    lines.extend([eb_class.__doc__.strip(), ''])
+
+    # Add extra options, if any
+    if eb_class.extra_options():
+        extra_parameters = 'Extra easyconfig parameters specific to ``' + classname + '`` easyblock'
+        lines.extend([extra_parameters, '-' * len(extra_parameters), ''])
+        ex_opt = eb_class.extra_options()
+
+        titles = ['easyconfig parameter', 'description', 'default value']
+        values = [
+            ['``' + key + '``' for key in ex_opt],  # parameter name
+            [val[1] for val in ex_opt.values()],  # description
+            ['``' + str(quote_str(val[0])) + '``' for val in ex_opt.values()]  # default value
+        ]
+
+        lines.extend(mk_rst_table(titles, values))
+
+    # Add commonly used parameters
+    if classname in common_params:
+        commonly_used = 'Commonly used easyconfig parameters with ``' + classname + '`` easyblock'
+        lines.extend([commonly_used, '-' * len(commonly_used)])
+
+        titles = ['easyconfig parameter', 'description']
+        values = [
+            [opt for opt in common_params[classname]],
+            [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
+        ]
+
+        lines.extend(mk_rst_table(titles, values))
+
+        lines.append('')
+
+    # Add docstring for custom steps
+    custom = []
+    inh = ''
+    f = None
+    for func in doc_functions:
+        if func in eb_class.__dict__:
+            f = eb_class.__dict__[func]
+
+        if f.__doc__:
+            custom.append('* ``' + func + '`` - ' + f.__doc__.strip() + inh)
+
+    if custom:
+        title = 'Customised steps in ``' + classname + '`` easyblock'
+        lines.extend([title, '-' * len(title)] + custom)
+        lines.append('')
+
+    # Add example if available
+    if os.path.exists(os.path.join(path_to_examples, '%s.eb' % classname)):
+        title = 'Example for ``' + classname + '`` easyblock'
+        lines.extend(['', title, '-' * len(title), '', '::', ''])
+        for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
+            lines.append('    ' + line.strip())
+        lines.append('') # empty line after literal block
+
+    return '\n'.join(lines)
+
+
+def mk_rst_table(titles, values):
+    """
+    Returns an rst table with given titles and values (a nested list of string values for each column)
+    """
+    num_col = len(titles)
+    table = []
+    col_widths = []
+    tmpl = []
+    line= []
+
+    # figure out column widths
+    for i in range(0, num_col):
+        col_widths.append(det_col_width(values[i], titles[i]))
+
+        # make line template
+        tmpl.append('{' + str(i) + ':{c}<' + str(col_widths[i]) + '}')
+        line.append('') # needed for table line
+
+    line_tmpl = '   '.join(tmpl)
+    table_line = line_tmpl.format(*line, c="=")
+
+    table.append(table_line)
+    table.append(line_tmpl.format(*titles, c=' '))
+    table.append(table_line)
+
+    for i in range(0, len(values[0])):
+        table.append(line_tmpl.format(*[v[i] for v in values], c=' '))
+
+    table.extend([table_line, ''])
+
+    return table
