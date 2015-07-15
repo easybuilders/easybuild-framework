@@ -45,7 +45,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str, to_template_str
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
@@ -1238,7 +1238,7 @@ class EasyConfigTest(EnhancedTestCase):
             "preconfigopts = '--opt1=%s' % name",
             "configopts = '--opt2=0.0.1'",
             '',
-            "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
+            "sanity_check_paths = {'files': ['files/foo/foobar', 'files/x-test'], 'dirs':[] }",
             '',
             "foo_extra1 = 'foobar'"
         ])
@@ -1260,9 +1260,10 @@ class EasyConfigTest(EnhancedTestCase):
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
+            r"dependencies = \[\('bar', '1.2.3', '%\(versionsuffix\)s'\)\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
-            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar'\]",
+            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
 
         for pattern in patterns:
@@ -1271,6 +1272,30 @@ class EasyConfigTest(EnhancedTestCase):
 
         # reparsing the dumped easyconfig file should work
         ecbis = EasyConfig(testec)
+
+    def test_to_template_str(self):
+        """ Test for to_template_str method """
+
+        # reverse dict of known template constants; template values (which are keys here) must be 'string-in-string
+        templ_const = {
+            "'template'":'TEMPLATE_VALUE',
+            "'%(name)s-%(version)s'": 'NAME_VERSION',
+        }
+
+        templ_val = {
+            'foo':'name',
+            '0.0.1':'version',
+            '-test':'special_char',
+        }
+
+        self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
+        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "'%(name)s/bar/%(version)s/'")
+        self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
+        templ_list = to_template_str(['-test', 'dontreplacenamehere'], templ_const, templ_val)
+        self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
+        templ_dict = to_template_str({'a':'foo', 'b':'notemplate'}, templ_const, templ_val)
+        self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
+        self.assertEqual(to_template_str(('foo', '0.0.1'), templ_const, templ_val), "('%(name)s', '%(version)s')")
 
 
 def suite():
