@@ -1269,9 +1269,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_to_template_str(self):
         """ Test for to_template_str method """
+
+        # reverse dict of known template constants; template values (which are keys here) must be 'string-in-string
         templ_const = {
-            quote_py_str('template'):'TEMPLATE_VALUE',
-            quote_py_str('%(name)s-%(version)s'): 'NAME_VERSION',
+            "'template'":'TEMPLATE_VALUE',
+            "'%(name)s-%(version)s'": 'NAME_VERSION',
         }
 
         templ_val = {
@@ -1283,8 +1285,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
         self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "'%(name)s/bar/%(version)s/'")
         self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
-        self.assertEqual(to_template_str(['-test', 'dontreplacenamehere'], templ_const, templ_val), "['%(special_char)s', 'dontreplacenamehere']")
-        self.assertEqual(to_template_str({'a':'foo', 'b':'notemplate'}, templ_const, templ_val), "{'a': '%(name)s', 'b': 'notemplate'}")
+        templ_list = to_template_str(['-test', 'dontreplacenamehere'], templ_const, templ_val)
+        self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
+        templ_dict = to_template_str({'a':'foo', 'b':'notemplate'}, templ_const, templ_val)
+        self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
         self.assertEqual(to_template_str(('foo', '0.0.1'), templ_const, templ_val), "('%(name)s', '%(version)s')")
 
 
