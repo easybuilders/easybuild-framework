@@ -1343,7 +1343,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
         self.assertEqual(to_template_str(('foo', '0.0.1'), templ_const, templ_val), "('%(name)s', '%(version)s')")
 
->>>>>>> develop
 
 def suite():
     """ returns all the testcases in this module """
