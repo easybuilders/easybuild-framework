@@ -163,13 +163,16 @@ class EasyConfigParser(object):
                     while raw[i].startswith('#') or not raw[i]:
                         comment.append(raw[i])
                         i += 1
-                    key = raw[i].partition('=')[0].strip()
+                    key = raw[i].split('=', 1)[0].strip()
                     self.comments['above'][key] = comment
 
                 elif '#' in raw[i]:  # inline comment
-                    comment = '# ' + raw[i].partition('#')[2].strip()
-                    key = raw[i].partition('=')[0].strip()
-                    self.comments['inline'][key] = comment
+                    comment = raw[i].rsplit('#', 1)[1].strip()
+                    key = raw[i].split('=', 1)[0].strip()
+
+                    # check if hash actually indicated a comment; or is part of the value
+                    if comment.replace("'", "").replace('"', '') not in self.get_config_dict()[key]:
+                        self.comments['inline'][key] = '# ' + comment
             i += 1
 
     def _det_format_version(self):
