@@ -172,8 +172,9 @@ class EasyConfigParser(object):
                     key = raw[i].split('=', 1)[0].strip()
 
                     # check if hash actually indicated a comment; or is part of the value
-                    if comment.replace("'", "").replace('"', '') not in self.get_config_dict()[key]:
-                        self.comments['inline'][key] = '# ' + comment
+                    if key in self.get_config_dict():
+                        if comment.replace("'", "").replace('"', '') not in self.get_config_dict()[key]:
+                            self.comments['inline'][key] = '# ' + comment
             i += 1
 
     def _det_format_version(self):
