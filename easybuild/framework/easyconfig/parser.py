@@ -141,6 +141,7 @@ class EasyConfigParser(object):
         """Extract comments from raw content."""
         # Keep track of comments and their location (top of easyconfig, key they are intended for, line they are on
         # discriminate between header comments (top of easyconfig file), single-line comments (at end of line) and other
+        # At the moment there is no support for inline comments on lines that don't contain the key value
 
         self.comments = {
             'header' : [],
