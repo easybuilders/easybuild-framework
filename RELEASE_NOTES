@@ -3,6 +3,37 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.2.0 (July 15th 2015)
+-----------------------
+
+feature + bugfix release
+- add support for using GC3Pie as a backend for --job (#1008)
+    - see also http://easybuild.readthedocs.org/en/latest/Submitting_jobs.html
+- add support for --include-* configuration options to include additional easyblocks, toolchains, etc. (#1301)
+    - see http://easybuild.readthedocs.org/en/latest/Including_additional_Python_modules.html
+- add (experimental) support for packaging installed software using FPM (#1224)
+    - see http://easybuild.readthedocs.org/en/latest/Packaging_support.html
+- various other enhancements, including:
+    - use https for PyPI URL templates (#1286)
+    - add GNU toolchain definition (#1287)
+    - make bootstrap script more robust (#1289, #1325):
+        - exclude 'easyblocks' pkg from sys.path to avoid that setup.py for easybuild-easyblocks picks up wrong version
+        - undefine $EASYBUILD_BOOTSTRAP* environment variables, since they do not correspond with known config options
+    - improve error reporting/robustness in fix_broken_easyconfigs.py script (#1290)
+    - reset keep toolchain component class 'constants' every time (#1294)
+    - make --strict also a build option (#1295)
+    - fix purging of loaded modules in unit tests' setup method (#1297)
+    - promote MigrateFromEBToHMNS to a 'production' MNS (#1302)
+    - add support for --read-only-installdir and --group-writable-installdir configuration options (#1304)
+    - add support for *not* expanding relative paths in prepend_paths (#1310)
+    - enhance EasyConfig.dump() method to use easyconfig templates where possible (#1314, #1319, #1320, #1321)
+- various bug fixes, including:
+    - fix issue with cleaning up (no) logfile if --logtostdout/-l is used (#1298)
+    - stop making ModulesTool class a singleton since it causes problems when multilple toolchains are in play (#1299)
+    - don't modify values of 'paths' list passed as argument to prepend_paths in ModuleGenerator (#1300)
+    - fix issue with EasyConfig.dump + cleanup (#1308, #1311)
+    - reenable (and fix) accidentally disabled test (#1316)
+
 v2.1.1 (May 18th 2015)
 ----------------------
 
