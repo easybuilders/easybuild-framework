@@ -29,6 +29,7 @@ The parser is format version aware
 
 @author: Stijn De Weirdt (Ghent University)
 """
+import copy
 import os
 import re
 from vsc.utils import fancylogger
@@ -84,6 +85,9 @@ class EasyConfigParser(object):
 
         self.rawcontent = None  # the actual unparsed content
 
+        # comments in the easyconfig file
+        self.comments = None
+
         self.get_fn = None  # read method and args
         self.set_fn = None  # write method and args
 
@@ -98,6 +102,8 @@ class EasyConfigParser(object):
             self.process()
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
+
+        self._extract_comments()
 
     def process(self, filename=None):
         """Create an instance"""
@@ -130,6 +136,41 @@ class EasyConfigParser(object):
         if not isinstance(self.rawcontent, basestring):
             msg = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
+
+    def _extract_comments(self):
+        """Extract comments from raw content."""
+        # Keep track of comments and their location (top of easyconfig, key they are intended for, line they are on
+        # discriminate between header comments (top of easyconfig file), single-line comments (at end of line) and other
+
+        self.comments = {
+            'header' : [],
+            'inline' : dict(),
+            'above' : dict(),
+         }
+
+        raw = self.rawcontent.split('\n')
+        header = True
+
+        i = 0
+        while i<len(raw):
+            if raw[i].startswith('#') and header:
+                self.comments['header'].append(raw[i])
+            else:
+                header = False
+                if raw[i].startswith('#'):
+                    comment = []
+                    # comment could be multi-line
+                    while raw[i].startswith('#') or not raw[i]:
+                        comment.append(raw[i])
+                        i += 1
+                    key = raw[i].partition('=')[0].strip()
+                    self.comments['above'][key] = comment
+
+                elif '#' in raw[i]:  # inline comment
+                    comment = '# ' + raw[i].partition('#')[2].strip()
+                    key = raw[i].partition('=')[0].strip()
+                    self.comments['inline'][key] = comment
+            i += 1
 
     def _det_format_version(self):
         """Extract the format version from the raw content"""
@@ -184,3 +225,7 @@ class EasyConfigParser(object):
         if validate:
             self._formatter.validate()
         return self._formatter.get_config_dict()
+
+    def get_comments(self):
+        """Return comments, and their location info"""
+        return copy.deepcopy(self.comments)

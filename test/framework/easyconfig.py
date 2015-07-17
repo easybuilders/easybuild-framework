@@ -1272,6 +1272,51 @@ class EasyConfigTest(EnhancedTestCase):
         # reparsing the dumped easyconfig file should work
         ecbis = EasyConfig(testec)
 
+    def test_dump_comments(self):
+        """ Test dump() method for files containing comments """
+        rawtxt = '\n'.join([
+            "# #",
+            "# some header comment",
+            "# #",
+            "easyblock = 'EB_foo'",
+            '',
+            "name = 'Foo'  # name comment",
+            "version = '0.0.1'",
+            "versionsuffix = '-test'",
+            '',
+            "# comment on the homepage",
+            "homepage = 'http://foo.com/'",
+            'description = "foo description"',
+            '',
+            "# toolchain comment with newline",
+            '',
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            '',
+            "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
+            '',
+            "foo_extra1 = 'foobar'",
+        ])
+
+        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
+        os.close(handle)
+
+        ec = EasyConfig(None, rawtxt=rawtxt)
+        ec.dump(testec)
+        ectxt = read_file(testec)
+
+        patterns = [
+            r"# #\n# some header comment\n# #",
+            r"name = 'Foo'  # name comment",
+            r"# comment on the homepage\nhomepage = 'http://foo.com/'",
+            r"# toolchain comment with newline\n\ntoolchain = {'version': 'dummy', 'name': 'dummy'}"
+        ]
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        # reparsing the dumped easyconfig file should work
+        ecbis = EasyConfig(testec)
 
 def suite():
     """ returns all the testcases in this module """
