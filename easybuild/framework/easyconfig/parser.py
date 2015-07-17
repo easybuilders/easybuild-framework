@@ -153,7 +153,8 @@ class EasyConfigParser(object):
         header = True
 
         i = 0
-        while i<len(raw):
+        num_lines = len(raw)
+        while i<num_lines:
             if raw[i].startswith('#') and header:
                 self.comments['header'].append(raw[i])
             else:
