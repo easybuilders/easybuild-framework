@@ -174,7 +174,7 @@ class EasyConfigParser(object):
 
                     # check if hash actually indicated a comment; or is part of the value
                     if key in self.get_config_dict():
-                        if comment.replace("'", "").replace('"', '') not in self.get_config_dict()[key]:
+                        if comment.replace("'", "").replace('"', '') not in str(self.get_config_dict()[key]):
                             self.comments['inline'][key] = '# ' + comment
             i += 1
 
