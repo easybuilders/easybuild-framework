@@ -29,6 +29,8 @@ The parser is format version aware
 
 @author: Stijn De Weirdt (Ghent University)
 """
+
+import ast
 import copy
 import os
 import re
@@ -147,6 +149,7 @@ class EasyConfigParser(object):
             'header' : [],
             'inline' : dict(),
             'above' : dict(),
+       #     'list_value' : dict(),
          }
 
         raw = self.rawcontent.split('\n')
@@ -170,12 +173,29 @@ class EasyConfigParser(object):
 
                 elif '#' in raw[i]:  # inline comment
                     comment = raw[i].rsplit('#', 1)[1].strip()
-                    key = raw[i].split('=', 1)[0].strip()
+                    key = None
+                    comment_value = None
+                    if '=' in raw[i]:
+                        key = raw[i].split('=', 1)[0].strip()
+                    # else:
+                        # search for key and index of comment in config dict
+                      #   for k, v in self.get_config_dict().items():
+                        #     val = re.sub(r',$', r'', raw[i].rsplit('#', 1)[0].strip())
+                          #   if not isinstance(v, basestring) and val in str(v):
+                            #     key = k
+                              #   comment_value = val
+                                # if not self.comments['list_value'].get(key):
+                                  #   self.comments['list_value'][key] = dict()
 
                     # check if hash actually indicated a comment; or is part of the value
                     if key in self.get_config_dict():
                         if comment.replace("'", "").replace('"', '') not in str(self.get_config_dict()[key]):
-                            self.comments['inline'][key] = '# ' + comment
+                      #      if comment_value:
+                      #          self.comments['list_value'][key][comment_value] = '  # ' + comment
+                      #      else:
+                                self.comments['inline'][key] = '  # ' + comment
+
+
             i += 1
 
     def _det_format_version(self):

@@ -35,6 +35,7 @@ Easyconfig module that contains the EasyConfig class.
 @author: Ward Poelmans (Ghent University)
 """
 
+import ast
 import copy
 import difflib
 import os
@@ -477,7 +478,6 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
         """
-
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
             ['easyblock'],
@@ -547,13 +547,35 @@ class EasyConfig(object):
 
         def add_key_and_comments(key, val):
             """ Adds key, value pair and comments (if there are any) to the dump file """
+            val = insert_indents(str(val), True)
             if key in self.comments['inline']:
-                ebtxt.append("%s = %s  %s" % (key, val, self.comments['inline'][key]))
+                ebtxt.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
             else:
                 if key in self.comments['above']:
                     ebtxt.extend(self.comments['above'][key])
 
                 ebtxt.append("%s = %s" % (key, val))
+
+        def insert_indents(val, outer):
+            if val.startswith('(') or val.startswith('{') or val.startswith('['):
+                if outer:
+                    val = ast.literal_eval(val)
+                    if len(val) > 1:
+                        if isinstance(val, list):
+                            val = '[\n' + ',\n'.join([insert_indents(str(v), False) for v in val]) + '\n]'
+                        elif isinstance(val, tuple):
+                            val = '(\n' + ',\n'.join([insert_indents(str(v), False) for v in val]) + '\n)'
+                        elif isinstance(val, dict):
+                            val = '{\n' + ',\n'.join(["%s: %s" % (quote_py_str(k), insert_indents(str(v), False))
+                            for k, v in val.items()]) + '\n'
+                # else:
+                    # if self.comments['list_value'].get(key):
+                      #  val = val + self.comments['list_value'][key].get(val, '')
+            else:
+                if not outer:
+                    val = quote_py_str(val)
+
+            return val
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
