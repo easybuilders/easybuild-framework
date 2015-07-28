@@ -544,7 +544,7 @@ class EasyConfig(object):
 
                 ebtxt.append("%s = %s" % (key, val))
 
-        def format_and_template(key, value, outer, comment = dict()):
+        def format_and_template(key, value, outer, comment=dict()):
             """ Returns string version of the value, including comments and newlines in lists, tuples and dicts """
             str_value = ''
 
@@ -747,7 +747,7 @@ class EasyConfig(object):
         """Dump parsed dependency in tuple format"""
 
         if dep['external_module']:
-            res = "('" + dep['full_mod_name']+ "', EXTERNAL_MODULE)"
+            res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
         else:
             # mininal spec: (name, version)
             tup = (dep['name'], dep['version'])
