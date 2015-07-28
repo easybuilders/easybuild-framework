@@ -149,7 +149,7 @@ class EasyConfigParser(object):
             'header' : [],
             'inline' : dict(),
             'above' : dict(),
-       #     'list_value' : dict(),
+            'list_value' : dict(),
          }
 
         raw = self.rawcontent.split('\n')
@@ -177,22 +177,22 @@ class EasyConfigParser(object):
                     comment_value = None
                     if '=' in raw[i]:
                         key = raw[i].split('=', 1)[0].strip()
-                    # else:
+                    else:
                         # search for key and index of comment in config dict
-                      #   for k, v in self.get_config_dict().items():
-                        #     val = re.sub(r',$', r'', raw[i].rsplit('#', 1)[0].strip())
-                          #   if not isinstance(v, basestring) and val in str(v):
-                            #     key = k
-                              #   comment_value = val
-                                # if not self.comments['list_value'].get(key):
-                                  #   self.comments['list_value'][key] = dict()
+                        for k, v in self.get_config_dict().items():
+                            val = re.sub(r',$', r'', raw[i].rsplit('#', 1)[0].strip())
+                            if not isinstance(v, basestring) and val in str(v):
+                                key = k
+                                comment_value = val
+                                if not self.comments['list_value'].get(key):
+                                    self.comments['list_value'][key] = dict()
 
                     # check if hash actually indicated a comment; or is part of the value
                     if key in self.get_config_dict():
                         if comment.replace("'", "").replace('"', '') not in str(self.get_config_dict()[key]):
-                      #      if comment_value:
-                      #          self.comments['list_value'][key][comment_value] = '  # ' + comment
-                      #      else:
+                            if comment_value:
+                                self.comments['list_value'][key][comment_value] = '  # ' + comment
+                            else:
                                 self.comments['inline'][key] = '  # ' + comment
 
 
