@@ -474,7 +474,7 @@ class EasyConfig(object):
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
 
-    def dump(self, fp):
+    def dump(self, fp, formatting=True):
         """
         Dump this easyconfig to file, with the given filename.
         """
@@ -495,7 +495,6 @@ class EasyConfig(object):
         ]
 
         last_keys = ['sanity_check_paths', 'moduleclass']
-
         orig_enable_templating = self.enable_templating
         self.enable_templating = False # templated values should be dumped unresolved
 
@@ -510,7 +509,7 @@ class EasyConfig(object):
         keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
-        def include_defined_parameters(keyset):
+        def include_defined_parameters(ebtxt, keyset):
             """
             Internal function to include parameters in the dumped easyconfig file which have a non-default value.
             """
@@ -526,65 +525,12 @@ class EasyConfig(object):
                         else:
                             val = quote_py_str(val)
 
-                        add_key_and_comments(key, val)
+                        ebtxt = self._add_key_and_comments(ebtxt, key, val, templ_const, templ_val, formatting)
 
                         printed_keys.append(key)
                         printed = True
                 if printed:
                     ebtxt.append('')
-
-        def add_key_and_comments(key, val):
-            """ Add key, value pair and comments (if there are any) to the dump file """
-            val = format_and_template(key, val, True)
-            if key in self.comments['inline']:
-                ebtxt.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
-            else:
-                if key in self.comments['above']:
-                    ebtxt.extend(self.comments['above'][key])
-
-                ebtxt.append("%s = %s" % (key, val))
-
-        def format_and_template(key, value, outer, comment=dict()):
-            """ Returns string version of the value, including comments and newlines in lists, tuples and dicts """
-            str_value = ''
-
-            for k, v in self.comments['list_value'].get(key, {}).items():
-                if str(value) in k:
-                    comment[str(value)] = v
-
-            if outer:
-                if isinstance(value, list):
-                    str_value += '[\n'
-                    for el in value:
-                        str_value += format_and_template(key, el, False, comment) + ',' + comment.get(str(el), '') + '\n'
-                    str_value += ']'
-                elif isinstance(value, tuple):
-                    str_value += '(\n'
-                    for el in value:
-                        str_value += format_and_template(key, el, False, comment) + ',' + comment.get(str(el), '') + '\n'
-                    str_value += ')'
-                elif isinstance(value, dict):
-                    str_value += '{\n'
-                    for k, v in value.items():
-                        str_value += quote_py_str(k) + ': ' + format_and_template(key, v, False, comment) + ',' + comment.get(str(v), '') + '\n'
-                    str_value += '}'
-
-                value = str_value or value
-
-            else:
-                # dependencies are already dumped as strings, so they do not need to be quoted again
-                if isinstance(value, basestring) and key not in ['builddependencies', 'dependencies', 'hiddendependencies']:
-                    value = quote_py_str(value)
-                else:
-                    value = str(value)
-
-            # templates
-            if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
-                new_value = to_template_str(value, templ_const, templ_val)
-                if not r'%(' + key in new_value:
-                    value = new_value
-
-            return value
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
@@ -593,21 +539,82 @@ class EasyConfig(object):
         # add header comments
         ebtxt.extend(self.comments['header'])
 
-        include_defined_parameters(grouped_keys)
+        include_defined_parameters(ebtxt, grouped_keys)
 
         # print other easyconfig parameters at the end
         keys_to_ignore = printed_keys + last_keys
         for key in default_values:
             if key not in keys_to_ignore and self[key] != default_values[key]:
-                add_key_and_comments(key, quote_py_str(self[key]))
+                ebtxt = self._add_key_and_comments(ebtxt, key, quote_py_str(self[key]), templ_const, templ_val, formatting)
         ebtxt.append('')
 
         # print last two parameters
-        include_defined_parameters([[k] for k in last_keys])
+        include_defined_parameters(ebtxt, [[k] for k in last_keys])
 
         dumped_text = ('\n'.join(ebtxt))
         write_file(fp, (fix_code(dumped_text, options={'aggressive': 1, 'max_line_length':120})).strip())
         self.enable_templating = orig_enable_templating
+
+    def _add_key_and_comments(self, ebtxt, key, val, templ_const, templ_val, formatting):
+        """ Add key, value pair and comments (if there are any) to the dump file (helper method for dump()) """
+        if formatting:
+            val = self._format(key, val, True, dict())
+        else:
+            val = str(val)
+
+        # templates
+        if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
+            new_val = to_template_str(val, templ_const, templ_val)
+            if not r'%(' + key in new_val:
+                val = new_val
+
+        if key in self.comments['inline']:
+            ebtxt.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
+        else:
+            if key in self.comments['above']:
+                ebtxt.extend(self.comments['above'][key])
+            ebtxt.append("%s = %s" % (key, val))
+
+        return ebtxt
+
+    def _format(self, key, value, outer, comment):
+        """ Returns string version of the value, including comments and newlines in lists, tuples and dicts """
+        str_value = ''
+
+        for k, v in self.comments['list_value'].get(key, {}).items():
+            if str(value) in k:
+                comment[str(value)] = v
+
+        if outer:
+            if isinstance(value, list):
+                str_value += '[\n'
+                for el in value:
+                    str_value += self._format(key, el, False, comment)
+                    str_value += ',' + comment.get(str(el), '') + '\n'
+                str_value += ']'
+            elif isinstance(value, tuple):
+                str_value += '(\n'
+                for el in value:
+                    str_value += self._format(key, el, False, comment)
+                    str_value += ',' + comment.get(str(el), '') + '\n'
+                str_value += ')'
+            elif isinstance(value, dict):
+                str_value += '{\n'
+                for k, v in value.items():
+                    str_value += quote_py_str(k) + ': ' + self._format(key, v, False, comment)
+                    str_value += ',' + comment.get(str(v), '') + '\n'
+                str_value += '}'
+
+            value = str_value or str(value)
+
+        else:
+            # dependencies are already dumped as strings, so they do not need to be quoted again
+            if isinstance(value, basestring) and key not in ['builddependencies', 'dependencies', 'hiddendependencies']:
+                value = quote_py_str(value)
+            else:
+                value = str(value)
+
+        return value
 
     def _validate(self, attr, values):  # private method
         """
@@ -1033,21 +1040,19 @@ def to_template_str(value, templ_const, templ_val):
         - templ_const is a dictionary of template strings (constants)
         - templ_val is an ordered dictionary of template strings specific for this easyconfig file
     """
-    if value not in templ_const.values():
-        old_value = None
-        while value != old_value:
-            old_value = value
-            # check for constant values
-            for const in templ_const:
-                if const in value:
-                    value = value.replace(const, templ_const[const])
+    old_value = None
+    while value != old_value:
+        old_value = value
+        # check for constant values
+        for tval, tname in templ_const.items():
+            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
 
-            # check for template values (note: templ_val dict is 'upside-down')
-            for tval, tname in templ_val.items():
-                # only replace full words with templates: word to replace should be at the beginning of a line
-                # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
-                # by another non-alphanumeric.
-                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+        for tval, tname in templ_val.items():
+            # only replace full words with templates: word to replace should be at the beginning of a line
+            # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
+            # by another non-alphanumeric.
+            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+
     return value
 
 

@@ -367,7 +367,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb['version'] = ver
         eb['toolchain']['version'] = tcver
         eb.enable_templating = True
-        eb.dump(self.eb_file)
+        eb.dump(self.eb_file, formatting=False)
 
         tweaks = {
             'toolchain_name': tcname,
@@ -1348,8 +1348,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # reverse dict of known template constants; template values (which are keys here) must be 'string-in-string
         templ_const = {
-            "'template'":'TEMPLATE_VALUE',
-            "'%(name)s-%(version)s'": 'NAME_VERSION',
+            "template":'TEMPLATE_VALUE',
+            "%(name)s-%(version)s": 'NAME_VERSION',
         }
 
         templ_val = {
@@ -1359,13 +1359,13 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
-        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "'%(name)s/bar/%(version)s/'")
+        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
         self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
-        templ_list = to_template_str(['-test', 'dontreplacenamehere'], templ_const, templ_val)
+        templ_list = to_template_str("['-test', 'dontreplacenamehere']", templ_const, templ_val)
         self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
-        templ_dict = to_template_str({'a':'foo', 'b':'notemplate'}, templ_const, templ_val)
+        templ_dict = to_template_str("{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
         self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
-        self.assertEqual(to_template_str(('foo', '0.0.1'), templ_const, templ_val), "('%(name)s', '%(version)s')")
+        self.assertEqual(to_template_str("('foo', '0.0.1')", templ_const, templ_val), "('%(name)s', '%(version)s')")
 
 
 def suite():
