@@ -218,6 +218,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
@@ -324,8 +325,8 @@ class EasyBuildOptions(GeneralOption):
                                          "easyblock-specific ones by using -e)"),
                                         'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
-                                            "that can be used in easyconfigs"),
-                                           'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT]),
+                                            "that can be used in easyconfigs."),
+                                           None, 'store_true', False),
             'dep-graph': ("Create dependency graph",
                           None, "store", None, {'metavar': 'depgraph.<ext>'}),
             'list-easyblocks': ("Show list of available easyblocks",
@@ -595,7 +596,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
-            msg += template_documentation(self.options.avail_easyconfig_templates)
+            msg += template_documentation(self.options.output_format)
 
         # dump easyconfig constant options
         if self.options.avail_easyconfig_constants:

@@ -208,7 +208,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     return template_values
 
 
-def template_documentation(output_format):
+def template_documentation(output_format=FORMAT_TXT):
     """Generate the templating documentation"""
     template_doc_functions = {
         FORMAT_TXT: template_documentation_txt,
