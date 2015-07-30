@@ -70,6 +70,7 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
+from easybuild.tools.utilities import mk_rst_table
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
@@ -588,7 +589,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump supported configuration file constants
         if self.options.avail_cfgfile_constants:
-            msg += self.avail_cfgfile_constants()
+            msg += self.avail_cfgfile_constants(self.options.output_format)
 
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
@@ -647,10 +648,18 @@ class EasyBuildOptions(GeneralOption):
 
         sys.exit(0)
 
-    def avail_cfgfile_constants(self):
+    def avail_cfgfile_constants(self, output_format=FORMAT_TXT):
         """
         Return overview of constants supported in configuration files.
         """
+        avail_cfgfile_constants_functions = {
+            FORMAT_TXT: self.avail_cfgfile_constants_txt,
+            FORMAT_RST: self.avail_cfgfile_constants_rst,
+        }
+
+        return avail_cfgfile_constants_functions[output_format]()
+
+    def avail_cfgfile_constants_txt(self):
         lines = [
             "Constants available (only) in configuration files:",
             "syntax: %(CONSTANT_NAME)s",
@@ -662,6 +671,25 @@ class EasyBuildOptions(GeneralOption):
                 lines.append(section_title)
             for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
+        return '\n'.join(lines)
+
+    def avail_cfgfile_constants_rst(self):
+        title = "Constants available (only) in configuration files"
+        lines = [title, "=" * len(title), '']
+
+        for section in self.go_cfg_constants:
+            lines.append('')
+            if section != self.DEFAULTSECT:
+                section_title = "only in '%s' section:" %section
+                lines.append(section_title, '-' * len(section_title), '')
+            table_titles = ["Constant name", "Constant help", "Constant value"]
+            table_values = [
+                ['``' + name + '``' for name in self.go_cfg_constants[section].keys()],
+                [tup[1] for tup in self.go_cfg_constants[section].values()],
+                ['``' + tup[0] + '``' for tup in self.go_cfg_constants[section].values()],
+            ]
+            lines.extend(mk_rst_table(table_titles, table_values))
+
         return '\n'.join(lines)
 
     def avail_classes_tree(self, classes, class_names, locations, detailed, depth=0):
