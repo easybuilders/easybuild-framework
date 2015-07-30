@@ -258,32 +258,42 @@ def template_documentation_rst():
 
     instance_title = 'Template names/values derived from easyconfig instance'
     doc.extend([instance_title, '-' * len(instance_title)])
-    table_values = [[name[i] for name in TEMPLATE_NAMES_EASYCONFIG] for i in range(2)]
+    table_values = [
+        ['``' + name[0] + '``' for name in TEMPLATE_NAMES_EASYCONFIG],
+        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
+    ]
     doc.extend(mk_rst_table(titles, table_values))
 
     config_title = 'Template names/values as set in easyconfig'
     doc.extend([config_title, '-' * len(config_title)])
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append('* ' + name)
+        doc.append('* ``' + name + '``')
     doc.append('')
 
     lower_title = 'Lowercase values of template values'
     doc.extend([lower_title, '-' * len(lower_title)])
     table_values = [
-        [TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} for name in TEMPLATE_NAMES_LOWER],
+        ['``' + TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} + '``' for name in TEMPLATE_NAMES_LOWER],
         ['lower case of value of ' + name for name in TEMPLATE_NAMES_LOWER],
     ]
     doc.extend(mk_rst_table(titles, table_values))
 
     outside_title = 'Template values set outside EasyBlock runstep'
     doc.extend([outside_title, '-' * len(outside_title)])
-    table_values = [[name[i] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP] for i in range(2)]
+    table_values = [
+        ['``' + name[0] + '``' for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+    ]
     doc.extend(mk_rst_table(titles, table_values))
 
     const_title = 'Template constants that can be used in easyconfigs'
     doc.extend([const_title, '-' * len(const_title)])
     titles = ['Constant', 'Template value', 'Template name']
-    table_values = [[cst[i] for cst in TEMPLATE_CONSTANTS] for i in [0, 2, 1]]
+    table_values = [
+        ['``' + cst[0] + '``' for cst in TEMPLATE_CONSTANTS],
+        [cst[2] for cst in TEMPLATE_CONSTANTS],
+        ['``' + cst[1] + '``' for cst in TEMPLATE_CONSTANTS],
+    ]
     doc.extend(mk_rst_table(titles, table_values))
 
     return '\n'.join(doc)
