@@ -154,7 +154,7 @@ def avail_easyconfig_params(easyblock, output_format):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
-def list_toolchains(output_format):
+def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
     all_tcs_names = [x.NAME for x in all_tcs]

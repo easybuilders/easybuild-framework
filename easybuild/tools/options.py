@@ -218,6 +218,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
@@ -331,7 +332,7 @@ class EasyBuildOptions(GeneralOption):
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",
-                                'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT]),
+                                None, 'store_true', False),
             'search': ("Search for easyconfig files in the robot directory, print full paths",
                        None, 'store', None, {'metavar': 'STR'}),
             'search-short': ("Search for easyconfig files in the robot directory, print short paths",
@@ -611,7 +612,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump known toolchains
         if self.options.list_toolchains:
-            msg += list_toolchains(self.options.list_toolchains)
+            msg += list_toolchains(self.options.output_format)
 
         # dump known repository types
         if self.options.avail_repositories:
