@@ -608,7 +608,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump available easyblocks
         if self.options.list_easyblocks:
-            msg += self.avail_easyblocks()
+            msg += self.avail_easyblocks(self.options.output_format)
 
         # dump known toolchains
         if self.options.list_toolchains:
@@ -664,9 +664,10 @@ class EasyBuildOptions(GeneralOption):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
         return '\n'.join(lines)
 
-    def avail_classes_tree(self, classes, class_names, locations, detailed, depth=0):
+    def avail_classes_tree(self, classes, class_names, locations, detailed, format_strings, depth=0):
         """Print list of classes as a tree."""
         txt = []
+
         for class_name in class_names:
             class_info = classes[class_name]
             if detailed:
@@ -674,14 +675,35 @@ class EasyBuildOptions(GeneralOption):
                 loc = ''
                 if mod in locations:
                     loc = '@ %s' % locations[mod]
-                txt.append("%s|-- %s (%s %s)" % ("|   " * depth, class_name, mod, loc))
+                txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
+                            format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
             else:
-                txt.append("%s|-- %s" % ("|   " * depth, class_name))
+                txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth + format_strings['sep'] + class_name)
             if 'children' in class_info:
-                txt.extend(self.avail_classes_tree(classes, class_info['children'], locations, detailed, depth + 1))
+                txt.extend(self.avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
         return txt
 
-    def avail_easyblocks(self):
+    def avail_easyblocks(self, output_format=FORMAT_TXT):
+        format_strings = {
+            FORMAT_TXT : {
+                'det_root_templ': "%s (%s%s)",
+                'root_templ': "%s",
+                'zero_indent': '',
+                'indent': "|   ",
+                'sep': "|-- ",
+            },
+            FORMAT_RST : {
+                'det_root_templ': "* **%s** (%s%s)",
+                'root_templ': "* **%s**",
+                'zero_indent': '    ',
+                'indent': '    ',
+                'sep': '* ',
+            }
+        }
+        return self.gen_avail_easyblocks(format_strings[output_format])
+
+
+    def gen_avail_easyblocks(self, format_strings):
         """Get a class tree for easyblocks."""
         detailed = self.options.list_easyblocks == "detailed"
         module_regexp = re.compile(r"^([^_].*)\.py$")
@@ -728,6 +750,7 @@ class EasyBuildOptions(GeneralOption):
 
         # Print the tree, start with the roots
         txt = []
+
         for root in roots:
             root = root.__name__
             if detailed:
@@ -735,11 +758,12 @@ class EasyBuildOptions(GeneralOption):
                 loc = ''
                 if mod in locations:
                     loc = ' @ %s' % locations[mod]
-                txt.append("%s (%s%s)" % (root, mod, loc))
+                txt.append(format_strings['det_root_templ'] % (root, mod, loc))
             else:
-                txt.append("%s" % root)
+                txt.append(format_strings['root_templ'] % root)
+
             if 'children' in classes[root]:
-                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed))
+                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
                 txt.append("")
 
         return '\n'.join(txt)

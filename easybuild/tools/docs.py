@@ -147,7 +147,6 @@ def avail_easyconfig_params(easyblock, output_format):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
-
 def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
     """
     Compose overview of all easyblocks in the given package in rst format
