@@ -41,16 +41,11 @@ from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorte
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import import_available_modules, quote_str
+from easybuild.tools.utilities import import_available_modules, mk_rst_table, quote_str
 
 
 FORMAT_RST = 'rst'
 FORMAT_TXT = 'txt'
-
-
-def det_col_width(entries, title):
-    """Determine column width based on column title and list of entries."""
-    return max(map(len, entries + [title]))
 
 
 def avail_easyconfig_params_rst(title, grouped_params):
@@ -271,36 +266,3 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         lines.append('') # empty line after literal block
 
     return '\n'.join(lines)
-
-
-def mk_rst_table(titles, values):
-    """
-    Returns an rst table with given titles and values (a nested list of string values for each column)
-    """
-    num_col = len(titles)
-    table = []
-    col_widths = []
-    tmpl = []
-    line= []
-
-    # figure out column widths
-    for i in range(0, num_col):
-        col_widths.append(det_col_width(values[i], titles[i]))
-
-        # make line template
-        tmpl.append('{' + str(i) + ':{c}<' + str(col_widths[i]) + '}')
-        line.append('') # needed for table line
-
-    line_tmpl = '   '.join(tmpl)
-    table_line = line_tmpl.format(*line, c="=")
-
-    table.append(table_line)
-    table.append(line_tmpl.format(*titles, c=' '))
-    table.append(table_line)
-
-    for i in range(0, len(values[0])):
-        table.append(line_tmpl.format(*[v[i] for v in values], c=' '))
-
-    table.extend([table_line, ''])
-
-    return table

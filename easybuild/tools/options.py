@@ -279,7 +279,7 @@ class EasyBuildOptions(GeneralOption):
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'packagepath': ("The destination path for the packages built by package-tool",
                              None, 'store', mk_full_default_path('packagepath')),
-            'package-naming-scheme': ("Packaging naming scheme choice", 
+            'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
@@ -325,7 +325,7 @@ class EasyBuildOptions(GeneralOption):
                                         'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
-                                           None, 'store_true', False),
+                                           'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT]),
             'dep-graph': ("Create dependency graph",
                           None, "store", None, {'metavar': 'depgraph.<ext>'}),
             'list-easyblocks': ("Show list of available easyblocks",
@@ -595,7 +595,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
-            msg += template_documentation()
+            msg += template_documentation(self.options.avail_easyconfig_templates)
 
         # dump easyconfig constant options
         if self.options.avail_easyconfig_constants:
