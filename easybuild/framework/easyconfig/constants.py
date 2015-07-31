@@ -34,9 +34,9 @@ import platform
 from vsc.utils import fancylogger
 
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
+from easybuild.tools.utilities import mk_rst_table, FORMAT_TXT, FORMAT_RST
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
-
 
 EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
 
@@ -50,8 +50,17 @@ EASYCONFIG_CONSTANTS = {
 }
 
 
-def constant_documentation():
+def constant_documentation(output_format=FORMAT_TXT):
     """Generate the easyconfig constant documentation"""
+    constant_documentation_functions = {
+        FORMAT_TXT: constant_documentation_txt,
+        FORMAT_RST: constant_documentation_rst,
+    }
+
+    return constant_documentation_functions[output_format]()
+
+def constant_documentation_txt():
+    """Generate easyconfig constant documentation in txt format"""
     indent_l0 = " " * 2
     indent_l1 = indent_l0 + " " * 2
     doc = []
@@ -62,3 +71,23 @@ def constant_documentation():
 
     return "\n".join(doc)
 
+def constant_documentation_rst():
+    """Generate easyconfig constant documentation in rst format"""
+    title = "Constants that can be used in easyconfigs"
+    doc = [title, "=" * len(title), '']
+
+    table_titles = [
+        "Constant name",
+        "Constant value",
+        "Description",
+    ]
+
+    table_values = [
+        ["``%s``" % cst for cst in EASYCONFIG_CONSTANTS.keys()],
+        ["``%s``" % cst[0] for cst in EASYCONFIG_CONSTANTS.values()],
+        [cst[1] for cst in EASYCONFIG_CONSTANTS.values()],
+    ]
+
+    doc.extend(mk_rst_table(table_titles, table_values))
+
+    return "\n".join(doc)

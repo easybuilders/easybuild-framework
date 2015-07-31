@@ -601,7 +601,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump easyconfig constant options
         if self.options.avail_easyconfig_constants:
-            msg += constant_documentation()
+            msg += constant_documentation(self.options.output_format)
 
         # dump easyconfig license options
         if self.options.avail_easyconfig_licenses:
