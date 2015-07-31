@@ -57,7 +57,7 @@ from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAUL
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
-from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
+from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params, list_toolchains
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -612,7 +612,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump known toolchains
         if self.options.list_toolchains:
-            msg += self.avail_toolchains()
+            msg += list_toolchains(self.options.output_format)
 
         # dump known repository types
         if self.options.avail_repositories:
@@ -744,20 +744,6 @@ class EasyBuildOptions(GeneralOption):
 
         return '\n'.join(txt)
 
-    def avail_toolchains(self):
-        """Show list of known toolchains."""
-        _, all_tcs = search_toolchain('')
-        all_tcs_names = [x.NAME for x in all_tcs]
-        tclist = sorted(zip(all_tcs_names, all_tcs))
-
-        txt = ["List of known toolchains (toolchainname: module[,module...]):"]
-
-        for (tcname, tcc) in tclist:
-            tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = nub(sorted([e for es in tc.definition().values() for e in es]))
-            txt.append("\t%s: %s" % (tcname, ', '.join(tc_elems)))
-
-        return '\n'.join(txt)
 
     def avail_repositories(self):
         """Show list of known repository types."""

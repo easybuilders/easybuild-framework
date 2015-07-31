@@ -41,11 +41,9 @@ from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorte
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import import_available_modules, mk_rst_table, quote_str
-
-
-FORMAT_RST = 'rst'
-FORMAT_TXT = 'txt'
+from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import import_available_modules, mk_rst_table, quote_str, FORMAT_TXT, FORMAT_RST
+from vsc.utils.missing import nub
 
 
 def avail_easyconfig_params_rst(title, grouped_params):
@@ -147,6 +145,56 @@ def avail_easyconfig_params(easyblock, output_format):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
+def list_toolchains(output_format=FORMAT_TXT):
+    """Show list of known toolchains."""
+    _, all_tcs = search_toolchain('')
+    all_tcs_names = [x.NAME for x in all_tcs]
+    tclist = sorted(zip(all_tcs_names, all_tcs))
+
+    tcs = dict()
+    for (tcname, tcc) in tclist:
+        tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
+        tcs[tcname] = tc.definition()
+
+    list_toolchains_functions = {
+        FORMAT_RST: list_toolchains_rst,
+        FORMAT_TXT: list_toolchains_txt,
+    }
+
+    return list_toolchains_functions[output_format](tcs)
+
+def list_toolchains_rst(tcs):
+    """ Returns overview of all toolchains in rst format """
+    txt = []
+    title = "List of known toolchains"
+    txt.extend([title, "=" * len(title), ''])
+
+    # figure out column names
+    column_heads = ["NAME", "COMPILER", "MPI"]
+    for d in tcs.values():
+        column_heads.extend(d.keys())
+
+    column_heads = nub(column_heads)
+
+    values = [[] for i in range(len(column_heads))]
+    values[0] = tcs.keys()
+
+    for i in range(len(column_heads)-1):
+        for d in tcs.values():
+            values[i+1].append(', '.join(d.get(column_heads[i+1], [])))
+
+    txt.extend(mk_rst_table(column_heads, values))
+
+    return '\n'.join(txt)
+
+def list_toolchains_txt(tcs):
+    """ Returns overview of all toolchains in txt format """
+    txt = ["List of known toolchains (toolchainname: module[,module...]):"]
+    for name in sorted(tcs):
+        tc_elems = nub(sorted([e for es in tcs[name].values() for e in es]))
+        txt.append("\t%s: %s" % (name, ', '.join(tc_elems)))
+
+    return '\n'.join(txt)
 
 def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}, doc_functions=[]):
     """
