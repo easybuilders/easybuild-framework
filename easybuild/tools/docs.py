@@ -103,7 +103,7 @@ def avail_easyconfig_params_txt(title, grouped_params):
     return '\n'.join(lines)
 
 
-def avail_easyconfig_params(easyblock, output_format):
+def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
     """
     Compose overview of available easyconfig parameters, in specified format.
     """
