@@ -45,6 +45,9 @@ ASCII_CHARS = string.maketrans('', '')
 # a list of all unwanted ascii characters (we only want to keep digits, letters and _)
 UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii_letters + "_")
 
+FORMAT_TXT = 'txt'
+FORMAT_RST = 'rst'
+
 
 def read_environment(env_vars, strict=False):
     """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""

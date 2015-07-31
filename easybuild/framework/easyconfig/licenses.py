@@ -33,6 +33,8 @@ be used within an Easyconfig file.
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
+from easybuild.tools.utilities import mk_rst_table, FORMAT_TXT, FORMAT_RST
+
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
 
@@ -128,7 +130,7 @@ class LicenseGCCOld(LicenseGPLv2):
 
 
 class LicenseZlib(LicenseOpen):
-    """The zlib License is a permissive free software license 
+    """The zlib License is a permissive free software license
         http://www.zlib.net/zlib_license.html
     """
     DESCRIPTION = ("Permission is granted to anyone to use this software for any purpose,"
@@ -138,7 +140,7 @@ class LicenseZlib(LicenseOpen):
 
 
 class LicenseLibpng(LicenseOpen):
-    """The PNG license is derived from the zlib license, 
+    """The PNG license is derived from the zlib license,
         http://libpng.org/pub/png/src/libpng-LICENSE.txt
     """
     HIDDEN = False
@@ -162,9 +164,17 @@ def what_licenses():
 EASYCONFIG_LICENSES_DICT = what_licenses()
 EASYCONFIG_LICENSES = EASYCONFIG_LICENSES_DICT.keys()
 
-
-def license_documentation():
+def license_documentation(output_format=FORMAT_TXT):
     """Generate the easyconfig licenses documentation"""
+    license_documentation_functions = {
+        FORMAT_TXT: license_documentation_txt,
+        FORMAT_RST: license_documentation_rst,
+    }
+
+    return license_documentation_functions[output_format]()
+
+def license_documentation_txt():
+    """Generate easyconfig license documentation in txt format"""
     indent_l0 = " " * 2
     indent_l1 = indent_l0 + " " * 2
     doc = []
@@ -172,5 +182,26 @@ def license_documentation():
     doc.append("Constants that can be used in easyconfigs")
     for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
         doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
+
+    return "\n".join(doc)
+
+def license_documentation_rst():
+    """Generate easyconfig license documentation in rst format"""
+    title = "Constants that can be used in easyconfigs"
+    doc = [title, "=" * len(title), '']
+
+    table_titles = [
+        "License name",
+        "License description",
+        "Version",
+    ]
+
+    table_values = [
+        ["``%s``" % name for name in EASYCONFIG_LICENSES_DICT.keys()],
+        ["%s" % lic.description for lic in EASYCONFIG_LICENSES_DICT.values()],
+        ["``%s``" % lic.version for lic in EASYCONFIG_LICENSES_DICT.values()],
+    ]
+
+    doc.extend(mk_rst_table(table_titles, table_values))
 
     return "\n".join(doc)

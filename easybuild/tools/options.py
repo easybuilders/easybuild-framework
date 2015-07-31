@@ -604,7 +604,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump easyconfig license options
         if self.options.avail_easyconfig_licenses:
-            msg += license_documentation()
+            msg += license_documentation(self.options.output_format)
 
         # dump available easyblocks
         if self.options.list_easyblocks:
