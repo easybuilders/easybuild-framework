@@ -48,6 +48,7 @@ UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii
 FORMAT_TXT = 'txt'
 FORMAT_RST = 'rst'
 
+
 def read_environment(env_vars, strict=False):
     """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
     _log.nosupport("read_environment has been moved to easybuild.tools.environment", '2.0')
