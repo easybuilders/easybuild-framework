@@ -324,7 +324,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'avail-easyconfig-params': (("Show all easyconfig parameters (include "
                                          "easyblock-specific ones by using -e)"),
-                                        'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
+                                        None, 'store_true', False, 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs."),
                                            None, 'store_true', False),
@@ -593,7 +593,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
-            msg += avail_easyconfig_params(self.options.easyblock, self.options.avail_easyconfig_params)
+            msg += avail_easyconfig_params(self.options.easyblock, self.options.output_format)
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
