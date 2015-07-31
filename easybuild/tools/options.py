@@ -702,9 +702,9 @@ class EasyBuildOptions(GeneralOption):
                 mod = class_info['module']
                 loc = ''
                 if mod in locations:
-                    loc = '@ %s' % locations[mod]
+                    loc = " @ %s" % locations[mod]
                 txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
-                            format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
+                            format_strings['sep'] + format_strings['det_templ'] % (class_name, mod, loc))
             else:
                 txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth + format_strings['sep'] + class_name)
             if 'children' in class_info:
@@ -714,15 +714,17 @@ class EasyBuildOptions(GeneralOption):
     def avail_easyblocks(self, output_format=FORMAT_TXT):
         format_strings = {
             FORMAT_TXT : {
-                'det_root_templ': "%s (%s%s)",
-                'root_templ': "%s",
+                'root_templ': '%s',
+                'det_templ': "%s (%s%s)",
+                'simple_templ': "%s",
                 'zero_indent': '',
                 'indent': "|   ",
                 'sep': "|-- ",
             },
             FORMAT_RST : {
-                'det_root_templ': "* **%s** (%s%s)",
                 'root_templ': "* **%s**",
+                'det_templ': "%s ``(%s%s)``",
+                'simple_templ': "* %s",
                 'zero_indent': '    ',
                 'indent': '    ',
                 'sep': '* ',
@@ -786,9 +788,9 @@ class EasyBuildOptions(GeneralOption):
                 loc = ''
                 if mod in locations:
                     loc = ' @ %s' % locations[mod]
-                txt.append(format_strings['det_root_templ'] % (root, mod, loc))
+                txt.append(format_strings['det_templ'] % (format_strings['root_templ'] % root, mod, loc))
             else:
-                txt.append(format_strings['root_templ'] % root)
+                txt.append(format_strings['simple_templ'] % root)
 
             if 'children' in classes[root]:
                 txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
