@@ -1287,9 +1287,9 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "# comment on the homepage",
             "homepage = 'http://foo.com/'",
-            'description = "foo description"',
+            'description = "foo description with a # in it"  # test',
             '',
-            "# toolchain comment with newline",
+            "# toolchain comment",
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
@@ -1309,7 +1309,8 @@ class EasyConfigTest(EnhancedTestCase):
             r"# #\n# some header comment\n# #",
             r"name = 'Foo'  # name comment",
             r"# comment on the homepage\nhomepage = 'http://foo.com/'",
-            r"# toolchain comment with newline\n\ntoolchain = {'version': 'dummy', 'name': 'dummy'}"
+            r'description = "foo description with a # in it"  # test',
+            r"# toolchain comment\ntoolchain = {'version': 'dummy', 'name': 'dummy'}"
         ]
 
         for pattern in patterns:
