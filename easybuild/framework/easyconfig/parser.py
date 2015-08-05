@@ -144,39 +144,40 @@ class EasyConfigParser(object):
         # At the moment there is no support for inline comments on lines that don't contain the key value
 
         self.comments = {
+            'above' : {},
             'header' : [],
-            'inline' : dict(),
-            'above' : dict(),
+            'inline' : {},
          }
 
-        raw = self.rawcontent.split('\n')
-        header = True
+        rawlines = self.rawcontent.split('\n')
 
-        i = 0
-        num_lines = len(raw)
-        while i<num_lines:
-            if raw[i].startswith('#') and header:
-                self.comments['header'].append(raw[i])
-            else:
-                header = False
-                if raw[i].startswith('#'):
-                    comment = []
-                    # comment could be multi-line
-                    while raw[i].startswith('#') or not raw[i]:
-                        comment.append(raw[i])
-                        i += 1
-                    key = raw[i].split('=', 1)[0].strip()
-                    self.comments['above'][key] = comment
+        # extract header first
+        while rawlines[0].startswith('#'):
+            self.comments['header'].append(rawlines.pop(0))
 
-                elif '#' in raw[i]:  # inline comment
-                    comment = raw[i].rsplit('#', 1)[1].strip()
-                    key = raw[i].split('=', 1)[0].strip()
+        parsed_ec = self.get_config_dict()
 
-                    # check if hash actually indicated a comment; or is part of the value
-                    if key in self.get_config_dict():
-                        if comment.replace("'", "").replace('"', '') not in str(self.get_config_dict()[key]):
-                            self.comments['inline'][key] = '# ' + comment
-            i += 1
+        while rawlines:
+            rawline = rawlines.pop(0)
+            if rawline.startswith('#'):
+                comment = []
+                # comment could be multi-line
+                while rawline.startswith('#') or not rawline:
+                    # drop empty lines (that don't even include a #)
+                    if rawline:
+                        comment.append(rawline)
+                    rawline = rawlines.pop(0)
+                key = rawline.split('=', 1)[0].strip()
+                self.comments['above'][key] = comment
+
+            elif '#' in rawline:  # inline comment
+                key = rawline.split('=', 1)[0].strip()
+                comment = rawline.rsplit('#', 1)[1].strip()
+
+                # check if hash actually indicated a comment, or if it is part of the value
+                if key in parsed_ec:
+                    if comment.replace("'", "").replace('"', '') not in str(parsed_ec[key]):
+                        self.comments['inline'][key] = '# ' + comment
 
     def _det_format_version(self):
         """Extract the format version from the raw content"""
