@@ -46,7 +46,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -77,6 +77,24 @@ ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', '
 
 # values for these keys will not be templated in dump()
 EXCLUDED_KEYS_REPLACE_TEMPLATES = ['easyblock', 'name', 'version', 'description', 'homepage', 'toolchain']
+
+
+# ordered groups of keys to obtain a nice looking easyconfig file
+GROUPED_PARAMS = [
+    ['easyblock'],
+    ['name', 'version', 'versionprefix', 'versionsuffix'],
+    ['homepage', 'description'],
+    ['toolchain', 'toolchainopts'],
+    ['sources', 'source_urls'],
+    ['patches'],
+    ['builddependencies', 'dependencies', 'hiddendependencies'],
+    ['osdependencies'],
+    ['preconfigopts', 'configopts'],
+    ['prebuildopts', 'buildopts'],
+    ['preinstallopts', 'installopts'],
+    ['parallel', 'maxparallel'],
+]
+LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -245,6 +263,8 @@ class EasyConfig(object):
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
+
+        self.comments = parser.get_comments()
 
         # make sure all mandatory parameters are defined
         # this includes both generic mandatory parameters and software-specific parameters defined via extra_options
@@ -475,25 +495,6 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
         """
-        eb_file = file(fp, 'w')
-
-        # ordered groups of keys to obtain a nice looking easyconfig file
-        grouped_keys = [
-            ['easyblock'],
-            ['name', 'version', 'versionprefix', 'versionsuffix'],
-            ['homepage', 'description'],
-            ['toolchain', 'toolchainopts'],
-            ['sources', 'source_urls'],
-            ['patches'],
-            ['builddependencies', 'dependencies', 'hiddendependencies'],
-            ['osdependencies'],
-            ['preconfigopts', 'configopts'],
-            ['prebuildopts', 'buildopts'],
-            ['preinstallopts', 'installopts'],
-            ['parallel', 'maxparallel'],
-        ]
-
-        last_keys = ['sanity_check_paths', 'moduleclass']
 
         orig_enable_templating = self.enable_templating
         self.enable_templating = False # templated values should be dumped unresolved
@@ -508,6 +509,17 @@ class EasyConfig(object):
         # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
         keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
+
+        def add_key_and_comments(key, val):
+            """
+            Add key + value and comments (if any) to txt to be dumped.
+            """
+            if key in self.comments['inline']:
+                ebtxt.append("%s = %s  %s" % (key, val, self.comments['inline'][key]))
+            else:
+                if key in self.comments['above']:
+                    ebtxt.extend(self.comments['above'][key])
+                ebtxt.append("%s = %s" % (key, val))
 
         def include_defined_parameters(keyset):
             """
@@ -537,29 +549,33 @@ class EasyConfig(object):
                         else:
                             val = newval
 
-                        ebtxt.append("%s = %s" % (key, val))
+                        add_key_and_comments(key, val)
+
                         printed_keys.append(key)
                         printed = True
                 if printed:
                     ebtxt.append('')
 
-        # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
         printed_keys = []
-        include_defined_parameters(grouped_keys)
+
+        # add header comments
+        ebtxt.extend(self.comments['header'])
+
+        # print easyconfig parameters ordered and in groups specified above
+        include_defined_parameters(GROUPED_PARAMS)
 
         # print other easyconfig parameters at the end
-        keys_to_ignore = printed_keys + last_keys
+        keys_to_ignore = printed_keys + LAST_PARAMS
         for key in default_values:
             if key not in keys_to_ignore and self[key] != default_values[key]:
-                ebtxt.append("%s = %s" % (key, quote_py_str(self[key])))
+                add_key_and_comments(key, quote_py_str(self[key]))
         ebtxt.append('')
 
-        # print last two parameters
-        include_defined_parameters([[k] for k in last_keys])
+        # print last parameters
+        include_defined_parameters([[k] for k in LAST_PARAMS])
 
-        eb_file.write(('\n'.join(ebtxt)).strip()) # strip for newlines at the end
-        eb_file.close()
+        write_file(fp, ('\n'.join(ebtxt)).strip()) # strip for newlines at the end
 
         self.enable_templating = orig_enable_templating
 
