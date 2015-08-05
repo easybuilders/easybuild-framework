@@ -79,6 +79,24 @@ ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', '
 # values for these keys will not be templated in dump()
 EXCLUDED_KEYS_REPLACE_TEMPLATES = ['easyblock', 'name', 'version', 'description', 'homepage', 'toolchain']
 
+
+# ordered groups of keys to obtain a nice looking easyconfig file
+GROUPED_PARAMS = [
+    ['easyblock'],
+    ['name', 'version', 'versionprefix', 'versionsuffix'],
+    ['homepage', 'description'],
+    ['toolchain', 'toolchainopts'],
+    ['sources', 'source_urls'],
+    ['patches'],
+    ['builddependencies', 'dependencies', 'hiddendependencies'],
+    ['osdependencies'],
+    ['preconfigopts', 'configopts'],
+    ['prebuildopts', 'buildopts'],
+    ['preinstallopts', 'installopts'],
+    ['parallel', 'maxparallel'],
+]
+LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
+
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
@@ -478,23 +496,6 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
         """
-        # ordered groups of keys to obtain a nice looking easyconfig file
-        grouped_keys = [
-            ['easyblock'],
-            ['name', 'version', 'versionprefix', 'versionsuffix'],
-            ['homepage', 'description'],
-            ['toolchain', 'toolchainopts'],
-            ['sources', 'source_urls'],
-            ['patches'],
-            ['builddependencies', 'dependencies', 'hiddendependencies'],
-            ['osdependencies'],
-            ['preconfigopts', 'configopts'],
-            ['prebuildopts', 'buildopts'],
-            ['preinstallopts', 'installopts'],
-            ['parallel', 'maxparallel'],
-        ]
-
-        last_keys = ['sanity_check_paths', 'moduleclass']
         orig_enable_templating = self.enable_templating
         self.enable_templating = False # templated values should be dumped unresolved
 
@@ -508,6 +509,17 @@ class EasyConfig(object):
         # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
         keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
+
+        def add_key_and_comments(key, val):
+            """
+            Add key + value and comments (if any) to txt to be dumped.
+            """
+            if key in self.comments['inline']:
+                ebtxt.append("%s = %s  %s" % (key, val, self.comments['inline'][key]))
+            else:
+                if key in self.comments['above']:
+                    ebtxt.extend(self.comments['above'][key])
+                ebtxt.append("%s = %s" % (key, val))
 
         def include_defined_parameters(ebtxt, keyset):
             """
@@ -532,24 +544,26 @@ class EasyConfig(object):
                 if printed:
                     ebtxt.append('')
 
-        # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
         printed_keys = []
 
         # add header comments
         ebtxt.extend(self.comments['header'])
 
-        include_defined_parameters(ebtxt, grouped_keys)
+        # print easyconfig parameters ordered and in groups specified above
+        include_defined_parameters(ebtxt, GROUPED_PARAMS)
 
         # print other easyconfig parameters at the end
-        keys_to_ignore = printed_keys + last_keys
+        keys_to_ignore = printed_keys + LAST_PARAMS
         for key in default_values:
             if key not in keys_to_ignore and self[key] != default_values[key]:
                 ebtxt = self._add_key_and_comments(ebtxt, key, quote_py_str(self[key]), templ_const, templ_val, formatting)
         ebtxt.append('')
 
-        # print last two parameters
-        include_defined_parameters(ebtxt, [[k] for k in last_keys])
+        # print last parameters
+        include_defined_parameters(ebtxt, [[k] for k in LAST_PARAMS])
+
+        write_file(fp, ('\n'.join(ebtxt)).strip()) # strip for newlines at the end
 
         dumped_text = ('\n'.join(ebtxt))
         write_file(fp, (fix_code(dumped_text, options={'aggressive': 1, 'max_line_length':120})).strip())
