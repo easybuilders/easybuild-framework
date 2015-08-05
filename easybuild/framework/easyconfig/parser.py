@@ -155,8 +155,7 @@ class EasyConfigParser(object):
         while rawlines[0].startswith('#'):
             self.comments['header'].append(rawlines.pop(0))
 
-        parsed_ec = self.get_config_dict()
-
+        parsed_ec = None
         while rawlines:
             rawline = rawlines.pop(0)
             if rawline.startswith('#'):
@@ -171,6 +170,11 @@ class EasyConfigParser(object):
                 self.comments['above'][key] = comment
 
             elif '#' in rawline:  # inline comment
+                if parsed_ec is None:
+                    # obtain parsed easyconfig as a dict, if it wasn't already
+                    # note: this currently trigger a reparse
+                    parsed_ec = self.get_config_dict()
+
                 key = rawline.split('=', 1)[0].strip()
                 comment = rawline.rsplit('#', 1)[1].strip()
 
