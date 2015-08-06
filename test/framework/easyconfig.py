@@ -1182,6 +1182,17 @@ class EasyConfigTest(EnhancedTestCase):
             # parse result again
             dumped_ec = EasyConfig(test_ec)
 
+    def test_dump_autopep8(self):
+        """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
+        try:
+            import autopep8
+            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+            init_config()
+            self.test_dump()
+            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
+        except ImportError:
+            print "Skipping test_dump_autopep8, since autopep8 is not available"
+
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
         build_options = {

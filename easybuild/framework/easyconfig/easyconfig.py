@@ -44,7 +44,6 @@ from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
-#from easybuild.tools.autopep8 import fix_code
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
@@ -75,6 +74,12 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+
+
+try:
+    import autopep8
+except ImportError as err:
+    _log.warning("Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", err)
 
 
 _easyconfig_files_cache = {}
@@ -475,7 +480,9 @@ class EasyConfig(object):
         Dump this easyconfig to file, with the given filename.
         """
         orig_enable_templating = self.enable_templating
-        self.enable_templating = False # templated values should be dumped unresolved
+
+        # templated values should be dumped unresolved
+        self.enable_templating = False
 
         # build dict of default values
         default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
@@ -489,8 +496,17 @@ class EasyConfig(object):
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
         ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        self.log.debug("Dumped easyconfig: %s", ectxt)
 
-        #ectxt = fix_code(ectxt, options={'aggressive': 1, 'max_line_length': 120})
+        if build_option('dump_autopep8'):
+            autopep8_opts = {
+                'aggressive': 1,  # enable non-whitespace changes, but don't be too aggressive
+                'max_line_length': 120,
+            }
+            self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
+            print("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
+            ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
+            self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
         write_file(fp, ectxt.strip())
 
