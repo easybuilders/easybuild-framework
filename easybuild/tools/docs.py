@@ -36,16 +36,165 @@ Documentation-related functionality
 import copy
 import inspect
 import os
+import re
+import sys
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
+from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
+from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, mk_rst_table, quote_str, FORMAT_TXT, FORMAT_RST
+from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 
+_log = fancylogger.getLogger('easyblock')
+
+DETAILED = "detailed"
+SIMPLE = "simple"
+
+### AVAIL CFGFILE CONSTANTS ###
+def avail_cfgfile_constants(go_cfg_constants, output_format=FORMAT_TXT):
+    """
+    Return overview of constants supported in configuration files.
+    """
+    avail_cfgfile_constants_functions = {
+        FORMAT_TXT: avail_cfgfile_constants_txt,
+        FORMAT_RST: avail_cfgfile_constants_rst,
+    }
+
+    return avail_cfgfile_constants_functions[output_format](go_cfg_constants)
+
+def avail_cfgfile_constants_txt(go_cfg_constants):
+    lines = [
+        "Constants available (only) in configuration files:",
+        "syntax: %(CONSTANT_NAME)s",
+    ]
+    for section in go_cfg_constants:
+        lines.append('')
+        if section != go_cfg_constants['DEFAULT']:
+            section_title = "only in '%s' section:" % section
+            lines.append(section_title)
+        for cst_name, (cst_value, cst_help) in sorted(go_cfg_constants[section].items()):
+            lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
+    return '\n'.join(lines)
+
+def avail_cfgfile_constants_rst(go_cfg_constants):
+    title = "Constants available (only) in configuration files"
+    lines = [title, "=" * len(title), '']
+
+    for section in go_cfg_constants:
+        lines.append('')
+        if section != go_cfg_constants['DEFAULT']:
+            section_title = "only in '%s' section:" %section
+            lines.extend([section_title, '-' * len(section_title), ''])
+        table_titles = ["Constant name", "Constant help", "Constant value"]
+        table_values = [
+            ['``' + name + '``' for name in go_cfg_constants[section].keys()],
+            [tup[1] for tup in go_cfg_constants[section].values()],
+            ['``' + tup[0] + '``' for tup in go_cfg_constants[section].values()],
+        ]
+        lines.extend(mk_rst_table(table_titles, table_values))
+
+    return '\n'.join(lines)
+
+
+### AVAIL EASYCONFIG CONSTANTS ###
+def avail_easyconfig_constants(output_format=FORMAT_TXT):
+    """Generate the easyconfig constant documentation"""
+    avail_easyconfig_constants_functions = {
+        FORMAT_TXT: avail_easyconfig_constants_txt,
+        FORMAT_RST: avail_easyconfig_constants_rst,
+    }
+
+    return avail_easyconfig_constants_functions[output_format]()
+
+def avail_easyconfig_constants_txt():
+    """Generate easyconfig constant documentation in txt format"""
+    indent_l0 = " " * 2
+    indent_l1 = indent_l0 + " " * 2
+    doc = []
+
+    doc.append("Constants that can be used in easyconfigs")
+    for cst, (val, descr) in EASYCONFIG_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (indent_l1, cst, val, descr))
+
+    return "\n".join(doc)
+
+def avail_easyconfig_constants_rst():
+    """Generate easyconfig constant documentation in rst format"""
+    title = "Constants that can be used in easyconfigs"
+    doc = [title, "=" * len(title), '']
+
+    table_titles = [
+        "Constant name",
+        "Constant value",
+        "Description",
+    ]
+
+    table_values = [
+        ["``%s``" % cst for cst in EASYCONFIG_CONSTANTS.keys()],
+        ["``%s``" % cst[0] for cst in EASYCONFIG_CONSTANTS.values()],
+        [cst[1] for cst in EASYCONFIG_CONSTANTS.values()],
+    ]
+
+    doc.extend(mk_rst_table(table_titles, table_values))
+
+    return "\n".join(doc)
+
+### AVAIL EASYCONFIG LICENSES ###
+def avail_easyconfig_licenses(output_format=FORMAT_TXT):
+    """Generate the easyconfig licenses documentation"""
+    avail_easyconfig_licenses_functions = {
+        FORMAT_TXT: avail_easyconfig_licenses_txt,
+        FORMAT_RST: avail_easyconfig_licenses_rst,
+    }
+
+    return avail_easyconfig_licenses_functions[output_format]()
+
+def avail_easyconfig_licenses_txt():
+    """Generate easyconfig license documentation in txt format"""
+    indent_l0 = " " * 2
+    indent_l1 = indent_l0 + " " * 2
+    doc = []
+
+    doc.append("Constants that can be used in easyconfigs")
+    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
+        doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
+
+    return "\n".join(doc)
+
+def avail_easyconfig_licenses_rst():
+    """Generate easyconfig license documentation in rst format"""
+    title = "Constants that can be used in easyconfigs"
+    doc = [title, "=" * len(title), '']
+
+    table_titles = [
+        "License name",
+        "License description",
+        "Version",
+    ]
+
+    table_values = [
+        ["``%s``" % name for name in EASYCONFIG_LICENSES_DICT.keys()],
+        ["%s" % lic.description for lic in EASYCONFIG_LICENSES_DICT.values()],
+        ["``%s``" % lic.version for lic in EASYCONFIG_LICENSES_DICT.values()],
+    ]
+
+    doc.extend(mk_rst_table(table_titles, table_values))
+
+    return "\n".join(doc)
+
+
+### AVAIL EASYCONFIG PARAMS ####
 def avail_easyconfig_params_rst(title, grouped_params):
     """
     Compose overview of available easyconfig parameters, in RST format.
@@ -145,6 +294,206 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
     }
     return avail_easyconfig_params_functions[output_format](title, grouped_params)
 
+
+### AVAIL EASYCONFIG TEMPLATES ###
+def avail_easyconfig_templates(output_format=FORMAT_TXT):
+    """Generate the templating documentation"""
+    template_doc_functions = {
+        FORMAT_TXT: avail_easyconfig_templates_txt,
+        FORMAT_RST: avail_easyconfig_templates_rst,
+    }
+
+    return template_doc_functions[output_format]()
+
+def avail_easyconfig_templates_txt():
+    """ Returns template documentation in plain text format """
+    # This has to reflect the methods/steps used in easyconfig _generate_template_values
+    indent_l0 = " " * 2
+    indent_l1 = indent_l0 + " " * 2
+    doc = []
+
+    # step 1: add TEMPLATE_NAMES_EASYCONFIG
+    doc.append('Template names/values derived from easyconfig instance')
+    for name in TEMPLATE_NAMES_EASYCONFIG:
+        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+
+    # step 2: add remaining config
+    doc.append('Template names/values as set in easyconfig')
+    for name in TEMPLATE_NAMES_CONFIG:
+        doc.append("%s%s" % (indent_l1, name))
+
+    # step 3. make lower variants
+    doc.append('Lowercase values of template values')
+    for name in TEMPLATE_NAMES_LOWER:
+        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+
+    # step 4. template_values can/should be updated from outside easyconfig
+    # (eg the run_setp code in EasyBlock)
+    doc.append('Template values set outside EasyBlock runstep')
+    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+
+    doc.append('Template constants that can be used in easyconfigs')
+    for cst in TEMPLATE_CONSTANTS:
+        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+
+    return '\n'.join(doc)
+
+def avail_easyconfig_templates_rst():
+    """ Returns template documentation in rst format """
+    doc = []
+    titles = ['Template name', 'Template value']
+
+    instance_title = 'Template names/values derived from easyconfig instance'
+    doc.extend([instance_title, '-' * len(instance_title)])
+    table_values = [
+        ['``%s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
+        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
+    ]
+    doc.extend(mk_rst_table(titles, table_values))
+
+    config_title = 'Template names/values as set in easyconfig'
+    doc.extend([config_title, '-' * len(config_title)])
+    for name in TEMPLATE_NAMES_CONFIG:
+        doc.append('* ``%s``' % name)
+    doc.append('')
+
+    lower_title = 'Lowercase values of template values'
+    doc.extend([lower_title, '-' * len(lower_title)])
+    table_values = [
+        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} for name in TEMPLATE_NAMES_LOWER],
+        ['lower case of value of %s' % name for name in TEMPLATE_NAMES_LOWER],
+    ]
+    doc.extend(mk_rst_table(titles, table_values))
+
+    outside_title = 'Template values set outside EasyBlock runstep'
+    doc.extend([outside_title, '-' * len(outside_title)])
+    table_values = [
+        ['``%s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+    ]
+    doc.extend(mk_rst_table(titles, table_values))
+
+    const_title = 'Template constants that can be used in easyconfigs'
+    doc.extend([const_title, '-' * len(const_title)])
+    titles = ['Constant', 'Template value', 'Template name']
+    table_values = [
+        ['``%s``' % cst[0] for cst in TEMPLATE_CONSTANTS],
+        [cst[2] for cst in TEMPLATE_CONSTANTS],
+        ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
+    ]
+    doc.extend(mk_rst_table(titles, table_values))
+
+    return '\n'.join(doc)
+
+
+### LIST EASYBLOCKS ###
+def avail_classes_tree(classes, class_names, locations, detailed, format_strings, depth=0):
+    """Print list of classes as a tree."""
+    txt = []
+
+    for class_name in class_names:
+        class_info = classes[class_name]
+        if detailed:
+            mod = class_info['module']
+            loc = ''
+            if mod in locations:
+                loc = '@ %s' % locations[mod]
+            txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
+                        format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
+        else:
+            txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth + format_strings['sep'] + class_name)
+        if 'children' in class_info:
+            txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
+    return txt
+
+def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
+    format_strings = {
+        FORMAT_TXT : {
+            'det_root_templ': "%s (%s%s)",
+            'root_templ': "%s",
+            'zero_indent': '',
+            'indent': "|   ",
+            'sep': "|-- ",
+        },
+        FORMAT_RST : {
+            'det_root_templ': "* **%s** (%s%s)",
+            'root_templ': "* **%s**",
+            'zero_indent': '    ',
+            'indent': '    ',
+            'sep': '* ',
+        }
+    }
+    return gen_list_easyblocks(list_easyblocks, format_strings[output_format])
+
+
+def gen_list_easyblocks(list_easyblocks, format_strings):
+    """Get a class tree for easyblocks."""
+    detailed = list_easyblocks == DETAILED
+    module_regexp = re.compile(r"^([^_].*)\.py$")
+
+    # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
+    search_toolchain('')
+
+    locations = {}
+    for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
+        __import__(package)
+
+        # determine paths for this package
+        paths = sys.modules[package].__path__
+
+        # import all modules in these paths
+        for path in paths:
+            if os.path.exists(path):
+                for f in os.listdir(path):
+                    res = module_regexp.match(f)
+                    if res:
+                        easyblock = '%s.%s' % (package, res.group(1))
+                        if easyblock not in locations:
+                            __import__(easyblock)
+                            locations.update({easyblock: os.path.join(path, f)})
+                        else:
+                            _log.debug("%s already imported from %s, ignoring %s",
+                                               easyblock, locations[easyblock], path)
+
+    def add_class(classes, cls):
+        """Add a new class, and all of its subclasses."""
+        children = cls.__subclasses__()
+        classes.update({cls.__name__: {
+            'module': cls.__module__,
+            'children': [x.__name__ for x in children]
+        }})
+        for child in children:
+            add_class(classes, child)
+
+    roots = [EasyBlock, Extension]
+
+    classes = {}
+    for root in roots:
+        add_class(classes, root)
+
+    # Print the tree, start with the roots
+    txt = []
+
+    for root in roots:
+        root = root.__name__
+        if detailed:
+            mod = classes[root]['module']
+            loc = ''
+            if mod in locations:
+                loc = ' @ %s' % locations[mod]
+            txt.append(format_strings['det_root_templ'] % (root, mod, loc))
+        else:
+            txt.append(format_strings['root_templ'] % root)
+
+        if 'children' in classes[root]:
+            txt.extend(avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
+            txt.append("")
+
+    return '\n'.join(txt)
+
+
+### LIST TOOLCHAINS ###
 def list_toolchains(output_format=FORMAT_TXT):
     """Show list of known toolchains."""
     _, all_tcs = search_toolchain('')
@@ -234,6 +583,7 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
     return heading + docs
 
 
+### GENERATE EASYBLOCKS DOCUMENTATION ###
 def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks):
     """
     Compose overview of one easyblock given class object of the easyblock in rst format

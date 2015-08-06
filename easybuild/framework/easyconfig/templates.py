@@ -41,10 +41,6 @@ from easybuild.tools.utilities import mk_rst_table
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
-
-FORMAT_RST = 'rst'
-FORMAT_TXT = 'txt'
-
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
     ('toolchain_name', "Toolchain name"),
@@ -206,94 +202,3 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                            (name, t_v, type(t_v)))
 
     return template_values
-
-
-def template_documentation(output_format=FORMAT_TXT):
-    """Generate the templating documentation"""
-    template_doc_functions = {
-        FORMAT_TXT: template_documentation_txt,
-        FORMAT_RST: template_documentation_rst,
-    }
-
-    return template_doc_functions[output_format]()
-
-def template_documentation_txt():
-    """ Returns template documentation in plain text format """
-    # This has to reflect the methods/steps used in easyconfig _generate_template_values
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
-    doc = []
-
-    # step 1: add TEMPLATE_NAMES_EASYCONFIG
-    doc.append('Template names/values derived from easyconfig instance')
-    for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
-
-    # step 2: add remaining self._config
-    doc.append('Template names/values as set in easyconfig')
-    for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (indent_l1, name))
-
-    # step 3. make lower variants
-    doc.append('Lowercase values of template values')
-    for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
-
-    # step 4. self.template_values can/should be updated from outside easyconfig
-    # (eg the run_setp code in EasyBlock)
-    doc.append('Template values set outside EasyBlock runstep')
-    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
-
-    doc.append('Template constants that can be used in easyconfigs')
-    for cst in TEMPLATE_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
-
-    return '\n'.join(doc)
-
-def template_documentation_rst():
-    """ Returns template documentation in rst format """
-    doc = []
-    titles = ['Template name', 'Template value']
-
-    instance_title = 'Template names/values derived from easyconfig instance'
-    doc.extend([instance_title, '-' * len(instance_title)])
-    table_values = [
-        ['``%s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
-        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
-    ]
-    doc.extend(mk_rst_table(titles, table_values))
-
-    config_title = 'Template names/values as set in easyconfig'
-    doc.extend([config_title, '-' * len(config_title)])
-    for name in TEMPLATE_NAMES_CONFIG:
-        doc.append('* ``%s``' % name)
-    doc.append('')
-
-    lower_title = 'Lowercase values of template values'
-    doc.extend([lower_title, '-' * len(lower_title)])
-    table_values = [
-        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} for name in TEMPLATE_NAMES_LOWER],
-        ['lower case of value of %s' % name for name in TEMPLATE_NAMES_LOWER],
-    ]
-    doc.extend(mk_rst_table(titles, table_values))
-
-    outside_title = 'Template values set outside EasyBlock runstep'
-    doc.extend([outside_title, '-' * len(outside_title)])
-    table_values = [
-        ['``%s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
-        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
-    ]
-    doc.extend(mk_rst_table(titles, table_values))
-
-    const_title = 'Template constants that can be used in easyconfigs'
-    doc.extend([const_title, '-' * len(const_title)])
-    titles = ['Constant', 'Template value', 'Template name']
-    table_values = [
-        ['``%s``' % cst[0] for cst in TEMPLATE_CONSTANTS],
-        [cst[2] for cst in TEMPLATE_CONSTANTS],
-        ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
-    ]
-    doc.extend(mk_rst_table(titles, table_values))
-
-    return '\n'.join(doc)

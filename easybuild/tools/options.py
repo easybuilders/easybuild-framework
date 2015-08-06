@@ -39,16 +39,11 @@ import re
 import shutil
 import sys
 from distutils.version import LooseVersion
-from vsc.utils.missing import nub
 
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.licenses import license_documentation
-from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
-from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
@@ -57,7 +52,8 @@ from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAUL
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
-from easybuild.tools.docs import avail_easyconfig_params, list_toolchains
+from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
+from easybuild.tools.docs import avail_easyconfig_params, avail_easyconfig_templates, list_easyblocks, list_toolchains
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
@@ -70,7 +66,7 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.utilities import mk_rst_table, FORMAT_TXT, FORMAT_RST
+from easybuild.tools.utilities import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
@@ -589,7 +585,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump supported configuration file constants
         if self.options.avail_cfgfile_constants:
-            msg += self.avail_cfgfile_constants(self.options.output_format)
+            msg += avail_cfgfile_constants(self.go_cfg_constants, self.options.output_format)
 
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
@@ -597,19 +593,19 @@ class EasyBuildOptions(GeneralOption):
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
-            msg += template_documentation(self.options.output_format)
+            msg += avail_easyconfig_templates(self.options.output_format)
 
         # dump easyconfig constant options
         if self.options.avail_easyconfig_constants:
-            msg += constant_documentation(self.options.output_format)
+            msg += avail_easyconfig_constants(self.options.output_format)
 
         # dump easyconfig license options
         if self.options.avail_easyconfig_licenses:
-            msg += license_documentation(self.options.output_format)
+            msg += avail_easyconfig_licenses(self.options.output_format)
 
         # dump available easyblocks
         if self.options.list_easyblocks:
-            msg += self.avail_easyblocks(self.options.output_format)
+            msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
         if self.options.list_toolchains:
@@ -647,157 +643,6 @@ class EasyBuildOptions(GeneralOption):
             raise EasyBuildError("Failed to clean up temporary directory %s: %s", self.tmpdir, err)
 
         sys.exit(0)
-
-    def avail_cfgfile_constants(self, output_format=FORMAT_TXT):
-        """
-        Return overview of constants supported in configuration files.
-        """
-        avail_cfgfile_constants_functions = {
-            FORMAT_TXT: self.avail_cfgfile_constants_txt,
-            FORMAT_RST: self.avail_cfgfile_constants_rst,
-        }
-
-        return avail_cfgfile_constants_functions[output_format]()
-
-    def avail_cfgfile_constants_txt(self):
-        lines = [
-            "Constants available (only) in configuration files:",
-            "syntax: %(CONSTANT_NAME)s",
-        ]
-        for section in self.go_cfg_constants:
-            lines.append('')
-            if section != self.DEFAULTSECT:
-                section_title = "only in '%s' section:" % section
-                lines.append(section_title)
-            for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
-                lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
-        return '\n'.join(lines)
-
-    def avail_cfgfile_constants_rst(self):
-        title = "Constants available (only) in configuration files"
-        lines = [title, "=" * len(title), '']
-
-        for section in self.go_cfg_constants:
-            lines.append('')
-            if section != self.DEFAULTSECT:
-                section_title = "only in '%s' section:" %section
-                lines.append(section_title, '-' * len(section_title), '')
-            table_titles = ["Constant name", "Constant help", "Constant value"]
-            table_values = [
-                ['``' + name + '``' for name in self.go_cfg_constants[section].keys()],
-                [tup[1] for tup in self.go_cfg_constants[section].values()],
-                ['``' + tup[0] + '``' for tup in self.go_cfg_constants[section].values()],
-            ]
-            lines.extend(mk_rst_table(table_titles, table_values))
-
-        return '\n'.join(lines)
-
-    def avail_classes_tree(self, classes, class_names, locations, detailed, format_strings, depth=0):
-        """Print list of classes as a tree."""
-        txt = []
-
-        for class_name in class_names:
-            class_info = classes[class_name]
-            if detailed:
-                mod = class_info['module']
-                loc = ''
-                if mod in locations:
-                    loc = " @ %s" % locations[mod]
-                txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
-                            format_strings['sep'] + format_strings['det_templ'] % (class_name, mod, loc))
-            else:
-                txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth + format_strings['sep'] + class_name)
-            if 'children' in class_info:
-                txt.extend(self.avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
-        return txt
-
-    def avail_easyblocks(self, output_format=FORMAT_TXT):
-        format_strings = {
-            FORMAT_TXT : {
-                'root_templ': '%s',
-                'det_templ': "%s (%s%s)",
-                'simple_templ': "%s",
-                'zero_indent': '',
-                'indent': "|   ",
-                'sep': "|-- ",
-            },
-            FORMAT_RST : {
-                'root_templ': "* **%s**",
-                'det_templ': "%s ``(%s%s)``",
-                'simple_templ': "* %s",
-                'zero_indent': '    ',
-                'indent': '    ',
-                'sep': '* ',
-            }
-        }
-        return self.gen_avail_easyblocks(format_strings[output_format])
-
-
-    def gen_avail_easyblocks(self, format_strings):
-        """Get a class tree for easyblocks."""
-        detailed = self.options.list_easyblocks == "detailed"
-        module_regexp = re.compile(r"^([^_].*)\.py$")
-
-        # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
-        search_toolchain('')
-
-        locations = {}
-        for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
-            __import__(package)
-
-            # determine paths for this package
-            paths = sys.modules[package].__path__
-
-            # import all modules in these paths
-            for path in paths:
-                if os.path.exists(path):
-                    for f in os.listdir(path):
-                        res = module_regexp.match(f)
-                        if res:
-                            easyblock = '%s.%s' % (package, res.group(1))
-                            if easyblock not in locations:
-                                __import__(easyblock)
-                                locations.update({easyblock: os.path.join(path, f)})
-                            else:
-                                self.log.debug("%s already imported from %s, ignoring %s",
-                                               easyblock, locations[easyblock], path)
-
-        def add_class(classes, cls):
-            """Add a new class, and all of its subclasses."""
-            children = cls.__subclasses__()
-            classes.update({cls.__name__: {
-                'module': cls.__module__,
-                'children': [x.__name__ for x in children]
-            }})
-            for child in children:
-                add_class(classes, child)
-
-        roots = [EasyBlock, Extension]
-
-        classes = {}
-        for root in roots:
-            add_class(classes, root)
-
-        # Print the tree, start with the roots
-        txt = []
-
-        for root in roots:
-            root = root.__name__
-            if detailed:
-                mod = classes[root]['module']
-                loc = ''
-                if mod in locations:
-                    loc = ' @ %s' % locations[mod]
-                txt.append(format_strings['det_templ'] % (format_strings['root_templ'] % root, mod, loc))
-            else:
-                txt.append(format_strings['simple_templ'] % root)
-
-            if 'children' in classes[root]:
-                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
-                txt.append("")
-
-        return '\n'.join(txt)
-
 
     def avail_repositories(self):
         """Show list of known repository types."""
