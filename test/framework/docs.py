@@ -94,7 +94,6 @@ class DocsTest(EnhancedTestCase):
             "====================   ================================================================",
         ])
 
-        print ebdoc
         self.assertTrue(check_configuremake in ebdoc)
         names = []
 
