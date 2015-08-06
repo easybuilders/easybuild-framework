@@ -95,7 +95,7 @@ def avail_cfgfile_constants_txt(go_cfg_constants):
 
 def avail_cfgfile_constants_rst(go_cfg_constants):
     title = "Constants available (only) in configuration files"
-    doc = rst_title(title)
+    doc =[title, '-' * len(title), '']
 
     for section in go_cfg_constants:
         doc.append('')
@@ -331,7 +331,8 @@ def avail_easyconfig_templates_rst():
     doc = rst_title_and_table(title, table_titles, table_values)
     doc.append('')
 
-    doc.extend(rst_title('Template names/values as set in easyconfig'))
+    title = 'Template names/values as set in easyconfig'
+    doc.extend([title, '-' * len(title), ''])
     for name in TEMPLATE_NAMES_CONFIG:
         doc.append('* ``%s``' % name)
     doc.append('')
@@ -624,7 +625,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     # Add example if available
     if os.path.exists(os.path.join(path_to_examples, '%s.eb' % classname)):
         title = 'Example for ``' + classname + '`` easyblock'
-        doc.extend(rst_title(title))
+        doc.extend([title, '-' * len(title), ''])
         for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
             doc.append('    ' + line.strip())
         doc.append('') # empty line after literal block
