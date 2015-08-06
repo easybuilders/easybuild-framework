@@ -36,7 +36,6 @@ from distutils.version import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
-from easybuild.tools.utilities import mk_rst_table
 
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
