@@ -33,8 +33,6 @@ be used within an Easyconfig file.
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
-from easybuild.tools.utilities import mk_rst_table, FORMAT_TXT, FORMAT_RST
-
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
 
