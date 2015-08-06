@@ -84,6 +84,7 @@ class DocsTest(EnhancedTestCase):
             '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
+            "",
             "====================   ================================================================",
             "easyconfig parameter   description                                                     ",
             "====================   ================================================================",
@@ -93,6 +94,7 @@ class DocsTest(EnhancedTestCase):
             "====================   ================================================================",
         ])
 
+        print ebdoc
         self.assertTrue(check_configuremake in ebdoc)
         names = []
 
