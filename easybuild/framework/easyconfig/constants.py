@@ -34,7 +34,6 @@ import platform
 from vsc.utils import fancylogger
 
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
-from easybuild.tools.utilities import mk_rst_table, FORMAT_TXT, FORMAT_RST
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
