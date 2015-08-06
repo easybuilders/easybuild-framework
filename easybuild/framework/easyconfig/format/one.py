@@ -97,8 +97,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         if spec_version is not None and not spec_version == cfg['version']:
             raise EasyBuildError('Requested version %s not available, only %s', spec_version, cfg['version'])
 
-        tc_name = cfg['toolchain']['name']
-        tc_version = cfg['toolchain']['version']
+        tc_name = cfg.get('toolchain', {}).get('name', None)
+        tc_version = cfg.get('toolchain', {}).get('version', None)
         if spec_tc_name is not None and not spec_tc_name == tc_name:
             raise EasyBuildError('Requested toolchain name %s not available, only %s', spec_tc_name, tc_name)
         if spec_tc_version is not None and not spec_tc_version == tc_version:
@@ -151,29 +151,30 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return res
 
-    def _add_key_and_comments(self, key, val, comments, templ_const, templ_val):
-        """ Add key, value pair and comments (if there are any) to the dump file (helper method for dump()) """
+    def _find_param_with_comments(self, key, val, templ_const, templ_val):
+        """Find parameter definition and accompanying comments, to include in dumped easyconfig file."""
         res = []
-        val = self._format(key, val, {}, comments, outer=True)
+        val = self._format(key, val, {}, self.comments, outer=True)
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
             new_val = to_template_str(val, templ_const, templ_val)
+            # avoid self-referencing templated parameter definitions
             if not r'%(' + key in new_val:
                 val = new_val
 
-        if key in comments['inline']:
-            res.append("%s = %s%s" % (key, val, comments['inline'][key]))
+        if key in self.comments['inline']:
+            res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
         else:
-            if key in comments['above']:
-                res.extend(comments['above'][key])
+            if key in self.comments['above']:
+                res.extend(self.comments['above'][key])
             res.append("%s = %s" % (key, val))
 
         return res
 
-    def _include_defined_parameters(self, ecfg, keyset, default_values, comments, templ_const, templ_val):
+    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val):
         """
-        Internal function to include parameters in the dumped easyconfig file which have a non-default value.
+        Determine parameters in the dumped easyconfig file which have a non-default value.
         """
         eclines = []
         printed_keys = []
@@ -188,7 +189,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     else:
                         val = quote_py_str(ecfg[key])
 
-                    eclines.extend(self._add_key_and_comments(key, val, comments, templ_const, templ_val))
+                    eclines.extend(self._find_param_with_comments(key, val, templ_const, templ_val))
 
                     printed_keys.append(key)
                     printed = True
@@ -197,35 +198,91 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return eclines, printed_keys
 
-    def dump(self, ecfg, default_values, comments, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val):
         """
         Dump easyconfig in format v1.
 
         @param ecfg: EasyConfig instance
         @param default_values: default values for easyconfig parameters
-        @param comments: comments extracted from easyconfig file
         @param templ_const: known template constants
         @param templ_val: known template values
         """
         # include header comments first
-        eclines = comments['header'][:]
+        dump = self.comments['header'][:]
 
         # print easyconfig parameters ordered and in groups specified above
-        more_eclines, printed_keys = self._include_defined_parameters(ecfg, GROUPED_PARAMS, default_values, comments, templ_const, templ_val)
-        eclines.extend(more_eclines)
+        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val)
+        dump.extend(params)
 
         # print other easyconfig parameters at the end
         keys_to_ignore = printed_keys + LAST_PARAMS
         for key in default_values:
             if key not in keys_to_ignore and ecfg[key] != default_values[key]:
-                eclines.extend(self._add_key_and_comments(key, quote_py_str(ecfg[key]), comments, templ_const, templ_val))
-        eclines.append('')
+                dump.extend(self._find_param_with_comments(key, quote_py_str(ecfg[key]), templ_const, templ_val))
+        dump.append('')
 
         # print last parameters
-        more_eclines, _ = self._include_defined_parameters(ecfg, [[k] for k in LAST_PARAMS], default_values, comments, templ_const, templ_val)
-        eclines.extend(more_eclines)
+        params, _ = self._find_defined_params(ecfg, [[k] for k in LAST_PARAMS], default_values, templ_const, templ_val)
+        dump.extend(params)
 
-        return '\n'.join(eclines)
+        return '\n'.join(dump)
+
+    def extract_comments(self, rawtxt):
+        """Extract comments from raw content."""
+        # Keep track of comments and their location (top of easyconfig, key they are intended for, line they are on
+        # discriminate between header comments (top of easyconfig file), single-line comments (at end of line) and other
+        # At the moment there is no support for inline comments on lines that don't contain the key value
+
+        self.comments = {
+            'above' : {},  # comments for a particular parameter definition
+            'header' : [],  # header comment lines
+            'inline' : {},  # inline comments
+            'iter': {},  # (inline) comments on elements of iterable values
+         }
+
+        rawlines = rawtxt.split('\n')
+
+        # extract header first
+        while rawlines[0].startswith('#'):
+            self.comments['header'].append(rawlines.pop(0))
+
+        parsed_ec = self.get_config_dict()
+
+        while rawlines:
+            rawline = rawlines.pop(0)
+            if rawline.startswith('#'):
+                comment = []
+                # comment could be multi-line
+                while rawline.startswith('#') or not rawline:
+                    # drop empty lines (that don't even include a #)
+                    if rawline:
+                        comment.append(rawline)
+                    rawline = rawlines.pop(0)
+                key = rawline.split('=', 1)[0].strip()
+                self.comments['above'][key] = comment
+
+            elif '#' in rawline:  # inline comment
+                comment = rawline.rsplit('#', 1)[1].strip()
+                comment_key, comment_val = None, None
+                if '=' in rawline:
+                    comment_key = rawline.split('=', 1)[0].strip()
+                else:
+                    # search for key and index of comment in config dict
+                    for key, val in parsed_ec.items():
+                        item_val = re.sub(r',$', r'', rawline.rsplit('#', 1)[0].strip())
+                        if not isinstance(val, basestring) and item_val in str(val):
+                            comment_key, comment_val = key, item_val
+                            if not self.comments['iter'].get(comment_key):
+                                self.comments['iter'][comment_key] = {}
+
+                # check if hash actually indicated a comment; or is part of the value
+                if comment_key in parsed_ec:
+                    if comment.replace("'", '').replace('"', '') not in str(parsed_ec[comment_key]):
+                        if comment_val:
+                            self.comments['iter'][comment_key][comment_val] = '  # ' + comment
+                        else:
+                            self.comments['inline'][comment_key] = '  # ' + comment
+
 
 
 def retrieve_blocks_in_spec(spec, only_blocks, silent=False):

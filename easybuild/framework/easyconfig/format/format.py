@@ -601,6 +601,7 @@ class EasyConfigFormat(object):
             raise EasyBuildError('Invalid version number %s (incorrect length)', self.VERSION)
 
         self.rawtext = None  # text version of the easyconfig
+        self.comments = {}  # comments in easyconfig file
         self.header = None  # easyconfig header (e.g., format version, license, ...)
         self.docstring = None  # easyconfig docstring (e.g., author, maintainer, ...)
 
@@ -623,8 +624,12 @@ class EasyConfigFormat(object):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
-    def dump(self, ecfg, default_values, comments, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump easyconfig according to this format. This is higly version specific"""
+        raise NotImplementedError
+
+    def extract_comments(self, rawtxt):
+        """Extract comments from raw content."""
         raise NotImplementedError
 
 
