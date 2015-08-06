@@ -47,7 +47,8 @@ from easybuild.tools.utilities import quote_py_str
 
 
 DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
-REFORMAT_FORCED_PARAMS = ['sanity_check_paths']
+# dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
+REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
 REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
 REFORMAT_ORDERED_ITEM_KEYS = {
@@ -121,25 +122,29 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         super(FormatOneZero, self).parse(txt, strict_section_markers=True)
 
-    def _reformat_line(self, param_name, param_val, outer=False):
+    def _reformat_line(self, param_name, param_val, outer=False, addlen=0):
         """
         Construct formatted string representation of iterable parameter (list/tuple/dict), including comments.
 
         @param param_name: parameter name
         @param param_val: parameter value
         @param outer: reformat for top-level parameter, or not
+        @param addlen: # characters to add to line length
         """
         param_strval = str(param_val)
         res = param_strval
 
+        # determine whether line would be too long
+        # note: this does not take into account the parameter name + '=', only the value
+        line_too_long = len(param_strval) + addlen > REFORMAT_THRESHOLD_LENGTH
+        forced = param_name in REFORMAT_FORCED_PARAMS
+
         if param_name in REFORMAT_SKIPPED_PARAMS:
             self.log.info("Skipping reformatting value for parameter '%s'", param_name)
 
-        #elif len(param_strval) >= REFORMAT_THRESHOLD_LENGTH or key in REFORMAT_FORCED_PARAMS:  # FIXME
-
         elif outer:
-            res = None
-            if isinstance(param_val, (list, tuple, dict)):
+            # only reformat outer (iterable) values for (too) long lines (or for select parameters)
+            if isinstance(param_val, (list, tuple, dict)) and ((len(param_val) > 1 and line_too_long) or forced):
 
                 item_tmpl = INDENT_4SPACES + '%(item)s,%(comment)s\n'
 
@@ -151,24 +156,25 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     ordered_item_keys = REFORMAT_ORDERED_ITEM_KEYS.get(param_name, sorted(param_val.keys()))
                     for item_key in ordered_item_keys:
                         item_val = param_val[item_key]
-                        comments = self._get_item_comments(param_name, item_val)
-                        formatted_item = self._reformat_line(param_name, item_val)
+                        comment = self._get_item_comments(param_name, item_val).get(str(item_val), '')
+                        key_pref = quote_py_str(item_key) + ': '
+                        addlen = addlen + len(INDENT_4SPACES) + len(key_pref) + len(comment)
+                        formatted_item_val = self._reformat_line(param_name, item_val, addlen=addlen)
                         res += item_tmpl % {
-                            'comment': comments.get(str(item_val), ''),
-                            'item': quote_py_str(item_key) + ': ' + formatted_item,
+                            'comment': comment,
+                            'item': key_pref + formatted_item_val,
                         }
                 else:  # list, tuple
                     for item in param_val:
-                        comments = self._get_item_comments(param_name, item)
+                        comment = self._get_item_comments(param_name, item).get(str(item), '')
+                        addlen = addlen + len(INDENT_4SPACES) + len(comment)
                         res += item_tmpl % {
-                            'comment': comments.get(str(item), ''),
-                            'item': self._reformat_line(param_name, item)
+                            'comment': comment,
+                            'item': self._reformat_line(param_name, item, addlen=addlen)
                         }
 
                 # end with closing character: ], ), }
                 res += param_strval[-1]
-
-            res = res or param_strval
 
         else:
             # dependencies are already dumped as strings, so they do not need to be quoted again
@@ -320,7 +326,6 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                             self.comments['iter'][comment_key][comment_val] = '  # ' + comment
                         else:
                             self.comments['inline'][comment_key] = '  # ' + comment
-
 
 
 def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
