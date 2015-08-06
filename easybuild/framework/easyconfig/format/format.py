@@ -41,6 +41,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 
 
+INDENT_4SPACES = ' ' * 4
+
 # format is mandatory major.minor
 FORMAT_VERSION_KEYWORD = "EASYCONFIGFORMAT"
 FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"

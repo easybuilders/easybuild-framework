@@ -37,13 +37,22 @@ import tempfile
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import EXCLUDED_KEYS_REPLACE_TEMPLATES, FORMAT_DEFAULT_VERSION
-from easybuild.framework.easyconfig.format.format import GROUPED_PARAMS, LAST_PARAMS, get_format_version
+from easybuild.framework.easyconfig.format.format import GROUPED_PARAMS, INDENT_4SPACES, LAST_PARAMS, get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import write_file
 from easybuild.tools.utilities import quote_py_str
+
+
+DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
+REFORMAT_FORCED_PARAMS = ['sanity_check_paths']
+REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
+REFORMAT_THRESHOLD_LENGTH = 100  # only reformat lines that would be longer than this amount of characters
+REFORMAT_ORDERED_ITEM_KEYS = {
+    'sanity_check_paths': ['files', 'dirs'],
+}
 
 
 _log = fancylogger.getLogger('easyconfig.format.one', fname=False)
@@ -112,49 +121,70 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         super(FormatOneZero, self).parse(txt, strict_section_markers=True)
 
-    def _format(self, key, value, item_comments, comments, outer=False):
-        """ Returns string version of the value, including comments and newlines in lists, tuples and dicts """
-        res = ''
+    def _reformat_line(self, param_name, param_val, item_comments=None, outer=False):
+        """Construct formatted string representation of iterable parameter (list/tuple/dict), including comments."""
+        param_strval = str(param_val)
+        res = param_strval
 
-        for k, v in comments['iter'].get(key, {}).items():
-            if str(value) in k:
-                item_comments[str(value)] = v
+        if param_name in REFORMAT_SKIPPED_PARAMS:
+            self.log.info("Skipping reformatting value for parameter '%s'", param_name)
 
-        if outer:
-            if isinstance(value, list):
-                res += '[\n'
-                for el in value:
-                    res += '    ' + self._format(key, el, item_comments, comments)
-                    res += ',' + item_comments.get(str(el), '') + '\n'
-                res += ']'
-            elif isinstance(value, tuple):
-                res += '(\n'
-                for el in value:
-                    res += '    ' + self._format(key, el, item_comments, comments)
-                    res += ',' + item_comments.get(str(el), '') + '\n'
-                res += ')'
-            elif isinstance(value, dict) and key not in ['toolchain']:  # FIXME
-                res += '{\n'
-                for k, v in sorted(value.items())[::-1]:  # FIXME
-                    res += '    ' + quote_py_str(k) + ': ' + self._format(key, v, item_comments, comments)
-                    res += ',' + item_comments.get(str(v), '') + '\n'
-                res += '}'
+        #elif len(param_strval) >= REFORMAT_THRESHOLD_LENGTH or key in REFORMAT_FORCED_PARAMS:  # FIXME
 
-            res = res or str(value)
+        elif outer:
+            res = None
+            if isinstance(param_val, (list, tuple, dict)):
+
+                item_tmpl = INDENT_4SPACES + '%(item)s,%(comment)s\n'
+
+                # start with opening character: [, (, {
+                res = '%s\n' % param_strval[0]
+
+                # add items one-by-one, special care for dict values (order of keys, different format for elements)
+                if isinstance(param_val, dict):
+                    ordered_item_keys = REFORMAT_ORDERED_ITEM_KEYS.get(param_name, sorted(param_val.keys()))
+                    for item_key in ordered_item_keys:
+                        item_val = param_val[item_key]
+                        new_item_comments = self._get_item_comments(param_name, item_val)
+                        formatted_item = self._reformat_line(param_name, item_val, item_comments=new_item_comments)
+                        res += item_tmpl % {
+                            'comment': new_item_comments.get(str(item_val), ''),
+                            'item': quote_py_str(item_key) + ': ' + formatted_item,
+                        }
+                else:  # list, tuple
+                    for item in param_val:
+                        new_item_comments = self._get_item_comments(param_name, item)
+                        res += item_tmpl % {
+                            'comment': new_item_comments.get(str(item), ''),
+                            'item': self._reformat_line(param_name, item, item_comments=new_item_comments),
+                        }
+
+                # end with closing character: ], ), }
+                res += param_strval[-1]
+
+            res = res or param_strval
 
         else:
             # dependencies are already dumped as strings, so they do not need to be quoted again
-            if isinstance(value, basestring) and key not in ['builddependencies', 'dependencies', 'hiddendependencies']:
-                res = quote_py_str(value)
-            else:
-                res = str(value)
+            if isinstance(param_val, basestring) and param_name not in DEPENDENCY_PARAMETERS:
+                res = quote_py_str(param_val)
 
         return res
+
+    def _get_item_comments(self, key, val):
+        """Get per-item comments for specified parameter name/value."""
+        item_comments = {}
+        for comment_key, comment_val in self.comments['iter'].get(key, {}).items():
+            if str(val) in comment_key:
+                item_comments[str(val)] = comment_val
+
+        return item_comments
 
     def _find_param_with_comments(self, key, val, templ_const, templ_val):
         """Find parameter definition and accompanying comments, to include in dumped easyconfig file."""
         res = []
-        val = self._format(key, val, {}, self.comments, outer=True)
+
+        val = self._reformat_line(key, val, item_comments=self._get_item_comments(key, val), outer=True)
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
@@ -264,7 +294,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             elif '#' in rawline:  # inline comment
                 comment = rawline.rsplit('#', 1)[1].strip()
                 comment_key, comment_val = None, None
-                if '=' in rawline:
+                if '=' in rawline:   # FIXME
                     comment_key = rawline.split('=', 1)[0].strip()
                 else:
                     # search for key and index of comment in config dict
