@@ -48,6 +48,27 @@ FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_V
 FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
 FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 
+# values for these keys will not be templated in dump()
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['easyblock', 'name', 'version', 'description', 'homepage', 'toolchain']
+
+# ordered groups of keys to obtain a nice looking easyconfig file
+GROUPED_PARAMS = [
+    ['easyblock'],
+    ['name', 'version', 'versionprefix', 'versionsuffix'],
+    ['homepage', 'description'],
+    ['toolchain', 'toolchainopts'],
+    ['sources', 'source_urls'],
+    ['patches'],
+    ['builddependencies', 'dependencies', 'hiddendependencies'],
+    ['osdependencies'],
+    ['preconfigopts', 'configopts'],
+    ['prebuildopts', 'buildopts'],
+    ['preinstallopts', 'installopts'],
+    ['parallel', 'maxparallel'],
+]
+LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
+
+
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
 
 
@@ -602,7 +623,7 @@ class EasyConfigFormat(object):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
-    def dump(self):
+    def dump(self, ecfg, default_values, comments, templ_const, templ_val):
         """Dump easyconfig according to this format. This is higly version specific"""
         raise NotImplementedError
 

@@ -146,9 +146,10 @@ class EasyConfigParser(object):
         # At the moment there is no support for inline comments on lines that don't contain the key value
 
         self.comments = {
-            'above' : {},
-            'header' : [],
-            'inline' : {},
+            'above' : {},  # comments for a particular parameter definition
+            'header' : [],  # header comment lines
+            'inline' : {},  # inline comments
+            'iter': {},  # (inline) comments on elements of iterable values
          }
 
         rawlines = self.rawcontent.split('\n')
@@ -189,14 +190,14 @@ class EasyConfigParser(object):
                         if not isinstance(v, basestring) and val in str(v):
                             key = k
                             comment_value = val
-                            if not self.comments['list_value'].get(key):
-                                self.comments['list_value'][key] = {}
+                            if not self.comments['iter'].get(key):
+                                self.comments['iter'][key] = {}
 
                 # check if hash actually indicated a comment; or is part of the value
                 if key in parsed_ec:
                     if comment.replace("'", "").replace('"', '') not in str(parsed_ec[key]):
                         if comment_value:
-                            self.comments['list_value'][key][comment_value] = '  # ' + comment
+                            self.comments['iter'][key][comment_value] = '  # ' + comment
                         else:
                             self.comments['inline'][key] = '  # ' + comment
 
@@ -254,6 +255,6 @@ class EasyConfigParser(object):
             self._formatter.validate()
         return self._formatter.get_config_dict()
 
-    def get_comments(self):
-        """Return comments, and their location info"""
-        return copy.deepcopy(self.comments)
+    def dump(self, ecfg, default_values, templ_const, templ_val):
+        """Dump easyconfig in format it was parsed from."""
+        return self._formatter.dump(ecfg, default_values, self.comments, templ_const, templ_val)

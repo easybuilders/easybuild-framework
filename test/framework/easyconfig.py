@@ -45,8 +45,9 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str, to_template_str
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -367,7 +368,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb['version'] = ver
         eb['toolchain']['version'] = tcver
         eb.enable_templating = True
-        eb.dump(self.eb_file, formatting=False)
+        eb.dump(self.eb_file)
 
         tweaks = {
             'toolchain_name': tcname,
@@ -1199,10 +1200,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {",
-            "    'version': 'dummy',",
-            "    'name': 'dummy',",
-            "}",
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",

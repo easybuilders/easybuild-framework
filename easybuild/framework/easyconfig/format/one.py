@@ -36,14 +36,38 @@ import re
 import tempfile
 from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, get_format_version
+from easybuild.framework.easyconfig.format.format import EXCLUDED_KEYS_REPLACE_TEMPLATES, FORMAT_DEFAULT_VERSION
+from easybuild.framework.easyconfig.format.format import GROUPED_PARAMS, LAST_PARAMS, get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
+from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import write_file
+from easybuild.tools.utilities import quote_py_str
 
 
 _log = fancylogger.getLogger('easyconfig.format.one', fname=False)
+
+
+def dump_dependency(dep, toolchain):
+    """Dump parsed dependency in tuple format"""
+
+    if dep['external_module']:
+        res = "(%s, EXTERNAL_MODULE)" % quote_py_str(dep['full_mod_name'])
+    else:
+        # mininal spec: (name, version)
+        tup = (dep['name'], dep['version'])
+        if dep['toolchain'] != toolchain:
+            if dep['dummy']:
+                tup += (dep['versionsuffix'], True)
+            else:
+                tup += (dep['versionsuffix'], (dep['toolchain']['name'], dep['toolchain']['version']))
+
+        elif dep['versionsuffix']:
+            tup += (dep['versionsuffix'],)
+
+        res = str(tup)
+    return res
 
 
 class FormatOneZero(EasyConfigFormatConfigObj):
@@ -87,6 +111,121 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
         """
         super(FormatOneZero, self).parse(txt, strict_section_markers=True)
+
+    def _format(self, key, value, item_comments, comments, outer=False):
+        """ Returns string version of the value, including comments and newlines in lists, tuples and dicts """
+        res = ''
+
+        for k, v in comments['iter'].get(key, {}).items():
+            if str(value) in k:
+                item_comments[str(value)] = v
+
+        if outer:
+            if isinstance(value, list):
+                res += '[\n'
+                for el in value:
+                    res += '    ' + self._format(key, el, item_comments, comments)
+                    res += ',' + item_comments.get(str(el), '') + '\n'
+                res += ']'
+            elif isinstance(value, tuple):
+                res += '(\n'
+                for el in value:
+                    res += '    ' + self._format(key, el, item_comments, comments)
+                    res += ',' + item_comments.get(str(el), '') + '\n'
+                res += ')'
+            elif isinstance(value, dict) and key not in ['toolchain']:  # FIXME
+                res += '{\n'
+                for k, v in sorted(value.items())[::-1]:  # FIXME
+                    res += '    ' + quote_py_str(k) + ': ' + self._format(key, v, item_comments, comments)
+                    res += ',' + item_comments.get(str(v), '') + '\n'
+                res += '}'
+
+            res = res or str(value)
+
+        else:
+            # dependencies are already dumped as strings, so they do not need to be quoted again
+            if isinstance(value, basestring) and key not in ['builddependencies', 'dependencies', 'hiddendependencies']:
+                res = quote_py_str(value)
+            else:
+                res = str(value)
+
+        return res
+
+    def _add_key_and_comments(self, key, val, comments, templ_const, templ_val):
+        """ Add key, value pair and comments (if there are any) to the dump file (helper method for dump()) """
+        res = []
+        val = self._format(key, val, {}, comments, outer=True)
+
+        # templates
+        if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
+            new_val = to_template_str(val, templ_const, templ_val)
+            if not r'%(' + key in new_val:
+                val = new_val
+
+        if key in comments['inline']:
+            res.append("%s = %s%s" % (key, val, comments['inline'][key]))
+        else:
+            if key in comments['above']:
+                res.extend(comments['above'][key])
+            res.append("%s = %s" % (key, val))
+
+        return res
+
+    def _include_defined_parameters(self, ecfg, keyset, default_values, comments, templ_const, templ_val):
+        """
+        Internal function to include parameters in the dumped easyconfig file which have a non-default value.
+        """
+        eclines = []
+        printed_keys = []
+        for group in keyset:
+            printed = False
+            for key in group:
+                if ecfg[key] != default_values[key]:
+                    # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
+                    if key in ['builddependencies', 'dependencies', 'hiddendependencies']:
+                        dumped_deps = [dump_dependency(d, ecfg['toolchain']) for d in ecfg[key]]
+                        val = dumped_deps
+                    else:
+                        val = quote_py_str(ecfg[key])
+
+                    eclines.extend(self._add_key_and_comments(key, val, comments, templ_const, templ_val))
+
+                    printed_keys.append(key)
+                    printed = True
+            if printed:
+                eclines.append('')
+
+        return eclines, printed_keys
+
+    def dump(self, ecfg, default_values, comments, templ_const, templ_val):
+        """
+        Dump easyconfig in format v1.
+
+        @param ecfg: EasyConfig instance
+        @param default_values: default values for easyconfig parameters
+        @param comments: comments extracted from easyconfig file
+        @param templ_const: known template constants
+        @param templ_val: known template values
+        """
+        # include header comments first
+        eclines = comments['header'][:]
+
+        # print easyconfig parameters ordered and in groups specified above
+        more_eclines, printed_keys = self._include_defined_parameters(ecfg, GROUPED_PARAMS, default_values, comments, templ_const, templ_val)
+        eclines.extend(more_eclines)
+
+        # print other easyconfig parameters at the end
+        keys_to_ignore = printed_keys + LAST_PARAMS
+        for key in default_values:
+            if key not in keys_to_ignore and ecfg[key] != default_values[key]:
+                eclines.extend(self._add_key_and_comments(key, quote_py_str(ecfg[key]), comments, templ_const, templ_val))
+        eclines.append('')
+
+        # print last parameters
+        more_eclines, _ = self._include_defined_parameters(ecfg, [[k] for k in LAST_PARAMS], default_values, comments, templ_const, templ_val)
+        eclines.extend(more_eclines)
+
+        return '\n'.join(eclines)
 
 
 def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
