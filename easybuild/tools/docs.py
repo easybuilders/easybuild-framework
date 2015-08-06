@@ -67,7 +67,7 @@ def generate_doc(name, params):
     return func(*params)
 
 def rst_title_and_table(title, table_titles, table_values):
-    doc = [title, '-' * len(title), '']]
+    doc = [title, '-' * len(title), '']
     doc.extend(mk_rst_table(table_titles, table_values))
     return doc
 
