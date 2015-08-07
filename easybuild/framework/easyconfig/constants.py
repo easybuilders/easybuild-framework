@@ -35,7 +35,9 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
 
+
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
+
 
 EXTERNAL_MODULE_MARKER = 'EXTERNAL_MODULE'
 

@@ -40,8 +40,8 @@ import os
 import re
 import sys
 from vsc.utils import fancylogger
-from vsc.utils.missing import nub
 from vsc.utils.docs import mk_rst_table
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
@@ -55,22 +55,37 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import import_available_modules, quote_str, FORMAT_TXT, FORMAT_RST
+from easybuild.tools.utilities import import_available_modules, quote_str
 
 
-_log = fancylogger.getLogger('easyblock')
+_log = fancylogger.getLogger('tools.docs')
 
-DETAILED = "detailed"
-SIMPLE = "simple"
+
+INDENT_4SPACES = ' ' * 4
+
+DETAILED = 'detailed'
+SIMPLE = 'simple'
+
+FORMAT_TXT = 'txt'
+FORMAT_RST = 'rst'
+
 
 def generate_doc(name, params):
+    """Generate documentation by calling function with specified name, using supplied parameters."""
     func = globals()[name]
     return func(*params)
 
+
 def rst_title_and_table(title, table_titles, table_values):
-    doc = [title, '-' * len(title), '']
+    """Generate table in section with title in .rst format."""
+    doc = [
+        title,
+        '-' * len(title),
+        '',
+    ]
     doc.extend(mk_rst_table(table_titles, table_values))
     return doc
+
 
 def avail_cfgfile_constants(go_cfg_constants, output_format=FORMAT_TXT):
     """
@@ -121,15 +136,11 @@ def avail_easyconfig_constants(output_format=FORMAT_TXT):
 
 def avail_easyconfig_constants_txt():
     """Generate easyconfig constant documentation in txt format"""
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
-    doc = []
-
-    doc.append("Constants that can be used in easyconfigs")
+    doc = ["Constants that can be used in easyconfigs"]
     for cst, (val, descr) in EASYCONFIG_CONSTANTS.items():
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst, val, descr))
+        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, cst, val, descr))
 
-    return "\n".join(doc)
+    return '\n'.join(doc)
 
 
 def avail_easyconfig_constants_rst():
@@ -149,7 +160,7 @@ def avail_easyconfig_constants_rst():
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
-    return "\n".join(doc)
+    return '\n'.join(doc)
 
 
 def avail_easyconfig_licenses(output_format=FORMAT_TXT):
@@ -159,15 +170,11 @@ def avail_easyconfig_licenses(output_format=FORMAT_TXT):
 
 def avail_easyconfig_licenses_txt():
     """Generate easyconfig license documentation in txt format"""
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
-    doc = []
-
-    doc.append("Constants that can be used in easyconfigs")
+    doc = ["Constants that can be used in easyconfigs"]
     for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
-        doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
+        doc.append('%s%s: %s (version %s)' % (INDENT_4SPACES, lic_name, lic.description, lic.version))
 
-    return "\n".join(doc)
+    return '\n'.join(doc)
 
 
 def avail_easyconfig_licenses_rst():
@@ -187,7 +194,7 @@ def avail_easyconfig_licenses_rst():
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
-    return "\n".join(doc)
+    return '\n'.join(doc)
 
 
 def avail_easyconfig_params_rst(title, grouped_params):
@@ -195,7 +202,11 @@ def avail_easyconfig_params_rst(title, grouped_params):
     Compose overview of available easyconfig parameters, in RST format.
     """
     # main title
-    doc = [title, '=' * len(title), '']
+    doc = [
+        title,
+        '=' * len(title),
+        '',
+    ]
 
     for grpname in grouped_params:
         # group section title
@@ -288,34 +299,32 @@ def avail_easyconfig_templates(output_format=FORMAT_TXT):
 def avail_easyconfig_templates_txt():
     """ Returns template documentation in plain text format """
     # This has to reflect the methods/steps used in easyconfig _generate_template_values
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
     doc = []
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
     for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%s: %s" % (INDENT_4SPACES, name[0], name[1]))
 
     # step 2: add remaining config
     doc.append('Template names/values as set in easyconfig')
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (indent_l1, name))
+        doc.append("%s%s" % (INDENT_4SPACES, name))
 
     # step 3. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+        doc.append("%s%s: lower case of value of %s" % (INDENT_4SPACES, TEMPLATE_NAMES_LOWER_TEMPLATE % name, name))
 
     # step 4. template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%s: %s" % (INDENT_4SPACES, name[0], name[1]))
 
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, cst[0], cst[2], cst[1]))
 
     return '\n'.join(doc)
 
@@ -340,7 +349,7 @@ def avail_easyconfig_templates_rst():
 
     title = 'Lowercase values of template values'
     table_values = [
-        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} for name in TEMPLATE_NAMES_LOWER],
+        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % name for name in TEMPLATE_NAMES_LOWER],
         ['lower case of value of %s' % name for name in TEMPLATE_NAMES_LOWER],
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
@@ -396,8 +405,8 @@ def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
         FORMAT_RST : {
             'det_root_templ': "* **%s** (%s%s)",
             'root_templ': "* **%s**",
-            'zero_indent': ' ' * 4,
-            'indent': ' ' * 4,
+            'zero_indent': INDENT_4SPACES,
+            'indent': INDENT_4SPACES,
             'sep': '* ',
         }
     }
@@ -628,7 +637,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         title = 'Example for ``' + classname + '`` easyblock'
         doc.extend([title, '-' * len(title), ''])
         for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
-            doc.append(' ' * 4 + line.strip())
+            doc.append(INDENT_4SPACES + line.strip())
         doc.append('')  # empty line after literal block
 
     return doc

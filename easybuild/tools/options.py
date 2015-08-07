@@ -52,6 +52,7 @@ from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAUL
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
+from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
 from easybuild.tools.docs import avail_easyconfig_params, avail_easyconfig_templates, list_easyblocks, list_toolchains
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
@@ -66,7 +67,6 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.utilities import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
