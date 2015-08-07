@@ -35,30 +35,8 @@ from easybuild.tools.docs import gen_easyblocks_overview_rst
 from easybuild.tools.utilities import import_available_modules
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
-from vsc.utils.docs import mk_rst_table
 
 class DocsTest(EnhancedTestCase):
-
-    def test_rst_table(self):
-        """ Test mk_rst_table function """
-        entries = [['one', 'two', 'three']]
-        t = 'This title is longer than the entries in the column'
-        titles = [t]
-
-        # small table
-        table = '\n'.join(mk_rst_table(titles, entries))
-        check = '\n'.join([
-            '=' * len(t),
-            t,
-            '=' * len(t),
-            'one' + ' ' * (len(t) - 3),
-            'two' + ' ' * (len(t) -3),
-            'three' + ' ' * (len(t) - 5),
-            '=' * len(t),
-            '',
-        ])
-
-        self.assertEqual(table, check)
 
     def test_gen_easyblocks(self):
         """ Test gen_easyblocks_overview_rst function """
@@ -85,7 +63,7 @@ class DocsTest(EnhancedTestCase):
             '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
-            "",
+            '',
             "====================    ================================================================",
             "easyconfig parameter    description                                                     ",
             "====================    ================================================================",

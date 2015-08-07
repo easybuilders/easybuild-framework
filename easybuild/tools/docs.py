@@ -39,6 +39,9 @@ import inspect
 import os
 import re
 import sys
+from vsc.utils import fancylogger
+from vsc.utils.missing import nub
+from vsc.utils.docs import mk_rst_table
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
@@ -53,9 +56,6 @@ from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str, FORMAT_TXT, FORMAT_RST
-from vsc.utils import fancylogger
-from vsc.utils.docs import mk_rst_table
-from vsc.utils.missing import nub
 
 
 _log = fancylogger.getLogger('easyblock')
@@ -628,7 +628,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         title = 'Example for ``' + classname + '`` easyblock'
         doc.extend([title, '-' * len(title), ''])
         for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
-            doc.append('    ' + line.strip())
-        doc.append('') # empty line after literal block
+            doc.append(' ' * 4 + line.strip())
+        doc.append('')  # empty line after literal block
 
     return doc
