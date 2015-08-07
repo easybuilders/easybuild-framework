@@ -45,8 +45,9 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str, to_template_str
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -367,7 +368,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb['version'] = ver
         eb['toolchain']['version'] = tcver
         eb.enable_templating = True
-        eb.dump(self.eb_file, formatting=False)
+        eb.dump(self.eb_file)
 
         tweaks = {
             'toolchain_name': tcname,
@@ -1181,6 +1182,17 @@ class EasyConfigTest(EnhancedTestCase):
             # parse result again
             dumped_ec = EasyConfig(test_ec)
 
+    def test_dump_autopep8(self):
+        """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
+        try:
+            import autopep8
+            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+            init_config()
+            self.test_dump()
+            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
+        except ImportError:
+            print "Skipping test_dump_autopep8, since autopep8 is not available"
+
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
         build_options = {
@@ -1199,10 +1211,7 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {",
-            "    'version': 'dummy',",
-            "    'name': 'dummy',",
-            "}",
+            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
             "dependencies = [",
             "    ('GCC', '4.6.4', '-test'),",
@@ -1276,7 +1285,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"versionsuffix = '-test'",
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
-            r"sources = \[\n    SOURCELOWER_TAR_GZ,\n\]",
+            r"sources = \[SOURCELOWER_TAR_GZ\]",
             r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
@@ -1334,7 +1343,8 @@ class EasyConfigTest(EnhancedTestCase):
             r"# comment on the homepage\nhomepage = 'http://foo.com/'",
             r'description = "foo description with a # in it"  # test',
             r"# toolchain comment\ntoolchain = {",
-            r"'files': \['files/foobar'\],  # comment on files",
+            r"    'files': \['files/foobar'\],  # comment on files",
+            r"    'dirs': \[\],",
         ]
 
         for pattern in patterns:
