@@ -84,13 +84,13 @@ class DocsTest(EnhancedTestCase):
             '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
-            "====================   ================================================================",
-            "easyconfig parameter   description                                                     ",
-            "====================   ================================================================",
-            "configopts             Extra options passed to configure (default already has --prefix)",
-            "buildopts              Extra options passed to make step (default already has -j X)    ",
-            "installopts            Extra options for installation                                  ",
-            "====================   ================================================================",
+            "====================    ================================================================",
+            "easyconfig parameter    description                                                     ",
+            "====================    ================================================================",
+            "configopts              Extra options passed to configure (default already has --prefix)",
+            "buildopts               Extra options passed to make step (default already has -j X)    ",
+            "installopts             Extra options for installation                                  ",
+            "====================    ================================================================",
         ])
 
         self.assertTrue(check_configuremake in ebdoc)
