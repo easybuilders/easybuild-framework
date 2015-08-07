@@ -504,14 +504,14 @@ def list_toolchains_rst(tcs):
 
     table_titles = nub(table_titles)
 
-    table_values = [[] for i in range(len(column_heads))]
+    table_values = [[] for i in range(len(table_titles))]
     table_values[0] = tcs.keys()
 
     for i in range(len(table_titles)-1):
         for d in tcs.values():
-            values[i+1].append(', '.join(d.get(column_heads[i+1], [])))
+            values[i+1].append(', '.join(d.get(table_titles[i+1], [])))
 
-    doc = rst_title_and_table(title, column_heads, values)
+    doc = rst_title_and_table(title, table_titles, values)
 
     return '\n'.join(doc)
 
