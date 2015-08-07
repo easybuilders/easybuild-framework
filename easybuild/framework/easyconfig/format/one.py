@@ -270,11 +270,12 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         return '\n'.join(dump)
 
     def extract_comments(self, rawtxt):
-        """Extract comments from raw content."""
-        # Keep track of comments and their location (top of easyconfig, key they are intended for, line they are on
-        # discriminate between header comments (top of easyconfig file), single-line comments (at end of line) and other
-        # At the moment there is no support for inline comments on lines that don't contain the key value
+        """
+        Extract comments from raw content.
 
+        Discriminates between comment header, comments above a line (parameter definition), and inline comments.
+        Inline comments on items of iterable values are also extracted.
+        """
         self.comments = {
             'above' : {},  # comments for a particular parameter definition
             'header' : [],  # header comment lines
@@ -316,14 +317,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                         item_val = re.sub(r',$', r'', rawline.rsplit('#', 1)[0].strip())
                         if not isinstance(val, basestring) and item_val in str(val):
                             comment_key, comment_val = key, item_val
-                            if not self.comments['iter'].get(comment_key):
-                                self.comments['iter'][comment_key] = {}
+                            break
 
                 # check if hash actually indicated a comment; or is part of the value
                 if comment_key in parsed_ec:
                     if comment.replace("'", '').replace('"', '') not in str(parsed_ec[comment_key]):
                         if comment_val:
-                            self.comments['iter'][comment_key][comment_val] = '  # ' + comment
+                            self.comments['iter'].setdefault(comment_key, {})[comment_val] = '  # ' + comment
                         else:
                             self.comments['inline'][comment_key] = '  # ' + comment
 
