@@ -36,8 +36,9 @@ import re
 import tempfile
 from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.format.format import EXCLUDED_KEYS_REPLACE_TEMPLATES, FORMAT_DEFAULT_VERSION
-from easybuild.framework.easyconfig.format.format import GROUPED_PARAMS, INDENT_4SPACES, LAST_PARAMS, get_format_version
+from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, INDENT_4SPACES
+from easybuild.framework.easyconfig.format.format import LAST_PARAMS, get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
@@ -46,7 +47,6 @@ from easybuild.tools.filetools import write_file
 from easybuild.tools.utilities import quote_py_str
 
 
-DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
@@ -225,7 +225,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             for key in group:
                 if ecfg[key] != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
-                    if key in ['builddependencies', 'dependencies', 'hiddendependencies']:
+                    if key in DEPENDENCY_PARAMETERS:
                         dumped_deps = [dump_dependency(d, ecfg['toolchain']) for d in ecfg[key]]
                         val = dumped_deps
                     else:

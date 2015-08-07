@@ -29,9 +29,6 @@ The parser is format version aware
 
 @author: Stijn De Weirdt (Ghent University)
 """
-
-import ast
-import copy
 import os
 import re
 from vsc.utils import fancylogger

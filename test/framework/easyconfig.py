@@ -1343,7 +1343,8 @@ class EasyConfigTest(EnhancedTestCase):
             r"# comment on the homepage\nhomepage = 'http://foo.com/'",
             r'description = "foo description with a # in it"  # test',
             r"# toolchain comment\ntoolchain = {",
-            r"'files': \['files/foobar'\],  # comment on files",
+            r"    'files': \['files/foobar'\],  # comment on files",
+            r"    'dirs': \[\],",
         ]
 
         for pattern in patterns:
