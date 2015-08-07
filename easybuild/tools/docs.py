@@ -509,9 +509,9 @@ def list_toolchains_rst(tcs):
 
     for i in range(len(table_titles)-1):
         for d in tcs.values():
-            values[i+1].append(', '.join(d.get(table_titles[i+1], [])))
+            table_values[i+1].append(', '.join(d.get(table_titles[i+1], [])))
 
-    doc = rst_title_and_table(title, table_titles, values)
+    doc = rst_title_and_table(title, table_titles, table_values)
 
     return '\n'.join(doc)
 
