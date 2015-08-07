@@ -314,7 +314,8 @@ def avail_easyconfig_templates_txt():
     # step 3. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (INDENT_4SPACES, TEMPLATE_NAMES_LOWER_TEMPLATE % name, name))
+        template_name = TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}
+        doc.append("%s%s: lower case of value of %s" % (INDENT_4SPACES, template_name, name))
 
     # step 4. template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
@@ -349,7 +350,7 @@ def avail_easyconfig_templates_rst():
 
     title = 'Lowercase values of template values'
     table_values = [
-        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % name for name in TEMPLATE_NAMES_LOWER],
+        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} for name in TEMPLATE_NAMES_LOWER],
         ['lower case of value of %s' % name for name in TEMPLATE_NAMES_LOWER],
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
