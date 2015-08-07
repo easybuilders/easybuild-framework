@@ -78,8 +78,10 @@ ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', '
 
 try:
     import autopep8
+    HAVE_AUTOPEP8 = True
 except ImportError as err:
     _log.warning("Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", err)
+    HAVE_AUTOPEP8 = False
 
 
 _easyconfig_files_cache = {}
@@ -504,7 +506,6 @@ class EasyConfig(object):
                 'max_line_length': 120,
             }
             self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
-            print("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
             ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
             self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
 
