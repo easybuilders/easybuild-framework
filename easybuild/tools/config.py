@@ -121,6 +121,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'allow_modules_tool_mismatch',
         'debug',
+        'dump_autopep8',
         'experimental',
         'force',
         'group_writable_installdir',

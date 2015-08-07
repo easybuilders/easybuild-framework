@@ -44,6 +44,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
+from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
@@ -200,6 +201,7 @@ class EasyBuildOptions(GeneralOption):
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
+            'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
@@ -502,6 +504,11 @@ class EasyBuildOptions(GeneralOption):
             token = fetch_github_token(self.options.github_user)
             if token is None:
                 raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
+
+        # make sure autopep8 is available when it needs to be
+        if self.options.dump_autopep8:
+            if not HAVE_AUTOPEP8:
+                raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
 
         self._postprocess_external_modules_metadata()
 

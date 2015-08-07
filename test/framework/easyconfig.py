@@ -45,8 +45,9 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str, to_template_str
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -1181,6 +1182,17 @@ class EasyConfigTest(EnhancedTestCase):
             # parse result again
             dumped_ec = EasyConfig(test_ec)
 
+    def test_dump_autopep8(self):
+        """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
+        try:
+            import autopep8
+            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+            init_config()
+            self.test_dump()
+            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
+        except ImportError:
+            print "Skipping test_dump_autopep8, since autopep8 is not available"
+
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
         build_options = {
@@ -1201,8 +1213,12 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "toolchain = {'version': 'dummy', 'name': 'dummy'}",
             '',
-            "dependencies = [('GCC', '4.6.4', '-test'), ('MPICH', '1.8', '', ('GCC', '4.6.4')), " +
-                "('bar', '1.0'), ('foobar/1.2.3', EXTERNAL_MODULE)]",
+            "dependencies = [",
+            "    ('GCC', '4.6.4', '-test'),",
+            "    ('MPICH', '1.8', '', ('GCC', '4.6.4')),",
+            "    ('bar', '1.0'),",
+            "    ('foobar/1.2.3', EXTERNAL_MODULE),",
+            "]",
             '',
             "foo_extra1 = 'foobar'",
         ])
@@ -1229,16 +1245,26 @@ class EasyConfigTest(EnhancedTestCase):
             "homepage = 'http://foo.com/'",
             'description = "foo description"',
             '',
-            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            "toolchain = {",
+            "    'version': 'dummy',",
+            "    'name': 'dummy',",
+            '}',
             '',
-            "sources = ['foo-0.0.1.tar.gz']",
+            "sources = [",
+            "    'foo-0.0.1.tar.gz',",
+            ']',
             '',
-            "dependencies = [('bar', '1.2.3', '-test')]",
+            "dependencies = [",
+            "    ('bar', '1.2.3', '-test'),",
+            ']',
             '',
             "preconfigopts = '--opt1=%s' % name",
             "configopts = '--opt2=0.0.1'",
             '',
-            "sanity_check_paths = {'files': ['files/foo/foobar', 'files/x-test'], 'dirs':[] }",
+            "sanity_check_paths = {",
+            "    'files': ['files/foo/foobar', 'files/x-test'],",
+            "    'dirs':[],",
+            '}',
             '',
             "foo_extra1 = 'foobar'"
         ])
@@ -1260,10 +1286,10 @@ class EasyConfigTest(EnhancedTestCase):
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
-            r"dependencies = \[\('bar', '1.2.3', '%\(versionsuffix\)s'\)\]",
+            r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
-            r"sanity_check_paths = {'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
+            r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
 
         for pattern in patterns:
@@ -1291,9 +1317,15 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             "# toolchain comment",
             '',
-            "toolchain = {'version': 'dummy', 'name': 'dummy'}",
+            "toolchain = {",
+            "    'version': 'dummy',",
+            "    'name': 'dummy'",
+            '}',
             '',
-            "sanity_check_paths = {'files': ['files/foo/foobar'], 'dirs':[] }",
+            "sanity_check_paths = {",
+            "    'files': ['files/foobar'],  # comment on files",
+            "    'dirs':[]",
+            '}',
             '',
             "foo_extra1 = 'foobar'",
         ])
@@ -1310,7 +1342,9 @@ class EasyConfigTest(EnhancedTestCase):
             r"name = 'Foo'  # name comment",
             r"# comment on the homepage\nhomepage = 'http://foo.com/'",
             r'description = "foo description with a # in it"  # test',
-            r"# toolchain comment\ntoolchain = {'version': 'dummy', 'name': 'dummy'}"
+            r"# toolchain comment\ntoolchain = {",
+            r"    'files': \['files/foobar'\],  # comment on files",
+            r"    'dirs': \[\],",
         ]
 
         for pattern in patterns:
@@ -1325,8 +1359,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # reverse dict of known template constants; template values (which are keys here) must be 'string-in-string
         templ_const = {
-            "'template'":'TEMPLATE_VALUE',
-            "'%(name)s-%(version)s'": 'NAME_VERSION',
+            "template":'TEMPLATE_VALUE',
+            "%(name)s-%(version)s": 'NAME_VERSION',
         }
 
         templ_val = {
@@ -1336,13 +1370,13 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
-        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "'%(name)s/bar/%(version)s/'")
+        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
         self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
-        templ_list = to_template_str(['-test', 'dontreplacenamehere'], templ_const, templ_val)
+        templ_list = to_template_str("['-test', 'dontreplacenamehere']", templ_const, templ_val)
         self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
-        templ_dict = to_template_str({'a':'foo', 'b':'notemplate'}, templ_const, templ_val)
+        templ_dict = to_template_str("{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
         self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
-        self.assertEqual(to_template_str(('foo', '0.0.1'), templ_const, templ_val), "('%(name)s', '%(version)s')")
+        self.assertEqual(to_template_str("('foo', '0.0.1')", templ_const, templ_val), "('%(name)s', '%(version)s')")
 
 
 def suite():

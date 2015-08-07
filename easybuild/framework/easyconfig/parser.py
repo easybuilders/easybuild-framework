@@ -29,7 +29,6 @@ The parser is format version aware
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import copy
 import os
 import re
 from vsc.utils import fancylogger
@@ -85,9 +84,6 @@ class EasyConfigParser(object):
 
         self.rawcontent = None  # the actual unparsed content
 
-        # comments in the easyconfig file
-        self.comments = None
-
         self.get_fn = None  # read method and args
         self.set_fn = None  # write method and args
 
@@ -103,7 +99,7 @@ class EasyConfigParser(object):
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
-        self._extract_comments()
+        self._formatter.extract_comments(self.rawcontent)
 
     def process(self, filename=None):
         """Create an instance"""
@@ -136,52 +132,6 @@ class EasyConfigParser(object):
         if not isinstance(self.rawcontent, basestring):
             msg = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
-
-    def _extract_comments(self):
-        """Extract comments from raw content."""
-        # Keep track of comments and their location (top of easyconfig, key they are intended for, line they are on
-        # discriminate between header comments (top of easyconfig file), single-line comments (at end of line) and other
-        # At the moment there is no support for inline comments on lines that don't contain the key value
-
-        self.comments = {
-            'above' : {},
-            'header' : [],
-            'inline' : {},
-         }
-
-        rawlines = self.rawcontent.split('\n')
-
-        # extract header first
-        while rawlines[0].startswith('#'):
-            self.comments['header'].append(rawlines.pop(0))
-
-        parsed_ec = None
-        while rawlines:
-            rawline = rawlines.pop(0)
-            if rawline.startswith('#'):
-                comment = []
-                # comment could be multi-line
-                while rawline.startswith('#') or not rawline:
-                    # drop empty lines (that don't even include a #)
-                    if rawline:
-                        comment.append(rawline)
-                    rawline = rawlines.pop(0)
-                key = rawline.split('=', 1)[0].strip()
-                self.comments['above'][key] = comment
-
-            elif '#' in rawline:  # inline comment
-                if parsed_ec is None:
-                    # obtain parsed easyconfig as a dict, if it wasn't already
-                    # note: this currently trigger a reparse
-                    parsed_ec = self.get_config_dict()
-
-                key = rawline.split('=', 1)[0].strip()
-                comment = rawline.rsplit('#', 1)[1].strip()
-
-                # check if hash actually indicated a comment, or if it is part of the value
-                if key in parsed_ec:
-                    if comment.replace("'", "").replace('"', '') not in str(parsed_ec[key]):
-                        self.comments['inline'][key] = '# ' + comment
 
     def _det_format_version(self):
         """Extract the format version from the raw content"""
@@ -237,6 +187,6 @@ class EasyConfigParser(object):
             self._formatter.validate()
         return self._formatter.get_config_dict()
 
-    def get_comments(self):
-        """Return comments, and their location info"""
-        return copy.deepcopy(self.comments)
+    def dump(self, ecfg, default_values, templ_const, templ_val):
+        """Dump easyconfig in format it was parsed from."""
+        return self._formatter.dump(ecfg, default_values, templ_const, templ_val)
