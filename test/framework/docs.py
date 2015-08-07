@@ -31,10 +31,11 @@ import re
 import sys
 import inspect
 
-from easybuild.tools.docs import gen_easyblocks_overview_rst, mk_rst_table
+from easybuild.tools.docs import gen_easyblocks_overview_rst
 from easybuild.tools.utilities import import_available_modules
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
+from vsc.utils.docs import mk_rst_table
 
 class DocsTest(EnhancedTestCase):
 
@@ -85,13 +86,13 @@ class DocsTest(EnhancedTestCase):
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
             "",
-            "====================   ================================================================",
-            "easyconfig parameter   description                                                     ",
-            "====================   ================================================================",
-            "configopts             Extra options passed to configure (default already has --prefix)",
-            "buildopts              Extra options passed to make step (default already has -j X)    ",
-            "installopts            Extra options for installation                                  ",
-            "====================   ================================================================",
+            "====================    ================================================================",
+            "easyconfig parameter    description                                                     ",
+            "====================    ================================================================",
+            "configopts              Extra options passed to configure (default already has --prefix)",
+            "buildopts               Extra options passed to make step (default already has -j X)    ",
+            "installopts             Extra options for installation                                  ",
+            "====================    ================================================================",
         ])
 
         self.assertTrue(check_configuremake in ebdoc)

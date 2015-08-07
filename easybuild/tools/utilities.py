@@ -120,39 +120,3 @@ def import_available_modules(namespace):
                     raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
                 modules.append(mod)
     return modules
-
-def det_col_width(entries, title):
-    """Determine column width based on column title and list of entries."""
-    return max(map(len, entries + [title]))
-
-def mk_rst_table(titles, values):
-    """
-    Returns an rst table with given titles and values (a nested list of string values for each column)
-    """
-    num_col = len(titles)
-    table = []
-    col_widths = []
-    tmpl = []
-    line= []
-
-    # figure out column widths
-    for i in range(0, num_col):
-        col_widths.append(det_col_width(values[i], titles[i]))
-
-        # make line template
-        tmpl.append('{' + str(i) + ':{c}<' + str(col_widths[i]) + '}')
-        line.append('') # needed for table line
-
-    line_tmpl = '   '.join(tmpl)
-    table_line = line_tmpl.format(*line, c="=")
-
-    table.append(table_line)
-    table.append(line_tmpl.format(*titles, c=' '))
-    table.append(table_line)
-
-    for i in range(0, len(values[0])):
-        table.append(line_tmpl.format(*[v[i] for v in values], c=' '))
-
-    table.extend([table_line, ''])
-
-    return table

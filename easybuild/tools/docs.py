@@ -52,8 +52,9 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import import_available_modules, mk_rst_table, quote_str, FORMAT_TXT, FORMAT_RST
+from easybuild.tools.utilities import import_available_modules, quote_str, FORMAT_TXT, FORMAT_RST
 from vsc.utils import fancylogger
+from vsc.utils.docs import mk_rst_table
 from vsc.utils.missing import nub
 
 
@@ -533,7 +534,7 @@ def gen_easyblocks_overview_rst(package_name, path_to_examples, common_params={}
                 all_blocks.append(eb_class)
 
     for eb_class in sorted(all_blocks, key=lambda c: c.__name__):
-        doc.append(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
+        doc.extend(gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc_functions, all_blocks))
 
     title = 'Overview of generic easyblocks'
 
@@ -630,4 +631,4 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
             doc.append('    ' + line.strip())
         doc.append('') # empty line after literal block
 
-    return '\n'.join(doc)
+    return doc

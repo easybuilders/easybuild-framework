@@ -103,7 +103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                                )
         outtxt = topt.parser.help_to_file.getvalue()
 
-        self.assertTrue(re.search("-H, --help", outtxt), "Long documentation expanded in long help")
+        self.assertTrue(re.search("-H HELP, --help=HELP", outtxt), "Long documentation expanded in long help")
         self.assertTrue(re.search("show short help message and exit", outtxt), "Documentation included in long help")
         self.assertTrue(re.search("Software search and build options", outtxt), "Not all option groups included in short help (1)")
         self.assertTrue(re.search("Regression test options", outtxt), "Not all option groups included in short help (2)")
