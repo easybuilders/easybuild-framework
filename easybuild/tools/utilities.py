@@ -90,6 +90,11 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False):
         return val
 
 
+def quote_py_str(val):
+    """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+
+
 def remove_unwanted_chars(inputstring):
     """Remove unwanted characters from the given string and return a copy
 
