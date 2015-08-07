@@ -495,7 +495,7 @@ def list_toolchains_rst(tcs):
 
     table_titles = nub(table_titles)
 
-    table_values = [[] for i in range(len(table_titles)]
+    table_values = [[] for i in range(len(table_titles))]
     table_values[0] = tcs.keys()
 
     for i in range(len(table_titles)-1):
