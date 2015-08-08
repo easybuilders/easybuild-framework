@@ -1,6 +1,9 @@
 ##
 # Copyright 2015 Bart Oldeman
 #
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
+#
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
@@ -46,10 +49,11 @@ class Pgi(Compiler):
 
     COMPILER_FAMILY = TC_CONSTANT_PGI
 
+    # Reference: https://www.pgroup.com/doc/pgiref.pdf
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
-        'optarch': '', # default!
+        'optarch': '', # PGI by default generates code for the arch it is running on!
         'openmp': 'mp',
         'strict': ['Mnoflushz','Kieee'],
         'precise': ['Mnoflushz'],
