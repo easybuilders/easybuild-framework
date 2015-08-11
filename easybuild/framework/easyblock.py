@@ -1028,7 +1028,7 @@ class EasyBlock(object):
         env = copy.deepcopy(os.environ)
 
         # create fake module
-        fake_mod_path = self.make_module_step(True)
+        fake_mod_path = self.make_module_step(fake=True)
 
         # load fake module
         self.modules_tool.prepend_module_path(fake_mod_path)
@@ -1688,10 +1688,7 @@ class EasyBlock(object):
         """
         Generate a module file.
         """
-        self.module_generator.set_fake(fake)
-
-        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        modpath = self.module_generator.prepare(mod_symlink_paths)
+        modpath = self.module_generator.prepare(fake=fake)
 
         txt = self.make_module_description()
         txt += self.make_module_dep()
@@ -1700,15 +1697,17 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
-        write_file(self.module_generator.filename, txt)
+        mod_filepath = self.module_generator.get_module_filepath(fake=fake)
+        write_file(mod_filepath, txt)
 
-        self.log.info("Module file %s written: %s", self.module_generator.filename, txt)
+        self.log.info("Module file %s written: %s", mod_filepath, txt)
 
          # only update after generating final module file
         if not fake:
             self.modules_tool.update()
 
-        self.module_generator.create_symlinks()
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+        self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
         if not fake:
             self.make_devel_module()
