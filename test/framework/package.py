@@ -28,6 +28,7 @@ Unit tests for packaging support.
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import re
 import stat
 
 from test.framework.utilities import EnhancedTestCase, init_config
@@ -37,7 +38,7 @@ from unittest import main as unittestmain
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, write_file
+from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -50,7 +51,17 @@ version=`echo $@ | sed 's/.*--version \([^ ]*\).*/\\1/g'`
 iteration=`echo $@ | sed 's/.*--iteration \([^ ]*\).*/\\1/g'`
 target=`echo $@ | sed 's/.*-t \([^ ]*\).*/\\1/g'`
 
-echo "thisisan$target" > ${workdir}/${name}-${version}.${iteration}.${target}
+args=`echo $@ | sed 's/-[^ ]* [^ ]* //g'`
+installdir=`echo $args | cut -d' ' -f1`
+modulefile=`echo $args | cut -d' ' -f2`
+
+pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
+echo "thisisan$target" > $pkgfile
+echo $@ >> $pkgfile
+echo "Contents of installdir $installdir:" >> $pkgfile
+ls $installdir >> $pkgfile
+echo "Contents of module file $modulefile:" >> $pkgfile
+cat $modulefile >> $pkgfile
 """
 
 
@@ -133,6 +144,9 @@ class PackageTest(EnhancedTestCase):
         pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
+        pkgtxt = read_file(pkgfile)
+        pkgtxt_regex = re.compile("Contents of installdir %s" % easyblock.installdir)
+        self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
 def suite():
     """ returns all the testcases in this module """
