@@ -1167,9 +1167,9 @@ class EasyConfigTest(EnhancedTestCase):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         ecfiles = [
-            #'toy-0.0.eb',
-            #'goolf-1.4.10.eb',
-            #'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
+            'toy-0.0.eb',
+            'goolf-1.4.10.eb',
+            'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
             'gzip-1.4-GCC-4.6.3.eb',
         ]
         for ecfile in ecfiles:
