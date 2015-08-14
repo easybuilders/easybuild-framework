@@ -223,15 +223,20 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                if ecfg[key] != default_values[key]:
+                # the value for 'dependencies' may have been modified after parsing via filter_hidden_deps
+                if key == 'dependencies':
+                    val = ecfg.all_dependencies
+                else:
+                    val = ecfg[key]
+
+                if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                     if key in DEPENDENCY_PARAMETERS:
-                        dumped_deps = [dump_dependency(d, ecfg['toolchain']) for d in ecfg[key]]
-                        val = dumped_deps
+                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     else:
-                        val = quote_py_str(ecfg[key])
+                        valstr = quote_py_str(ecfg[key])
 
-                    eclines.extend(self._find_param_with_comments(key, val, templ_const, templ_val))
+                    eclines.extend(self._find_param_with_comments(key, valstr, templ_const, templ_val))
 
                     printed_keys.append(key)
                     printed = True

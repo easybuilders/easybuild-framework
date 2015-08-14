@@ -1166,11 +1166,16 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump(self):
         """Test EasyConfig's dump() method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-
-        for f in ['toy-0.0.eb', 'goolf-1.4.10.eb', 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb']:
+        ecfiles = [
+            'toy-0.0.eb',
+            'goolf-1.4.10.eb',
+            'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
+            'gzip-1.4-GCC-4.6.3.eb',
+        ]
+        for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
-            ec = EasyConfig(os.path.join(test_ecs_dir, f))
+            ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
             ec.dump(test_ec)
             ectxt = read_file(test_ec)
 
@@ -1181,6 +1186,15 @@ class EasyConfigTest(EnhancedTestCase):
 
             # parse result again
             dumped_ec = EasyConfig(test_ec)
+
+            # check that selected parameters still have the same value
+            params = [
+                'name',
+                'toolchain',
+                'dependencies',  # checking this is important w.r.t. filtered hidden dependencies being restored in dump
+            ]
+            for param in params:
+                self.assertEqual(ec[param], dumped_ec[param])
 
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
