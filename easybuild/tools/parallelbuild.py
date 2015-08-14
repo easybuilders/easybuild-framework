@@ -121,6 +121,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     @param ordered_ecs: list of easyconfigs, in the order they should be processed
     @param cmd_line_opts: list of command line options (in 'longopt=value' form)
     @param testing: If `True`, skip actual job submission
+    @param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     curdir = os.getcwd()
 
@@ -133,7 +134,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s--testoutput=%%(output_dir)s" % (curdir, opts_str)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     job_info_lines = []
     if testing:
