@@ -82,5 +82,5 @@ then
     echo "Make sure you PYTHONPATH setting is correct."
     exit 1
 else
-    python $easybuild_main $@
+    python -O $easybuild_main $@
 fi
