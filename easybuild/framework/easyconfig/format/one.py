@@ -225,7 +225,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             for key in group:
                 # the value for 'dependencies' may have been modified after parsing via filter_hidden_deps
                 if key == 'dependencies':
-                    val = ecfg.orig_dependencies
+                    val = ecfg.all_dependencies
                 else:
                     val = ecfg[key]
 

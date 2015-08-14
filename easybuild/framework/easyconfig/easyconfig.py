@@ -196,7 +196,7 @@ class EasyConfig(object):
             self.validate(check_osdeps=build_option('check_osdeps'))
 
         # filter hidden dependencies from list of dependencies
-        self.orig_dependencies = None
+        self.all_dependencies = None
         self.filter_hidden_deps()
 
         # keep track of whether the generated module file should be hidden
@@ -402,7 +402,7 @@ class EasyConfig(object):
         Filter hidden dependencies from list of dependencies.
         """
         # keep a copy of the original list of dependencies, since it may be modified below
-        self.orig_dependencies = self['dependencies'][:]
+        self.all_dependencies = self['dependencies'][:]
 
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 
