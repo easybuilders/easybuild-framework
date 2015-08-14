@@ -983,9 +983,6 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
                 easyconfig['dependencies'].append(dep)
 
-            # this is used by the parallel builder
-            easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
-
     if cache_key is not None:
         _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
 

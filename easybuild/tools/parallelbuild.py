@@ -96,8 +96,10 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
         _log.info("creating job for ec: %s" % str(ec))
         new_job = create_job(active_job_backend, build_command, ec, output_dir=output_dir)
 
-        # sometimes unresolved_deps will contain things, not needed to be build
-        dep_mod_names = map(ActiveMNS().det_full_module_name, ec['unresolved_deps'])
+        # filter out dependencies marked as external modules
+        deps = [d for d in ec['dependencies'] if not d['external_module']]
+
+        dep_mod_names = map(ActiveMNS().det_full_module_name, deps)
         job_deps = [module_to_job[dep] for dep in dep_mod_names if dep in module_to_job]
 
         # actually (try to) submit job
@@ -113,12 +115,13 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     return jobs
 
 
-def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
+def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     """
     Submit jobs.
     @param ordered_ecs: list of easyconfigs, in the order they should be processed
     @param cmd_line_opts: list of command line options (in 'longopt=value' form)
     @param testing: If `True`, skip actual job submission
+    @param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     curdir = os.getcwd()
 
@@ -131,13 +134,13 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, opts_str)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     job_info_lines = []
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
-        build_easyconfigs_in_parallel(command, ordered_ecs)
+        return build_easyconfigs_in_parallel(command, ordered_ecs, prepare_first=prepare_first)
 
 
 def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build'):
@@ -167,10 +170,16 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
+    # determine whether additional options need to be passed to the 'eb' command
+    add_opts = ''
+    if easyconfig['hidden']:
+        add_opts += ' --hidden'
+
     # create command based on build_command template
     command = build_command % {
-        'spec': easyconfig['spec'],
+        'add_opts': add_opts,
         'output_dir': os.path.join(os.path.abspath(output_dir), name),
+        'spec': easyconfig['spec'],
     }
 
     # just use latest build stats
