@@ -45,9 +45,10 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, quote_py_str
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
+from easybuild.framework.easyconfig.tools import dep_graph, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -55,9 +56,20 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
+
+
+EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
+"GCC/4.7.2 (EXT)";
+toy;
+ictce;
+toy -> ictce;
+toy -> "GCC/4.7.2 (EXT)";
+}
+"""
 
 
 class EasyConfigTest(EnhancedTestCase):
@@ -1057,11 +1069,6 @@ class EasyConfigTest(EnhancedTestCase):
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
         write_file(toy_ec, ectxt)
 
-        build_options = {
-            'valid_module_classes': module_classes(),
-            'external_modules_metadata': ConfigObj(),
-        }
-        init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
 
         builddeps = ec.builddependencies()
@@ -1209,12 +1216,6 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
-        build_options = {
-            'valid_module_classes': module_classes(),
-            'external_modules_metadata': ConfigObj(),
-        }
-        init_config(build_options=build_options)
-
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
             '',
@@ -1391,6 +1392,37 @@ class EasyConfigTest(EnhancedTestCase):
         templ_dict = to_template_str("{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
         self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
         self.assertEqual(to_template_str("('foo', '0.0.1')", templ_const, templ_val), "('%(name)s', '%(version)s')")
+
+    def test_dep_graph(self):
+        """Test for dep_graph."""
+        try:
+            import pygraph
+
+            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+            build_options = {
+                'external_modules_metadata': ConfigObj(),
+                'valid_module_classes': module_classes(),
+                'robot_path': [test_easyconfigs],
+                'silent': True,
+            }
+            init_config(build_options=build_options)
+
+            ec_file = os.path.join(test_easyconfigs, 'toy-0.0-deps.eb')
+            ec_files = [(ec_file, False)]
+            ecs, _ = parse_easyconfigs(ec_files)
+
+            dot_file = os.path.join(self.test_prefix, 'test.dot')
+            ordered_ecs = resolve_dependencies(ecs, retain_all_deps=True)
+            dep_graph(dot_file, ordered_ecs)
+
+            # hard check for expect .dot file contents
+            # 3 nodes should be there: 'GCC/4.7.2 (EXT)', 'toy', and 'ictce/4.1.13'
+            # and 2 edges: 'toy -> ictce' and 'toy -> "GCC/4.7.2 (EXT)"'
+            dottxt = read_file(dot_file)
+            self.assertEqual(dottxt, EXPECTED_DOTTXT_TOY_DEPS)
+
+        except ImportError:
+            print "Skipping test_dep_graph, since pygraph is not available"
 
 
 def suite():
