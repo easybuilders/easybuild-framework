@@ -402,7 +402,7 @@ class EasyConfig(object):
         Filter hidden dependencies from list of dependencies.
         """
         # keep a copy of the original list of dependencies, since it may be modified below
-        self.all_dependencies = self['dependencies'][:]
+        self.all_dependencies = copy.deepcopy(self['dependencies'])
 
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 

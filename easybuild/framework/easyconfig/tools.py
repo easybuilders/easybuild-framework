@@ -169,14 +169,14 @@ def _dep_graph(fn, specs, silent=False):
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
         all_nodes.add(spec['module'])
-        spec['dependencies'] = [mk_node_name(s) for s in spec['dependencies']]
-        all_nodes.update(spec['dependencies'])
+        spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
+        all_nodes.update(spec['ec'].all_dependencies)
 
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
     for spec in specs:
-        for dep in spec['dependencies']:
+        for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
 
     # write to file
