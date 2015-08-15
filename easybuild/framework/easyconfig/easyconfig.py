@@ -1105,8 +1105,13 @@ class ActiveMNS(object):
     def det_full_module_name(self, ec, force_visible=False):
         """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
         self.log.debug("Determining full module name for %s (force_visible: %s)" % (ec, force_visible))
-        mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
-        self.log.debug("Obtained valid full module name %s" % mod_name)
+        if ec.get('external_module', False):
+            # external modules have the module name readily available, and may lack the info required by the MNS
+            mod_name = ec['full_mod_name']
+            self.log.debug("Full module name for external module: %s", mod_name)
+        else:
+            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
+            self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
     def det_install_subdir(self, ec):
