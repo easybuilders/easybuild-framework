@@ -142,11 +142,10 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     return ordered_ecs, new_unprocessed, new_avail_modules
 
 
-def _dep_graph(fn, specs, silent=False):
+def _dep_graph(fn, specs):
     """
     Create a dependency graph for the given easyconfigs.
     """
-
     # check whether module names are unique
     # if so, we can omit versions in the graph
     names = set()
@@ -190,7 +189,7 @@ def _dep_graph(fn, specs, silent=False):
         gv.layout(gvv, 'dot')
         gv.render(gvv, fn.split('.')[-1], fn)
 
-    if not silent:
+    if not build_option('silent'):
         print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 
