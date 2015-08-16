@@ -200,7 +200,8 @@ class EasyConfig(object):
 
         # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
         self.all_dependencies = copy.deepcopy(self.dependencies())
-        self.all_dependencies.append(self.toolchain.as_dict())
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            self.all_dependencies.append(self.toolchain.as_dict())
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
