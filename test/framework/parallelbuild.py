@@ -74,8 +74,8 @@ class MockPbsJob(object):
         self.clean_conn = None
         self.script = args[1]
 
-    def add_dependencies(self, *args, **kwargs):
-        pass
+    def add_dependencies(self, jobs):
+        self.deps.extend(jobs)
 
     def cleanup(self, *args, **kwargs):
         pass
@@ -134,6 +134,22 @@ class ParallelBuildTest(EnhancedTestCase):
             else:
                 regex = re.compile("eb %s" % ec['spec'])
             self.assertTrue(regex.search(jobs[i].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[i].script))
+
+        # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
+        self.assertEqual(len(jobs[0].deps), 0)
+        self.assertEqual(len(jobs[1].deps), 0)
+
+        # only dependency for toy/0.0-deps is ictce/4.1.13 (dep marked as external module is filtered out)
+        self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
+        self.assertEqual(len(jobs[2].deps), 1)
+        self.assertTrue('ictce-4.1.13.eb' in jobs[2].deps[0].script)
+
+        # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
+        self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
+        self.assertEqual(len(jobs[3].deps), 2)
+        regex = re.compile('toy-0.0-deps.eb\s* --hidden')
+        self.assertTrue(regex.search(jobs[3].deps[0].script))
+        self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__
