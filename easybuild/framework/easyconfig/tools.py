@@ -142,11 +142,10 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     return ordered_ecs, new_unprocessed, new_avail_modules
 
 
-def _dep_graph(fn, specs, silent=False):
+def _dep_graph(fn, specs):
     """
     Create a dependency graph for the given easyconfigs.
     """
-
     # check whether module names are unique
     # if so, we can omit versions in the graph
     names = set()
@@ -169,14 +168,14 @@ def _dep_graph(fn, specs, silent=False):
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
         all_nodes.add(spec['module'])
-        spec['dependencies'] = [mk_node_name(s) for s in spec['dependencies']]
-        all_nodes.update(spec['dependencies'])
+        spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
+        all_nodes.update(spec['ec'].all_dependencies)
 
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
     for spec in specs:
-        for dep in spec['dependencies']:
+        for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
 
     # write to file
@@ -190,7 +189,7 @@ def _dep_graph(fn, specs, silent=False):
         gv.layout(gvv, 'dot')
         gv.render(gvv, fn.split('.')[-1], fn)
 
-    if not silent:
+    if not build_option('silent'):
         print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 
