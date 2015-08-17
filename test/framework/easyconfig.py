@@ -353,8 +353,8 @@ class EasyConfigTest(EnhancedTestCase):
         ver = "1.2.3"
         verpref = "myprefix"
         versuff = "mysuffix"
-        tcname = "mytc"
-        tcver = "4.1.2"
+        tcname = "gompi"
+        tcver = "1.4.10"
         new_patches = ['t5.patch', 't6.patch']
         homepage = "http://www.justatest.com"
 

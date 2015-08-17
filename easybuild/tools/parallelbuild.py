@@ -85,19 +85,19 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     # keep track of which job builds which module
     module_to_job = {}
 
-    for ec in easyconfigs:
+    for easyconfig in easyconfigs:
         # this is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
         if prepare_first:
-            prepare_easyconfig(ec)
+            prepare_easyconfig(easyconfig)
 
         # the new job will only depend on already submitted jobs
-        _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(active_job_backend, build_command, ec, output_dir=output_dir)
+        _log.info("creating job for ec: %s" % easyconfig['ec'])
+        new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
 
         # filter out dependencies marked as external modules
-        deps = [d for d in ec['dependencies'] if not d['external_module']]
+        deps = [d for d in easyconfig['ec'].all_dependencies if not d.get('external_module', False)]
 
         dep_mod_names = map(ActiveMNS().det_full_module_name, deps)
         job_deps = [module_to_job[dep] for dep in dep_mod_names if dep in module_to_job]
