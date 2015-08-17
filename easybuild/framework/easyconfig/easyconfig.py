@@ -196,8 +196,12 @@ class EasyConfig(object):
             self.validate(check_osdeps=build_option('check_osdeps'))
 
         # filter hidden dependencies from list of dependencies
-        self.all_dependencies = None
         self.filter_hidden_deps()
+
+        # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
+        self.all_dependencies = copy.deepcopy(self.dependencies())
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            self.all_dependencies.append(self.toolchain.as_dict())
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
@@ -401,9 +405,6 @@ class EasyConfig(object):
         """
         Filter hidden dependencies from list of dependencies.
         """
-        # keep a copy of the original list of dependencies, since it may be modified below
-        self.all_dependencies = self['dependencies'][:]
-
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 
         faulty_deps = []
