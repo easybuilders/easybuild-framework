@@ -355,7 +355,7 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
-    def exist(self, mod_names):
+    def _exist(self, mod_names, mod_exists_regex_template):
         """
         Check if modules with specified names exists.
         """
@@ -372,8 +372,8 @@ class ModulesTool(object):
                 modtype = ('hidden', 'visible (not hidden)')[visible]
                 self.log.debug("checking whether %s module %s exists via 'show'..." % (modtype, mod_name))
                 txt = self.show(mod_name)
-                mods_exist_re = re.compile('^\s*\S*/%s:\s*$' % re.escape(mod_name), re.M)
-                mods_exist.append(bool(mods_exist_re.search(txt)))
+                mod_exists_regex = re.compile(mod_exists_regex_template % re.escape(mod_name), re.M)
+                mods_exist.append(bool(mod_exists_regex.search(txt)))
 
         return mods_exist
 
@@ -703,6 +703,10 @@ class EnvironmentModulesC(ModulesTool):
         """Update after new modules were added."""
         pass
 
+    def exist(self, mod_names):
+        """Check if modules with specified names exists."""
+        return super(EnvironmentModulesC, self)._exist(mod_names, r'^\s*\S*/%s:\s*$')
+
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
@@ -851,6 +855,13 @@ class Lmod(ModulesTool):
         # Lmod pushes a path to the front on 'module use'
         self.use(path)
         self.set_mod_paths()
+
+    def exist(self, mod_names):
+        """Check if modules with specified names exists."""
+        # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
+        # the current configuration for matters little, since the module may have been installed with a different cfg;
+        # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
+        return super(Lmod, self)._exist(mod_names, r'^\s*\S*/%s(.lua)?:\s*$')
 
 
 def get_software_root_env_var_name(name):
