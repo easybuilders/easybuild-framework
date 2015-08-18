@@ -857,7 +857,7 @@ class Lmod(ModulesTool):
         # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
         # the current configuration for matters little, since the module may have been installed with a different cfg;
         # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
-        return super(Lmod, self)._exist(mod_names, r'^\s*\S*/%s(.lua)?:\s*$')
+        return super(Lmod, self).exist(mod_names, r'^\s*\S*/%s(.lua)?:\s*$')
 
 
 def get_software_root_env_var_name(name):
