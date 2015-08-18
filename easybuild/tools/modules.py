@@ -355,7 +355,7 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
-    def _exist(self, mod_names, mod_exists_regex_template):
+    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s:\s*$'):
         """
         Check if modules with specified names exists.
         """
@@ -702,10 +702,6 @@ class EnvironmentModulesC(ModulesTool):
     def update(self):
         """Update after new modules were added."""
         pass
-
-    def exist(self, mod_names):
-        """Check if modules with specified names exists."""
-        return super(EnvironmentModulesC, self)._exist(mod_names, r'^\s*\S*/%s:\s*$')
 
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
