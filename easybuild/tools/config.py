@@ -79,6 +79,7 @@ DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_STRICT = run.WARN
 
+
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
     """Create full path, avoid '/' at the end."""
@@ -139,6 +140,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_tmpdir',
     ],
     DEFAULT_STRICT: [
         'strict',
@@ -244,7 +246,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         For all known/required keys, check if exists and return all key/value pairs.
             no_missing: boolean, when True, will throw error message for missing values
         """
-        missing = [x for x in self.KNOWN_KEYS if not x in self]
+        missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
             raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
 

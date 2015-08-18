@@ -930,6 +930,10 @@ def move_logs(src_logfile, target_logfile):
 
 def cleanup(logfile, tempdir, testing):
     """Cleanup the specified log file and the tmp directory"""
+    if not build_option('cleanup_tmpdir'):
+        print_msg('Keeping temporary log file(s) and directory.', log=None, silent=testing)
+        return
+
     if not testing and logfile is not None:
         try:
             for log in glob.glob('%s*' % logfile):
