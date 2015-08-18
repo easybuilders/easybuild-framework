@@ -118,8 +118,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.testmods.exist(['toy/.0.0-deps']), [True])
 
         # exists works on hidden modules in Lua syntax (only with Lmod)
-        modtool = modules_tool()
-        if isinstance(modtool, Lmod):
+        if isinstance(self.testmods, Lmod):
             test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
             self.assertTrue(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua')))
