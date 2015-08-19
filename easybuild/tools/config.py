@@ -89,7 +89,7 @@ BUILD_OPTIONS_CMDLINE = {
         'github_user',
         'group',
         'ignore_dirs',
-        'module_family',
+        'module_families',
         'modules_footer',
         'module_properties',
         'only_blocks',

@@ -193,8 +193,9 @@ class EasyBlock(object):
         if group_name is not None:
             self.group = use_group(group_name)
 
-        # module features
-        self.module_family = build_option('module_family')
+        # module families
+        unknown_families = [fam for fam in self.cfg['modfamilies'] if fam not in build_option('module_families')]
+        if unknown_families:
         self.module_properties = None
         if build_option('module_properties') is not None:
             self.module_properties = []
@@ -856,8 +857,8 @@ class EasyBlock(object):
         """Create features section of module file (module family, properties, ...)."""
         txt = ''
 
-        if self.module_family is not None:
-            txt += self.module_generator.family(self.module_family)
+        for fam in self.cfg['modfamilies']:
+            txt += self.module_generator.family(fam)
 
         if self.module_properties is not None:
             txt += self.module_generator.properties(self.module_properties)

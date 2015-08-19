@@ -157,6 +157,7 @@ DEFAULT_CONFIG = {
     # MODULES easyconfig parameters
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
+    'modfamilies': [[], "List of module families to which software is a part of", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],

@@ -313,6 +313,9 @@ class EasyConfig(object):
         self.log.info("Checking licenses")
         self.validate_license()
 
+        self.log.debug("Checking module families")
+        self.v
+
     def validate_license(self):
         """Validate the license"""
         lic = self._config['software_license'][0]
