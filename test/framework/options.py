@@ -202,7 +202,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test skipping installation of module (--skip, -k)."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -1739,14 +1739,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         mns_regex = re.compile(r'^\s*TestIncludedMNS', re.M)
 
-        # TestIncludeMNS module naming scheme is not available by default
+        # TestIncludedMNS module naming scheme is not available by default
         args = [
             '--avail-module-naming-schemes',
             '--unittest-file=%s' % self.logfile,
         ]
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
-        self.assertFalse(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
+        self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
         mns_txt = '\n'.join([
@@ -1768,6 +1768,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
 
+        # undo successful import
+        del sys.modules['easybuild.tools.module_naming_scheme.test_mns']
+
+    def test_use_included_module_naming_scheme(self):
+        """Test using an included module naming scheme."""
+        # try selecting the added module naming scheme
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # include extra test MNS
+        mns_txt = '\n'.join([
+            'import os',
+            'from easybuild.tools.module_naming_scheme import ModuleNamingScheme',
+            'class AnotherTestIncludedMNS(ModuleNamingScheme):',
+            '   def det_full_module_name(self, ec):',
+            "       return os.path.join(ec['name'], ec['version'])",
+        ])
+        write_file(os.path.join(self.test_prefix, 'test_mns.py'), mns_txt)
+
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            '--unittest-file=%s' % self.logfile,
+            '--module-naming-scheme=AnotherTestIncludedMNS',
+            '--force',
+            eb_file,
+        ]
+
+        # selecting a module naming scheme that doesn't exist leads to 'invalid choice'
+        error_regex = "Selected module naming scheme \'AnotherTestIncludedMNS\' is unknown"
+        self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, logfile=dummylogfn,
+                              raise_error=True, raise_systemexit=True)
+
+        args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
+        self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True, verbose=True)
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_mod), "Found %s" % toy_mod)
+
     def test_include_toolchains(self):
         """Test --include-toolchains."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -1781,14 +1818,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tc_regex = re.compile(r'^\s*test_included_toolchain: TestIncludedCompiler', re.M)
 
-        # TestIncludeMNS module naming scheme is not available by default
+        # TestIncludedCompiler is not available by default
         args = [
             '--list-toolchains',
             '--unittest-file=%s' % self.logfile,
         ]
-        #self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        #logtxt = read_file(self.logfile)
-        #self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
         comp_txt = '\n'.join([
@@ -1814,6 +1851,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
+
+        # undo successful import
+        del sys.modules['easybuild.toolchains.compiler.test_comp']
+        del sys.modules['easybuild.toolchains.test_tc']
 
 
 def suite():
