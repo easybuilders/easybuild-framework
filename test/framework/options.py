@@ -1803,6 +1803,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
         self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True, verbose=True)
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
         self.assertTrue(os.path.exists(toy_mod), "Found %s" % toy_mod)
 
     def test_include_toolchains(self):
