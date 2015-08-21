@@ -151,17 +151,16 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
-def main(testing_data=(None, None, None)):
+def main(args=None, logfile=None, do_build=None, testing=False):
     """
     Main function: parse command line options, and act accordingly.
-    @param testing_data: tuple with command line arguments, log file and boolean indicating whether or not to build
+    @param args: command line arguments to use
+    @param logfile: log file to use
+    @param do_build: whether or not to actually perform the build
+    @param testing: enable testing mode
     """
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
-
-    # steer behavior when testing main
-    testing = testing_data[0] is not None
-    args, logfile, do_build = testing_data
 
     # initialise options
     eb_go = eboptions.parse_options(args=args)
