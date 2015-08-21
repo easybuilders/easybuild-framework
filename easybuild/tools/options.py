@@ -269,8 +269,7 @@ class EasyBuildOptions(GeneralOption):
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
-            'module-naming-scheme': ("Module naming scheme",
-                                     'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
+            'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
@@ -451,6 +450,12 @@ class EasyBuildOptions(GeneralOption):
                 msg = "Configuration option '%s' must specify a *relative* path (use 'installpath-%s' instead?): '%s'"
                 msg = msg % (subdir_opt, typ, val)
                 error_msgs.append(msg)
+
+        # specified module naming scheme must be a known one
+        avail_mnss = avail_module_naming_schemes()
+        if self.options.module_naming_scheme and self.options.module_naming_scheme not in avail_mnss:
+            msg = "Selected module naming scheme '%s' is unknown: %s" % (self.options.module_naming_scheme, avail_mnss)
+            error_msgs.append(msg)
 
         if error_msgs:
             raise EasyBuildError("Found problems validating the options: %s", '\n'.join(error_msgs))
