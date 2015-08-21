@@ -929,25 +929,26 @@ def move_logs(src_logfile, target_logfile):
 
 
 def cleanup(logfile, tempdir, testing):
-    """Cleanup the specified log file and the tmp directory"""
-    if not build_option('cleanup_tmpdir'):
-        print_msg('Keeping temporary log file(s) and directory.', log=None, silent=testing)
-        return
+    """Cleanup the specified log file and the tmp directory, if desired."""
 
-    if not testing and logfile is not None:
-        try:
-            for log in glob.glob('%s*' % logfile):
-                os.remove(log)
-        except OSError, err:
-            raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-        print_msg('temporary log file(s) %s* have been removed.' % (logfile), log=None, silent=testing)
+    if build_option('cleanup_tmpdir') and not testing:
+        if logfile is not None:
+            try:
+                for log in [logfile] + glob.glob('%s.[0-9]*' % logfile):
+                    os.remove(log)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
+            print_msg("Tmporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
 
-    if not testing and tempdir is not None:
-        try:
-            shutil.rmtree(tempdir, ignore_errors=True)
-        except OSError, err:
-            raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
+        if tempdir is not None:
+            try:
+                shutil.rmtree(tempdir, ignore_errors=True)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+
+    else:
+        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):
