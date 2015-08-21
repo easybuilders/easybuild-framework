@@ -934,7 +934,7 @@ def cleanup(logfile, tempdir, testing):
     if build_option('cleanup_tmpdir') and not testing:
         if logfile is not None:
             try:
-                for log in glob.glob('%s*' % logfile):
+                for log in [logfile] + glob.glob('%s.[0-9]*' % logfile):
                     os.remove(log)
             except OSError, err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
