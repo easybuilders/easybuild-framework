@@ -189,7 +189,7 @@ class EnhancedTestCase(_EnhancedTestCase):
             modtool.add_module_path(modpath)
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True, raise_systemexit=False):
+                reset_env=True, raise_systemexit=False, testing=True):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -205,16 +205,16 @@ class EnhancedTestCase(_EnhancedTestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main((args, logfile, do_build))
-        except SystemExit as err:
+            main(args=args, logfile=logfile, do_build=do_build, testing=testing)
+        except SystemExit:
             if raise_systemexit:
                 raise err
-        except Exception as err:
+        except Exception, err:
             myerr = err
             if verbose:
                 print "err: %s" % err
 
-        if logfile:
+        if logfile and os.path.exists(logfile):
             logtxt = read_file(logfile)
         else:
             logtxt = None

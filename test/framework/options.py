@@ -1858,6 +1858,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
         del sys.modules['easybuild.toolchains.compiler.test_comp']
         del sys.modules['easybuild.toolchains.test_tc']
 
+    def test_cleanup_tmpdir(self):
+        """Test --cleanup-tmpdir."""
+
+        args = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb'),
+            '--dry-run',
+            '--try-software-version=1.0',  # so we get a tweaked easyconfig
+        ]
+
+        tmpdir = tempfile.gettempdir()
+        # just making sure this is empty before we get started
+        self.assertEqual(os.listdir(tmpdir), [])
+
+        # force silence (since we're not using testing mode)
+        self.mock_stdout(True)
+
+        # default: cleanup tmpdir & logfile
+        self.eb_main(args, raise_error=True, testing=False)
+        self.assertEqual(os.listdir(tmpdir), [])
+        self.assertFalse(os.path.exists(self.logfile))
+
+        # disable cleaning up tmpdir
+        args.append('--disable-cleanup-tmpdir')
+        self.eb_main(args, raise_error=True, testing=False)
+        tmpdir_files = os.listdir(tmpdir)
+        # tmpdir and logfile are still there \o/
+        self.assertTrue(len(tmpdir_files) == 1)
+        self.assertTrue(os.path.exists(self.logfile))
+        # tweaked easyconfigs is still there \o/
+        tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
+        self.assertTrue(os.path.exists(os.path.join(tweaked_dir, 'toy-1.0.eb')))
+
 
 def suite():
     """ returns all the testcases in this module """
