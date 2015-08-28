@@ -552,6 +552,57 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
+    def test_parse_full_module_name(self):
+        """Test parse_full_module_name method of module naming scheme."""
+        # test using default mns (EasyBuildMNS)
+        specs = ActiveMNS().parse_full_module_name('GCC/4.7.2')
+        self.assertEqual(specs, [{
+            'name': 'GCC',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'version': '4.7.2',
+            'versionsuffix': '',
+        }])
+
+        specs = ActiveMNS().parse_full_module_name('GCC/4.7.2-CLooG')
+        self.assertEqual(specs, [{
+            'name': 'GCC',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'version': '4.7.2',
+            'versionsuffix': '-CLooG',
+        }])
+
+        specs = ActiveMNS().parse_full_module_name('gzip/1.5-goolf-1.4.10')
+        self.assertEqual(specs, [{
+            'name': 'gzip',
+            'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+            'version': '1.5',
+            'versionsuffix': '',
+        }])
+
+        specs = ActiveMNS().parse_full_module_name('OpenMPI/1.6.4-GCC-4.7.2-no-OFED')
+        self.assertEqual(specs, [{
+            'name': 'OpenMPI',
+            'toolchain': {'name': 'GCC', 'version': '4.7.2'},
+            'version': '1.6.4',
+            'versionsuffix': '-no-OFED',
+        }])
+
+        mod_name = 'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1'
+        specs = ActiveMNS().parse_full_module_name(mod_name)
+        self.assertEqual(specs, [{
+            'name': 'ScaLAPACK',
+            'toolchain': {'name': 'gompi', 'version': '1.1.0-no-OFED'},
+            'version': '1.8.0',
+            'versionsuffix': '-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
+        }])
+
+        # test using broken MNS, where parsing of module naming is not supported
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'BrokenModuleNamingScheme'
+        init_config()
+        error_regex = "Parsing of module names not implemented for 'BrokenModuleNamingScheme'"
+        self.assertErrorRegex(EasyBuildError, error_regex, ActiveMNS().parse_full_module_name, 'foo/bar')
+
+
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""
     MODULE_GENERATOR_CLASS = ModuleGeneratorTcl

@@ -1115,6 +1115,12 @@ class ActiveMNS(object):
             self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
+    def parse_full_module_name(self, mod_name):
+        """
+        Parse specified full module name into list of possible matching name/version/versionsuffix/toolchain specs.
+        """
+        return self.mns.parse_full_module_name(mod_name)
+
     def det_install_subdir(self, ec):
         """Determine name of software installation subdirectory."""
         self.log.debug("Determining software installation subdir for %s", ec)
