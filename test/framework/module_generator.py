@@ -554,47 +554,71 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_parse_full_module_name(self):
         """Test parse_full_module_name method of module naming scheme."""
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config(build_options={'robot_path': test_easyconfigs_path})
+
         # test using default mns (EasyBuildMNS)
         specs = ActiveMNS().parse_full_module_name('GCC/4.7.2')
-        self.assertEqual(specs, [{
+        expected_specs = {
             'name': 'GCC',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'version': '4.7.2',
             'versionsuffix': '',
-        }])
+        }
+        self.assertEqual(specs, expected_specs)
 
-        specs = ActiveMNS().parse_full_module_name('GCC/4.7.2-CLooG')
-        self.assertEqual(specs, [{
-            'name': 'GCC',
+        specs = ActiveMNS().parse_full_module_name('toy/0.0-deps')
+        expected_specs = {
+            'name': 'toy',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'version': '4.7.2',
-            'versionsuffix': '-CLooG',
-        }])
+            'version': '0.0',
+            'versionsuffix': '-deps',
+        }
+        self.assertEqual(specs, expected_specs)
 
         specs = ActiveMNS().parse_full_module_name('gzip/1.5-goolf-1.4.10')
-        self.assertEqual(specs, [{
+        expected_specs = {
             'name': 'gzip',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
             'version': '1.5',
             'versionsuffix': '',
-        }])
+        }
+        self.assertEqual(specs, expected_specs)
 
-        specs = ActiveMNS().parse_full_module_name('OpenMPI/1.6.4-GCC-4.7.2-no-OFED')
-        self.assertEqual(specs, [{
-            'name': 'OpenMPI',
-            'toolchain': {'name': 'GCC', 'version': '4.7.2'},
-            'version': '1.6.4',
-            'versionsuffix': '-no-OFED',
-        }])
+        # check whether discriminating between toolchain version and versionsuffix works
+        specs = ActiveMNS().parse_full_module_name('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2')
+        expected_specs = {
+            'name': 'OpenBLAS',
+            'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+            'version': '0.2.6',
+            'versionsuffix': '-LAPACK-3.4.2',
+        }
+        self.assertEqual(specs, expected_specs)
 
-        mod_name = 'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1'
+        mod_name = 'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2'
         specs = ActiveMNS().parse_full_module_name(mod_name)
-        self.assertEqual(specs, [{
+        expected_specs = {
             'name': 'ScaLAPACK',
-            'toolchain': {'name': 'gompi', 'version': '1.1.0-no-OFED'},
-            'version': '1.8.0',
-            'versionsuffix': '-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
-        }])
+            'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+            'version': '2.0.2',
+            'versionsuffix': '-OpenBLAS-0.2.6-LAPACK-3.4.2',
+        }
+        self.assertEqual(specs, expected_specs)
+
+        # long toolchain version (actually version+versionsuffix), no software versionsuffix
+        specs = ActiveMNS().parse_full_module_name('imkl/11.1.2.144-iimpi-5.5.3-GCC-4.8.3')
+        expected_specs = {
+            'name': 'imkl',
+            'toolchain': {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+            'version': '11.1.2.144',
+            'versionsuffix': '',
+        }
+        self.assertEqual(specs, expected_specs)
+
+        # matching easyconfig is required
+        self.assertEqual(ActiveMNS().parse_full_module_name('unknown/1.2.3'), None)
+        # module names with not enough 'parts' just result in 'None'
+        self.assertEqual(ActiveMNS().parse_full_module_name('foobar'), None)
 
         # test using broken MNS, where parsing of module naming is not supported
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'BrokenModuleNamingScheme'

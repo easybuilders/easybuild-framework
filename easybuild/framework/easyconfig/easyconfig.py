@@ -1115,11 +1115,50 @@ class ActiveMNS(object):
             self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
+    def _check_for_matching_easyconfigs(self, specs):
+        """Check whether easyconfigs for both toolchain and software that match given specs are available."""
+        match = None
+
+        # check if easyconfig is available for toolchain (only if non-dummy)
+        if specs['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            tc_ecfile = robot_find_easyconfig(specs['toolchain']['name'], specs['toolchain']['version'])
+            if tc_ecfile is None:
+                self.log.debug("No easyconfig found for toolchain with specs %s", specs['toolchain'])
+                match = False
+            else:
+                self.log.debug("Found easyconfig matching toolchain specs %s: %s", specs['toolchain'], tc_ecfile)
+
+        if match is None:
+            installver = det_full_ec_version(specs)
+            ecfile = robot_find_easyconfig(specs['name'], installver)
+            if ecfile is None:
+                self.log.debug("No easyconfig found for specs %s (installver: %s)", specs, installver)
+            else:
+                self.log.debug("Found easyconfig matching specs %s: %s", specs, ecfile)
+                match = True
+
+        return match
+
     def parse_full_module_name(self, mod_name):
         """
         Parse specified full module name into list of possible matching name/version/versionsuffix/toolchain specs.
         """
-        return self.mns.parse_full_module_name(mod_name)
+        matches = []
+        candidate_specs = self.mns.parse_full_module_name(mod_name)
+        for specs in candidate_specs:
+            if self._check_for_matching_easyconfigs(specs):
+                matches.append(specs)
+
+        if len(matches) == 1:
+            return matches[0]
+
+        elif matches:
+            # more than one match found?!
+            raise EasyBuildError("Failed to find unique specifications that match module name '%s': %s",
+                                 mod_name, matches)
+        else:
+            # no matching easyconfigs found that matches parsed module name
+            return None
 
     def det_install_subdir(self, ec):
         """Determine name of software installation subdirectory."""
