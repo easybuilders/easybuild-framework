@@ -554,6 +554,9 @@ def extract_cmd(filepath, overwrite=False):
         else:
             cmd_tmpl = "unzip -qq %(filepath)s"
 
+    elif exts[-1] in ['iso']:
+        cmd_tmpl = "7z x %(filepath)s"
+
     if cmd_tmpl is None:
         raise EasyBuildError('Unknown file type for file %s (%s)', filepath, exts)
 
