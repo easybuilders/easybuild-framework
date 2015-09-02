@@ -99,6 +99,8 @@ class EasyConfigParser(object):
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
+        self._formatter.extract_comments(self.rawcontent)
+
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)
@@ -184,3 +186,7 @@ class EasyConfigParser(object):
         if validate:
             self._formatter.validate()
         return self._formatter.get_config_dict()
+
+    def dump(self, ecfg, default_values, templ_const, templ_val):
+        """Dump easyconfig in format it was parsed from."""
+        return self._formatter.dump(ecfg, default_values, templ_const, templ_val)

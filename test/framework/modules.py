@@ -117,6 +117,14 @@ class ModulesTest(EnhancedTestCase):
         # exists works on hidden modules
         self.assertEqual(self.testmods.exist(['toy/.0.0-deps']), [True])
 
+        # exists works on hidden modules in Lua syntax (only with Lmod)
+        if isinstance(self.testmods, Lmod):
+            test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+            # make sure only the .lua module file is there, otherwise this test doesn't work as intended
+            self.assertTrue(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua')))
+            self.assertFalse(os.path.exists(os.path.join(test_modules_path, 'bzip2', '.1.0.6')))
+            self.assertEqual(self.testmods.exist(['bzip2/.1.0.6']), [True])
+
         # exists also works on lists of module names
         # list should be sufficiently long, since for short lists 'show' is always used
         mod_names = ['OpenMPI/1.6.4-GCC-4.6.4', 'foo/1.2.3', 'GCC',

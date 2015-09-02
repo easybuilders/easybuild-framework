@@ -28,6 +28,7 @@ Unit tests for parallelbuild.py
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import re
 import stat
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
@@ -38,7 +39,7 @@ from easybuild.tools import config
 from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
-from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
+from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, submit_jobs
 from easybuild.tools.robot import resolve_dependencies
 
 
@@ -71,9 +72,10 @@ class MockPbsJob(object):
         self.deps = []
         self.jobid = None
         self.clean_conn = None
+        self.script = args[1]
 
-    def add_dependencies(self, *args, **kwargs):
-        pass
+    def add_dependencies(self, jobs):
+        self.deps.extend(jobs)
 
     def cleanup(self, *args, **kwargs):
         pass
@@ -106,6 +108,7 @@ class ParallelBuildTest(EnhancedTestCase):
         pbs_python.PbsJob = MockPbsJob
 
         build_options = {
+            'external_modules_metadata': {},
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             'valid_module_classes': config.module_classes(),
             'validate': False,
@@ -115,8 +118,38 @@ class ParallelBuildTest(EnhancedTestCase):
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs)
-        jobs = build_easyconfigs_in_parallel("echo %(spec)s", ordered_ecs, prepare_first=False)
+        jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.assertEqual(len(jobs), 8)
+        regex = re.compile("echo '.*/gzip-1.5-goolf-1.4.10.eb'")
+        self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
+
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
+        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), retain_all_deps=True)
+        jobs = submit_jobs(ordered_ecs, '', testing=False, prepare_first=False)
+
+        # make sure command is correct, and that --hidden is there when it needs to be
+        for i, ec in enumerate(ordered_ecs):
+            if ec['hidden']:
+                regex = re.compile("eb %s.* --hidden" % ec['spec'])
+            else:
+                regex = re.compile("eb %s" % ec['spec'])
+            self.assertTrue(regex.search(jobs[i].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[i].script))
+
+        # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
+        self.assertEqual(len(jobs[0].deps), 0)
+        self.assertEqual(len(jobs[1].deps), 0)
+
+        # only dependency for toy/0.0-deps is ictce/4.1.13 (dep marked as external module is filtered out)
+        self.assertTrue('toy-0.0-deps.eb' in jobs[2].script)
+        self.assertEqual(len(jobs[2].deps), 1)
+        self.assertTrue('ictce-4.1.13.eb' in jobs[2].deps[0].script)
+
+        # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
+        self.assertTrue('gzip-1.4-GCC-4.6.3.eb' in jobs[3].script)
+        self.assertEqual(len(jobs[3].deps), 2)
+        regex = re.compile('toy-0.0-deps.eb\s* --hidden')
+        self.assertTrue(regex.search(jobs[3].deps[0].script))
+        self.assertTrue('GCC-4.6.3.eb' in jobs[3].deps[1].script)
 
         # restore mocked stuff
         PbsPython.__init__ = PbsPython__init__

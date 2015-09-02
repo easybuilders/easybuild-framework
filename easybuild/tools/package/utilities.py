@@ -121,7 +121,7 @@ def package_with_fpm(easyblock):
         '--iteration', pkgrel,
         depstring,
         easyblock.installdir,
-        easyblock.module_generator.filename,
+        easyblock.module_generator.get_module_filepath(),
     ]
     cmd = ' '.join(cmdlist)
     _log.debug("The flattened cmdlist looks like: %s", cmd)
