@@ -25,7 +25,7 @@ feature + bugfix release
     - fix EasyConfig.all_dependencies definition, fix tracking of job dependencies (#1359, #1361)
     - fix 'ModulesTool.exist' for hidden Lua module files (#1364)
     - only call EasyBlock.sanity_check_step for non-extensions (#1366)
-        - this results is significant speedup when installing easyconfigs with lots of extensions, but also
+        - this results in significant speedup when installing easyconfigs with lots of extensions, but also
           fixes checking the default sanity check paths if none were defined for extensions installed as a module
     - fix using module naming schemes that were included via --include-module-naming-schemes (#1370)
 
