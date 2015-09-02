@@ -62,7 +62,6 @@ class EasyBlockTest(EnhancedTestCase):
         fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(fd)
 
-        self.orig_tmp_logdir = os.environ.get('EASYBUILD_TMP_LOGDIR', None)
         self.test_tmp_logdir = tempfile.mkdtemp()
         os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir
 
@@ -435,7 +434,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(isinstance(eb, EB_toy))
 
         # check whether 'This is easyblock' log message is there
-        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/toy.pyc*')
+        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/t/toy.pyc*')
         eb_log_msg_re = re.compile(r"INFO This is easyblock %s from module %s (%s)" % tup, re.M)
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
@@ -636,14 +635,21 @@ class EasyBlockTest(EnhancedTestCase):
         eb.extract_step()
         eb.patch_step()
 
-    def tearDown(self):
-        """ make sure to remove the temporary file """
-        super(EasyBlockTest, self).tearDown()
+    def test_extensions_sanity_check(self):
+        """Test sanity check aspect of extensions."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'))
 
-        os.remove(self.eb_file)
-        if self.orig_tmp_logdir is not None:
-            os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
-            shutil.rmtree(self.test_tmp_logdir, True)
+        # purposely put sanity check command in place that breaks the build,
+        # to check whether sanity check is only run once;
+        # sanity check commands are checked after checking sanity check paths, so this should work
+        toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
+
+        # this import only works here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(toy_ec)
+        eb.silent = True
+        eb.run_all_steps(True)
 
 
 def suite():

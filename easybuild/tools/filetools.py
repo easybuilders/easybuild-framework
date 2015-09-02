@@ -43,8 +43,8 @@ import time
 import urllib2
 import zlib
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
-import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, print_msg  # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.config import build_option
 from easybuild.tools import run
@@ -342,6 +342,9 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
         raise EasyBuildError("search_file: ignore_dirs (%s) should be of type list, not %s",
                              ignore_dirs, type(ignore_dirs))
 
+    # compile regex, case-insensitive
+    query = re.compile(query, re.I)
+
     var_lines = []
     hit_lines = []
     var_index = 1
@@ -349,18 +352,16 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     for path in paths:
         hits = []
         hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query, path), log=_log, silent=silent)
+        print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
-        query = query.lower()
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
-                filename = os.path.join(dirpath, filename)
-                if filename.lower().find(query) != -1:
+                if query.search(filename):
                     if not hit_in_path:
                         var = "CFGS%d" % var_index
                         var_index += 1
                         hit_in_path = True
-                    hits.append(filename)
+                    hits.append(os.path.join(dirpath, filename))
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
@@ -552,6 +553,9 @@ def extract_cmd(filepath, overwrite=False):
             cmd_tmpl = "unzip -qq -o %(filepath)s"
         else:
             cmd_tmpl = "unzip -qq %(filepath)s"
+
+    elif exts[-1] in ['iso']:
+        cmd_tmpl = "7z x %(filepath)s"
 
     if cmd_tmpl is None:
         raise EasyBuildError('Unknown file type for file %s (%s)', filepath, exts)
@@ -850,6 +854,24 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
         _log.debug("Not creating existing path %s" % path)
 
 
+def expand_glob_paths(glob_paths):
+    """Expand specified glob paths to a list of unique non-glob paths to only files."""
+    paths = []
+    for glob_path in glob_paths:
+        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
+
+    return nub(paths)
+
+
+def symlink(source_path, symlink_path):
+    """Create a symlink at the specified path to the given path."""
+    try:
+        os.symlink(os.path.abspath(source_path), symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
+    except OSError as err:
+        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+
+
 def path_matches(path, paths):
     """Check whether given path matches any of the provided paths."""
     if not os.path.exists(path):
@@ -910,21 +932,26 @@ def move_logs(src_logfile, target_logfile):
 
 
 def cleanup(logfile, tempdir, testing):
-    """Cleanup the specified log file and the tmp directory"""
-    if not testing and logfile is not None:
-        try:
-            for log in glob.glob('%s*' % logfile):
-                os.remove(log)
-        except OSError, err:
-            raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-        print_msg('temporary log file(s) %s* have been removed.' % (logfile), log=None, silent=testing)
+    """Cleanup the specified log file and the tmp directory, if desired."""
 
-    if not testing and tempdir is not None:
-        try:
-            shutil.rmtree(tempdir, ignore_errors=True)
-        except OSError, err:
-            raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
+    if build_option('cleanup_tmpdir') and not testing:
+        if logfile is not None:
+            try:
+                for log in [logfile] + glob.glob('%s.[0-9]*' % logfile):
+                    os.remove(log)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
+            print_msg("Tmporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+
+        if tempdir is not None:
+            try:
+                shutil.rmtree(tempdir, ignore_errors=True)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+
+    else:
+        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):

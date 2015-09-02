@@ -57,7 +57,7 @@ VSC_BASE = 'vsc-base'
 EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs']
 
 # set print_debug to True for detailed progress info
-print_debug = os.environ.get('EASYBUILD_BOOTSTRAP_DEBUG', False)
+print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
 
 # don't add user site directory to sys.path (equivalent to python -s), see https://www.python.org/dev/peps/pep-0370/
 os.environ['PYTHONNOUSERSITE'] = '1'
@@ -65,6 +65,9 @@ site.ENABLE_USER_SITE = False
 
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
+
+EASYBUILD_BOOTSTRAP_SOURCEPATH = os.environ.pop('EASYBUILD_BOOTSTRAP_SOURCEPATH', None)
+EASYBUILD_BOOTSTRAP_SKIP_STAGE0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
 
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
@@ -439,11 +442,9 @@ def main():
         error("Usage: %s <install path>" % sys.argv[0])
     install_path = os.path.abspath(sys.argv[1])
 
-    sourcepath = os.environ.get('EASYBUILD_BOOTSTRAP_SOURCEPATH')
+    sourcepath = EASYBUILD_BOOTSTRAP_SOURCEPATH
     if sourcepath is not None:
         info("Fetching sources from %s..." % sourcepath)
-
-    skip_stage0 = os.environ.get('EASYBUILD_BOOTSTRAP_SKIP_STAGE0', False)
 
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
@@ -459,7 +460,7 @@ def main():
     for path in orig_sys_path:
         include_path = True
         # exclude path if it's potentially an EasyBuild/VSC package, providing the 'easybuild'/'vsc' namespace, resp.
-        if any([os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easybuild', 'vsc']]):
+        if any([os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easyblocks', 'easybuild', 'vsc']]):
             include_path = False
         # exclude any .egg paths
         if path.endswith('.egg'):
@@ -478,7 +479,7 @@ def main():
     # install EasyBuild in stages
 
     # STAGE 0: install distribute, which delivers easy_install
-    if skip_stage0:
+    if EASYBUILD_BOOTSTRAP_SKIP_STAGE0:
         distribute_egg_dir = None
         info("Skipping stage0, using local distribute/setuptools providing easy_install")
     else:

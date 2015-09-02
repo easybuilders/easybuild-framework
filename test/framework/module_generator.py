@@ -69,12 +69,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
-    def tearDown(self):
-        """Test cleanup."""
-        super(ModuleGeneratorTest, self).tearDown()
-        os.remove(self.eb.logfile)
-        shutil.rmtree(self.modgen.app.installdir)
-
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
 
@@ -99,7 +93,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help = [[%s]]' % gzip_txt,
+                'help([[%s]])' % gzip_txt,
                 "whatis([[Name: gzip]])" ,
                 "whatis([[Version: 1.4]])" ,
                 "whatis([[Description: %s]])" % gzip_txt,
@@ -185,7 +179,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "prepend-path\tkey\t\t$root/path2\n",
                 "prepend-path\tkey\t\t$root\n",
             ])
-            self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2", '']))
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
 
             expected = "prepend-path\tbar\t\t$root/foo\n"
             self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
@@ -193,19 +190,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True)
             self.assertEqual("prepend-path\tkey\t\t/abs/path\n", res)
 
+            res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
+            self.assertEqual("prepend-path\tkey\t\t1234@example.com\n", res)
+
         else:
             expected = ''.join([
                 'prepend_path("key", pathJoin(root, "path1"))\n',
                 'prepend_path("key", pathJoin(root, "path2"))\n',
                 'prepend_path("key", root)\n',
             ])
-            self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2", '']))
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.prepend_paths("key", paths))
 
             expected = 'prepend_path("bar", pathJoin(root, "foo"))\n'
             self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
 
             expected = 'prepend_path("key", "/abs/path")\n'
             self.assertEqual(expected, self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
+
+            res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
+            self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
                                               "which only expects relative paths." % self.modgen.app.installdir,
@@ -275,6 +281,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         build_options = {
             'check_osdeps': False,
+            'external_modules_metadata': {},
             'robot_path': [ecs_dir],
             'valid_stops': all_stops,
             'validate': False,

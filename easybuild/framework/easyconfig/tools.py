@@ -116,13 +116,24 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
         new_ec = ec.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = ActiveMNS().det_full_module_name(dep)
+            full_mod_name = dep.get('full_mod_name', None)
+            if full_mod_name is None:
+                full_mod_name = ActiveMNS().det_full_module_name(dep)
+
             dep_resolved = full_mod_name in new_avail_modules
             if not retain_all_deps:
                 # hidden modules need special care, since they may not be included in list of available modules
                 dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+
             if not dep_resolved:
-                deps.append(dep)
+                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+                # since no corresponding easyconfig can be found for them
+                if retain_all_deps and dep.get('external_module', False):
+                    _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                else:
+                    # no module available (yet) => retain dependency as one to be resolved
+                    deps.append(dep)
+
         new_ec['dependencies'] = deps
 
         if len(new_ec['dependencies']) == 0:
@@ -136,11 +147,10 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     return ordered_ecs, new_unprocessed, new_avail_modules
 
 
-def _dep_graph(fn, specs, silent=False):
+def _dep_graph(fn, specs):
     """
     Create a dependency graph for the given easyconfigs.
     """
-
     # check whether module names are unique
     # if so, we can omit versions in the graph
     names = set()
@@ -149,21 +159,28 @@ def _dep_graph(fn, specs, silent=False):
     omit_versions = len(names) == len(specs)
 
     def mk_node_name(spec):
-        if omit_versions:
-            return spec['name']
+        if spec.get('external_module', False):
+            node_name = "%s (EXT)" % spec['full_mod_name']
+        elif omit_versions:
+            node_name = spec['name']
         else:
-            return ActiveMNS().det_full_module_name(spec)
+            node_name = ActiveMNS().det_full_module_name(spec)
+
+        return node_name
 
     # enhance list of specs
+    all_nodes = set()
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
-        spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
+        all_nodes.add(spec['module'])
+        spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
+        all_nodes.update(spec['ec'].all_dependencies)
 
     # build directed graph
     dgr = digraph()
-    dgr.add_nodes([spec['module'] for spec in specs])
+    dgr.add_nodes(all_nodes)
     for spec in specs:
-        for dep in spec['unresolved_deps']:
+        for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
 
     # write to file
@@ -177,7 +194,7 @@ def _dep_graph(fn, specs, silent=False):
         gv.layout(gvv, 'dot')
         gv.render(gvv, fn.split('.')[-1], fn)
 
-    if not silent:
+    if not build_option('silent'):
         print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 

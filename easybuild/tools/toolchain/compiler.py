@@ -155,10 +155,8 @@ class Compiler(Toolchain):
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
             )
-            #print "added options for prefix %s" % prefix
 
-        # redefine optarch
-        self._get_optimal_architecture()
+        self._set_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -255,7 +253,7 @@ class Compiler(Toolchain):
         self.variables.nappend('F90FLAGS', fflags)
         self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
 
-    def _get_optimal_architecture(self):
+    def _set_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
             self.arch = systemtools.get_cpu_family()
@@ -267,11 +265,11 @@ class Compiler(Toolchain):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 
         if optarch is not None:
-            self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
+            self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 
         if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
-            raise EasyBuildError("_get_optimal_architecture: don't know how to set optarch for %s", self.arch)
+            raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s", self.arch)
 
     def comp_family(self, prefix=None):
         """

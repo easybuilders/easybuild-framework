@@ -42,6 +42,7 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
+from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
@@ -142,10 +143,11 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     # determine new toolchain if it's being changed
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
+        # note: this assumes that the toolchain spec is single-line
         tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
         res = tc_regexp.search(ectxt)
         if not res:
-            raise EasyBuildError("No toolchain found in easyconfig file %s?", src_fn)
+            raise EasyBuildError("No toolchain found in easyconfig file %s: %s", src_fn, ectxt)
 
         toolchain = eval(res.group(1))
         for key in ['name', 'version']:
@@ -164,11 +166,16 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 
     additions = []
 
+    # automagically clear out list of checksums if software version is being tweaked 
+    if 'version' in tweaks and 'checksums' not in tweaks:
+        tweaks['checksums'] = []
+        _log.warning("Tweaking version: checksums cleared, verification disabled.")
+
     # we need to treat list values seperately, i.e. we prepend to the current value (if any)
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*\])\s*$" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
@@ -176,7 +183,10 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
                 # - input ending with comma (empty tail list element) => prepend
                 # - input starting with comma (empty head list element) => append
                 # - no empty head/tail list element => overwrite
-                if val[0] == '':
+                if not val:
+                    newval = '[]'
+                    _log.debug("Clearing %s to empty list (was: %s)" % (key, res.group('val')))
+                elif val[0] == '':
                     newval = "%s + %s" % (res.group('val'), fval)
                     _log.debug("Appending %s to %s" % (fval, key))
                 elif val[-1] == '':
@@ -187,7 +197,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
                     _log.debug("Overwriting %s with %s" % (key, fval))
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
-            else:
+            elif get_easyconfig_parameter_default(key) != val:
                 additions.append("%s = %s" % (key, val))
 
             tweaks.pop(key)
@@ -213,7 +223,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
             if diff:
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
                 _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
-        else:
+        elif get_easyconfig_parameter_default(key) != val:
             additions.append("%s = %s" % (key, quote_str(val)))
 
     if additions:

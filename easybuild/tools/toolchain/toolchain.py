@@ -30,7 +30,7 @@ Creating a new toolchain should be as simple as possible.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 from vsc.utils import fancylogger
 
@@ -38,7 +38,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import dependencies_for
-from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
+from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
+from easybuild.tools.modules import get_software_version, get_software_version_env_var_name, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -55,6 +56,11 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+    TOOLCHAIN_FAMILY = None
+
+    # list of class 'constants' that should be restored for every new instance of this class
+    CLASS_CONSTANTS_TO_RESTORE = None
+    CLASS_CONSTANT_COPIES = {}
 
     # class method
     def _is_toolchain_for(cls, name):
@@ -71,7 +77,7 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None):
+    def __init__(self, name=None, version=None, mns=None, class_constants=None):
         """Toolchain constructor."""
 
         self.base_init()
@@ -93,6 +99,8 @@ class Toolchain(object):
 
         self.vars = None
 
+        self._init_class_constants(class_constants)
+
         self.modules_tool = modules_tool()
         self.mns = mns
         self.mod_full_name = None
@@ -107,6 +115,7 @@ class Toolchain(object):
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
     def base_init(self):
+        """Initialise missing class attributes (log, options, variables)."""
         if not hasattr(self, 'log'):
             self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -119,6 +128,43 @@ class Toolchain(object):
                 self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
             if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
                 self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+
+    def _init_class_constants(self, class_constants):
+        """Initialise class 'constants'."""
+        # make sure self.CLASS_CONSTANTS_TO_RESTORE is initialised
+        if class_constants is None:
+            self.CLASS_CONSTANTS_TO_RESTORE = []
+        else:
+            self.CLASS_CONSTANTS_TO_RESTORE = class_constants[:]
+
+        self._copy_class_constants()
+        self._restore_class_constants()
+
+    def _copy_class_constants(self):
+        """Copy class constants that needs to be restored again when a new instance is created."""
+        # this only needs to be done the first time (for this class, taking inheritance into account is key)
+        key = self.__class__
+        if key not in self.CLASS_CONSTANT_COPIES:
+            self.CLASS_CONSTANT_COPIES[key] = {}
+            for cst in self.CLASS_CONSTANTS_TO_RESTORE:
+                if hasattr(self, cst):
+                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(getattr(self, cst))
+                else:
+                    raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
+
+            self.log.debug("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
+
+    def _restore_class_constants(self):
+        """Restored class constants that need to be restored when a new instance is created."""
+        key = self.__class__
+        for cst in self.CLASS_CONSTANT_COPIES[key]:
+            newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
+            if hasattr(self, cst):
+                self.log.debug("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
+            else:
+                self.log.debug("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+
+            setattr(self, cst, newval)
 
     def get_variable(self, name, typ=str):
         """Get value for specified variable.
@@ -317,6 +363,45 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
+    def _prepare_dependency_external_module(self, dep):
+        """Set environment variables picked up by utility functions for dependencies specified as external modules."""
+        mod_name = dep['full_mod_name']
+        metadata = dep['external_module_metadata']
+        self.log.debug("Defining $EB* environment variables for external module %s", mod_name)
+
+        names = metadata.get('name', [])
+        versions = metadata.get('version', [None]*len(names))
+        self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
+
+        for name, version in zip(names, versions):
+            self.log.debug("Defining $EB* environment variables for external module %s under name %s", mod_name, name)
+
+            # define $EBROOT env var for install prefix, picked up by get_software_root
+            prefix = metadata.get('prefix')
+            if prefix is not None:
+                if prefix in os.environ:
+                    val = os.environ[prefix]
+                    self.log.debug("Using value of $%s as prefix for external module %s: %s", prefix, mod_name, val)
+                else:
+                    val = prefix
+                    self.log.debug("Using specified prefix for external module %s: %s", mod_name, val)
+                setvar(get_software_root_env_var_name(name), val)
+
+            # define $EBVERSION env var for software version, picked up by get_software_version
+            if version is not None:
+                setvar(get_software_version_env_var_name(name), version)
+
+    def _prepare_dependencies(self):
+        """Load modules for dependencies, and handle special cases like external modules."""
+        # load modules for all dependencies
+        dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
+        self.log.debug("Loading modules for dependencies: %s" % dep_mods)
+        self.modules_tool.load(dep_mods)
+
+        # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
+        for dep in [d for d in self.dependencies if d['external_module']]:
+            self._prepare_dependency_external_module(dep)
+
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -338,7 +423,7 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+                self._prepare_dependencies()
             return
 
         # Load the toolchain and dependencies modules
@@ -349,7 +434,7 @@ class Toolchain(object):
             for modpath in self.init_modpaths:
                 self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
         self.modules_tool.load([self.det_short_module_name()])
-        self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+        self._prepare_dependencies()
 
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
@@ -415,7 +500,17 @@ class Toolchain(object):
         else:
             deps = [{'name': name} for name in names if name is not None]
 
-        for root in self.get_software_root([dep['name'] for dep in deps]):
+        # collect software install prefixes for dependencies
+        roots = []
+        for dep in deps:
+            if dep.get('external_module', False):
+                # for software names provided via external modules, install prefix may be unknown
+                names = dep['external_module_metadata'].get('name', [])
+                roots.extend([root for root in self.get_software_root(names) if root is not None])
+            else:
+                roots.extend(self.get_software_root(dep['name']))
+
+        for root in roots:
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
@@ -447,6 +542,10 @@ class Toolchain(object):
     def get_flag(self, name):
         """Get compiler flag for a certain option."""
         return "-%s" % self.options.option(name)
+
+    def toolchain_family(self):
+        """Return toolchain family for this toolchain."""
+        return self.TOOLCHAIN_FAMILY
 
     def comp_family(self):
         """ Return compiler family used in this toolchain (abstract method)."""
