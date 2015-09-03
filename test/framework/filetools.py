@@ -58,6 +58,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.zip', "unzip -qq test.zip"),
             ('/some/path/test.tar', "tar xf /some/path/test.tar"),
             ('test.tar.gz', "tar xzf test.tar.gz"),
+            ('test.TAR.GZ', "tar xzf test.TAR.GZ"),
             ('test.tgz', "tar xzf test.tgz"),
             ('test.gtgz', "tar xzf test.gtgz"),
             ('test.bz2', "bunzip2 test.bz2"),
@@ -75,6 +76,8 @@ class FileToolsTest(EnhancedTestCase):
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
+
+        self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
 
     def test_convert_name(self):
         """Test convert_name function."""
