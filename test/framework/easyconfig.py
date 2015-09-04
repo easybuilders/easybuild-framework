@@ -1343,6 +1343,7 @@ class EasyConfigTest(EnhancedTestCase):
             '}',
             '',
             "foo_extra1 = 'foobar'",
+            "# trailing comment",
         ])
 
         handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
@@ -1365,6 +1366,8 @@ class EasyConfigTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+
+        self.assertTrue(ectxt.endswith("# trailing comment"))
 
         # reparsing the dumped easyconfig file should work
         ecbis = EasyConfig(testec)
