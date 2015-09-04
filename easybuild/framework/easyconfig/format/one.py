@@ -272,6 +272,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         params, _ = self._find_defined_params(ecfg, [[k] for k in LAST_PARAMS], default_values, templ_const, templ_val)
         dump.extend(params)
 
+        dump.extend(self.comments['tail'])
+
         return '\n'.join(dump)
 
     def extract_comments(self, rawtxt):
@@ -286,6 +288,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             'header' : [],  # header comment lines
             'inline' : {},  # inline comments
             'iter': {},  # (inline) comments on elements of iterable values
+            'tail': [],
          }
 
         rawlines = rawtxt.split('\n')
@@ -301,13 +304,21 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             if rawline.startswith('#'):
                 comment = []
                 # comment could be multi-line
-                while rawline.startswith('#') or not rawline:
+                while rawline is not None and (rawline.startswith('#') or not rawline):
                     # drop empty lines (that don't even include a #)
                     if rawline:
                         comment.append(rawline)
-                    rawline = rawlines.pop(0)
-                key = rawline.split('=', 1)[0].strip()
-                self.comments['above'][key] = comment
+                    # grab next line (if more lines are left)
+                    if rawlines:
+                        rawline = rawlines.pop(0)
+                    else:
+                        rawline = None
+
+                if rawline is None:
+                    self.comments['tail'] = comment
+                else:
+                    key = rawline.split('=', 1)[0].strip()
+                    self.comments['above'][key] = comment
 
             elif '#' in rawline:  # inline comment
                 comment_key, comment_val = None, None
