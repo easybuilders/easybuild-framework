@@ -176,7 +176,7 @@ class Githubfs(object):
         # https://raw.github.com/hpcugent/easybuild/master/README.rst
         if not api:
             outfile = tempfile.mkstemp()[1]
-            url = ("%s/%s/%s/%s/%s" % (GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path))
+            url = '/'.join([GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path])
             download_file(os.path.basename(path), url, outfile)
             return outfile
         else:
@@ -231,6 +231,7 @@ def fetch_latest_commit_sha(repo, account, branch='master'):
     for entry in data:
         if entry[u'name'] == branch:
             res = entry['commit']['sha']
+            break
 
     if res is None:
         raise EasyBuildError("No branch with name %s found in repo %s/%s (%s)", branch, account, repo, data)

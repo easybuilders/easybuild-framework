@@ -233,7 +233,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # review specified PR
     if options.review_pr:
-        review_pr(options.review_pr, colored=options.color)
+        print review_pr(options.review_pr, colored=options.color)
 
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short

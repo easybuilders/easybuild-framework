@@ -373,24 +373,15 @@ def find_related_easyconfigs(path, ec):
     A list of easyconfigs for the same software (name) is returned,
     matching the 1st criterion that yields a non-empty list.
 
-    Software version is considered more important than toolchain.
+    The following criteria are considered (in this order) next to common software version criterion, i.e.
+    exact version match, a major/minor version match, a major version match, or no version match (in that order).
 
-    Toolchain is considered with exact same version prior to without version (only name).
-
-    Matching versionsuffix is considered prior to any versionsuffix.
-
-    Exact software version is considered prior to matching major/minor version numbers,
-    and only matching major version number. Any software version is considered last.
-
-    The following criteria are considered, in order (with 'version criterion' being either an
-    exact version match, a major/minor version match, a major version match, or no version match).
-
-    (i)   software version criterion, matching versionsuffix and toolchain name/version
-    (ii)  software version criterion, matching versionsuffix and toolchain name (any toolchain version)
-    (iii) software version criterion, matching versionsuffix (any toolchain name/version)
-    (iv)  software version criterion, matching toolchain name/version (any versionsuffix)
-    (v)   software version criterion, matching toolchain name (any versionsuffix, toolchain version)
-    (vi)  software version criterion (any versionsuffix, toolchain name/version)
+    (i)   matching versionsuffix and toolchain name/version
+    (ii)  matching versionsuffix and toolchain name (any toolchain version)
+    (iii) matching versionsuffix (any toolchain name/version)
+    (iv)  matching toolchain name/version (any versionsuffix)
+    (v)   matching toolchain name (any versionsuffix, toolchain version)
+    (vi)  no extra requirements (any versionsuffix, toolchain name/version)
 
     If no related easyconfigs with a matching software name are found, an empty list is returned.
     """
@@ -407,29 +398,30 @@ def find_related_easyconfigs(path, ec):
 
     potential_paths = [glob.glob(ec_path) for ec_path in create_paths(path, name, '*')]
     potential_paths = sum(potential_paths, [])  # flatten
+    _log.debug("found these potential paths: %s" % potential_paths)
 
     parsed_version = LooseVersion(version).version
     version_patterns = [version]  # exact version match
     if len(parsed_version) >= 2:
-        version_patterns.append(r'%s\.%s\.[0-9_A-Za-z]+' % tuple(parsed_version[:2]))  # major/minor version match
+        version_patterns.append(r'%s\.%s\.\w+' % tuple(parsed_version[:2]))  # major/minor version match
     if parsed_version != parsed_version[0]:
-        version_patterns.append(r'%s\.[0-9-]+\.[0-9_A-Za-z]+' % parsed_version[0])  # major version match
-    version_patterns.append(r'[0-9._A-Za-z-]+')  # any version
+        version_patterns.append(r'%s\.[\d-]+\.\w+' % parsed_version[0])  # major version match
+    version_patterns.append(r'[\w.]+')  # any version
 
     regexes = []
     for version_pattern in version_patterns:
+        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (name, version_pattern)
         regexes.extend([
-            re.compile((r"^\S+/%s-%s%s%s.eb$" % (name, version_pattern, toolchain_pattern, versionsuffix))),
-            re.compile((r"^\S+/%s-%s%s%s.eb$" % (name, version_pattern, toolchain_name_pattern, versionsuffix))),
-            re.compile((r"^\S+/%s-%s-\S+%s.eb$" % (name, version_pattern, versionsuffix))),
-            re.compile((r"^\S+/%s-%s%s.eb$" % (name, version_pattern, toolchain_pattern))),
-            re.compile((r"^\S+/%s-%s%s.eb$" % (name, version_pattern, toolchain_name_pattern))),
-            re.compile((r"^\S+/%s-%s-\S+.eb$" % (name, version_pattern))),
+            common_pattern % (toolchain_pattern + versionsuffix),
+            common_pattern % (toolchain_name_pattern + versionsuffix),
+            common_pattern % (r'-\S+%s' % versionsuffix),
+            common_pattern % toolchain_pattern,
+            common_pattern % toolchain_name_pattern,
+            common_pattern % r'-\S+',
         ])
-    _log.debug("found these potential paths: %s" % potential_paths)
 
     for regex in regexes:
-        res = [p for p in potential_paths if regex.match(p)]
+        res = [p for p in potential_paths if re.match(regex, p)]
         if res:
             _log.debug("Related easyconfigs found using '%s': %s" % (regex.pattern, res))
             break
@@ -451,13 +443,14 @@ def review_pr(pr, colored=True, branch='develop'):
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
     pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
 
+    lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
         _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
         if files:
-            diff = multidiff(ec['spec'], files, colored=colored)
-            msg = diff
+            lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
-            msg = "\n(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])
-        print(msg)
+            lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+    return '\n'.join(lines)

@@ -132,5 +132,6 @@ def det_terminal_size():
     Determine the current size of the terminal window.
     @return: tuple with terminal width and height
     """
+    # see http://bytes.com/topic/python/answers/607757-getting-terminal-display-size
     height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
     return width, height
