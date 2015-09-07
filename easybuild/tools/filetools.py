@@ -507,30 +507,23 @@ def extract_cmd(filepath, overwrite=False):
     Determines the file type of file at filepath, returns extract cmd based on file suffix
     """
     filename = os.path.basename(filepath)
-    pat = r'\.(?P<ext>tar\.gz|gz|tgz|gtgz|tar.bz2|bz2|tbz|tbz2|tb2|tar.xz|xz|txz|tar|zip|iso)$'
-    try:
-        ext = '.' + re.search(pat, filename, flags=re.IGNORECASE).group('ext')
-    except AttributeError:
-        raise EasyBuildError('Unknown file type for file %s (%s)', filepath, ext)
-
-    target = filename.rstrip(ext)
 
     extract_cmds = {
         # gzipped or gzipped tarball
-        '.tar.gz':  "tar xzf %(filepath)s",
         '.gz':      "gunzip -c %(filepath)s > %(target)s",
-        '.tgz':     "tar xzf %(filepath)s",
         '.gtgz':    "tar xzf %(filepath)s",
+        '.tar.gz':  "tar xzf %(filepath)s",
+        '.tgz':     "tar xzf %(filepath)s",
         # bzipped or bzipped tarball
-        '.tar.bz2': "tar xjf %(filepath)s",
         '.bz2':     "bunzip2 %(filepath)s",
+        '.tar.bz2': "tar xjf %(filepath)s",
+        '.tb2':     "tar xjf %(filepath)s",
         '.tbz':     "tar xjf %(filepath)s",
         '.tbz2':    "tar xjf %(filepath)s",
-        '.tb2':     "tar xjf %(filepath)s",
         # xzipped or xzipped tarball
         '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-        '.xz':      "unxz %(filepath)s",
         '.txz':     "unxz %(filepath)s --stdout | tar x",
+        '.xz':      "unxz %(filepath)s",
         # tarball
         '.tar':     "tar xf %(filepath)s",
         # zip file
@@ -538,6 +531,15 @@ def extract_cmd(filepath, overwrite=False):
         # iso file
         '.iso':     "7z x %(filepath)s"
     }
+    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in sorted(extract_cmds.keys(), key=len, reverse=True)])
+    res = re.search(pat, filename, flags=re.IGNORECASE)
+    if res:
+        ext = res.group('ext')
+    else:
+        ext = filename.split('.')[-1]  # best guess?
+        raise EasyBuildError('Unknown file type for file %s (%s)', filepath, ext)
+
+    target = filename.rstrip(ext)
 
     cmd_tmpl = extract_cmds[ext.lower()]
 
