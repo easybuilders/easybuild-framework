@@ -531,7 +531,9 @@ def extract_cmd(filepath, overwrite=False):
         # iso file
         '.iso':     "7z x %(filepath)s"
     }
-    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in sorted(extract_cmds.keys(), key=len, reverse=True)])
+
+    suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
+    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
         ext = res.group('ext')
