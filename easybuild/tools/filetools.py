@@ -33,6 +33,7 @@ Set of file tools.
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
+@author: Sotiris Fragkiskos (NTUA, CERN)
 """
 import glob
 import os
@@ -503,62 +504,45 @@ def find_base_dir():
 
 def extract_cmd(filepath, overwrite=False):
     """
-    Determines the file type of file fn, returns extract cmd
-    - based on file suffix
-    - better to use Python magic?
+    Determines the file type of file at filepath, returns extract cmd based on file suffix
     """
     filename = os.path.basename(filepath)
-    exts = [x.lower() for x in filename.split('.')]
-    target = '.'.join(exts[:-1])
-    cmd_tmpl = None
 
-    # gzipped or gzipped tarball
-    if exts[-1] in ['gz']:
-        if exts[-2] in ['tar']:
-            # unzip .tar.gz in one go
-            cmd_tmpl = "tar xzf %(filepath)s"
-        else:
-            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
+    extract_cmds = {
+        # gzipped or gzipped tarball
+        '.gtgz':    "tar xzf %(filepath)s",
+        '.gz':      "gunzip -c %(filepath)s > %(target)s",
+        '.tar.gz':  "tar xzf %(filepath)s",
+        '.tgz':     "tar xzf %(filepath)s",
+        # bzipped or bzipped tarball
+        '.bz2':     "bunzip2 %(filepath)s",
+        '.tar.bz2': "tar xjf %(filepath)s",
+        '.tb2':     "tar xjf %(filepath)s",
+        '.tbz':     "tar xjf %(filepath)s",
+        '.tbz2':    "tar xjf %(filepath)s",
+        # xzipped or xzipped tarball
+        '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
+        '.txz':     "unxz %(filepath)s --stdout | tar x",
+        '.xz':      "unxz %(filepath)s",
+        # tarball
+        '.tar':     "tar xf %(filepath)s",
+        # zip file
+        '.zip':     "unzip -qq -o %(filepath)s" if overwrite else "unzip -qq %(filepath)s",
+        # iso file
+        '.iso':     "7z x %(filepath)s"
+    }
 
-    elif exts[-1] in ['tgz', 'gtgz']:
-        cmd_tmpl = "tar xzf %(filepath)s"
+    suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
+    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in suffixes])
+    res = re.search(pat, filename, flags=re.IGNORECASE)
+    if res:
+        ext = res.group('ext')
+    else:
+        raise EasyBuildError('Unknown file type for file %s', filename)
 
-    # bzipped or bzipped tarball
-    elif exts[-1] in ['bz2']:
-        if exts[-2] in ['tar']:
-            cmd_tmpl = 'tar xjf %(filepath)s'
-        else:
-            cmd_tmpl = "bunzip2 %(filepath)s"
+    target = filename.rstrip(ext)
 
-    elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
-        cmd_tmpl = "tar xjf %(filepath)s"
-
-    # xzipped or xzipped tarball
-    elif exts[-1] in ['xz']:
-        if exts[-2] in ['tar']:
-            cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
-        else:
-            cmd_tmpl = "unxz %(filepath)s"
-
-    elif exts[-1] in ['txz']:
-        cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
-
-    # tarball
-    elif exts[-1] in ['tar']:
-        cmd_tmpl = "tar xf %(filepath)s"
-
-    # zip file
-    elif exts[-1] in ['zip']:
-        if overwrite:
-            cmd_tmpl = "unzip -qq -o %(filepath)s"
-        else:
-            cmd_tmpl = "unzip -qq %(filepath)s"
-
-    elif exts[-1] in ['iso']:
-        cmd_tmpl = "7z x %(filepath)s"
-
-    if cmd_tmpl is None:
-        raise EasyBuildError('Unknown file type for file %s (%s)', filepath, exts)
+    cmd_tmpl = extract_cmds[ext.lower()]
 
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
