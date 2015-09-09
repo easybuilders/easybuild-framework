@@ -39,6 +39,7 @@ from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.multidiff import multidiff
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -349,6 +350,74 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+
+    def test_multidiff(self):
+        """Test multidiff function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        other_toy_ecs = [
+            os.path.join(test_easyconfigs, 'toy-0.0-deps.eb'),
+            os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'),
+        ]
+
+        # default (colored)
+        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs).split('\n')
+        expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb"
+
+        red = "\x1b[0;41m"
+        green = "\x1b[0;42m"
+        endcol = "\x1b[0m"
+
+        self.assertEqual(lines[0], expected)
+        self.assertEqual(lines[1], "=====")
+
+        # different versionsuffix
+        self.assertEqual(lines[2], "3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-gompi-1.3.12-test.eb" % (red, endcol))
+        self.assertEqual(lines[3], "3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-deps.eb" % (red, endcol))
+
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
+        expected = "7 %(endcol)s-%(endcol)s toolchain = {"
+        expected += "'name': '%(endcol)s%(red)sgo%(endcol)sm\x1b[0m%(red)spi%(endcol)s', "
+        expected += "'version': '%(endcol)s%(red)s1.3.12%(endcol)s'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
+        expected = expected % {'endcol': endcol, 'green': green, 'red': red}
+        self.assertEqual(lines[7], expected)
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added chars in toolchain name/version, in green)
+        expected = "7 %(endcol)s+%(endcol)s toolchain = {"
+        expected += "'name': '%(endcol)s%(green)sdu%(endcol)sm\x1b[0m%(green)smy%(endcol)s', "
+        expected += "'version': '%(endcol)s%(green)sdummy%(endcol)s'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
+        expected = expected % {'endcol': endcol, 'green': green, 'red': red}
+        self.assertEqual(lines[8], expected)
+
+        # no postinstallcmds in toy-0.0-deps.eb
+        expected = "25 %s+ postinstallcmds = [\"echo TOY > %%(installdir)s/README\"]%s" % (green, endcol)
+        expected += " (1/2) toy-0.0-deps.eb"
+        self.assertTrue(expected in lines)
+        self.assertTrue("26 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        self.assertEqual(lines[-1], "=====")
+
+        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
+        self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb")
+        self.assertEqual(lines[1], "=====")
+
+        # different versionsuffix
+        self.assertEqual(lines[2], "3 - versionsuffix = '-test' (1/2) toy-0.0-gompi-1.3.12-test.eb")
+        self.assertEqual(lines[3], "3 - versionsuffix = '-deps' (1/2) toy-0.0-deps.eb")
+
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
+        expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
+        self.assertEqual(lines[7], expected)
+        expected = "  ?                       ^^ ^^               ^^^^^^"
+        self.assertEqual(lines[8], expected)
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
+        expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
+        self.assertEqual(lines[9], expected)
+        expected = "  ?                       ^^ ^^               ^^^^^"
+        self.assertEqual(lines[10], expected)
+
+        # no postinstallcmds in toy-0.0-deps.eb
+        self.assertTrue("25 + postinstallcmds = [\"echo TOY > %(installdir)s/README\"] (1/2) toy-0.0-deps.eb" in lines)
+        self.assertTrue("26 + (1/2) toy-0.0-deps.eb" in lines)
+
+        self.assertEqual(lines[-1], "=====")
 
 
 def suite():
