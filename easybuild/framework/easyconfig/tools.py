@@ -390,8 +390,7 @@ def find_related_easyconfigs(path, ec):
     versionsuffix = ec['versionsuffix']
     toolchain_name = ec['toolchain']['name']
     toolchain_name_pattern = r'-%s-\S+' % toolchain_name
-    toolchain = "%s-%s" % (toolchain_name, ec['toolchain']['version'])
-    toolchain_pattern = '-%s' % toolchain
+    toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
     if toolchain_name == DUMMY_TOOLCHAIN_NAME:
         toolchain_name_pattern = ''
         toolchain_pattern = ''
@@ -414,10 +413,10 @@ def find_related_easyconfigs(path, ec):
         regexes.extend([
             common_pattern % (toolchain_pattern + versionsuffix),
             common_pattern % (toolchain_name_pattern + versionsuffix),
-            common_pattern % (r'-\S+%s' % versionsuffix),
+            common_pattern % (r'\S*%s' % versionsuffix),
             common_pattern % toolchain_pattern,
             common_pattern % toolchain_name_pattern,
-            common_pattern % r'-\S+',
+            common_pattern % r'\S*',
         ])
 
     for regex in regexes:
@@ -427,6 +426,7 @@ def find_related_easyconfigs(path, ec):
             break
         else:
             _log.debug("No related easyconfigs in potential paths using '%s'" % regex)
+
     return res
 
 
