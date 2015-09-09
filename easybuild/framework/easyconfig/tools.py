@@ -423,10 +423,10 @@ def find_related_easyconfigs(path, ec):
     for regex in regexes:
         res = [p for p in potential_paths if re.match(regex, p)]
         if res:
-            _log.debug("Related easyconfigs found using '%s': %s" % (regex.pattern, res))
+            _log.debug("Related easyconfigs found using '%s': %s" % (regex, res))
             break
         else:
-            _log.debug("No related easyconfigs in potential paths using '%s'" % regex.pattern)
+            _log.debug("No related easyconfigs in potential paths using '%s'" % regex)
     return res
 
 
