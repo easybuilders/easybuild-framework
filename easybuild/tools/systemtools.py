@@ -28,12 +28,15 @@ Module with useful functions for getting system information
 @author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
+import fcntl
 import grp  # @UnresolvedImport
 import os
 import platform
 import pwd
 import re
+import struct
 import sys
+import termios
 from socket import gethostname
 from vsc.utils import fancylogger
 from vsc.utils.affinity import sched_getaffinity
@@ -499,3 +502,13 @@ def det_parallelism(par, maxpar):
         par = min(par, maxpar)
 
     return par
+
+
+def det_terminal_size():
+    """
+    Determine the current size of the terminal window.
+    @return: tuple with terminal width and height
+    """
+    # see http://bytes.com/topic/python/answers/607757-getting-terminal-display-size
+    height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
+    return width, height

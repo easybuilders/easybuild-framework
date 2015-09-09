@@ -36,7 +36,7 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.utilities import det_terminal_size
+from easybuild.tools.systemtools import det_terminal_size
 
 
 SEP_WIDTH = 5
