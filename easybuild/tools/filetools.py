@@ -510,8 +510,8 @@ def extract_cmd(filepath, overwrite=False):
 
     extract_cmds = {
         # gzipped or gzipped tarball
-        '.gz':      "gunzip -c %(filepath)s > %(target)s",
         '.gtgz':    "tar xzf %(filepath)s",
+        '.gz':      "gunzip -c %(filepath)s > %(target)s",
         '.tar.gz':  "tar xzf %(filepath)s",
         '.tgz':     "tar xzf %(filepath)s",
         # bzipped or bzipped tarball
@@ -538,8 +538,7 @@ def extract_cmd(filepath, overwrite=False):
     if res:
         ext = res.group('ext')
     else:
-        ext = filename.split('.')[-1]  # best guess?
-        raise EasyBuildError('Unknown file type for file %s (%s)', filepath, ext)
+        raise EasyBuildError('Unknown file type for file %s', filename)
 
     target = filename.rstrip(ext)
 
