@@ -255,15 +255,15 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     path = os.path.join(path, account)
     mkdir(path, parents=True)
 
-    extracted_dir_name = '%s-%s' % (GITHUB_EASYCONFIGS_REPO, branch)
+    extracted_dir_name = '%s-%s' % (repo, branch)
     base_name = '%s.tar.gz' % branch
     latest_commit_sha = fetch_latest_commit_sha(repo, account, branch)
 
     expected_path = os.path.join(path, extracted_dir_name)
     latest_sha_path = os.path.join(expected_path, 'latest-sha')
 
-    # check if directory already exists, don't download if it does
-    if os.path.isdir(expected_path):
+    # check if directory already exists, don't download if 'latest-sha' file indicates that it's up to date
+    if os.path.exists(latest_sha_path):
         sha = read_file(latest_sha_path).split('\n')[0].rstrip()
         if latest_commit_sha == sha:
             _log.debug("Not redownloading %s/%s as it already exists: %s" % (account, repo, expected_path))
