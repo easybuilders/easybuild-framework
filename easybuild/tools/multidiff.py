@@ -213,7 +213,7 @@ class MultiDiff(object):
             else:
                 return text
 
-        term_width, _ = det_terminal_size()
+        _, term_width = det_terminal_size()
 
         base = self.color_line(self.base_fn, PURPLE)
         filenames = ', '.join(map(os.path.basename, self.files))

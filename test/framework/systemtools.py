@@ -429,9 +429,9 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_det_terminal_size(self):
         """Test det_terminal_size function."""
-        (width, height) = st.det_terminal_size()
-        self.assertTrue(isinstance(width, int) and width > 0)
+        (height, width) = st.det_terminal_size()
         self.assertTrue(isinstance(height, int) and height > 0)
+        self.assertTrue(isinstance(width, int) and width > 0)
 
 
 def suite():

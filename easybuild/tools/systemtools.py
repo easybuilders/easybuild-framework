@@ -509,6 +509,15 @@ def det_terminal_size():
     Determine the current size of the terminal window.
     @return: tuple with terminal width and height
     """
-    # see http://bytes.com/topic/python/answers/607757-getting-terminal-display-size
-    height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
+    # see http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
+    try:
+        height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
+    except Exception as err:
+        _log.warning("First attempt to determine terminal size failed: %s", err)
+        try:
+            height, width = [int(x) for x in os.popen("stty size").read().strip().split()]
+        except Exception as err:
+            _log.warning("Second attempt to determine terminal size failed, going to return defaults: %s", err)
+            height, width = 25, 80
+
     return width, height
