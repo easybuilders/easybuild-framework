@@ -427,6 +427,13 @@ class SystemToolsTest(EnhancedTestCase):
 
         st.get_avail_core_count = orig_get_avail_core_count
 
+    def test_det_terminal_size(self):
+        """Test det_terminal_size function."""
+        (height, width) = st.det_terminal_size()
+        self.assertTrue(isinstance(height, int) and height > 0)
+        self.assertTrue(isinstance(width, int) and width > 0)
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(SystemToolsTest)

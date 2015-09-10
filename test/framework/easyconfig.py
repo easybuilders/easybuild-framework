@@ -48,7 +48,7 @@ from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
-from easybuild.framework.easyconfig.tools import dep_graph, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -1447,6 +1447,49 @@ class EasyConfigTest(EnhancedTestCase):
         hiddendep = ec['hiddendependencies'][0]
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep), 'toy/.0.0-deps')
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep, force_visible=True), 'toy/0.0-deps')
+
+    def test_find_related_easyconfigs(self):
+        """Test find_related_easyconfigs function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec_file = os.path.join(test_easyconfigs, 'GCC-4.6.3.eb')
+        ec = EasyConfig(ec_file)
+
+        # exact match: GCC-4.6.3.eb
+        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        self.assertEqual(res, ['GCC-4.6.3.eb'])
+
+        # tweak version to 4.6.1, GCC/4.6.x easyconfigs are found as closest match
+        ec['version'] = '4.6.1'
+        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        self.assertEqual(res, ['GCC-4.6.3.eb', 'GCC-4.6.4.eb'])
+
+        # tweak version to 4.5.0, GCC/4.x easyconfigs are found as closest match
+        ec['version'] = '4.5.0'
+        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb']
+        self.assertEqual(res, expected)
+
+        ec_file = os.path.join(test_easyconfigs, 'toy-0.0-deps.eb')
+        ec = EasyConfig(ec_file)
+
+        # exact match
+        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        self.assertEqual(res, ['toy-0.0-deps.eb'])
+
+        # tweak toolchain name/version and versionsuffix => closest match with same toolchain name is found
+        ec['toolchain'] = {'name': 'gompi', 'version': '1.5.16'}
+        ec['versionsuffix'] = '-foobar'
+        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        self.assertEqual(res, ['toy-0.0-gompi-1.3.12-test.eb'])
+
+        # restore original versionsuffix => matching versionsuffix wins over matching toolchain (name)
+        ec['versionsuffix'] = '-deps'
+        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        self.assertEqual(res, ['toy-0.0-deps.eb'])
+
+        # no matches for unknown software name
+        ec['name'] = 'nosuchsoftware'
+        self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
 
 
 def suite():

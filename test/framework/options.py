@@ -1860,7 +1860,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_cleanup_tmpdir(self):
         """Test --cleanup-tmpdir."""
-
         args = [
             os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb'),
             '--dry-run',
@@ -1889,6 +1888,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # tweaked easyconfigs is still there \o/
         tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
         self.assertTrue(os.path.exists(os.path.join(tweaked_dir, 'toy-1.0.eb')))
+
+    def test_review_pr(self):
+        """Test --review-pr."""
+        self.mock_stdout(True)
+        # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
+        self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
 
 
 def suite():

@@ -36,10 +36,26 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Ward Poelmans (Ghent University)
 """
-
+import glob
 import os
+import re
 import sys
+import tempfile
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
+
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
+from easybuild.tools.modules import modules_tool
+from easybuild.tools.multidiff import multidiff
+from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.run import run_cmd
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.utilities import quote_str
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -67,17 +83,6 @@ except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python,"
                         "or apt-get install python-pygraphviz,"
                         "or brew install graphviz --with-bindings")
-
-from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr
-from easybuild.tools.modules import modules_tool
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
@@ -318,7 +323,7 @@ def det_easyconfig_paths(orig_paths):
     return ec_files
 
 
-def parse_easyconfigs(paths):
+def parse_easyconfigs(paths, validate=True):
     """
     Parse easyconfig files
     @params paths: paths to easyconfigs
@@ -335,7 +340,7 @@ def parse_easyconfigs(paths):
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
                 # only pass build specs when not generating easyconfig files
-                kwargs = {}
+                kwargs = {'validate': validate}
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
                 ecs = process_easyconfig(ec_file, **kwargs)
@@ -359,3 +364,93 @@ def stats_to_str(stats):
         txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
     txt += "}"
     return txt
+
+
+def find_related_easyconfigs(path, ec):
+    """
+    Find related easyconfigs for provided parsed easyconfig in specified path.
+
+    A list of easyconfigs for the same software (name) is returned,
+    matching the 1st criterion that yields a non-empty list.
+
+    The following criteria are considered (in this order) next to common software version criterion, i.e.
+    exact version match, a major/minor version match, a major version match, or no version match (in that order).
+
+    (i)   matching versionsuffix and toolchain name/version
+    (ii)  matching versionsuffix and toolchain name (any toolchain version)
+    (iii) matching versionsuffix (any toolchain name/version)
+    (iv)  matching toolchain name/version (any versionsuffix)
+    (v)   matching toolchain name (any versionsuffix, toolchain version)
+    (vi)  no extra requirements (any versionsuffix, toolchain name/version)
+
+    If no related easyconfigs with a matching software name are found, an empty list is returned.
+    """
+    name = ec.name
+    version = ec.version
+    versionsuffix = ec['versionsuffix']
+    toolchain_name = ec['toolchain']['name']
+    toolchain_name_pattern = r'-%s-\S+' % toolchain_name
+    toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
+    if toolchain_name == DUMMY_TOOLCHAIN_NAME:
+        toolchain_name_pattern = ''
+        toolchain_pattern = ''
+
+    potential_paths = [glob.glob(ec_path) for ec_path in create_paths(path, name, '*')]
+    potential_paths = sum(potential_paths, [])  # flatten
+    _log.debug("found these potential paths: %s" % potential_paths)
+
+    parsed_version = LooseVersion(version).version
+    version_patterns = [version]  # exact version match
+    if len(parsed_version) >= 2:
+        version_patterns.append(r'%s\.%s\.\w+' % tuple(parsed_version[:2]))  # major/minor version match
+    if parsed_version != parsed_version[0]:
+        version_patterns.append(r'%s\.[\d-]+\.\w+' % parsed_version[0])  # major version match
+    version_patterns.append(r'[\w.]+')  # any version
+
+    regexes = []
+    for version_pattern in version_patterns:
+        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (name, version_pattern)
+        regexes.extend([
+            common_pattern % (toolchain_pattern + versionsuffix),
+            common_pattern % (toolchain_name_pattern + versionsuffix),
+            common_pattern % (r'\S*%s' % versionsuffix),
+            common_pattern % toolchain_pattern,
+            common_pattern % toolchain_name_pattern,
+            common_pattern % r'\S*',
+        ])
+
+    for regex in regexes:
+        res = [p for p in potential_paths if re.match(regex, p)]
+        if res:
+            _log.debug("Related easyconfigs found using '%s': %s" % (regex, res))
+            break
+        else:
+            _log.debug("No related easyconfigs in potential paths using '%s'" % regex)
+
+    return sorted(res)
+
+
+def review_pr(pr, colored=True, branch='develop'):
+    """
+    Print multi-diff overview between easyconfigs in specified PR and specified branch.
+    @param pr: pull request number in easybuild-easyconfigs repo to review
+    @param colored: boolean indicating whether a colored multi-diff should be generated
+    @param branch: easybuild-easyconfigs branch to compare with
+    """
+    tmpdir = tempfile.mkdtemp()
+
+    download_repo_path = download_repo(branch=branch, path=tmpdir)
+    repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+
+    lines = []
+    ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
+    for ec in ecs:
+        files = find_related_easyconfigs(repo_path, ec['ec'])
+        _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
+        if files:
+            lines.append(multidiff(ec['spec'], files, colored=colored))
+        else:
+            lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+    return '\n'.join(lines)
