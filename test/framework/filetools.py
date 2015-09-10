@@ -377,20 +377,17 @@ class FileToolsTest(EnhancedTestCase):
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
         expected = "7 %(endcol)s-%(endcol)s toolchain = {"
         expected += "'name': '%(endcol)s%(red)sgo%(endcol)sm\x1b[0m%(red)spi%(endcol)s', "
-        expected += "'version': '%(endcol)s%(red)s1.3.12%(endcol)s'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
-        self.assertEqual(lines[7], expected)
+        self.assertTrue(lines[7].startswith(expected))
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added chars in toolchain name/version, in green)
         expected = "7 %(endcol)s+%(endcol)s toolchain = {"
         expected += "'name': '%(endcol)s%(green)sdu%(endcol)sm\x1b[0m%(green)smy%(endcol)s', "
-        expected += "'version': '%(endcol)s%(green)sdummy%(endcol)s'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
-        self.assertEqual(lines[8], expected)
+        self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 %s+ postinstallcmds = [\"echo TOY > %%(installdir)s/README\"]%s" % (green, endcol)
-        expected += " (1/2) toy-0.0-deps.eb"
-        self.assertTrue(expected in lines)
+        expected = "25 %s+ postinstallcmds = " % green
+        self.assertTrue(any([line.startswith(expected) for line in lines]))
         self.assertTrue("26 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
         self.assertEqual(lines[-1], "=====")
 
@@ -403,18 +400,19 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[3], "3 - versionsuffix = '-deps' (1/2) toy-0.0-deps.eb")
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
-        expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
-        self.assertEqual(lines[7], expected)
+        expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy"
+        self.assertTrue(lines[7].startswith(expected))
         expected = "  ?                       ^^ ^^               ^^^^^^"
         self.assertEqual(lines[8], expected)
         # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
-        expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy-0.0-gompi-1.3.12-test.eb"
-        self.assertEqual(lines[9], expected)
+        expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
+        self.assertTrue(lines[9].startswith(expected))
         expected = "  ?                       ^^ ^^               ^^^^^"
         self.assertEqual(lines[10], expected)
 
         # no postinstallcmds in toy-0.0-deps.eb
-        self.assertTrue("25 + postinstallcmds = [\"echo TOY > %(installdir)s/README\"] (1/2) toy-0.0-deps.eb" in lines)
+        expected = "25 + postinstallcmds = "
+        self.assertTrue(any([line.startswith(expected) for line in lines]))
         self.assertTrue("26 + (1/2) toy-0.0-deps.eb" in lines)
 
         self.assertEqual(lines[-1], "=====")
