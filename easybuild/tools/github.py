@@ -233,7 +233,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
     try:
         status, pr_data = pr_url.get()
-    except socket.gaierror, err:
+    except socket.gaierror:
         status, pr_data = 0, None
     _log.debug("status: %d, data: %s" % (status, pr_data))
     if not status == HTTP_STATUS_OK:
@@ -276,7 +276,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     if not sorted(tmp_files) == sorted(all_files):
         raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
 
-    ec_files = [os.path.join(path, fn) for fn in tmp_files]
+    ec_files = [os.path.join(path, fname) for fname in tmp_files]
 
     return ec_files
 
