@@ -520,4 +520,4 @@ def det_terminal_size():
             _log.warning("Second attempt to determine terminal size failed, going to return defaults: %s", err)
             height, width = 25, 80
 
-    return width, height
+    return height, width
