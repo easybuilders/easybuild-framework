@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 
 # initialize EasyBuild logging, so we disable it
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import set_tmpdir
+from easybuild.tools.options import set_tmpdir
 
 # set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
 try:

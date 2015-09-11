@@ -44,12 +44,12 @@ import easybuild.tools.toolchain
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES, get_module_syntax
+from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.options import EasyBuildOptions, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
@@ -68,6 +68,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Set up test."""
         super(CommandLineOptionsTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+
+    def purge_environment(self):
+        """Remove any leftover easybuild variables"""
+        for var in os.environ.keys():
+            if var.startswith('EASYBUILD_'):
+                del os.environ[var]
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -1897,6 +1903,35 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
+
+    def test_set_tmpdir(self):
+        """Test set_tmpdir config function."""
+        self.purge_environment()
+
+        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
+            parent = tmpdir
+            if parent is None:
+                parent = tempfile.gettempdir()
+
+            mytmpdir = set_tmpdir(tmpdir=tmpdir)
+
+            for var in ['TMPDIR', 'TEMP', 'TMP']:
+                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
+                self.assertEqual(os.environ[var], mytmpdir)
+            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
+            tempfile_tmpdir = tempfile.mkdtemp()
+            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
+            fd, tempfile_tmpfile = tempfile.mkstemp()
+            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
+
+            # tmp_logdir follows tmpdir
+            self.assertEqual(get_build_log_path(), mytmpdir)
+
+            # cleanup
+            os.close(fd)
+            shutil.rmtree(mytmpdir)
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
 
 def suite():
