@@ -135,6 +135,8 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
+            'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
+                                 None, 'store_true', False, 'x'),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",
                       None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
