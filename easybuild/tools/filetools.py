@@ -156,20 +156,26 @@ def read_file(path, log_error=True):
 
 def write_file(path, txt, append=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
-    f = None
+
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        print_msg("file written: %s" % path, silent=build_option('silent'), prefix=False)
+        return
+
+    handle = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
         if append:
-            f = open(path, 'a')
+            handle = open(path, 'a')
         else:
-            f = open(path, 'w')
-        f.write(txt)
-        f.close()
+            handle = open(path, 'w')
+        handle.write(txt)
+        handle.close()
     except IOError, err:
         # make sure file handle is always closed
-        if f is not None:
-            f.close()
+        if handle is not None:
+            handle.close()
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 

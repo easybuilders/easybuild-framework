@@ -33,7 +33,8 @@ import os
 from vsc.utils import fancylogger
 from vsc.utils.missing import shell_quote
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
 
 
 # take copy of original environemt, so we can restore (parts of) it later
@@ -79,7 +80,7 @@ def get_changes():
     return _changes
 
 
-def setvar(key, value):
+def setvar(key, value, verbose=True):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
@@ -92,6 +93,9 @@ def setvar(key, value):
     os.environ[key] = value
     _changes[key] = value
     _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
+
+    if verbose and build_option('extended_dry_run'):
+        print_msg("  defined $%s as \"%s\"" % (key, value), silent=build_option('silent'), prefix=False)
 
 
 def unset_env_vars(keys):
@@ -139,7 +143,7 @@ def read_environment(env_vars, strict=False):
     return result
 
 
-def modify_env(old, new):
+def modify_env(old, new, verbose=True):
     """
     Compares 2 os.environ dumps. Adapts final environment.
     """
@@ -151,10 +155,10 @@ def modify_env(old, new):
             ## hmm, smart checking with debug logging
             if not new[key] == old[key]:
                 _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
-                setvar(key, new[key])
+                setvar(key, new[key], verbose=verbose)
         else:
             _log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
-            setvar(key, new[key])
+            setvar(key, new[key], verbose=verbose)
 
     for key in oldKeys:
         if not key in newKeys:
@@ -167,4 +171,4 @@ def restore_env(env):
     """
     Restore active environment based on specified dictionary.
     """
-    modify_env(os.environ, env)
+    modify_env(os.environ, env, verbose=False)

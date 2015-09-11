@@ -964,7 +964,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
     _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
 
     for var in ['TMPDIR', 'TEMP', 'TMP']:
-        env.setvar(var, current_tmpdir)
+        env.setvar(var, current_tmpdir, verbose=False)
 
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None

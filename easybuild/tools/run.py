@@ -43,7 +43,8 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
+from easybuild.tools.build_log import EasyBuildError, print_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -59,8 +60,8 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
-
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
+def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
+            forced=False):
     """
     Executes a command cmd
     - returns exitcode and stdout+stderr (mixed)
@@ -73,6 +74,18 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     - path is the path run_cmd should chdir to before doing anything
     """
     cwd = os.getcwd()
+
+    # early exit in 'dry run' mode, unless running of command is forced
+    if not forced and build_option('extended_dry_run'):
+        if path is None:
+            path = cwd
+        print_msg("running cmd \"%s\" in %s" % (cmd, path), silent=build_option('silent'), prefix=False)
+        if simple:
+            return True
+        else:
+            # output, exit code
+            return ('', 0)
+
     try:
         if path:
             os.chdir(path)
@@ -144,6 +157,18 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     - path is the path run_cmd should chdir to before doing anything
     """
     cwd = os.getcwd()
+
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        if path is None:
+            path = cwd
+        print_msg("running interactive cmd \"%s\" in %s" % (cmd, path), silent=build_option('silent'), prefix=False)
+        if simple:
+            return True
+        else:
+            # output, exit code
+            return ('', 0)
+
     try:
         if path:
             os.chdir(path)

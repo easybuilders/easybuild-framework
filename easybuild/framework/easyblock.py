@@ -42,6 +42,7 @@ import inspect
 import os
 import shutil
 import stat
+import tempfile
 import time
 import traceback
 from distutils.version import LooseVersion
@@ -217,6 +218,9 @@ class EasyBlock(object):
         self.gen_builddir()
         self.gen_installdir()
 
+        if build_option('extended_dry_run'):
+            self.init_dry_run()
+
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
     # INIT/CLOSE LOG
@@ -244,6 +248,20 @@ class EasyBlock(object):
         """
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
+
+    #
+    # INIT UTILITIES
+    #
+    def init_dry_run(self):
+        """Initialise easyblock instance for performing a dry run."""
+
+        # replace build/install dir
+        self.builddir = os.path.join(tempfile.gettempdir(), 'builddir')
+        print_msg("Using fake build directory: %s" % self.builddir, silent=self.silent, prefix=False)
+        self.installdir = os.path.join(tempfile.gettempdir(), 'installdir')
+        print_msg("Using fake install directory: %s" % self.installdir, silent=self.silent, prefix=False)
+
+        print_msg('', silent=self.silent, prefix=False)
 
     #
     # FETCH UTILITY FUNCTIONS
@@ -451,12 +469,24 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None):
+    def obtain_file(self, filename, *args, **kwargs):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
         """
+        if build_option('extended_dry_run'):
+            return self._obtain_file_dry_run(filename, *args, **kwargs)
+        else:
+            return self._obtain_file(filename, *args, **kwargs)
+
+    def _obtain_file_dry_run(self, filename, *args, **kwargs):
+        """Dry run version of obtain_file method."""
+        print_msg("* %s" % filename, silent=self.silent, prefix=False)
+        return filename
+
+    def _obtain_file(self, filename, extension=False, urls=None):
+        """Real version of obtain_file method."""
         srcpaths = source_paths()
 
         # should we download or just try and find it?
@@ -1222,10 +1252,17 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
-    def fetch_step(self, skip_checksums=False):
-        """
-        prepare for building
-        """
+    def fetch_step(self, *args, **kwargs):
+        """Fetch requires files."""
+        if build_option('extended_dry_run'):
+            # skip checking checksums
+            kwargs.update({'skip_checksums': True})
+            print_msg("List of required files:", silent=self.silent, prefix=False)
+
+        return self._fetch_step(*args, **kwargs)
+
+    def _fetch_step(self, skip_checksums=False):
+        """Real version of fetch_step method."""
         # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
@@ -1296,10 +1333,17 @@ class EasyBlock(object):
             else:
                 self.log.info("Checksum verification for %s using %s passed." % (fil['path'], fil['checksum']))
 
-    def extract_step(self):
+    def extract_step(self, *args, **kwargs):
         """
         Unpack the source files.
         """
+        if build_option('extended_dry_run'):
+            print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
+        else:
+            self.extract_step(*args, **kwargs)
+
+    def _extract_step(self):
+        """Real version of extract_step method."""
         for src in self.src:
             self.log.info("Unpacking source %s" % src['name'])
             srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'], extra_options=self.cfg['unpack_options'])
@@ -1347,6 +1391,9 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
+        if build_option('extended_dry_run'):
+            print_msg("Defining build environment...", silent=self.silent, prefix=False)
+
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
 
@@ -1355,6 +1402,11 @@ class EasyBlock(object):
 
         # guess directory to start configure/build/install process in, and move there
         self.guess_start_dir()
+
+        if build_option('extended_dry_run'):
+            print_msg("\nLoaded modules:", silent=self.silent, prefix=False)
+            for i, mod_name in enumerate([m['mod_name'] for m in self.modules_tool.list()]):
+                print_msg("  %d) %s" % (i+1, mod_name), silent=self.silent, prefix=False)
 
     def configure_step(self):
         """Configure build  (abstract method)."""
@@ -1530,12 +1582,19 @@ class EasyBlock(object):
                     raise EasyBuildError("Invalid element in 'postinstallcmds', not a string: %s", cmd)
                 run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
-    def sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
+    def sanity_check_step(self, *args, **kwargs):
         """
         Do a sanity check on the installation
         - if *any* of the files/subdirectories in the installation directory listed
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
+        if build_option('extended_dry_run'):
+            print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
+        else:
+            self._sanity_check_step(*args, **kwargs)
+
+    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
+        """Real version of sanity_check_step method."""
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
             'files': lambda fp: os.path.exists(fp),  # files must exist
@@ -1684,10 +1743,16 @@ class EasyBlock(object):
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
-    def make_module_step(self, fake=False):
+    def make_module_step(self, *args, **kwargs):
         """
-        Generate a module file.
+        Generate module file.
         """
+        if build_option('extended_dry_run'):
+            print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
+        else:
+            return self._make_module_step(*args, **kwargs)
+
+    def _make_module_step(self, fake=False):
         modpath = self.module_generator.prepare(fake=fake)
 
         txt = self.make_module_description()
@@ -1813,7 +1878,11 @@ class EasyBlock(object):
         self.update_config_template_run_step()
         for m in methods:
             self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
-            m(self)
+            if build_option('extended_dry_run'):
+                print_msg("[%s method]" % m(self).__name__, silent=self.silent, prefix=False)
+            m(self)()
+            if build_option('extended_dry_run'):
+                print_msg('', silent=self.silent, prefix=False)
 
         if self.cfg['stop'] == step:
             self.log.info("Stopping after %s step.", step)
@@ -1830,46 +1899,46 @@ class EasyBlock(object):
 
         # list of substeps for steps that are slightly different from 2nd iteration onwards
         ready_substeps = [
-            (False, lambda x: x.check_readiness_step()),
-            (True, lambda x: x.make_builddir()),
-            (True, lambda x: env.reset_changes()),
-            (True, lambda x: x.handle_iterate_opts()),
+            (False, lambda x: x.check_readiness_step),
+            (True, lambda x: x.make_builddir),
+            (True, lambda x: env.reset_changes),
+            (True, lambda x: x.handle_iterate_opts),
         ]
         ready_step_spec = lambda initial: get_step(READY_STEP, "creating build dir, resetting environment",
                                                    ready_substeps, False, initial=initial)
 
         source_substeps = [
-            (False, lambda x: x.checksum_step()),
-            (True, lambda x: x.extract_step()),
+            (False, lambda x: x.checksum_step),
+            (True, lambda x: x.extract_step),
         ]
         source_step_spec = lambda initial: get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
 
         def prepare_step_spec(initial):
             """Return prepare step specification."""
             if initial:
-                substeps = [lambda x: x.prepare_step()]
+                substeps = [lambda x: x.prepare_step]
             else:
-                substeps = [lambda x: x.guess_start_dir()]
+                substeps = [lambda x: x.guess_start_dir]
             return (PREPARE_STEP, 'preparing', substeps, False)
 
         install_substeps = [
-            (False, lambda x: x.stage_install_step()),
-            (False, lambda x: x.make_installdir()),
-            (True, lambda x: x.install_step()),
+            (False, lambda x: x.stage_install_step),
+            (False, lambda x: x.make_installdir),
+            (True, lambda x: x.install_step),
         ]
         install_step_spec = lambda initial: get_step('install', "installing", install_substeps, True, initial=initial)
 
         # format for step specifications: (stop_name: (description, list of functions, skippable))
 
         # core steps that are part of the iterated loop
-        patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step()], True)
-        configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step()], True)
-        build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step()], True)
-        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step()], True)
+        patch_step_spec = (PATCH_STEP, 'patching', [lambda x: x.patch_step], True)
+        configure_step_spec = (CONFIGURE_STEP, 'configuring', [lambda x: x.configure_step], True)
+        build_step_spec = (BUILD_STEP, 'building', [lambda x: x.build_step], True)
+        test_step_spec = (TEST_STEP, 'testing', [lambda x: x.test_step], True)
 
         # part 1: pre-iteration + first iteration
         steps_part1 = [
-            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step()], False),
+            (FETCH_STEP, 'fetching files', [lambda x: x.fetch_step], False),
             ready_step_spec(True),
             source_step_spec(True),
             patch_step_spec,
@@ -1894,13 +1963,13 @@ class EasyBlock(object):
         ] * (iteration_count - 1)
         # part 3: post-iteration part
         steps_part3 = [
-            (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step()], False),
-            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step()], True),
-            (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step()], False),
-            (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step()], False),
-            (MODULE_STEP, 'creating module', [lambda x: x.make_module_step()], False),
-            (PERMISSIONS_STEP, 'permissions', [lambda x: x.permissions_step()], False),
-            (PACKAGE_STEP, 'packaging', [lambda x: x.package_step()], False),
+            (EXTENSIONS_STEP, 'taking care of extensions', [lambda x: x.extensions_step], False),
+            (POSTPROC_STEP, 'postprocessing', [lambda x: x.post_install_step], True),
+            (SANITYCHECK_STEP, 'sanity checking', [lambda x: x.sanity_check_step], False),
+            (CLEANUP_STEP, 'cleaning up', [lambda x: x.cleanup_step], False),
+            (MODULE_STEP, 'creating module', [lambda x: x.make_module_step], False),
+            (PERMISSIONS_STEP, 'permissions', [lambda x: x.permissions_step], False),
+            (PACKAGE_STEP, 'packaging', [lambda x: x.package_step], False),
         ]
 
         # full list of steps, included iterated steps
@@ -1908,8 +1977,8 @@ class EasyBlock(object):
 
         if run_test_cases:
             steps.append((TESTCASES_STEP, 'running test cases', [
-                lambda x: x.load_module(),
-                lambda x: x.test_cases_step(),
+                lambda x: x.load_module,
+                lambda x: x.test_cases_step,
             ], False))
 
         return steps
@@ -1924,13 +1993,15 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        print_msg("building and installing %s..." % self.full_mod_name, self.log, silent=self.silent)
+        print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
         try:
             for (step_name, descr, step_methods, skippable) in steps:
                 if self._skip_step(step_name, skippable):
-                    print_msg("%s [skipped]" % descr, self.log, silent=self.silent)
+                    print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
-                    print_msg("%s..." % descr, self.log, silent=self.silent)
+                    print_msg("%s..." % descr, log=self.log, silent=self.silent)
+                    if build_option('extended_dry_run'):
+                        print_msg('', silent=self.silent, prefix=False)
                     self.run_step(step_name, step_methods)
 
         except StopException:
@@ -1952,6 +2023,8 @@ def build_and_install_one(ecdict, init_env):
     rawtxt = ecdict['ec'].rawtxt
     name = ecdict['ec']['name']
 
+    if build_option('extended_dry_run'):
+        print_msg('', silent=silent, prefix=False)
     print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
     # restore original environment
@@ -1968,6 +2041,10 @@ def build_and_install_one(ecdict, init_env):
 
     try:
         app_class = get_easyblock_class(easyblock, name=name)
+
+        if build_option('extended_dry_run'):
+            print_msg("\n*** DRY RUN using '%s' easyblock ***" % app_class.__name__, silent=silent, prefix=False)
+
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
@@ -1997,17 +2074,20 @@ def build_and_install_one(ecdict, init_env):
         errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
         _log.warning(errormsg)
         result = False
+    app.close_log()
 
-    ended = "ended"
+    ended = 'ended'
 
     # make sure we're back in original directory before we finish up
     os.chdir(cwd)
 
-    # successful build
-    if result:
+    application_log = None
+
+    # successful (non-dry-run) build
+    if result and not build_option('extended_dry_run'):
 
         if app.cfg['stop']:
-            ended = "STOPPED"
+            ended = 'STOPPED'
             if app.builddir is not None:
                 new_log_dir = os.path.join(app.builddir, config.log_path())
             else:
@@ -2037,12 +2117,7 @@ def build_and_install_one(ecdict, init_env):
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        success = True
-        succ = "successfully"
-        summary = "COMPLETED"
-
         # cleanup logs
-        app.close_log()
         log_fn = os.path.basename(get_log_filename(app.name, app.version))
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
@@ -2062,10 +2137,14 @@ def build_and_install_one(ecdict, init_env):
             # take away user write permissions (again)
             adjust_permissions(new_log_dir, stat.S_IWUSR, add=False, recursive=False)
 
-    # build failed
+    if result:
+        success = True
+        summary = 'COMPLETED'
+        succ = 'successfully'
     else:
+        # build failed
         success = False
-        summary = "FAILED"
+        summary = 'FAILED'
 
         build_dir = ''
         if app.builddir:
@@ -2085,9 +2164,10 @@ def build_and_install_one(ecdict, init_env):
                   _log, silent=silent)
 
     if app.postmsg:
-        print_msg("\nWARNING: %s\n" % app.postmsg, _log, silent=silent)
+        print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
 
-    print_msg("Results of the build can be found in the log file %s" % application_log, _log, silent=silent)
+    if application_log:
+        print_msg("Results of the build can be found in the log file %s" % application_log, log=_log, silent=silent)
 
     del app
 
