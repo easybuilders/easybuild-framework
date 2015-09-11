@@ -777,6 +777,11 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        print_msg("Perl script patched: %s" % path, silent=build_option('silent'), prefix=False)
+        return
+
     txt = read_file(path)
     origpath = "%s.eb.orig" % path
     write_file(origpath, txt)
