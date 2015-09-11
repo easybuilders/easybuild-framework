@@ -1892,8 +1892,8 @@ class EasyBlock(object):
                 # if an known possible error occurs, just report it and continue
                 try:
                     m(self)()
-                except EasyBuildError as err:
-                    print_msg("ignoring error: %s" % err, silent=self.silent, prefix=False)
+                except Exception as err:
+                    print_msg("WARNING: ignoring error: %s" % err, silent=self.silent, prefix=False)
 
                 print_msg('', silent=self.silent, prefix=False)
 
