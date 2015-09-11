@@ -35,11 +35,13 @@ Set of file tools.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Sotiris Fragkiskos (NTUA, CERN)
 """
+import fileinput
 import glob
 import os
 import re
 import shutil
 import stat
+import sys
 import time
 import urllib2
 import zlib
@@ -673,6 +675,17 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         return
 
     return result
+
+
+def apply_regex_substitutions(path, regex_subs):
+    """Apply specified list of regex substitutions."""
+    for i, (regex, subtxt) in enumerate(regex_subs):
+        regex_subs[i] = (re.compile(regex), subtxt)
+
+    for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+        for regex, subtxt in regex_subs:
+            line = regex.sub(subtxt, line)
+            sys.stdout.write(line)
 
 
 def modify_env(old, new):
