@@ -1884,11 +1884,21 @@ class EasyBlock(object):
         self.update_config_template_run_step()
         for m in methods:
             self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
+
             if build_option('extended_dry_run'):
+
                 print_msg("[%s method]" % m(self).__name__, silent=self.silent, prefix=False)
-            m(self)()
-            if build_option('extended_dry_run'):
+
+                # if an known possible error occurs, just report it and continue
+                try:
+                    m(self)()
+                except EasyBuildError as err:
+                    print_msg("ignoring error: %s" % err, silent=self.silent, prefix=False)
+
                 print_msg('', silent=self.silent, prefix=False)
+
+            else:
+                m(self)()
 
         if self.cfg['stop'] == step:
             self.log.info("Stopping after %s step.", step)
