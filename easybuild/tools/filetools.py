@@ -679,6 +679,12 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
 def apply_regex_substitutions(path, regex_subs):
     """Apply specified list of regex substitutions."""
+
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        print_msg("patching file %s" % path, silent=build_option('silent'), prefix=False)
+        return
+
     for i, (regex, subtxt) in enumerate(regex_subs):
         regex_subs[i] = (re.compile(regex), subtxt)
 
