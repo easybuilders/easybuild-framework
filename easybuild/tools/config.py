@@ -329,9 +329,9 @@ def init_build_options(build_options=None, cmdline_options=None):
     return BuildOptions(bo)
 
 
-def build_option(key):
+def build_option(key, default=None):
     """Obtain value specified build option."""
-    return BuildOptions()[key]
+    return BuildOptions().get(key, default)
 
 
 def build_path():
