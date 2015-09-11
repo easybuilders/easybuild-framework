@@ -482,7 +482,7 @@ class EasyBlock(object):
 
     def _obtain_file_dry_run(self, filename, *args, **kwargs):
         """Dry run version of obtain_file method."""
-        print_msg("* %s" % filename, silent=self.silent, prefix=False)
+        print_msg("  * %s" % filename, silent=self.silent, prefix=False)
         return filename
 
     def _obtain_file(self, filename, extension=False, urls=None):
@@ -1340,7 +1340,7 @@ class EasyBlock(object):
         if build_option('extended_dry_run'):
             print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
         else:
-            self.extract_step(*args, **kwargs)
+            self._extract_step(*args, **kwargs)
 
     def _extract_step(self):
         """Real version of extract_step method."""
