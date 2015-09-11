@@ -193,7 +193,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
     """
-    if not os.path.isfile(fn):
+    if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
 
     mkdir(dest, parents=True)

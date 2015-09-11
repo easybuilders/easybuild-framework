@@ -1333,17 +1333,10 @@ class EasyBlock(object):
             else:
                 self.log.info("Checksum verification for %s using %s passed." % (fil['path'], fil['checksum']))
 
-    def extract_step(self, *args, **kwargs):
+    def extract_step(self):
         """
         Unpack the source files.
         """
-        if build_option('extended_dry_run'):
-            print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
-        else:
-            self._extract_step(*args, **kwargs)
-
-    def _extract_step(self):
-        """Real version of extract_step method."""
         for src in self.src:
             self.log.info("Unpacking source %s" % src['name'])
             srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'], extra_options=self.cfg['unpack_options'])
