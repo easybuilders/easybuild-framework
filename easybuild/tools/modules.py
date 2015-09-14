@@ -44,7 +44,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
@@ -409,6 +409,8 @@ class ModulesTool(object):
 
         for mod in modules:
             self.run_module('load', mod)
+            if build_option('extended_dry_run'):
+                print_msg("  module load %s" % mod, silent=build_option('silent'), prefix=False)
 
     def unload(self, modules=None):
         """

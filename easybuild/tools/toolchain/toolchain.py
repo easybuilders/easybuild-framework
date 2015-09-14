@@ -525,7 +525,7 @@ class Toolchain(object):
         elif isinstance(donotset, list):
             donotsetlist = donotset
 
-        for key, val in self.vars.items():
+        for key, val in sorted(self.vars.items()):
             if key in donotsetlist:
                 self.log.debug("_setenv_variables: not setting environment variable %s (value: %s)." % (key, val))
                 continue
@@ -537,7 +537,7 @@ class Toolchain(object):
             # - so you can have 'CFLAGS = $(EBVARCFLAGS)'
             # -- 'CLFLAGS = $(CFLAGS)' gives  '*** Recursive variable `CFLAGS'
             # references itself (eventually).  Stop' error
-            setvar("EBVAR%s" % key, val)
+            setvar("EBVAR%s" % key, val, verbose=False)
 
     def get_flag(self, name):
         """Get compiler flag for a certain option."""

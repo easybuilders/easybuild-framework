@@ -95,7 +95,10 @@ def setvar(key, value, verbose=True):
     _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
     if verbose and build_option('extended_dry_run'):
-        print_msg("  defined $%s as \"%s\"" % (key, value), silent=build_option('silent'), prefix=False)
+        quoted_value = shell_quote(value)
+        if quoted_value[0] not in ['"', "'"]:
+            quoted_value = '"%s"' % quoted_value
+        print_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'), prefix=False)
 
 
 def unset_env_vars(keys):

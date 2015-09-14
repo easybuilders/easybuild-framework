@@ -1398,7 +1398,7 @@ class EasyBlock(object):
         Pre-configure step. Set's up the builddir just before starting configure
         """
         if build_option('extended_dry_run'):
-            print_msg("Defining build environment...", silent=self.silent, prefix=False)
+            print_msg("Defining build environment...\n", silent=self.silent, prefix=False)
 
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
@@ -1410,7 +1410,7 @@ class EasyBlock(object):
         self.guess_start_dir()
 
         if build_option('extended_dry_run'):
-            print_msg("\nLoaded modules:", silent=self.silent, prefix=False)
+            print_msg("\nFull list of loaded modules:", silent=self.silent, prefix=False)
             for i, mod_name in enumerate([m['mod_name'] for m in self.modules_tool.list()]):
                 print_msg("  %d) %s" % (i+1, mod_name), silent=self.silent, prefix=False)
 
@@ -1893,7 +1893,7 @@ class EasyBlock(object):
                 try:
                     m(self)()
                 except Exception as err:
-                    print_msg("WARNING: ignoring error: %s" % err, silent=self.silent, prefix=False)
+                    print_msg("!!! WARNING !!! ignoring error: %s" % err, silent=self.silent, prefix=False)
 
                 print_msg('', silent=self.silent, prefix=False)
 
