@@ -1091,7 +1091,20 @@ class ActiveMNS(object):
             - string representing module name has length > 0
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
+        ec = self.check_ec_type(ec)
+
+        # replace software name with desired replacement (if specified)
+        orig_name = None
+        if ec.get('modname', None):
+            orig_name = ec['name']
+            ec['name'] = ec['modname']
+            self.log.info("Replaced software name '%s' with '%s' when determining module name", orig_name, ec['name'])
+
         mod_name = mns_method(self.check_ec_type(ec))
+
+        # restore original software name if it was tampered with
+        if orig_name is not None:
+            ec['name'] = orig_name
 
         if not is_valid_module_name(mod_name):
             raise EasyBuildError("%s is not a valid module name", str(mod_name))
@@ -1134,7 +1147,7 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        if not self.is_short_modname_for(mod_name, ec['name']):
+        if not self.is_short_modname_for(mod_name, ec.get('modname', None) or ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
         return mod_name
