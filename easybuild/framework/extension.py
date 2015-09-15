@@ -61,7 +61,7 @@ class Extension(object):
         self.patches = self.ext.get('patches', None)
         self.options = copy.deepcopy(self.ext.get('options', {}))
 
-        self.toolchain.prepare(self.cfg['onlytcmod'])
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=True)
 
         self.sanity_check_fail_msgs = []
 

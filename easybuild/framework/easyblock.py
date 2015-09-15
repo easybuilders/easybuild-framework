@@ -1814,7 +1814,7 @@ class EasyBlock(object):
 
         mod_filepath = self.module_generator.get_module_filepath(fake=fake)
 
-        if build_option('extended_dry_run'):
+        if build_option('extended_dry_run') and not fake:
             print_msg("Generating module file %s, with contents:\n" % mod_filepath, silent=self.silent, prefix=False)
             for line in txt.split('\n'):
                 print_msg(' ' * 4 + line, silent=self.silent, prefix=False)

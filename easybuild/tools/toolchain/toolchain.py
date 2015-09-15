@@ -391,18 +391,18 @@ class Toolchain(object):
             if version is not None:
                 setvar(get_software_version_env_var_name(name), version)
 
-    def _prepare_dependencies(self):
+    def _prepare_dependencies(self, silent=False):
         """Load modules for dependencies, and handle special cases like external modules."""
         # load modules for all dependencies
         dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
         self.log.debug("Loading modules for dependencies: %s" % dep_mods)
-        self.modules_tool.load(dep_mods)
+        self.modules_tool.load(dep_mods, silent=silent)
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
         for dep in [d for d in self.dependencies if d['external_module']]:
             self._prepare_dependency_external_module(dep)
 
-    def prepare(self, onlymod=None):
+    def prepare(self, onlymod=None, silent=False):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -433,7 +433,7 @@ class Toolchain(object):
             mod_path_suffix = build_option('suffix_modules_path')
             for modpath in self.init_modpaths:
                 self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
-        self.modules_tool.load([self.det_short_module_name()])
+        self.modules_tool.load([self.det_short_module_name()], silent=silent)
         self._prepare_dependencies()
 
         # determine direct toolchain dependencies
@@ -475,7 +475,7 @@ class Toolchain(object):
             # add LDFLAGS and CPPFLAGS from dependencies to self.vars
             self._add_dependency_variables()
             self.generate_vars()
-            self._setenv_variables(onlymod)
+            self._setenv_variables(onlymod, verbose=not silent)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
@@ -514,7 +514,7 @@ class Toolchain(object):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
-    def _setenv_variables(self, donotset=None):
+    def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
         self.log.debug("_setenv_variables: setting variables: donotset=%s" % donotset)
 
@@ -531,7 +531,7 @@ class Toolchain(object):
                 continue
 
             self.log.debug("_setenv_variables: setting environment variable %s to %s" % (key, val))
-            setvar(key, val)
+            setvar(key, val, verbose=verbose)
 
             # also set unique named variables that can be used in Makefiles
             # - so you can have 'CFLAGS = $(EBVARCFLAGS)'

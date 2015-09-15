@@ -381,7 +381,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, silent=False):
         """
         Load all requested modules.
 
@@ -410,7 +410,7 @@ class ModulesTool(object):
         for mod in modules:
             self.run_module('load', mod)
             if build_option('extended_dry_run'):
-                print_msg("  module load %s" % mod, silent=build_option('silent'), prefix=False)
+                print_msg("  module load %s" % mod, silent=build_option('silent') or silent, prefix=False)
 
     def unload(self, modules=None):
         """
