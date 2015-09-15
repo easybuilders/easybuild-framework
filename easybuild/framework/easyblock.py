@@ -2068,6 +2068,19 @@ class EasyBlock(object):
         return True
 
 
+def print_dry_run_warning(loc):
+    """Print dry run warning."""
+    msg = '\n'.join([
+        '',
+        "Important note: the actual build & install procedure that will be performed may diverge",
+        "(slightly) from what is outlined %s, due to conditions in the easyblock which are" % loc,
+        "incorrectly handled in a dry run.",
+        "Any errors that may occur are ignored and reported as warnings, on a per-step basis.",
+        "Please be aware of this, and only use the information %s for quick debugging purposes." % loc,
+        '',
+    ])
+    print_msg(msg, silent=build_option('silent'), prefix=False)
+
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
@@ -2101,6 +2114,7 @@ def build_and_install_one(ecdict, init_env):
 
         if build_option('extended_dry_run'):
             print_msg("\n*** DRY RUN using '%s' easyblock ***" % app_class.__name__, silent=silent, prefix=False)
+            print_dry_run_warning('below')
 
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
@@ -2222,6 +2236,9 @@ def build_and_install_one(ecdict, init_env):
 
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
+
+    if build_option('extended_dry_run'):
+        print_dry_run_warning('above')
 
     if app.ignored_errors:
         msg = "\n!!! WARNING !!! One or more errors were ignored, see warnings above\n"
