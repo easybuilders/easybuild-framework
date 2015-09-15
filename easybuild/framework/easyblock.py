@@ -1736,11 +1736,11 @@ class EasyBlock(object):
 
             out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False)
             if ec != 0:
-                fail_msg = "sanity check command %s exited with code %s (output: %s)" % (cmd, ec, out)
+                fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
                 self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
-                self.log.debug("sanity check command %s ran successfully! (output: %s)" % (cmd, out))
+                self.log.debug("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
