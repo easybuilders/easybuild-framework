@@ -218,6 +218,7 @@ class EasyBlock(object):
         self.gen_builddir()
         self.gen_installdir()
 
+        self.ignored_errors = False
         if build_option('extended_dry_run'):
             self.init_dry_run()
 
@@ -1933,6 +1934,7 @@ class EasyBlock(object):
                     m(self)()
                 except Exception as err:
                     print_msg("!!! WARNING !!! ignoring error: %s" % err, silent=self.silent, prefix=False)
+                    self.ignored_errors = True
 
                 print_msg('', silent=self.silent, prefix=False)
 
@@ -2220,6 +2222,10 @@ def build_and_install_one(ecdict, init_env):
 
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
+
+    if app.ignored_errors:
+        msg = "\n!!! WARNING !!! One or more errors were ignored, see warnings above\n"
+        print_msg(msg, silent=silent, prefix=False)
 
     if application_log:
         print_msg("Results of the build can be found in the log file %s" % application_log, log=_log, silent=silent)
