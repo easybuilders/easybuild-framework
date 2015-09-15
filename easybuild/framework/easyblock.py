@@ -1398,7 +1398,8 @@ class EasyBlock(object):
         Pre-configure step. Set's up the builddir just before starting configure
         """
         if build_option('extended_dry_run'):
-            print_msg("Defining build environment...\n", silent=self.silent, prefix=False)
+            msg = "Defining build environment, based on toolchain (options) and specified dependencies...\n"
+            print_msg(msg, silent=self.silent, prefix=False)
 
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
@@ -1595,17 +1596,19 @@ class EasyBlock(object):
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
         if build_option('extended_dry_run'):
-            print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
+            self._sanity_check_step_dry_run(*args, **kwargs)
         else:
             self._sanity_check_step(*args, **kwargs)
 
-    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
+    def _sanity_check_step_common(self, custom_paths, custom_commands):
         """Real version of sanity_check_step method."""
+
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
             'files': lambda fp: os.path.exists(fp),  # files must exist
             'dirs': lambda dp: os.path.isdir(dp) and os.listdir(dp),  # directories must exist and be non-empty
         }
+
         # prepare sanity check paths
         paths = self.cfg['sanity_check_paths']
         if not paths:
@@ -1621,7 +1624,6 @@ class EasyBlock(object):
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
 
-        # check sanity check paths
         ks = sorted(paths.keys())
         valnottypes = [not isinstance(x, list) for x in paths.values()]
         lenvals = [len(x) for x in paths.values()]
@@ -1630,7 +1632,68 @@ class EasyBlock(object):
             raise EasyBuildError("Incorrect format for sanity_check_paths (should (only) have %s keys, "
                                  "values should be lists (at least one non-empty)).", ','.join(req_keys))
 
+        commands = self.cfg['sanity_check_commands']
+        if not commands:
+            if custom_commands:
+                commands = custom_commands
+                self.log.info("Using customised sanity check commands: %s" % commands)
+            else:
+                commands = []
+                self.log.info("Using specified sanity check commands: %s" % commands)
+
+        for i, command in enumerate(commands):
+            # set command to default. This allows for config files with
+            # non-tuple commands
+            if not isinstance(command, tuple):
+                self.log.debug("Setting sanity check command to default")
+                command = (None, None)
+
+            # Build substition dictionary
+            check_cmd = {'name': self.name.lower(), 'options': '-h'}
+
+            if command[0] is not None:
+                check_cmd['name'] = command[0]
+
+            if command[1] is not None:
+                check_cmd['options'] = command[1]
+
+            commands[i] = "%(name)s %(options)s" % check_cmd
+
+        return paths, path_keys_and_check, commands
+
+    def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, extension=False):
+        """Dry run version of sanity_check_step method."""
+
+        paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
+
+        for key in path_keys_and_check:
+            print_msg("Sanity check paths - %s" % key, silent=self.silent, prefix=False)
+            if paths[key]:
+                for path in sorted(paths[key]):
+                    print_msg("  * %s" % path, silent=self.silent, prefix=False)
+            else:
+                print_msg("  (none)", silent=self.silent, prefix=False)
+
+        print_msg("Sanity check commands", silent=self.silent, prefix=False)
+        if commands:
+            for command in sorted(commands):
+                print_msg("  * %s" % command, silent=self.silent, prefix=False)
+        else:
+            print_msg("  (none)", silent=self.silent, prefix=False)
+
+    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
+        """Real version of sanity_check_step method."""
+
+        paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
+
+        # check sanity check paths
         for key, check_fn in path_keys_and_check.items():
+            if key == 'dirs':
+                typ = "(non-empty) directory"
+            elif key == 'files':
+                typ = 'file'
+            else:
+                raise EasyBuildError("Unknown type of sanity check paths: %s", typ)
             for xs in paths[key]:
                 if isinstance(xs, basestring):
                     xs = (xs,)
@@ -1640,14 +1703,14 @@ class EasyBlock(object):
                 found = False
                 for name in xs:
                     path = os.path.join(self.installdir, name)
-                    if os.path.exists(path):
-                        self.log.debug("Sanity check: found %s %s in %s" % (key[:-1], name, self.installdir))
+                    if check_fn(path):
+                        self.log.debug("Sanity check: found %s %s in %s" % (typ, name, self.installdir))
                         found = True
                         break
                     else:
-                        self.log.debug("Could not find %s %s in %s" % (key[:-1], name, self.installdir))
+                        self.log.debug("Could not find %s %s in %s" % (typ, name, self.installdir))
                 if not found:
-                    self.sanity_check_fail_msgs.append("no %s of %s in %s" % (key[:-1], xs, self.installdir))
+                    self.sanity_check_fail_msgs.append("no %s of %s in %s" % (typ, xs, self.installdir))
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         fake_mod_data = None
@@ -1668,36 +1731,12 @@ class EasyBlock(object):
                 raise EasyBuildError("Failed to move to installdir %s: %s", self.installdir, err)
 
         # run sanity check commands
-        commands = self.cfg['sanity_check_commands']
-        if not commands:
-            if custom_commands:
-                commands = custom_commands
-                self.log.info("Using customised sanity check commands: %s" % commands)
-            else:
-                commands = []
-                self.log.info("Using specified sanity check commands: %s" % commands)
-
         for command in commands:
-            # set command to default. This allows for config files with
-            # non-tuple commands
-            if not isinstance(command, tuple):
-                self.log.debug("Setting sanity check command to default")
-                command = (None, None)
 
-            # Build substition dictionary
-            check_cmd = {'name': self.name.lower(), 'options': '-h'}
-
-            if command[0] is not None:
-                check_cmd['name'] = command[0]
-
-            if command[1] is not None:
-                check_cmd['options'] = command[1]
-
-            cmd = "%(name)s %(options)s" % check_cmd
-
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False)
             if ec != 0:
-                self.sanity_check_fail_msgs.append("sanity check command %s exited with code %s (output: %s)" % (cmd, ec, out))
+                fail_msg = "sanity check command %s exited with code %s (output: %s)" % (cmd, ec, out)
+                self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
                 self.log.debug("sanity check command %s ran successfully! (output: %s)" % (cmd, out))
