@@ -1274,7 +1274,7 @@ class EasyBlock(object):
 
         if build_option('extended_dry_run'):
 
-            print_msg("Available download URLs for missing sources/patches:", silent=self.silent, prefix=False)
+            print_msg("Available download URLs for sources/patches:", silent=self.silent, prefix=False)
             if self.cfg['source_urls']:
                 for source_url in self.cfg['source_urls']:
                     print_msg("  * %s/$source" % source_url, silent=self.silent, prefix=False)
