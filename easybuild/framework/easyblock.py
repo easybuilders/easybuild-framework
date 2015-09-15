@@ -1789,16 +1789,8 @@ class EasyBlock(object):
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
-    def make_module_step(self, *args, **kwargs):
-        """
-        Generate module file.
-        """
-        if build_option('extended_dry_run'):
-            print_msg("(skipped in dry run)", silent=self.silent, prefix=False)
-        else:
-            return self._make_module_step(*args, **kwargs)
-
-    def _make_module_step(self, fake=False):
+    def make_module_step(self, fake=False):
+        """Real version of make_module_step."""
         modpath = self.module_generator.prepare(fake=fake)
 
         txt = self.make_module_description()
@@ -1809,19 +1801,26 @@ class EasyBlock(object):
         txt += self.make_module_footer()
 
         mod_filepath = self.module_generator.get_module_filepath(fake=fake)
-        write_file(mod_filepath, txt)
 
-        self.log.info("Module file %s written: %s", mod_filepath, txt)
+        if build_option('extended_dry_run'):
+            print_msg("Generating module file %s, with contents:\n" % mod_filepath, silent=self.silent, prefix=False)
+            for line in txt.split('\n'):
+                print_msg(' ' * 4 + line, silent=self.silent, prefix=False)
 
-         # only update after generating final module file
-        if not fake:
-            self.modules_tool.update()
+        else:
+            write_file(mod_filepath, txt)
 
-        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
+            self.log.info("Module file %s written: %s", mod_filepath, txt)
 
-        if not fake:
-            self.make_devel_module()
+             # only update after generating final module file
+            if not fake:
+                self.modules_tool.update()
+
+            mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+            self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
+
+            if not fake:
+                self.make_devel_module()
 
         return modpath
 
