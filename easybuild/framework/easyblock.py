@@ -390,6 +390,10 @@ class EasyBlock(object):
         self.cfg.enable_templating = False
         exts_list = self.cfg['exts_list']
         self.cfg.enable_templating = True
+
+        if build_option('extended_dry_run'):
+            print_msg("\nList of sources/patches for extensions:", silent=self.silent, prefix=False)
+
         for ext in exts_list:
             if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
 
@@ -470,23 +474,7 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, *args, **kwargs):
-        """
-        Locate the file with the given name
-        - searches in different subdirectories of source path
-        - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
-        """
-        if build_option('extended_dry_run'):
-            return self._obtain_file_dry_run(filename, *args, **kwargs)
-        else:
-            return self._obtain_file(filename, *args, **kwargs)
-
-    def _obtain_file_dry_run(self, filename, *args, **kwargs):
-        """Dry run version of obtain_file method."""
-        print_msg("  * %s" % filename, silent=self.silent, prefix=False)
-        return filename
-
-    def _obtain_file(self, filename, extension=False, urls=None):
+    def obtain_file(self, filename, extension=False, urls=None):
         """Real version of obtain_file method."""
         srcpaths = source_paths()
 
@@ -573,6 +561,8 @@ class EasyBlock(object):
                     break  # no need to try other source paths
 
             if foundfile:
+                if build_option('extended_dry_run'):
+                    print_msg("  * %s found at %s" % (filename, foundfile), silent=self.silent, prefix=False)
                 return foundfile
             else:
                 # try and download source files from specified source URLs
@@ -605,16 +595,24 @@ class EasyBlock(object):
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
                         continue
 
-                    self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
-                    downloaded = False
-                    try:
-                        if download_file(filename, fullurl, targetpath):
-                            downloaded = True
+                    if build_option('extended_dry_run'):
+                        print_msg("  * %s downloaded to %s" % (filename, targetpath), silent=self.silent, prefix=False)
+                        if extension and urls:
+                            # extensions typically have custom source URLs specified, only mention first
+                            print_msg("    (from %s, ...)" % fullurl, silent=self.silent, prefix=False)
+                        downloaded = True
 
-                    except IOError, err:
-                        self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
-                        failedpaths.append(fullurl)
-                        continue
+                    else:
+                        self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
+                        downloaded = False
+                        try:
+                            if download_file(filename, fullurl, targetpath):
+                                downloaded = True
+
+                        except IOError, err:
+                            self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
+                            failedpaths.append(fullurl)
+                            continue
 
                     if downloaded:
                         # if fetching from source URL worked, we're done
@@ -1253,16 +1251,7 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
-    def fetch_step(self, *args, **kwargs):
-        """Fetch requires files."""
-        if build_option('extended_dry_run'):
-            # skip checking checksums
-            kwargs.update({'skip_checksums': True})
-            print_msg("List of required files:", silent=self.silent, prefix=False)
-
-        return self._fetch_step(*args, **kwargs)
-
-    def _fetch_step(self, skip_checksums=False):
+    def fetch_step(self, skip_checksums=False):
         """Real version of fetch_step method."""
         # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
@@ -1277,15 +1266,27 @@ class EasyBlock(object):
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        if build_option('extended_dry_run'):
+
+            print_msg("Available download URLs for missing sources/patches:", silent=self.silent, prefix=False)
+            if self.cfg['source_urls']:
+                for source_url in self.cfg['source_urls']:
+                    print_msg("  * %s/$source" % source_url, silent=self.silent, prefix=False)
+            else:
+                print_msg('(none)', silent=self.silent, prefix=False)
+
+            # actual list of sources is printed via _obtain_file_dry_run method
+            print_msg("\nList of sources:", silent=self.silent, prefix=False)
+
         # fetch sources
         if self.cfg['sources']:
             self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
         else:
             self.log.info('no sources provided')
 
-        # fetch extensions
-        if len(self.cfg['exts_list']) > 0:
-            self.exts = self.fetch_extension_sources()
+        if build_option('extended_dry_run'):
+            # actual list of patches is printed via _obtain_file_dry_run method
+            print_msg("\nList of patches:", silent=self.silent, prefix=False)
 
         # fetch patches
         if self.cfg['patches']:
@@ -1297,13 +1298,18 @@ class EasyBlock(object):
             self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
+            print_msg('(none)', silent=self.silent, prefix=False)
 
         # compute checksums for all source and patch files
-        if not skip_checksums:
+        if not (skip_checksums or build_option('extended_dry_run')):
             for fil in self.src + self.patches:
                 check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
                 fil[DEFAULT_CHECKSUM] = check_sum
                 self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
+
+        # fetch extensions
+        if len(self.cfg['exts_list']) > 0:
+            self.exts = self.fetch_extension_sources()
 
         # set level of parallelism for build
         self.cfg['parallel'] = det_parallelism(self.cfg['parallel'], self.cfg['maxparallel'])
