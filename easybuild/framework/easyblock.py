@@ -2056,9 +2056,11 @@ class EasyBlock(object):
                 if self._skip_step(step_name, skippable):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
-                    print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     if build_option('extended_dry_run'):
+                        print_msg("%s... [DRY RUN]" % descr, log=self.log, silent=self.silent)
                         print_msg('', silent=self.silent, prefix=False)
+                    else:
+                        print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.run_step(step_name, step_methods)
 
         except StopException:
