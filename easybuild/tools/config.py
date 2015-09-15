@@ -43,7 +43,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 
 
@@ -378,6 +378,10 @@ def install_path(typ=None):
         _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
     else:
         _log.debug("%s install path as specified by '%s': %s", typ, key, res)
+
+    if build_option('extended_dry_run'):
+        res = os.path.join(tempfile.gettempdir(), '__ROOT__', res.lstrip(os.path.sep))
+        _log.debug("Using fake %s install directory: %s", typ, res)
 
     return res
 

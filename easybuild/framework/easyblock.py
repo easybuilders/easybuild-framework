@@ -198,11 +198,11 @@ class EasyBlock(object):
         # keep track of initial environment we start in, so we can restore it if needed
         self.initial_environ = copy.deepcopy(os.environ)
 
-        # initialize logger
-        self._init_log()
-
         # should we keep quiet?
         self.silent = build_option('silent')
+
+        # initialize logger
+        self._init_log()
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -240,8 +240,13 @@ class EasyBlock(object):
         self.log.info(this_is_easybuild())
 
         this_module = inspect.getmodule(self)
-        self.log.info("This is easyblock %s from module %s (%s)",
-                      self.__class__.__name__, this_module.__name__, this_module.__file__)
+        eb_class = self.__class__.__name__
+        eb_loc = this_module.__file__
+        self.log.info("This is easyblock %s from module %s (%s)", eb_class, this_module.__name__, eb_loc)
+
+        if build_option('extended_dry_run'):
+            print_msg("*** DRY RUN using '%s' easyblock (from %s) ***\n" % (eb_class, eb_loc),
+                      silent=self.silent, prefix=False)
 
     def close_log(self):
         """
@@ -257,11 +262,12 @@ class EasyBlock(object):
         """Initialise easyblock instance for performing a dry run."""
 
         # replace build/install dir
-        self.builddir = os.path.join(tempfile.gettempdir(), 'builddir')
-        print_msg("Using fake build directory: %s" % self.builddir, silent=self.silent, prefix=False)
-        self.installdir = os.path.join(tempfile.gettempdir(), 'installdir')
-        print_msg("Using fake install directory: %s" % self.installdir, silent=self.silent, prefix=False)
-
+        self.builddir = os.path.join(tempfile.gettempdir(), '__ROOT__', self.builddir.lstrip(os.path.sep))
+        print_msg("Using fake build directory: %s" % self.builddir, log=self.log, silent=self.silent, prefix=False)
+        # software/build install directories are faked via install_path
+        print_msg("Using fake software install directory: %s" % self.installdir, silent=self.silent, prefix=False)
+        mod_install_path = self.module_generator.get_modules_path()
+        print_msg("Using fake modules install directory: %s" % mod_install_path, silent=self.silent, prefix=False)
         print_msg('', silent=self.silent, prefix=False)
 
     #
@@ -2062,8 +2068,7 @@ class EasyBlock(object):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if build_option('extended_dry_run'):
-                        print_msg("%s... [DRY RUN]" % descr, log=self.log, silent=self.silent)
-                        print_msg('', silent=self.silent, prefix=False)
+                        print_msg("%s... [DRY RUN]\n" % descr, log=self.log, silent=self.silent)
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.run_step(step_name, step_methods)
@@ -2120,7 +2125,6 @@ def build_and_install_one(ecdict, init_env):
         app_class = get_easyblock_class(easyblock, name=name)
 
         if build_option('extended_dry_run'):
-            print_msg("\n*** DRY RUN using '%s' easyblock ***" % app_class.__name__, silent=silent, prefix=False)
             print_dry_run_warning('below')
 
         app = app_class(ecdict['ec'])
