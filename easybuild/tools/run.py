@@ -79,7 +79,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if not forced and verbose and build_option('extended_dry_run'):
         if path is None:
             path = cwd
-        print_msg("running command \"%s\"" % cmd, silent=build_option('silent'), prefix=False)
+        print_msg("  running command \"%s\"" % cmd, silent=build_option('silent'), prefix=False)
         print_msg("  (in %s)" % path, silent=build_option('silent'), prefix=False)
         if simple:
             return True
@@ -163,7 +163,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if build_option('extended_dry_run'):
         if path is None:
             path = cwd
-        print_msg("running interactive command \"%s\" in %s" % cmd, silent=build_option('silent'), prefix=False)
+        print_msg("  running interactive command \"%s\" in %s" % cmd, silent=build_option('silent'), prefix=False)
         print_msg("  (in %s)" % path, silent=build_option('silent'), prefix=False)
         if simple:
             return True

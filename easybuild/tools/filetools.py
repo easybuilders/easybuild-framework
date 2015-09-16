@@ -614,7 +614,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
-        pass
+        patch_filename = os.path.basename(patch_file)
+        print_msg("* applying patch file %s" % patch_filename, silent=build_option('silent'), prefix=False)
 
     elif not os.path.isfile(patch_file):
         raise EasyBuildError("Can't find patch %s: no such file", patch_file)
@@ -628,7 +629,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     # copy missing files
     if copy:
         if build_option('extended_dry_run'):
-            print_msg("  * %s copied to %s" % (patch_file, dest), silent=build_option('silent'), prefix=False)
+            print_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'), prefix=False)
         else:
             try:
                 shutil.copy2(patch_file, dest)
