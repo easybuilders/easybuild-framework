@@ -612,33 +612,40 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     - assume unified diff created with "diff -ru old new"
     """
 
-    if not os.path.isfile(patch_file):
+    if build_option('extended_dry_run'):
+        # skip checking of files in dry run mode
+        pass
+
+    elif not os.path.isfile(patch_file):
         raise EasyBuildError("Can't find patch %s: no such file", patch_file)
-        return
 
-    if fn and not os.path.isfile(fn):
+    elif fn and not os.path.isfile(fn):
         raise EasyBuildError("Can't patch file %s: no such file", fn)
-        return
 
-    if not os.path.isdir(dest):
+    elif not os.path.isdir(dest):
         raise EasyBuildError("Can't patch directory %s: no such directory", dest)
-        return
 
     # copy missing files
     if copy:
-        try:
-            shutil.copy2(patch_file, dest)
-            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-            return 'ok'
-        except IOError, err:
-            raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
-            return
+        if build_option('extended_dry_run'):
+            print_msg("  * %s copied to %s" % (patch_file, dest), silent=build_option('silent'), prefix=False)
+        else:
+            try:
+                shutil.copy2(patch_file, dest)
+                _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+                return 'ok'
+            except IOError, err:
+                raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
-    if not level:
+    patch_level = level
+    if patch_level is None and build_option('extended_dry_run'):
+        patch_level = '<derived>'
+
+    elif patch_level is None:
         # guess value for -p (patch level)
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
@@ -658,7 +665,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
             _log.debug("Guessed patch level %d for patch %s" % (patch_level, patch_file))
 
     else:
-        patch_level = level
         _log.debug("Using specified patch level %d for patch %s" % (patch_level, patch_file))
 
     try:
@@ -666,13 +672,11 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Changing to directory %s" % adest)
     except OSError, err:
         raise EasyBuildError("Can't change to directory %s: %s", adest, err)
-        return
 
-    patch_cmd = "patch -b -p%d -i %s" % (patch_level, apatch)
+    patch_cmd = "patch -b -p%s -i %s" % (patch_level, apatch)
     result = run.run_cmd(patch_cmd, simple=True)
     if not result:
         raise EasyBuildError("Patching with patch %s failed", patch_file)
-        return
 
     return result
 

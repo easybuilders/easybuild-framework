@@ -1359,22 +1359,7 @@ class EasyBlock(object):
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
 
-    def patch_step(self, *args, **kwargs):
-        """
-        Apply the patches
-        """
-        if build_option('extended_dry_run'):
-            self._patch_step_dry_run(*args, **kwargs)
-        else:
-            self._patch_step(*args, **kwargs)
-
-    def _patch_step_dry_run(self, beginpath=None):
-        """Dry run version of patch_step method."""
-        print_msg("Applied patch files:", silent=self.silent, prefix=False)
-        for patch in self.patches:
-            print_msg("  * %s" % patch['name'], silent=self.silent, prefix=False)
-
-    def _patch_step(self, beginpath=None):
+    def patch_step(self, beginpath=None):
         """Real version of patch_step method."""
         for patch in self.patches:
             self.log.info("Applying patch %s" % patch['name'])
