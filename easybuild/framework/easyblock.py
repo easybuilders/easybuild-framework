@@ -1454,6 +1454,7 @@ class EasyBlock(object):
             return
 
         # load fake module
+        fake_mod_data = None
         if not build_option('extended_dry_run'):
             fake_mod_data = self.load_fake_module(purge=True)
 
@@ -1473,7 +1474,7 @@ class EasyBlock(object):
         exts_classmap = self.cfg['exts_classmap']
 
         # we really need a default class
-        if not exts_defaultclass:
+        if not exts_defaultclass and fake_mod_data is not None:
             self.clean_up_fake_module(fake_mod_data)
             raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
