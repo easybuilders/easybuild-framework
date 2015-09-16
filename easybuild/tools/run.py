@@ -61,7 +61,7 @@ ERROR = 'error'
 strictness = WARN
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            forced=False):
+            forced=False, verbose=True):
     """
     Executes a command cmd
     - returns exitcode and stdout+stderr (mixed)
@@ -75,8 +75,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     cwd = os.getcwd()
 
-    # early exit in 'dry run' mode, unless running of command is forced
-    if not forced and build_option('extended_dry_run'):
+    # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
+    if not forced and verbose and build_option('extended_dry_run'):
         if path is None:
             path = cwd
         print_msg("running command \"%s\"" % cmd, silent=build_option('silent'), prefix=False)
@@ -159,7 +159,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     cwd = os.getcwd()
 
-    # early exit in 'dry run' mode
+    # early exit in 'dry run' mode, after printing the command that would be run
     if build_option('extended_dry_run'):
         if path is None:
             path = cwd
