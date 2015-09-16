@@ -1304,7 +1304,8 @@ class EasyBlock(object):
             self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
-            print_msg('(none)', silent=self.silent, prefix=False)
+            if build_option('extended_dry_run'):
+                print_msg('(none)', silent=self.silent, prefix=False)
 
         # compute checksums for all source and patch files
         if not (skip_checksums or build_option('extended_dry_run')):
