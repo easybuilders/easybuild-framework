@@ -37,7 +37,7 @@ import copy
 import os
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_path
+from easybuild.tools.config import build_option, build_path
 from easybuild.tools.run import run_cmd
 
 
@@ -61,7 +61,8 @@ class Extension(object):
         self.patches = self.ext.get('patches', None)
         self.options = copy.deepcopy(self.ext.get('options', {}))
 
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=True)
+        if not build_option('extended_dry_run'):
+            self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True)
 
         self.sanity_check_fail_msgs = []
 

@@ -1468,7 +1468,8 @@ class EasyBlock(object):
             return
 
         # load fake module
-        fake_mod_data = self.load_fake_module(purge=True)
+        if not build_option('extended_dry_run'):
+            fake_mod_data = self.load_fake_module(purge=True)
 
         self.prepare_for_extensions()
 
@@ -1549,6 +1550,11 @@ class EasyBlock(object):
                                          default_class, default_class_modpath, ext['name'], err)
             else:
                 self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
+
+            if build_option('extended_dry_run'):
+                eb_class = cls.__name__
+                msg = "\n* installing extension %s %s using '%s' easyblock\n" % (ext['name'], ext['version'], eb_class)
+                print_msg(msg, silent=self.silent, prefix=False)
 
             # real work
             inst.prerun()
@@ -1814,10 +1820,12 @@ class EasyBlock(object):
 
         mod_filepath = self.module_generator.get_module_filepath(fake=fake)
 
-        if build_option('extended_dry_run') and not fake:
-            print_msg("Generating module file %s, with contents:\n" % mod_filepath, silent=self.silent, prefix=False)
-            for line in txt.split('\n'):
-                print_msg(' ' * 4 + line, silent=self.silent, prefix=False)
+        if build_option('extended_dry_run'):
+            if not fake:
+                msg = "Generating module file %s, with contents:\n" % mod_filepath
+                print_msg(msg, silent=self.silent, prefix=False)
+                for line in txt.split('\n'):
+                    print_msg(' ' * 4 + line, silent=self.silent, prefix=False)
 
         else:
             write_file(mod_filepath, txt)
