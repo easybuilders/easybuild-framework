@@ -1545,6 +1545,7 @@ class EasyBlock(object):
 
             # real work
             inst.prerun()
+            # FIXME no output for Perl commands?!
             txt = inst.run()
             if txt:
                 self.module_extra_extensions += txt
@@ -1554,7 +1555,8 @@ class EasyBlock(object):
             self.ext_instances.append(inst)
 
         # cleanup (unload fake module, remove fake module dir)
-        self.clean_up_fake_module(fake_mod_data)
+        if fake_mod_data is not None:
+            self.clean_up_fake_module(fake_mod_data)
 
     def package_step(self):
         """Package installed software (e.g., into an RPM), if requested, using selected package tool."""
