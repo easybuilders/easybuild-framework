@@ -60,6 +60,27 @@ from vsc.utils import fancylogger
 _log = fancylogger.getLogger('testing', fname=False)
 
 
+def run_unit_test_suite(repo):
+    """Run test suite for specified repo, and exit."""
+    if repo not in KNOWN_TEST_REPOS:
+        repo = DEFAULT_TEST_REPO
+
+    print_msg("Running %s unit tests..." % repo)
+    try:
+        testpkg = 'test.%s' % repo
+        suite = __import__('%s.suite' % testpkg, fromlist=[testpkg])
+
+    except SystemExit as exit_code:
+        raise EasyBuildError("One or more tests failed!")
+
+    except ImportError as err:
+        raise EasyBuildError("Failed to import test suite for %s repo: %s", repo, err)
+
+    # tests must have been successful if we reach here
+    print_msg("All %s tests successful!" % repo)
+    sys.exit(0)
+
+
 def regtest(easyconfig_paths, build_specs=None):
     """
     Run regression test, using easyconfigs available in given path
