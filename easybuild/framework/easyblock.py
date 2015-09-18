@@ -1196,7 +1196,6 @@ class EasyBlock(object):
         """
         # set level of parallelism for build
         par = build_option('parallel')
-
         if self.cfg['parallel']:
             if par is None:
                 par = self.cfg['parallel']
