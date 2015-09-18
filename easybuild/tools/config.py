@@ -78,8 +78,8 @@ DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_STRICT = run.WARN
 
-KNOWN_TESTS = ['framework', 'easyblocks', 'easyconfigs']
-DEFAULT_TEST = KNOWN_TESTS[0]
+KNOWN_TEST_REPOS = ['framework', 'easyblocks', 'easyconfigs']
+DEFAULT_TEST_REPO = KNOWN_TEST_REPOS[0]
 
 
 # utility function for obtaining default paths
