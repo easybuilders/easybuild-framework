@@ -79,31 +79,22 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
-        cc = tc.get_variable('CC')
-        self.assertEqual(cc, "gcc")
-        cxx = tc.get_variable('CXX')
-        self.assertEqual(cxx, "g++")
-        f77 = tc.get_variable('F77')
-        self.assertEqual(f77, "gfortran")
-        f90 = tc.get_variable('F90')
-        self.assertEqual(f90, "gfortran")
-        mpicc = tc.get_variable('MPICC')
-        self.assertEqual(mpicc, "mpicc")
-        mpicxx = tc.get_variable('MPICXX')
-        self.assertEqual(mpicxx, "mpicxx")
-        mpif77 = tc.get_variable('MPIF77')
-        self.assertEqual(mpif77, "mpif77")
-        mpif90 = tc.get_variable('MPIF90')
-        self.assertEqual(mpif90, "mpif90")
+        self.assertEqual(tc.get_variable('CC'), 'gcc')
+        self.assertEqual(tc.get_variable('CXX'), 'g++')
+        self.assertEqual(tc.get_variable('F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('F90'), 'gfortran')
+        self.assertEqual(tc.get_variable('FC'), 'gfortran')
 
-        ompi_cc = tc.get_variable('OMPI_CC')
-        self.assertEqual(ompi_cc, "gcc")
-        ompi_cxx = tc.get_variable('OMPI_CXX')
-        self.assertEqual(ompi_cxx, "g++")
-        ompi_f77 = tc.get_variable('OMPI_F77')
-        self.assertEqual(ompi_f77, "gfortran")
-        ompi_fc = tc.get_variable('OMPI_FC')
-        self.assertEqual(ompi_fc, "gfortran")
+        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+
+        self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
+        self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
+        self.assertEqual(tc.get_variable('OMPI_F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('OMPI_FC'), 'gfortran')
 
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -111,32 +102,22 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({'usempi': True})
         tc.prepare()
 
-        cc = tc.get_variable('CC')
-        self.assertEqual(cc, "mpicc")
-        cxx = tc.get_variable('CXX')
-        self.assertEqual(cxx, "mpicxx")
-        f77 = tc.get_variable('F77')
-        self.assertEqual(f77, "mpif77")
-        f90 = tc.get_variable('F90')
-        self.assertEqual(f90, "mpif90")
+        self.assertEqual(tc.get_variable('CC'), 'mpicc')
+        self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('F77'), 'mpif77')
+        self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
 
-        mpicc = tc.get_variable('MPICC')
-        self.assertEqual(mpicc, "mpicc")
-        mpicxx = tc.get_variable('MPICXX')
-        self.assertEqual(mpicxx, "mpicxx")
-        mpif77 = tc.get_variable('MPIF77')
-        self.assertEqual(mpif77, "mpif77")
-        mpif90 = tc.get_variable('MPIF90')
-        self.assertEqual(mpif90, "mpif90")
+        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
-        ompi_cc = tc.get_variable('OMPI_CC')
-        self.assertEqual(ompi_cc, "gcc")
-        ompi_cxx = tc.get_variable('OMPI_CXX')
-        self.assertEqual(ompi_cxx, "g++")
-        ompi_f77 = tc.get_variable('OMPI_F77')
-        self.assertEqual(ompi_f77, "gfortran")
-        ompi_fc = tc.get_variable('OMPI_FC')
-        self.assertEqual(ompi_fc, "gfortran")
+        self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
+        self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
+        self.assertEqual(tc.get_variable('OMPI_F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('OMPI_FC'), 'gfortran')
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -144,14 +125,11 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({'usempi': True})
         tc.prepare()
 
-        cc_seq = tc.get_variable('CC_SEQ')
-        self.assertEqual(cc_seq, "gcc")
-        cxx_seq = tc.get_variable('CXX_SEQ')
-        self.assertEqual(cxx_seq, "g++")
-        f77_seq = tc.get_variable('F77_SEQ')
-        self.assertEqual(f77_seq, "gfortran")
-        f90_seq = tc.get_variable('F90_SEQ')
-        self.assertEqual(f90_seq, "gfortran")
+        self.assertEqual(tc.get_variable('CC_SEQ'), 'gcc')
+        self.assertEqual(tc.get_variable('CXX_SEQ'), 'g++')
+        self.assertEqual(tc.get_variable('F77_SEQ'), 'gfortran')
+        self.assertEqual(tc.get_variable('F90_SEQ'), 'gfortran')
+        self.assertEqual(tc.get_variable('FC_SEQ'), 'gfortran')
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
@@ -189,7 +167,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optimization_flags(self):
         """Test whether optimization flags are being set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
 
         # check default optimization flag (e.g. -O2)
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
@@ -216,7 +194,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
@@ -249,7 +227,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_shared(self):
         """Test whether shared compiler flags are set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
 
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
@@ -270,7 +248,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
 
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
@@ -292,7 +270,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
@@ -318,7 +296,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
-        flag_vars = ['FFLAGS', 'F90FLAGS']
+        flag_vars = ['FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
 
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
@@ -338,7 +316,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
 
         # check default precision flag
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
@@ -372,6 +350,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'clang++')
         self.assertEqual(tc.get_variable('F77'), 'gfortran')
         self.assertEqual(tc.get_variable('F90'), 'gfortran')
+        self.assertEqual(tc.get_variable('FC'), 'gfortran')
 
     def test_comp_family(self):
         """Test determining compiler family."""
@@ -464,6 +443,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'icpc')
         self.assertEqual(tc.get_variable('F77'), 'ifort')
         self.assertEqual(tc.get_variable('F90'), 'ifort')
+        self.assertEqual(tc.get_variable('FC'), 'ifort')
         modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
@@ -474,11 +454,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
-        self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('F90'), 'mpifc')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpifc')
         modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
@@ -489,15 +471,17 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue('-mt_mpi' in tc.get_variable('CFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('CXXFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('FFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))
+        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))  # FIXME F77FLAGS?
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
         self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('FC'), 'mpifc')
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpifc')
 
         # cleanup
         shutil.rmtree(tmpdir)

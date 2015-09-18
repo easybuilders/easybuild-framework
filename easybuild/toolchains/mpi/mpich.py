@@ -31,6 +31,7 @@ Support for MPICH as toolchain MPI library.
 @author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
+from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
 
@@ -46,19 +47,18 @@ class Mpich(Mpi):
 
     MPI_LIBRARY_NAME = 'mpich'
 
+    # FIXME version-dependent? see http://www.mpich.org/static/docs/v3.1.4/www1/mpifort.html
+    MPI_COMPILER_MPIFC = 'mpif90'
+    #MPI_COMPILER_MPIFC = 'mpifort'
+
     # clear MPI wrapper command options
-    MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': '',
-                             '_opt_MPICXX': '',
-                             '_opt_MPIF77': '',
-                             '_opt_MPIF90': '',
-                             }
+    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var in MPI_COMPILER_VARIABLES])
 
     def _set_mpi_compiler_variables(self):
-        """Set the MPICH_{CC, CXX, F77, F90} variables."""
+        """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
-        for var in ["CC", "CXX", "F77", "F90"]:
+        for var in COMPILER_VARIABLES:
             self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
         super(Mpich, self)._set_mpi_compiler_variables()

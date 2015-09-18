@@ -108,6 +108,7 @@ class Compiler(Toolchain):
 
     COMPILER_F77 = None
     COMPILER_F90 = None
+    COMPILER_FC = None
     COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
@@ -237,21 +238,15 @@ class Compiler(Toolchain):
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
-        self.variables.nappend('CFLAGS', flags)
-        self.variables.nappend('CFLAGS', cflags)
-        self.variables.join('CFLAGS', 'OPTFLAGS', 'PRECFLAGS')
+        for var in ['CFLAGS', 'CXXFLAGS']:
+            self.variables.nappend(var, flags)
+            self.variables.nappend(var, cflags)
+            self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
-        self.variables.nappend('CXXFLAGS', flags)
-        self.variables.nappend('CXXFLAGS', cflags)
-        self.variables.join('CXXFLAGS', 'OPTFLAGS', 'PRECFLAGS')
-
-        self.variables.nappend('FFLAGS', flags)
-        self.variables.nappend('FFLAGS', fflags)
-        self.variables.join('FFLAGS', 'OPTFLAGS', 'PRECFLAGS')
-
-        self.variables.nappend('F90FLAGS', flags)
-        self.variables.nappend('F90FLAGS', fflags)
-        self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
+        for var in ['FFLAGS', 'F90FLAGS']:  # FIXME F77FLAGS?
+            self.variables.nappend(var, flags)
+            self.variables.nappend(var, fflags)
+            self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
     def _set_optimal_architecture(self):
         """ Get options for the current architecture """

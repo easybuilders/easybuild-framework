@@ -28,7 +28,9 @@ Support for OpenMPI as toolchain MPI library.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+from distutils.version import LooseVersion
 
+from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.toolchain.variables import CommandFlagList
 
@@ -45,27 +47,42 @@ class OpenMPI(Mpi):
 
     MPI_LIBRARY_NAME = 'mpi'
 
-    ## OpenMPI reads from CC etc env variables
-    MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': '',
-                             '_opt_MPICXX':'',
-                             '_opt_MPICF77':'',
-                             '_opt_MPICF90':'',
-                             }
+    # version-dependent, see http://www.open-mpi.org/faq/?category=mpi-apps#override-wrappers-after-v1.0
+    MPI_COMPILER_MPIF77 = 'mpif77'
+    MPI_COMPILER_MPIF90 = 'mpif90'
+    MPI_COMPILER_MPIFC = 'mpifc'
+
+    # OpenMPI reads from CC etc env variables
+    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var in MPI_COMPILER_VARIABLES])
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        super(OpenMPI, self).__init__(*args, **kwargs)
+
+        ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)
+        if LooseVersion(ompi_ver) >= LooseVersion('1.7'):
+            self.MPI_COMPILER_MPIF77 = 'mpifort'
+            self.MPI_COMPILER_MPIF90 = 'mpifort'
+            self.MPI_COMPILER_MPIFC = 'mpifort'
+        else:
+            self.MPI_COMPILER_MPIF77 = 'mpif77'
+            self.MPI_COMPILER_MPIF90 = 'mpif90'
+            self.MPI_COMPILER_MPIFC = 'mpif90'
+
     def _set_mpi_compiler_variables(self):
-        """Add OMPI_XXX variables to set."""
+        """Add OMPI_* variables to set."""
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
-        for var in ["CC", "CXX", "F77", ("F90", "FC")]:
+        for var in COMPILER_VARIABLES:
             if isinstance(var, basestring):
                 source_var = var
                 target_var = var
             else:
                 source_var = var[0]
                 target_var = var[1]
-            self.variables.nappend("OMPI_%s" % target_var, str(self.variables[source_var].get_first()), var_class=CommandFlagList)
+            var = 'OMPI_%s' % target_var
+            self.variables.nappend(var, str(self.variables[source_var].get_first()), var_class=CommandFlagList)
 
         super(OpenMPI, self)._set_mpi_compiler_variables()

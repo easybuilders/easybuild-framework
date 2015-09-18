@@ -47,6 +47,7 @@ class CrayMPICH(Mpi):
     MPI_COMPILER_MPICXX = CrayPECompiler.COMPILER_CXX
     MPI_COMPILER_MPIF77 = CrayPECompiler.COMPILER_F77
     MPI_COMPILER_MPIF90 = CrayPECompiler.COMPILER_F90
+    MPI_COMPILER_MPIFC = CrayPECompiler.COMPILER_FC
 
     # no MPI wrappers, so no need to specify serial compiler
     MPI_SHARED_OPTION_MAP = {
@@ -54,6 +55,7 @@ class CrayMPICH(Mpi):
         '_opt_MPICXX': '',
         '_opt_MPIF77': '',
         '_opt_MPIF90': '',
+        '_opt_MPIFC': '',
     }
 
     def _set_mpi_compiler_variables(self):
