@@ -47,6 +47,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import module_classes, set_tmpdir
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -188,7 +189,7 @@ class EnhancedTestCase(_EnhancedTestCase):
             modtool.add_module_path(modpath)
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True):
+                reset_env=True, raise_systemexit=False, testing=True):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -204,15 +205,16 @@ class EnhancedTestCase(_EnhancedTestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main((args, logfile, do_build))
+            main(args=args, logfile=logfile, do_build=do_build, testing=testing)
         except SystemExit:
-            pass
+            if raise_systemexit:
+                raise err
         except Exception, err:
             myerr = err
             if verbose:
                 print "err: %s" % err
 
-        if logfile:
+        if logfile and os.path.exists(logfile):
             logtxt = read_file(logfile)
         else:
             logtxt = None
@@ -327,6 +329,7 @@ def init_config(args=None, build_options=None):
     # initialize build options
     if build_options is None:
         build_options = {
+            'external_modules_metadata': ConfigObj(),
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }

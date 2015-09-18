@@ -198,6 +198,11 @@ class EasyConfig(object):
         # filter hidden dependencies from list of dependencies
         self.filter_hidden_deps()
 
+        # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
+        self.all_dependencies = copy.deepcopy(self.dependencies())
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            self.all_dependencies.append(self.toolchain.as_dict())
+
         # keep track of whether the generated module file should be hidden
         if hidden is None:
             hidden = build_option('hidden')
@@ -208,6 +213,7 @@ class EasyConfig(object):
         self.full_mod_name = mns.det_full_module_name(self)
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
+
 
     def copy(self):
         """
@@ -978,9 +984,6 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
                 easyconfig['dependencies'].append(dep)
 
-            # this is used by the parallel builder
-            easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
-
     if cache_key is not None:
         _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
 
@@ -1103,8 +1106,13 @@ class ActiveMNS(object):
     def det_full_module_name(self, ec, force_visible=False):
         """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
         self.log.debug("Determining full module name for %s (force_visible: %s)" % (ec, force_visible))
-        mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
-        self.log.debug("Obtained valid full module name %s" % mod_name)
+        if ec.get('external_module', False):
+            # external modules have the module name readily available, and may lack the info required by the MNS
+            mod_name = ec['full_mod_name']
+            self.log.debug("Full module name for external module: %s", mod_name)
+        else:
+            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
+            self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
     def det_install_subdir(self, ec):

@@ -635,6 +635,66 @@ class EasyBlockTest(EnhancedTestCase):
         eb.extract_step()
         eb.patch_step()
 
+    def test_extensions_sanity_check(self):
+        """Test sanity check aspect of extensions."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'))
+
+        # purposely put sanity check command in place that breaks the build,
+        # to check whether sanity check is only run once;
+        # sanity check commands are checked after checking sanity check paths, so this should work
+        toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
+
+        # this import only works here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(toy_ec)
+        eb.silent = True
+        eb.run_all_steps(True)
+
+    def test_parallel(self):
+        """Test defining of parallellism."""
+        toy_ec = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toytxt = read_file(toy_ec)
+
+        handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec1, toytxt + "\nparallel = 123")
+
+        handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
+
+        # default: parallellism is derived from # available cores + ulimit
+        test_eb = EasyBlock(EasyConfig(toy_ec))
+        test_eb.check_readiness_step()
+        self.assertTrue(isinstance(test_eb.cfg['parallel'], int) and test_eb.cfg['parallel'] > 0)
+
+        # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
+        test_eb = EasyBlock(EasyConfig(toy_ec1))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], 123)
+
+        # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
+        test_eb = EasyBlock(EasyConfig(toy_ec2))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], 67)
+
+        # only 'parallel' build option specified
+        init_config(build_options={'parallel': '97', 'validate': False})
+        test_eb = EasyBlock(EasyConfig(toy_ec))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], 97)
+
+        # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
+        test_eb = EasyBlock(EasyConfig(toy_ec1))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], 97)
+
+        # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
+        test_eb = EasyBlock(EasyConfig(toy_ec2))
+        test_eb.check_readiness_step()
+        self.assertEqual(test_eb.cfg['parallel'], 67)
+
 
 def suite():
     """ return all the tests in this file """

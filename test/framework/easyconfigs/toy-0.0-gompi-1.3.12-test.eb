@@ -21,6 +21,7 @@ patches = ['toy-0.0_typo.patch']
 
 exts_list = [
     ('bar', '0.0'),
+    ('barbar', '0.0'),
 ]
 
 sanity_check_paths = {

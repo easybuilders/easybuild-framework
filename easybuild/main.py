@@ -51,7 +51,7 @@ import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
-from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
+from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import DEFAULT_TEST_REPO, KNOWN_TEST_REPOS, get_repository, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
@@ -172,17 +172,16 @@ def run_test_suite(repo):
     sys.exit(0)
 
 
-def main(testing_data=(None, None, None)):
+def main(args=None, logfile=None, do_build=None, testing=False):
     """
     Main function: parse command line options, and act accordingly.
-    @param testing_data: tuple with command line arguments, log file and boolean indicating whether or not to build
+    @param args: command line arguments to use
+    @param logfile: log file to use
+    @param do_build: whether or not to actually perform the build
+    @param testing: enable testing mode
     """
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
-
-    # steer behavior when testing main
-    testing = testing_data[0] is not None
-    args, logfile, do_build = testing_data
 
     # initialise options
     eb_go = eboptions.parse_options(args=args)
@@ -256,6 +255,10 @@ def main(testing_data=(None, None, None)):
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
+    # review specified PR
+    if options.review_pr:
+        print review_pr(options.review_pr, colored=options.color)
+
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short
     if query:
@@ -266,6 +269,9 @@ def main(testing_data=(None, None, None)):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    # command line options that do not require any easyconfigs to be specified
+    no_ec_opts = [options.aggregate_regtest, options.review_pr, options.search, options.search_short, options.regtest]
+
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
     if paths:
@@ -275,7 +281,7 @@ def main(testing_data=(None, None, None)):
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
+        elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                          log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
@@ -305,7 +311,7 @@ def main(testing_data=(None, None, None)):
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
+    if any(no_ec_opts + [options.dry_run, options.dry_run_short]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

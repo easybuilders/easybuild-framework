@@ -3,6 +3,32 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.3.0 (September 2nd 2015)
+---------------------------
+
+feature + bugfix release
+- requires vsc-base v2.2.4 or more recent (#1343)
+    - required for mk_rst_table function in vsc.utils.docs
+- various other enhancements, including:
+    - add support for generating documentation for (generic) easyblocks in .rst format (#1317)
+    - preserve comments in easyconfig file in EasyConfig.dump() method (#1327)
+    - add --cleanup-tmpdir option (#1365)
+        - enables to preserve the used temporary directory via --disable-cleanup-tmpdir
+    - enhance EasyConfig.dump() to reformat dumped easyconfig according to style guidelines (#1345)
+    - add support for extracting .iso files using 7z (p7zip) (#1375)
+- various bug fixes, including:
+    - correctly deal with special characters in template strings in EasyConfig.dump() method (#1323)
+    - rework easybuild.tools.module_generator module to avoid keeping state w.r.t. fake modules (#1348)
+    - fix dumping of hidden deps (#1354)
+    - fix use of --job with hidden dependencies: include --hidden in submitted job script when needed (#1356)
+    - fix ActiveMNS.det_full_module_name() for external modules (#1360)
+    - fix EasyConfig.all_dependencies definition, fix tracking of job dependencies (#1359, #1361)
+    - fix 'ModulesTool.exist' for hidden Lua module files (#1364)
+    - only call EasyBlock.sanity_check_step for non-extensions (#1366)
+        - this results in significant speedup when installing easyconfigs with lots of extensions, but also
+          results in checking the default sanity check paths if none were defined for extensions installed as a module
+    - fix using module naming schemes that were included via --include-module-naming-schemes (#1370)
+
 v2.2.0 (July 15th 2015)
 -----------------------
 

@@ -223,15 +223,20 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                if ecfg[key] != default_values[key]:
+                # the value for 'dependencies' may have been modified after parsing via filter_hidden_deps
+                if key == 'dependencies':
+                    val = ecfg[key] + ecfg['hiddendependencies']
+                else:
+                    val = ecfg[key]
+
+                if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
                     if key in DEPENDENCY_PARAMETERS:
-                        dumped_deps = [dump_dependency(d, ecfg['toolchain']) for d in ecfg[key]]
-                        val = dumped_deps
+                        valstr = [dump_dependency(d, ecfg['toolchain']) for d in val]
                     else:
-                        val = quote_py_str(ecfg[key])
+                        valstr = quote_py_str(ecfg[key])
 
-                    eclines.extend(self._find_param_with_comments(key, val, templ_const, templ_val))
+                    eclines.extend(self._find_param_with_comments(key, valstr, templ_const, templ_val))
 
                     printed_keys.append(key)
                     printed = True
@@ -267,6 +272,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         params, _ = self._find_defined_params(ecfg, [[k] for k in LAST_PARAMS], default_values, templ_const, templ_val)
         dump.extend(params)
 
+        dump.extend(self.comments['tail'])
+
         return '\n'.join(dump)
 
     def extract_comments(self, rawtxt):
@@ -281,6 +288,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             'header' : [],  # header comment lines
             'inline' : {},  # inline comments
             'iter': {},  # (inline) comments on elements of iterable values
+            'tail': [],
          }
 
         rawlines = rawtxt.split('\n')
@@ -296,13 +304,21 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             if rawline.startswith('#'):
                 comment = []
                 # comment could be multi-line
-                while rawline.startswith('#') or not rawline:
+                while rawline is not None and (rawline.startswith('#') or not rawline):
                     # drop empty lines (that don't even include a #)
                     if rawline:
                         comment.append(rawline)
-                    rawline = rawlines.pop(0)
-                key = rawline.split('=', 1)[0].strip()
-                self.comments['above'][key] = comment
+                    # grab next line (if more lines are left)
+                    if rawlines:
+                        rawline = rawlines.pop(0)
+                    else:
+                        rawline = None
+
+                if rawline is None:
+                    self.comments['tail'] = comment
+                else:
+                    key = rawline.split('=', 1)[0].strip()
+                    self.comments['above'][key] = comment
 
             elif '#' in rawline:  # inline comment
                 comment_key, comment_val = None, None
