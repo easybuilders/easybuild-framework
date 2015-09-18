@@ -156,11 +156,11 @@ def read_file(path, log_error=True):
             return None
 
 
-def write_file(path, txt, append=False):
+def write_file(path, txt, append=False, forced=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
 
     # early exit in 'dry run' mode
-    if build_option('extended_dry_run'):
+    if not forced and build_option('extended_dry_run'):
         print_msg("file written: %s" % path, silent=build_option('silent'), prefix=False)
         return
 
@@ -260,7 +260,7 @@ def det_common_path_prefix(paths):
         return None
 
 
-def download_file(filename, url, path):
+def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
@@ -285,7 +285,7 @@ def download_file(filename, url, path):
             # urllib2 does the right thing for http proxy setups, urllib does not!
             url_fd = urllib2.urlopen(url, timeout=timeout)
             _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
-            write_file(path, url_fd.read())
+            write_file(path, url_fd.read(), forced=forced)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
