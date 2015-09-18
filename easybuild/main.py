@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.config import DEFAULT_TEST, KNOWN_TESTS, get_repository, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -151,6 +151,26 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
+def run_test_suite(repo):
+    """Run test suite for specified repo, and exit."""
+    if repo not in KNOWN_TESTS:
+        repo = DEFAULT_TEST
+    try:
+        print_msg("Running %s test suite..." % repo)
+        testpkg = 'test.%s' % repo
+        suite = __import__('%s.suite' % testpkg, fromlist=[testpkg])
+
+    except SystemExit as exit_code:
+        raise EasyBuildError("One or more tests failed!")
+
+    except ImportError as err:
+        raise EasyBuildError("Failed to import test suite for %s repo: %s", repo, err)
+
+    # tests must have been successful if we reach here
+    print_msg("All %s tests successful!" % repo)
+    sys.exit(0)
+
+
 def main(testing_data=(None, None, None)):
     """
     Main function: parse command line options, and act accordingly.
@@ -167,6 +187,9 @@ def main(testing_data=(None, None, None)):
     eb_go = eboptions.parse_options(args=args)
     options = eb_go.options
     orig_paths = eb_go.args
+
+    if options.test:
+        run_test_suite(options.test)
 
     # set umask (as early as possible)
     if options.umask is not None:
