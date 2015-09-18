@@ -470,7 +470,7 @@ def use_group(group_name):
     return group
 
 
-def det_parallelism(par, maxpar):
+def det_parallelism(par=None, maxpar=None):
     """
     Determine level of parallelism that should be used.
     Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) / 6)
