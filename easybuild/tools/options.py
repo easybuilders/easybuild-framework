@@ -55,7 +55,7 @@ from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
 from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
-from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT, DEFAULT_TEST_REPO, KNOWN_TEST_REPOS
+from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_STRICT, DEFAULT_TEST_REPO
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path, set_tmpdir
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
@@ -143,8 +143,7 @@ class EasyBuildOptions(GeneralOption):
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', DEFAULT_STRICT, strictness_options),
-            'test': ("Run unit tests for specified EasyBuild repository",
-                     'choice', 'store_or_None', DEFAULT_TEST_REPO, KNOWN_TEST_REPOS)
+            'test': ("Run unit tests for specified EasyBuild repository", None, 'store', DEFAULT_TEST_REPO),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))

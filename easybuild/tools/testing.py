@@ -35,17 +35,16 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import copy
 import os
-import re
 import sys
+import unittest
 from datetime import datetime
 from time import gmtime, strftime
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import DEFAULT_TEST_REPO, KNOWN_TEST_REPOS, build_option
+from easybuild.tools.config import KNOWN_TEST_REPOS, build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
@@ -60,24 +59,48 @@ from vsc.utils import fancylogger
 _log = fancylogger.getLogger('testing', fname=False)
 
 
-def run_unit_test_suite(repo):
+def run_unit_test_suite(spec):
     """Run test suite for specified repo, and exit."""
-    if repo not in KNOWN_TEST_REPOS:
-        repo = DEFAULT_TEST_REPO
 
-    print_msg("Running %s unit tests..." % repo)
+    # make sure option parser doesn't pick up any cmdline arguments/options
+    while len(sys.argv) > 1:
+        sys.argv.pop()
+
+    # run full suite by default
+    repo = None
+    subsuite = 'suite'
+
+    if isinstance(spec, basestring):
+        spec_parts = spec.split(':')
+        if len(spec_parts) == 1:
+            repo = spec
+        elif len(spec_parts) == 2:
+            repo, subsuite = spec_parts
+        else:
+            raise EasyBuildError("Incorrect test suite specification (should be '<repo>[:<subsuite>]'): %s", spec)
+
+    if repo not in KNOWN_TEST_REPOS:
+        raise EasyBuildError("Unknown test repo: %s", repo)
+
+    if subsuite == 'suite':
+        print_msg("Running full %s unit tests suite..." % repo)
+    else:
+        print_msg("Running '%s' subsuite of %s unit tests..." % (subsuite, repo))
+
     try:
         testpkg = 'test.%s' % repo
-        suite = __import__('%s.suite' % testpkg, fromlist=[testpkg])
+        suite = __import__('%s.%s' % (testpkg, subsuite), fromlist=[testpkg])
+        if subsuite != 'suite':
+            unittest.TextTestRunner().run(suite.suite())
 
     except SystemExit as exit_code:
         raise EasyBuildError("One or more tests failed!")
 
     except ImportError as err:
-        raise EasyBuildError("Failed to import test suite for %s repo: %s", repo, err)
+        raise EasyBuildError("Failed to import '%s' test suite for %s repo: %s", subsuite, repo, err)
 
     # tests must have been successful if we reach here
-    print_msg("All %s tests successful!" % repo)
+    print_msg("All tests successful!")
     sys.exit(0)
 
 
