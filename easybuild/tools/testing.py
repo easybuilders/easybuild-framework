@@ -44,7 +44,7 @@ from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import KNOWN_TEST_REPOS, build_option
+from easybuild.tools.config import DEFAULT_TEST_REPO, KNOWN_TEST_REPOS, build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
@@ -78,6 +78,8 @@ def run_unit_test_suite(spec):
             repo, subsuite = spec_parts
         else:
             raise EasyBuildError("Incorrect test suite specification (should be '<repo>[:<subsuite>]'): %s", spec)
+    else:
+        repo = DEFAULT_TEST_REPO
 
     if repo not in KNOWN_TEST_REPOS:
         raise EasyBuildError("Unknown test repo: %s", repo)
