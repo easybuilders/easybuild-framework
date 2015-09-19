@@ -59,6 +59,7 @@ class EasyBuildError(LoggedException):
     """
     LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
     LOC_INFO_LEVEL = 1
+    INCLUDE_LOCATION = True
 
     # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
     # only required because 'error' log method raises (should no longer be needed in EB v3.x)
@@ -68,7 +69,7 @@ class EasyBuildError(LoggedException):
         """Constructor: initialise EasyBuildError instance."""
         if args:
             msg = msg % args
-        LoggedException.__init__(self, msg, include_location=True)
+        LoggedException.__init__(self, msg)
         self.msg = msg
 
     def __str__(self):
