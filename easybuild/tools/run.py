@@ -159,16 +159,15 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # make regular expression that matches the string with
     # - replace whitespace
     # - replace newline
-
     def escape_special(string):
-        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
+        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$\|])", r"\\\1", string)
 
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
 
     def process_QA(q, a_s):
         splitq = [escape_special(x) for x in regSplit.split(q)]
-        regQtxt = split.join(splitq) + split.rstrip('+') + "*$"
+        regQtxt = split.join(splitq) + split.rstrip('+') + "*"
         # add optional split at the end
         for i in [idx for idx, a in enumerate(a_s) if not a.endswith('\n')]:
             a_s[i] += '\n'
@@ -187,7 +186,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                                  question, type(answers), answers)
         # list is manipulated when answering matching question, so return a copy
         return answers[:]
-
     newQA = {}
     _log.debug("newQA: ")
     for question, answers in qa.items():
@@ -227,7 +225,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     else:
         runLog = None
 
-    maxHitCount = 50
+    maxHitCount = 1000
 
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
@@ -238,7 +236,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     stdoutErr = ''
     oldLenOut = -1
     hitCount = 0
-
     while ec < 0:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
@@ -247,14 +244,16 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             if runLog:
                 runLog.write(tmpOut)
             stdoutErr += tmpOut
+            if len(tmpOut.strip()) > 0:
+                hitCount = 0
+                print tmpOut
         # recv_some may throw Exception
         except (IOError, Exception), err:
             _log.debug("run_cmd_qa cmd %s: read failed: %s" % (cmd, err))
             tmpOut = None
-
         hit = False
         for question, answers in newQA.items():
-            res = question.search(stdoutErr)
+            res = question.search(tmpOut)
             if tmpOut and res:
                 fa = answers[0] % res.groupdict()
                 # cycle through list of answers
@@ -263,6 +262,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
 
                 _log.debug("run_cmd_qa answer %s question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
+                print 'sending:',fa
                 send_all(p, fa)
                 hit = True
                 break
@@ -295,7 +295,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 hitCount = 0
         else:
             hitCount = 0
-
         if hitCount > maxHitCount:
             # explicitly kill the child process before exiting
             try:
