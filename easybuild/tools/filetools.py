@@ -531,7 +531,7 @@ def extract_cmd(filepath, overwrite=False):
         # iso file
         '.iso':     "7z x %(filepath)s",
         # tar.Z: using compress (LZW)
-        '.tar.Z':   "tar xZf %(filepath)s",
+        '.tar.z':   "tar xZf %(filepath)s",
     }
 
     suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
