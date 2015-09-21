@@ -529,7 +529,9 @@ def extract_cmd(filepath, overwrite=False):
         # zip file
         '.zip':     "unzip -qq -o %(filepath)s" if overwrite else "unzip -qq %(filepath)s",
         # iso file
-        '.iso':     "7z x %(filepath)s"
+        '.iso':     "7z x %(filepath)s",
+        # tar.Z: using compress (LZW)
+        '.tar.z':   "tar xZf %(filepath)s",
     }
 
     suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)

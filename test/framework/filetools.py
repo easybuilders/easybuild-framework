@@ -74,6 +74,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
+            ('test.tar.Z', "tar xZf test.tar.Z"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -273,7 +274,7 @@ class FileToolsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         path1 = os.path.join(tmpdir, 'path1')
         ft.mkdir(path1)
-        path2 = os.path.join(tmpdir, 'path2') 
+        path2 = os.path.join(tmpdir, 'path2')
         ft.mkdir(path1)
         symlink = os.path.join(tmpdir, 'symlink')
         os.symlink(path1, symlink)
