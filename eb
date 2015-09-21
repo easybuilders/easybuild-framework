@@ -60,27 +60,4 @@ then
     exit 2
 fi
 
-
-main_script_base_path="easybuild/main.py"
-python_search_path_cmd="python -c \"import sys; print ' '.join(sys.path)\""
-
-easybuild_main=
-for path in `eval $python_search_path_cmd`;
-do
-    test_path="$path/$main_script_base_path"
-    if [ -f $test_path ]
-    then
-        easybuild_main=$test_path
-        break;
-    fi
-done
-
-if [ -z $easybuild_main ]
-then
-    echo "ERROR: Failed to locate EasyBuild's main script $main_script_base_path" \
-         "in Python's search path, obtained with '$python_search_path_cmd' ."
-    echo "Make sure you PYTHONPATH setting is correct."
-    exit 1
-else
-    python $easybuild_main $@
-fi
+python -m easybuild.main $@
