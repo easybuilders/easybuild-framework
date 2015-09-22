@@ -132,3 +132,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
         return cfg
+
+    def extract_comments(self, rawtxt):
+        """Extract comments from raw content."""
+        # this is fine-ish, it only implies that comments will be lost for format v2 easyconfig files that are dumped
+        self.log.warning("Extraction of comments not supported yet for easyconfig format v2")

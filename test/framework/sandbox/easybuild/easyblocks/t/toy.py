@@ -57,7 +57,7 @@ class EB_toy(EasyBlock):
         # make sure Python system dep is handled correctly when specified
         if self.cfg['allow_system_deps']:
             if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
-                raise EasyBlock("Sanity check on allowed Python system dep failed.")
+                raise EasyBuildError("Sanity check on allowed Python system dep failed.")
         os.rename('%s.source' % name, '%s.c' % name)
 
     def build_step(self, name=None):

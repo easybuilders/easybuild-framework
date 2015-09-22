@@ -25,3 +25,4 @@ sanity_check_paths = {
 postinstallcmds = ["echo TOY > %(installdir)s/README"]
 
 moduleclass = 'tools'
+# trailing comment, leave this here, it may trigger bugs with extract_comments()
