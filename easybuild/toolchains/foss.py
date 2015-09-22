@@ -37,3 +37,4 @@ class Foss(Gompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'foss'
     SUBTOOLCHAIN = Gompi.NAME
+

@@ -41,4 +41,4 @@ class Cgmpolf(Cgmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgmpolf'
     SUBTOOLCHAIN = Cgmpich.NAME
-    
+
