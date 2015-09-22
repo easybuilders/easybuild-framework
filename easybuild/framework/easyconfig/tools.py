@@ -225,7 +225,6 @@ def deep_refresh_dependencies(ec,altered_dep):
     # Change all the various places the dependencies can appear
     for key in ['dependencies',
                 'hiddendependencies',
-                'unresolved_deps',
                 'builddependencies'
                 ]:
         if new_ec[key]:
