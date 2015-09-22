@@ -54,8 +54,6 @@ from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -176,7 +174,8 @@ def get_toolchain_hierarchy(parent_toolchain):
             elif len(unique_versions) == 0:
                 # Check if we have dummy toolchain
                 if subtoolchains[current['name']] == DUMMY_TOOLCHAIN_NAME:
-                    toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
+                    if build_option('add_dummy_to_minimal_toolchains'):
+                        toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
                     break
                 else:
                     _log.info("Your toolchain hierarchy is not fully populated!")

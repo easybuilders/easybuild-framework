@@ -195,6 +195,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),

@@ -121,6 +121,7 @@ BUILD_OPTIONS_CMDLINE = {
         'umask',
     ],
     False: [
+        'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
         'dump_autopep8',
