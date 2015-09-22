@@ -30,10 +30,13 @@ Various test utility functions.
 import copy
 import fileinput
 import os
+import pkgutil
 import re
 import shutil
 import sys
 import tempfile
+from zipfile import ZipFile
+
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
@@ -77,6 +80,14 @@ for key in os.environ.keys():
         newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
         os.environ[newkey] = val
 
+TESTDIR = os.path.dirname(os.path.abspath(__file__))
+if not os.path.exists(TESTDIR):
+    tmpdir = tempfile.mkdtemp()
+    eggpath = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ZipFile(eggpath).extractall(tmpdir)
+    TESTDIR = os.path.join(tmpdir, 'test', 'framework')
+
+
 class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
 
@@ -103,9 +114,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-
-        self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
+        self.test_sourcepath = os.path.join(TESTDIR, 'sandbox', 'sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
         os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
@@ -114,7 +123,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(TESTDIR, 'easyconfigs')
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
@@ -125,12 +134,13 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # remove any entries in Python search path that seem to provide easyblocks
         for path in sys.path[:]:
-            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
+            mods = [mod for (_, mod, _) in pkgutil.iter_modules(path=[os.path.join(path, 'easybuild')])]
+            if 'easyblocks' in mods:
                 sys.path.remove(path)
 
         # add test easyblocks to Python search path and (re)import and reload easybuild modules
         import easybuild
-        sys.path.append(os.path.join(testdir, 'sandbox'))
+        sys.path.append(os.path.join(TESTDIR, 'sandbox'))
         reload(easybuild)
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
@@ -141,7 +151,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         modtool = modules_tool()
         # purge out any loaded modules with original $MODULEPATH before running each test
         modtool.purge()
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
+        self.reset_modulepath([os.path.join(TESTDIR, 'modules')])
 
     def tearDown(self):
         """Clean up after running testcase."""
