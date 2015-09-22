@@ -314,7 +314,9 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
         new_ec['dependencies'] = deps
 
         if len(new_ec['dependencies']) == 0:
-            minimal_dir = tempfile.mkdtemp(prefix='minimal-easyconfigs')
+            minimal_dir = os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs')
+            if not os.path.exists(minimal_dir):
+                os.makedirs(minimal_dir)
             newspec = os.path.join(minimal_dir, "%s-%s.eb" % (new_ec['ec']['name'], det_full_ec_version(new_ec['ec'])))
             _log.debug("Attempting dumping minimal easyconfig to %s and adding it to final list" % newspec)
             try:
