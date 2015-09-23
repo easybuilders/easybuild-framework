@@ -237,6 +237,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
         path = os.path.join(path, "easybuild", subdir)
         _log.debug("Checking for easybuild/%s at %s" % (subdir, path))
         try:
+            # FIXME: will not work on paths in zipped egg
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
                 _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))

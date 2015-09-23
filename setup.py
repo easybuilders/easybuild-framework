@@ -107,5 +107,5 @@ implement support for installing particular (groups of) software packages.""",
     provides=["eb"] + easybuild_packages,
     test_suite="test.framework.suite",
     zip_safe=True,
-    install_requires=["vsc-base >= 2.2.4"],
+    install_requires=["vsc-base >= 2.3.0"],
 )
