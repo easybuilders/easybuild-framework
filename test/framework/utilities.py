@@ -123,7 +123,11 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(TESTDIR, 'easyconfigs')
+        self.test_easyconfigs = os.path.realpath(os.path.join(TESTDIR, 'easyconfigs'))
+        os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_easyconfigs
+
+        self.test_easyblocks = os.path.join(TESTDIR, 'sandbox', 'easybuild', 'easyblocks')
+        self.test_modules = os.path.realpath(os.path.join(TESTDIR, 'modules'))
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
@@ -256,7 +260,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
+            src_mod_path = os.path.join(self.test_modules, mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
@@ -290,8 +294,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                        'modules', 'CategorizedHMNS', mod_subdir)
+            src_mod_path = os.path.join(self.test_modules, 'CategorizedHMNS', mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make C/Tcl modules happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
