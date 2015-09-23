@@ -65,6 +65,8 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, Li
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
+# REQUIRED FOR SUBTOOLCHAIN SEARCHING AND HMNS BUT RESULTS IN AN IMPORT LOOP
+#from easybuild.framework.easyconfig.tools import robot_find_minimal_easyconfig_for_dependency
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -1051,7 +1053,6 @@ def robot_find_easyconfig(name, version):
 
     return None
 
-
 class ActiveMNS(object):
     """Wrapper class for active module naming scheme."""
 
@@ -1082,6 +1083,12 @@ class ActiveMNS(object):
         if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
             self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
             # fetch/parse easyconfig file if deemed necessary
+
+            # BELOW RESULTS IN AN IMPORT LOOP...BUT IT'S NEEDED FOR HMNS
+            #if build_option('minimal_toolchains'):
+            #    (unused, eb_file) = robot_find_minimal_easyconfig_for_dependency(ec['ec'])
+            #else:
+            #    eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
             eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
             if eb_file is not None:
                 parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=ec['hidden'])

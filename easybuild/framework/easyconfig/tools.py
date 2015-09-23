@@ -237,6 +237,25 @@ def deep_refresh_dependencies(ec,altered_dep):
 
     return new_ec
 
+def robot_find_minimal_easyconfig_for_dependency(dependency):
+    """
+    Find an easyconfig with minimal toolchain for a dependency
+    """
+    orig_dep = dependency
+    # Populate the toolchain hierarchy
+    toolchains = get_toolchain_hierarchy(dependency['toolchain'])
+
+    for tc in reversed(toolchains):
+        dependency['toolchain'] = tc
+        eb_file = robot_find_easyconfig(dependency['name'], det_full_ec_version(dependency))
+        if eb_file is not None:
+            if dependency['toolchain'] != orig_dep['toolchain']:
+                _log.info("Minimally resolving dependency %s with minimal dependency file %s" % (orig_dep, eb_file))
+            # Return the file we found
+            return (dependency, eb_file)
+    _log.debug("Irresolvable minimal dependency found: %s" % orig_dep)
+    return None
+
 def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
@@ -271,25 +290,17 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             break
                 if not dep_resolved:
                     # If we can't resolve it, we find the minimal easyconfig for the resolution and update the dependency
-                    found_minimal_easyconfig = False
-                    for tc in reversed(deptoolchains):
-                        dep['toolchain'] = tc
-                        eb_file = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
-                        if eb_file is not None:
-                            if dep['toolchain'] != orig_dep['toolchain']:
-                                _log.info("Minimally resolving dependency %s of %s with %s" %
-                                          (cand_dep, ec['name'], eb_file))
-                            new_ec = deep_refresh_dependencies(new_ec, dep)
-                            found_minimal_easyconfig = True
-                            break
-                    # Now check for the existence of the module of the dep
-                    if found_minimal_easyconfig:
+                    (dep, eb_file) = robot_find_minimal_easyconfig_for_dependency(dep)
+                    if eb_file is not None:
+                        # Refresh the dependency
+                        new_ec = deep_refresh_dependencies(new_ec, dep)
+                        # Now check for the existence of the module of the dep
                         full_mod_name = ActiveMNS().det_full_module_name(dep)
                         dep_resolved = full_mod_name in avail_modules
                         if not retain_all_deps:
                             dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
                     else:
-                        _log.debug("Irresolvable minimal dependency found: %s" % orig_dep)
+                        _log.debug("Irresolvable minimal dependency found in robot search: %s" % orig_dep)
             else:
                 # in the case where the toolchain of a dependency is different to the parent toolchain we do nothing
                 full_mod_name = dep.get('full_mod_name', None)
