@@ -1081,7 +1081,6 @@ class ActiveMNS(object):
         if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
             self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
             # fetch/parse easyconfig file if deemed necessary
-
             eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
             if eb_file is not None:
                 parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=ec['hidden'])
