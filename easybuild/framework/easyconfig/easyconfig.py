@@ -1051,6 +1051,7 @@ def robot_find_easyconfig(name, version):
 
     return None
 
+
 class ActiveMNS(object):
     """Wrapper class for active module naming scheme."""
 
