@@ -1578,7 +1578,10 @@ class EasyBlock(object):
         for key, check_fn in path_keys_and_check.items():
             for xs in paths[key]:
                 if isinstance(xs, basestring):
-                    xs = (xs,)
+                    if xs.startswith('lib/'):
+                        xs = (xs, xs.replace('lib/', 'lib64/'))
+                    else:
+                        xs = (xs,)
                 elif not isinstance(xs, tuple):
                     raise EasyBuildError("Unsupported type '%s' encountered in %s, not a string or tuple",
                                          key, type(xs))
