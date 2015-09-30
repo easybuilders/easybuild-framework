@@ -35,6 +35,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.framework.easyconfig.format.yeb import FormatYeb
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
@@ -51,11 +52,10 @@ REPLACED_PARAMETERS = {
     'premakeopts': 'prebuildopts',
 }
 
-
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
 
 
-def fetch_parameters_from_easyconfig(rawtxt, params):
+def fetch_parameters_from_easyconfig(rawtxt, params, eb_format='.eb'):
     """
     Fetch (initial) parameter definition from the given easyconfig file contents.
     @param rawtxt: contents of the easyconfig file
@@ -63,7 +63,10 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     param_values = []
     for param in params:
-        regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        if eb_format == '.yeb':
+            regex = re.compile(r"^\s*%s\s*: \s*(?P<param>\S.*?)\s*$" % param, re.M)
+        else:
+            regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
         res = regex.search(rawtxt)
         if res:
             param_values.append(res.group('param').strip("'\""))
@@ -89,7 +92,8 @@ class EasyConfigParser(object):
 
         self.format_version = format_version
         self._formatter = None
-
+        if filename and os.path.splitext(filename)[-1] == '.yeb':
+            self._formatter = FormatYeb(filename)
         if rawcontent is not None:
             self.rawcontent = rawcontent
             self._set_formatter()
