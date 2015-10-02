@@ -1418,7 +1418,7 @@ class EasyBlock(object):
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'])
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
 
         # guess directory to start configure/build/install process in, and move there
         self.guess_start_dir()
@@ -1696,14 +1696,14 @@ class EasyBlock(object):
             print_msg("Sanity check paths - %s" % key, silent=self.silent, prefix=False)
             if paths[key]:
                 for path in sorted(paths[key]):
-                    print_msg("  * %s" % path, silent=self.silent, prefix=False)
+                    print_msg("  * %s" % str(path), silent=self.silent, prefix=False)
             else:
                 print_msg("  (none)", silent=self.silent, prefix=False)
 
         print_msg("Sanity check commands", silent=self.silent, prefix=False)
         if commands:
             for command in sorted(commands):
-                print_msg("  * %s" % command, silent=self.silent, prefix=False)
+                print_msg("  * %s" % str(command), silent=self.silent, prefix=False)
         else:
             print_msg("  (none)", silent=self.silent, prefix=False)
 
