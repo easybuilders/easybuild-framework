@@ -1933,6 +1933,46 @@ class CommandLineOptionsTest(EnhancedTestCase):
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
 
+    def test_extended_dry_run(self):
+        """Test use of --extended-dry-run/-x."""
+        ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+        ]
+        # *no* output in testing mode (honor 'silent')
+        self.mock_stdout(True)
+        self.eb_main(args + ['--extended-dry-run'], do_build=True, raise_error=True, testing=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(len(stdout), 0)
+
+        msg_regexs = [
+            re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
+            re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
+            re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+        ]
+        ignoring_error_regex = re.compile(r"!!! WARNING !!! ignoring error", re.M)
+        ignored_error_regex = re.compile(r"!!! WARNING !!! One or more errors were ignored, see warnings above", re.M)
+
+        for opt in ['--extended-dry-run', '-x']:
+            # check for expected patterns in output of --extended-dry-run/-x
+            self.mock_stdout(True)
+            self.eb_main(args + [opt], do_build=True, raise_error=True, testing=False)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+
+            for msg_regex in msg_regexs:
+                self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
+
+            # no ignored errors should occur
+            for notthere_regex in [ignoring_error_regex, ignored_error_regex]:
+                msg = "Pattern '%s' NOT found in: %s" % (notthere_regex.pattern, stdout)
+                self.assertFalse(notthere_regex.search(stdout), msg)
+
 
 def suite():
     """ returns all the testcases in this module """
