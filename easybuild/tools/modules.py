@@ -409,8 +409,6 @@ class ModulesTool(object):
 
         for mod in modules:
             self.run_module('load', mod)
-            if build_option('extended_dry_run'):
-                print_msg("  module load %s" % mod, silent=build_option('silent') or silent, prefix=False)
 
     def unload(self, modules=None):
         """
