@@ -478,7 +478,21 @@ class EasyConfig(object):
         returns the Toolchain used
         """
         if self._toolchain is None:
-            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS())
+            # provide list of (direct) toolchain dependencies (name & version), if easyconfig can be found for toolchain
+            tcdeps = None
+            tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
+            if tcname != DUMMY_TOOLCHAIN_NAME:
+                tc_ecfile = robot_find_easyconfig(tcname, tcversion)
+                if tc_ecfile is None:
+                    self.log.debug("No easyconfig found for toolchain %s version %s, can't determine dependencies",
+                                   tcname, tcversion)
+                else:
+                    self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
+                    tc_ec = process_easyconfig(tc_ecfile)[0]
+                    tcdeps = tc_ec['dependencies']
+                    self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
+
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS(), tcdeps=tcdeps)
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
