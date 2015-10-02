@@ -1424,9 +1424,13 @@ class EasyBlock(object):
         self.guess_start_dir()
 
         if build_option('extended_dry_run'):
+            loaded_mods = self.modules_tool.list()
             print_msg("\nFull list of loaded modules:", silent=self.silent, prefix=False)
-            for i, mod_name in enumerate([m['mod_name'] for m in self.modules_tool.list()]):
-                print_msg("  %d) %s" % (i+1, mod_name), silent=self.silent, prefix=False)
+            if loaded_mods:
+                for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
+                    print_msg("  %d) %s" % (i+1, mod_name), silent=self.silent, prefix=False)
+            else:
+                print_msg("  (none)", silent=self.silent, prefix=False)
 
     def configure_step(self):
         """Configure build  (abstract method)."""
