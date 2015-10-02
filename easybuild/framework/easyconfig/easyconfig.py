@@ -1028,12 +1028,14 @@ def robot_find_easyconfig(name, version):
     if key in _easyconfig_files_cache:
         _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfig_files_cache[key]))
         return _easyconfig_files_cache[key]
+
     paths = build_option('robot_path')
-    if not paths:
-        raise EasyBuildError("No robot path specified, which is required when looking for easyconfigs (use --robot)")
-    if not isinstance(paths, (list, tuple)):
+    if paths is None:
+        paths = []
+    elif not isinstance(paths, (list, tuple)):
         paths = [paths]
-    # candidate easyconfig paths
+
+    res = None
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
@@ -1041,9 +1043,9 @@ def robot_find_easyconfig(name, version):
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                 _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
-                return _easyconfig_files_cache[key]
+                res = _easyconfig_files_cache[key]
 
-    return None
+    return res
 
 
 class ActiveMNS(object):
