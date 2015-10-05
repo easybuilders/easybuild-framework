@@ -151,7 +151,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.chdir(self.cwd)
 
         # restore original environment
-        modify_env(os.environ, self.orig_environ)
+        modify_env(os.environ, self.orig_environ, verbose=False)
 
         # restore original Python search path
         sys.path = self.orig_sys_path

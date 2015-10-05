@@ -76,11 +76,14 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     cwd = os.getcwd()
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
-    if not forced and verbose and build_option('extended_dry_run'):
+    if not forced and build_option('extended_dry_run'):
         if path is None:
             path = cwd
-        dry_run_msg("  running command \"%s\"" % cmd, silent=build_option('silent'))
-        dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+        if verbose:
+            dry_run_msg("  running command \"%s\"" % cmd, silent=build_option('silent'))
+            dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+
+        # make sure we get the type of the return value right
         if simple:
             return True
         else:
@@ -163,7 +166,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if build_option('extended_dry_run'):
         if path is None:
             path = cwd
-        dry_run_msg("  running interactive command \"%s\" in %s" % cmd, silent=build_option('silent'))
+        dry_run_msg("  running interactive command \"%s\"" % cmd, silent=build_option('silent'))
         dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
         if simple:
             return True
