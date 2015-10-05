@@ -201,6 +201,9 @@ class EasyBlock(object):
         # should we keep quiet?
         self.silent = build_option('silent')
 
+        # are we doing a dry run?
+        self.dry_run = build_option('extended_dry_run')
+
         # initialize logger
         self._init_log()
 
@@ -219,7 +222,6 @@ class EasyBlock(object):
         self.gen_installdir()
 
         self.ignored_errors = False
-        self.dry_run = build_option('extended_dry_run')
         if self.dry_run:
             self.init_dry_run()
 
