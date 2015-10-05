@@ -1965,8 +1965,11 @@ class EasyBlock(object):
                 try:
                     m(self)()
                 except Exception as err:
-                    dry_run_msg("!!! WARNING !!! ignoring error: %s" % err, silent=self.silent)
-                    self.ignored_errors = True
+                    if build_option('extended_dry_run_ignore_errors'):
+                        dry_run_msg("!!! WARNING !!! ignoring error: %s" % err, silent=self.silent)
+                        self.ignored_errors = True
+                    else:
+                        raise
 
                 dry_run_msg('', silent=self.silent)
 
