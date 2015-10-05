@@ -225,6 +225,11 @@ def print_msg(msg, log=None, silent=False, prefix=True):
             print msg
 
 
+def dry_run_msg(msg, silent=False):
+    """Print dry run message."""
+    print_msg(msg, silent=silent, prefix=False)
+
+
 def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
     Print error message and exit EasyBuild

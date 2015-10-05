@@ -33,7 +33,7 @@ import os
 from vsc.utils import fancylogger
 from vsc.utils.missing import shell_quote
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
 
 
@@ -98,7 +98,7 @@ def setvar(key, value, verbose=True):
         quoted_value = shell_quote(value)
         if quoted_value[0] not in ['"', "'"]:
             quoted_value = '"%s"' % quoted_value
-        print_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'), prefix=False)
+        dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
 
 
 def unset_env_vars(keys):

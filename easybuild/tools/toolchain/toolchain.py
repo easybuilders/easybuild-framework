@@ -35,7 +35,7 @@ import os
 import tempfile
 from vsc.utils import fancylogger
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import dependencies_for
@@ -103,6 +103,8 @@ class Toolchain(object):
         self._init_class_constants(class_constants)
 
         self.tcdeps = tcdeps
+
+        self.dry_run = build_option('extended_dry_run')
 
         self.modules_tool = modules_tool()
         self.mns = mns
@@ -337,7 +339,7 @@ class Toolchain(object):
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
 
         # check whether modules exist
-        if build_option('extended_dry_run'):
+        if self.dry_run:
             deps_exist = [True] * len(dep_mod_names)
         else:
             deps_exist = self.modules_tool.exist(dep_mod_names)
@@ -401,19 +403,19 @@ class Toolchain(object):
 
         tc_mod = self.det_short_module_name()
 
-        if build_option('extended_dry_run'):
+        if self.dry_run:
 
             fake_root = os.path.join(tempfile.gettempdir(), '__fake__')
             tcmods_exists = self.modules_tool.exist([tc_mod])[0]
 
-            print_msg("Loading toolchain module...\n", silent=silent, prefix=False)
+            dry_run_msg("Loading toolchain module...\n", silent=silent)
 
             # load toolchain module, or simulate load of toolchain components if its not available
             if tcmods_exists:
                 self.modules_tool.load([tc_mod], silent=silent)
-                print_msg("module load %s" % tc_mod, silent=silent, prefix=False)
+                dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
-                print_msg("module load %s [SIMULATED]" % tc_mod, silent=silent, prefix=False)
+                dry_run_msg("module load %s [SIMULATED]" % tc_mod, silent=silent)
                 # provide fake prefix so $EBROOT* gets defined
                 fake_prefix = os.path.join(fake_root, tc_mod)
                 self._simulated_load_dependency_module(self.name, self.version, {'prefix': fake_prefix})
@@ -422,7 +424,7 @@ class Toolchain(object):
                 if self.tcdeps is not None:
                     for tcdep in self.tcdeps:
                         modname = tcdep['short_mod_name']
-                        print_msg(" module load %s [SIMULATED]" % modname, silent=silent, prefix=False)
+                        dry_run_msg(" module load %s [SIMULATED]" % modname, silent=silent)
                         # provide fake prefix so $EBROOT* gets defined
                         fake_prefix = os.path.join(fake_root, tcdep['name'], tcdep['version'])
                         self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': fake_prefix})
@@ -441,8 +443,8 @@ class Toolchain(object):
     def _load_dependencies_modules(self, silent=False):
         """Load modules for dependencies, and handle special cases like external modules."""
 
-        if build_option('extended_dry_run'):
-            print_msg("\nLoading modules for dependencies...\n", silent=silent, prefix=False)
+        if self.dry_run:
+            dry_run_msg("\nLoading modules for dependencies...\n", silent=silent)
 
             fake_root = os.path.join(tempfile.gettempdir(), '__fake__')
             mod_names = [dep['short_mod_name'] for dep in self.dependencies]
@@ -453,9 +455,9 @@ class Toolchain(object):
                 mod_name = dep['short_mod_name']
                 if dep_mod_exists:
                     self.modules_tool.load([mod_name], silent=silent)
-                    print_msg("module load %s" % mod_name, silent=silent, prefix=False)
+                    dry_run_msg("module load %s" % mod_name, silent=silent)
                 else:
-                    print_msg("module load %s [SIMULATED]" % mod_name, silent=silent, prefix=False)
+                    dry_run_msg("module load %s [SIMULATED]" % mod_name, silent=silent)
                     # provide fake prefix so $EBROOT* gets defined
                     fake_prefix = os.path.join(fake_root, mod_name)
                     self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': fake_prefix})
@@ -484,14 +486,14 @@ class Toolchain(object):
         if self.modules_tool is None:
             raise EasyBuildError("No modules tool defined in Toolchain instance.")
 
-        if not self._toolchain_exists() and not build_option('extended_dry_run'):
+        if not self._toolchain_exists() and not self.dry_run:
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
-                if build_option('extended_dry_run'):
-                    print_msg("(no modules are loaded for a dummy-dummy toolchain)", silent=silent, prefix=False)
+                if self.dry_run:
+                    dry_run_msg("(no modules are loaded for a dummy-dummy toolchain)", silent=silent)
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
                 self._load_dependencies_modules(silent=silent)
@@ -542,7 +544,7 @@ class Toolchain(object):
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 
-            if not build_option('extended_dry_run'):
+            if not self.dry_run:
                 self._verify_toolchain()
 
             # Generate the variables to be set
@@ -602,8 +604,8 @@ class Toolchain(object):
         """Actually set the environment variables"""
 
         self.log.debug("_setenv_variables: setting variables: donotset=%s" % donotset)
-        if build_option('extended_dry_run'):
-            print_msg("Defining build environment...\n", silent=not verbose, prefix=False)
+        if self.dry_run:
+            dry_run_msg("Defining build environment...\n", silent=not verbose)
 
         donotsetlist = []
         if isinstance(donotset, str):

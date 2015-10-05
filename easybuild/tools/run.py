@@ -44,7 +44,7 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.config import build_option
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -79,8 +79,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if not forced and verbose and build_option('extended_dry_run'):
         if path is None:
             path = cwd
-        print_msg("  running command \"%s\"" % cmd, silent=build_option('silent'), prefix=False)
-        print_msg("  (in %s)" % path, silent=build_option('silent'), prefix=False)
+        dry_run_msg("  running command \"%s\"" % cmd, silent=build_option('silent'))
+        dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
         if simple:
             return True
         else:
@@ -163,8 +163,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     if build_option('extended_dry_run'):
         if path is None:
             path = cwd
-        print_msg("  running interactive command \"%s\" in %s" % cmd, silent=build_option('silent'), prefix=False)
-        print_msg("  (in %s)" % path, silent=build_option('silent'), prefix=False)
+        dry_run_msg("  running interactive command \"%s\" in %s" % cmd, silent=build_option('silent'))
+        dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
         if simple:
             return True
         else:

@@ -48,7 +48,8 @@ import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import EasyBuildError, print_msg  # import build_log must stay, to use of EasyBuildLog
+# import build_log must stay, to use of EasyBuildLog
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 
@@ -161,7 +162,7 @@ def write_file(path, txt, append=False, forced=False):
 
     # early exit in 'dry run' mode
     if not forced and build_option('extended_dry_run'):
-        print_msg("file written: %s" % path, silent=build_option('silent'), prefix=False)
+        dry_run_msg("file written: %s" % path, silent=build_option('silent'))
         return
 
     handle = None
@@ -615,7 +616,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     if build_option('extended_dry_run'):
         # skip checking of files in dry run mode
         patch_filename = os.path.basename(patch_file)
-        print_msg("* applying patch file %s" % patch_filename, silent=build_option('silent'), prefix=False)
+        dry_run_msg("* applying patch file %s" % patch_filename, silent=build_option('silent'))
 
     elif not os.path.isfile(patch_file):
         raise EasyBuildError("Can't find patch %s: no such file", patch_file)
@@ -629,7 +630,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     # copy missing files
     if copy:
         if build_option('extended_dry_run'):
-            print_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'), prefix=False)
+            dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
         else:
             try:
                 shutil.copy2(patch_file, dest)
@@ -687,7 +688,7 @@ def apply_regex_substitutions(path, regex_subs):
 
     # early exit in 'dry run' mode
     if build_option('extended_dry_run'):
-        print_msg("patching file %s" % path, silent=build_option('silent'), prefix=False)
+        dry_run_msg("patching file %s" % path, silent=build_option('silent'))
         return
 
     for i, (regex, subtxt) in enumerate(regex_subs):
@@ -803,7 +804,7 @@ def patch_perl_script_autoflush(path):
 
     # early exit in 'dry run' mode
     if build_option('extended_dry_run'):
-        print_msg("Perl script patched: %s" % path, silent=build_option('silent'), prefix=False)
+        dry_run_msg("Perl script patched: %s" % path, silent=build_option('silent'))
         return
 
     txt = read_file(path)
