@@ -1044,6 +1044,9 @@ def robot_find_easyconfig(name, version):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                 _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
                 res = _easyconfig_files_cache[key]
+                break
+        if res:
+            break
 
     return res
 
