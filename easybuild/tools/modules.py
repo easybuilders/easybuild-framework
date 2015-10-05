@@ -42,9 +42,8 @@ from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
-from vsc.utils.patterns import Singleton
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which

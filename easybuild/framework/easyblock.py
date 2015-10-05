@@ -482,7 +482,11 @@ class EasyBlock(object):
         return exts_sources
 
     def obtain_file(self, filename, extension=False, urls=None):
-        """Real version of obtain_file method."""
+        """
+        Locate the file with the given name
+        - searches in different subdirectories of source path
+        - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
+        """
         srcpaths = source_paths()
 
         # should we download or just try and find it?
@@ -1241,6 +1245,7 @@ class EasyBlock(object):
                 self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
         else:
             self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+
         self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
         self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
@@ -1273,7 +1278,8 @@ class EasyBlock(object):
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
     def fetch_step(self, skip_checksums=False):
-        """Real version of fetch_step method."""
+        """Fetch source files and patches (incl. extensions)."""
+
         # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
@@ -1330,12 +1336,8 @@ class EasyBlock(object):
                 self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
 
         # fetch extensions
-        if len(self.cfg['exts_list']) > 0:
+        if self.cfg['exts_list']:
             self.exts = self.fetch_extension_sources()
-
-        # set level of parallelism for build
-        self.cfg['parallel'] = det_parallelism(self.cfg['parallel'], self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
@@ -1375,7 +1377,9 @@ class EasyBlock(object):
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
 
     def patch_step(self, beginpath=None):
-        """Real version of patch_step method."""
+        """
+        Apply the patches
+        """
         for patch in self.patches:
             self.log.info("Applying patch %s" % patch['name'])
 
@@ -1493,7 +1497,7 @@ class EasyBlock(object):
         exts_classmap = self.cfg['exts_classmap']
 
         # we really need a default class
-        if not exts_defaultclass and fake_mod_data is not None:
+        if not exts_defaultclass and fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
             raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
@@ -1564,7 +1568,6 @@ class EasyBlock(object):
 
             # real work
             inst.prerun()
-            # FIXME no output for Perl commands?!
             txt = inst.run()
             if txt:
                 self.module_extra_extensions += txt
@@ -1574,7 +1577,7 @@ class EasyBlock(object):
             self.ext_instances.append(inst)
 
         # cleanup (unload fake module, remove fake module dir)
-        if fake_mod_data is not None:
+        if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
 
     def package_step(self):
@@ -1628,7 +1631,7 @@ class EasyBlock(object):
             self._sanity_check_step(*args, **kwargs)
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
-        """Real version of sanity_check_step method."""
+        """Determine sanity check paths and commands to use."""
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
@@ -1676,11 +1679,12 @@ class EasyBlock(object):
                 command = (None, None)
 
             # Build substition dictionary
-            check_cmd = {'name': self.name.lower(), 'options': '-h'}
-
+            check_cmd = {
+                'name': self.name.lower(),
+                'options': '-h',
+            }
             if command[0] is not None:
                 check_cmd['name'] = command[0]
-
             if command[1] is not None:
                 check_cmd['options'] = command[1]
 
@@ -1688,9 +1692,8 @@ class EasyBlock(object):
 
         return paths, path_keys_and_check, commands
 
-    def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, extension=False):
+    def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, **_):
         """Dry run version of sanity_check_step method."""
-
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         for key in path_keys_and_check:
@@ -1710,7 +1713,6 @@ class EasyBlock(object):
 
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
-
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         # check sanity check paths
@@ -1721,6 +1723,7 @@ class EasyBlock(object):
                 typ = 'file'
             else:
                 raise EasyBuildError("Unknown type of sanity check paths: %s", typ)
+
             for xs in paths[key]:
                 if isinstance(xs, basestring):
                     xs = (xs,)
@@ -1816,7 +1819,9 @@ class EasyBlock(object):
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
     def make_module_step(self, fake=False):
-        """Real version of make_module_step."""
+        """
+        Generate module file
+        """
         modpath = self.module_generator.prepare(fake=fake)
 
         txt = self.make_module_description()
