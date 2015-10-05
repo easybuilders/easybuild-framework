@@ -1507,7 +1507,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_file,
             '--robot-paths=%s' % test_ecs_path,
         ]
-        error_regex = 'no module .* found for dependency'
+        error_regex = "Missing modules for one or more dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
         # enable robot, but without passing path required to resolve toy dependency => FAIL

@@ -352,7 +352,7 @@ class Toolchain(object):
                 missing_dep_mods.append(dep_mod_name)
 
         if missing_dep_mods:
-            raise EasyBuildError("Missing modules for one or more dependencies: %s", missing_dep_mods)
+            raise EasyBuildError("Missing modules for one or more dependencies: %s", ', '.join(missing_dep_mods))
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
