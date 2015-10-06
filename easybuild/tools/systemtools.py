@@ -338,6 +338,9 @@ def get_os_version():
                     ('2.6.32', '_SP1'),
                     ('3.0', '_SP2'),
                 ],
+                "12": [
+                    ('3.12', ''),
+                ],
             }
 
             # append suitable suffix to system version
