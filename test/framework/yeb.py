@@ -52,9 +52,17 @@ class YebTest(EnhancedTestCase):
 
         no_match = False
         for key in sorted(ec_yeb.asdict()):
-            #self.assertEqual(ec_yeb[key], ec_eb[key])
-            if ec_yeb[key] != ec_eb[key]:
-                print '>>> ', key, ec_yeb[key], type(ec_yeb[key]), ec_eb[key], type(ec_eb[key]), ec_yeb[key] == ec_eb[key]
+            eb_val = ec_eb[key]
+            yeb_val = ec_yeb[key]
+            if key == 'description':
+                # multi-line string is always terminated with '\n' in YAML, so strip it off
+                yeb_val = yeb_val.strip()
+
+            #self.assertEqual(yeb_val, eb_val)
+
+        # FIXME: drop the below, uncomment the line above
+            if yeb_val != eb_val:
+                print '>>> ', key, yeb_val, type(yeb_val), eb_val, type(eb_val)
                 no_match = True
         self.assertFalse(no_match)
 
