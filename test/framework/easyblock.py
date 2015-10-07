@@ -710,7 +710,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb = EasyBlock(ec['ec'])
         eb.silent = True
-        eb.cfg['stop'] = 'source'
+        eb.cfg['stop'] = 'patch'
         eb.run_all_steps(False)
         eb.guess_start_dir()
         self.assertEqual(os.getcwd(), os.path.join(eb.builddir, "toy-0.0"))
