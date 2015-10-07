@@ -157,7 +157,7 @@ class EasyConfigParser(object):
         """Obtain instance of the formatter"""
         if self._formatter is None:
             if is_yeb_format(filename, self.rawcontent):
-                self._formatter = FormatYeb(filename)
+                self._formatter = FormatYeb()
             else:
                 klass = self._get_format_version_class()
                 self._formatter = klass()
