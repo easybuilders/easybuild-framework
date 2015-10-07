@@ -32,11 +32,23 @@ import os
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 
 
 class YebTest(EnhancedTestCase):
     """ Testcase for run module """
+
+    def setUp(self):
+        """Test setup."""
+        super(YebTest, self).setUp()
+        self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
+    def tearDown(self):
+        """Test cleanup."""
+        super(YebTest, self).tearDown()
+        easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
 
     def test_parse_yeb(self):
         """Test parsing of .yeb easyconfigs."""
