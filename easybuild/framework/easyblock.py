@@ -1136,19 +1136,28 @@ class EasyBlock(object):
         -- if abspath: use that
         -- else, treat it as subdir for regular procedure
         """
-        tmpdir = ''
+        start_dir = ''
         if self.cfg['start_dir']:
-            tmpdir = self.cfg['start_dir']
+            start_dir = self.cfg['start_dir']
 
-        if not os.path.isabs(tmpdir):
+        if not os.path.isabs(start_dir):
             if len(self.src) > 0 and not self.skip and self.src[0]['finalpath']:
-                self.cfg['start_dir'] = os.path.join(self.src[0]['finalpath'], tmpdir)
+                topdir = self.src[0]['finalpath']
             else:
-                self.cfg['start_dir'] = os.path.join(self.builddir, tmpdir)
+                topdir = self.builddir
+
+            abs_start_dir = os.path.join(topdir, start_dir)
+            if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
+                self.cfg['start_dir'] = topdir
+            else:
+                if os.path.exists(abs_start_dir):
+                    self.cfg['start_dir'] = abs_start_dir
+                else:
+                    raise EasyBuildError("Specified start dir %s does not exist", abs_start_dir)
 
         try:
             os.chdir(self.cfg['start_dir'])
-            self.log.debug("Changed to real build directory %s" % (self.cfg['start_dir']))
+            self.log.debug("Changed to real build directory %s (start_dir)" % self.cfg['start_dir'])
         except OSError, err:
             raise EasyBuildError("Can't change to real build directory %s: %s", self.cfg['start_dir'], err)
 
