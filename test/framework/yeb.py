@@ -34,7 +34,8 @@ from unittest import TestLoader, main
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
-
+from easybuild.framework.easyconfig.format.yeb import is_yeb_format
+from easybuild.tools.filetools import read_file
 
 class YebTest(EnhancedTestCase):
     """ Testcase for run module """
@@ -78,6 +79,20 @@ class YebTest(EnhancedTestCase):
                 no_match = True
         self.assertFalse(no_match)
 
+    def test_is_yeb_format(self):
+        """ Test is_yeb_format function """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_yeb = os.path.join(testdir, 'easyconfigs', 'yeb', 'bzip2.yeb')
+        raw_yeb = read_file(test_yeb)
+
+        self.assertTrue(is_yeb_format(test_yeb, None))
+        self.assertTrue(is_yeb_format(None, raw_yeb))
+
+        test_eb = os.path.join(testdir, 'easyconfigs', 'gzip-1.4.eb')
+        raw_eb = read_file(test_eb)
+
+        self.assertFalse(is_yeb_format(test_eb, None))
+        self.assertFalse(is_yeb_format(None, raw_eb))
 
 def suite():
     """ returns all the testcases in this module """

@@ -24,6 +24,7 @@
 # #
 """
 YAML easyconfig format (.yeb)
+Useful: http://www.yaml.org/spec/1.2/spec.html
 
 @author: Caroline De Brouwer (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -75,22 +76,25 @@ class FormatYeb(EasyConfigFormat):
 
     def validate(self):
         """Format validation"""
-        # TODO for YAML
+        _log.info("yaml format validation isn't implemented (yet) - validate always returns true")
+        return True
 
     @requires_yaml
     def get_config_dict(self):
         """
         Return parsed easyconfig as a dictionary, based on specified arguments.
         """
-        f = read_file(self.filename)
-        return yaml.load(f)
+        return self.parsed_yeb
 
     def parse(self, txt):
         """
-        Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
+        Process YAML file
         """
-        #TODO
-        pass
+        if self.filename:
+            f = read_file(self.filename)
+            self.parsed_yeb = yaml.load(f)
+        else:
+            self.parsed_yeb = yaml.load(txt)
 
     def dump(self, ecfg, default_values, templ_const, templ_val):
         #TODO
@@ -106,8 +110,11 @@ def is_yeb_format(filename, rawcontent):
     Determine whether easyconfig is in .yeb format.
     If filename is None, rawcontent will be used to check the format.
     """
+    yeb = False
     if filename:
         return os.path.splitext(filename)[-1] == YEB_FORMAT_EXTENSION
     else:
-        # FIXME: check whether file starts with '---' (and require it when parsing)
-        raise NotImplementedError("Checking for .yeb format based on raw content")
+        for line in rawcontent.splitlines():
+            if line.startswith('name: '):
+                yeb = True
+        return yeb
