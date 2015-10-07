@@ -472,12 +472,11 @@ def find_base_dir():
     """
     def get_local_dirs_purged():
         # e.g. always purge the log directory
+        # and hidden directories
         ignoreDirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
-        for ignDir in ignoreDirs:
-            if ignDir in lst:
-                lst.remove(ignDir)
+        lst = [Dir for Dir in lst if not Dir.startswith('.') or Dir in ignoreDirs]
         return lst
 
     lst = get_local_dirs_purged()
