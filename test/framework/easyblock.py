@@ -699,9 +699,6 @@ class EasyBlockTest(EnhancedTestCase):
         """Test guessing the start dir."""
         ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
 
-        fancylogger.logToScreen(enable=True)
-        fancylogger.setLogLevelDebug()
-
         eb = EasyBlock(ec['ec'])
         eb.silent = True
         eb.cfg['stop'] = 'patch'
