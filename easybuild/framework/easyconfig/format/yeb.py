@@ -60,7 +60,7 @@ except ImportError as err:
         return fail
 
 
-YEB_FORMAT_EXTENSION = 'yeb'
+YEB_FORMAT_EXTENSION = '.yeb'
 
 
 class FormatYeb(EasyConfigFormat):
@@ -76,6 +76,7 @@ class FormatYeb(EasyConfigFormat):
         """Format validation"""
         # TODO for YAML
 
+    @requires_yaml
     def get_config_dict(self):
         """
         Return parsed easyconfig as a dictionary, based on specified arguments.
@@ -107,5 +108,5 @@ def is_yeb_format(filename, rawcontent):
     if filename:
         return os.path.splitext(filename)[-1] == YEB_FORMAT_EXTENSION
     else:
-        # FIXME
+        # FIXME: check whether file starts with '---' (and require it when parsing)
         raise NotImplementedError("Checking for .yeb format based on raw content")
