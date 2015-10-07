@@ -55,34 +55,28 @@ from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import only_if_module_is_available, quote_str
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
 # a NameError should be catched where these are used
 
-# PyGraph (used for generating dependency graphs)
-graph_errors = []
 try:
-    from pygraph.classes.digraph import digraph
-except ImportError, err:
-    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
-
-try:
+    # PyGraph (used for generating dependency graphs)
+    # https://pypi.python.org/pypi/python-graph-core
+    import pygraph.classes.digraph as digraph
+    # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
-except ImportError, err:
-    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
-
-# graphviz (used for creating dependency graph images)
-try:
+    # graphviz (used for creating dependency graph images)
     sys.path.append('..')
     sys.path.append('/usr/lib/graphviz/python/')
     sys.path.append('/usr/lib64/graphviz/python/')
+    # https://pypi.python.org/pypi/pygraphviz
+    # graphviz-python (yum) or python-pygraphviz (apt-get)
+    # or brew install graphviz --with-bindings (OS X)
     import gv
-except ImportError, err:
-    graph_errors.append("Failed to import graphviz: try yum install graphviz-python,"
-                        "or apt-get install python-pygraphviz,"
-                        "or brew install graphviz --with-bindings")
+except ImportError:
+    pass
 
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
@@ -147,7 +141,8 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     return ordered_ecs, new_unprocessed, new_avail_modules
 
 
-def _dep_graph(fn, specs):
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph(filename, specs):
     """
     Create a dependency graph for the given easyconfigs.
     """
@@ -183,27 +178,31 @@ def _dep_graph(fn, specs):
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
 
-    # write to file
-    dottxt = dot.write(dgr)
-    if fn.endswith(".dot"):
-        # create .dot file
-        write_file(fn, dottxt)
-    else:
-        # try and render graph in specified file format
-        gvv = gv.readstring(dottxt)
-        gv.layout(gvv, 'dot')
-        gv.render(gvv, fn.split('.')[-1], fn)
+    _dep_graph_dump(dgr, filename)
 
     if not build_option('silent'):
-        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
+        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename)
 
 
-def dep_graph(*args, **kwargs):
-    try:
-        _dep_graph(*args, **kwargs)
-    except NameError, err:
-        raise EasyBuildError("An optional Python packages required to generate dependency graphs is missing: %s, %s",
-                             '\n'.join(graph_errors), err)
+@only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
+def _dep_graph_dump(dgr, filename):
+    """Dump dependency graph to file, in specified format."""
+    # write to file
+    dottxt = dot.write(dgr)
+    if os.path.splitext(filename)[-1] == '.dot':
+        # create .dot file
+        write_file(filename, dottxt)
+    else:
+        _dep_graph_gv(dottxt, filename)
+
+
+@only_if_module_is_available('gv', pkgname='graphviz')
+def _dep_graph_gv(dottxt, filename):
+    """Render dependency graph to file using graphviz."""
+    # try and render graph in specified file format
+    gvv = gv.readstring(dottxt)
+    gv.layout(gvv, 'dot')
+    gv.render(gvv, os.path.splitext(filename)[-1], filename)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):

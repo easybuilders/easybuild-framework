@@ -38,6 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.job.backend import JobBackend
+from easybuild.tools.utilities import only_if_module_is_available
 
 
 _log = fancylogger.getLogger('pbs_python', fname=False)
@@ -53,25 +54,9 @@ try:
     from PBSQuery import PBSQuery
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 
-    # `pbs_python` is available, no need guard against import errors
-    def pbs_python_imported(fn):
-        """No-op decorator."""
-        return fn
-
 except ImportError as err:
-    _log.debug("Failed to import pbs from pbs_python."
+    _log.debug("Failed to import pbs/PBSQuery from pbs_python."
                " Silently ignoring, this is a real issue only when pbs_python is used as backend for --job")
-
-    # `pbs_python` not available, turn method in a raised EasyBuildError
-    def pbs_python_imported(_):
-        """Decorator which raises an EasyBuildError because pbs_python is not available."""
-        def fail(*args, **kwargs):
-            """Raise EasyBuildError since `pbs_python` is not available."""
-            errmsg = "Python modules 'PBSQuery' and 'pbs' are not available. "
-            errmsg += "Please make sure `pbs_python` is installed and usable: %s"
-            raise EasyBuildError(errmsg, err)
-
-        return fail
 
 
 class PbsPython(JobBackend):
@@ -82,7 +67,7 @@ class PbsPython(JobBackend):
     # pbs_python 4.1.0 introduces the pbs.version variable we rely on
     REQ_VERSION = '4.1.0'
 
-    @pbs_python_imported
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _check_version(self):
         """Check whether pbs_python version complies with required version."""
         version_regex = re.compile('pbs_python version (?P<version>.*)')
@@ -96,6 +81,7 @@ class PbsPython(JobBackend):
             raise EasyBuildError("Failed to parse pbs_python version string '%s' using pattern %s",
                                  pbs.version, version_regex.pattern)
 
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def __init__(self, *args, **kwargs):
         """Constructor."""
         pbs_server = kwargs.pop('pbs_server', None)
@@ -115,7 +101,7 @@ class PbsPython(JobBackend):
         self.connect_to_server()
         self._submitted = []
 
-    @pbs_python_imported
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def connect_to_server(self):
         """Connect to PBS server, set and return connection."""
         if not self.conn:
@@ -162,13 +148,13 @@ class PbsPython(JobBackend):
 
         self.log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
 
-    @pbs_python_imported
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def disconnect_from_server(self):
         """Disconnect current connection."""
         pbs.pbs_disconnect(self.conn)
         self.conn = None
 
-    @pbs_python_imported
+    @only_if_module_is_available('PBSQuery', pkgname='pbs_python')
     def _get_ppn(self):
         """Guess PBS' `ppn` value for a full node."""
         # cache this value as it's not likely going to change over the
@@ -270,6 +256,7 @@ class PbsJob(object):
         """
         self.deps.extend(jobs)
 
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _submit(self):
         """Submit the jobscript txt, set self.jobid"""
         txt = self.script
@@ -354,6 +341,7 @@ class PbsJob(object):
             self.jobid = jobid
             os.remove(scriptfn)
 
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def set_hold(self, hold_type=None):
         """Set hold on job of specified type."""
         # we can't set this default for hold_type in function signature,
@@ -375,6 +363,7 @@ class PbsJob(object):
         else:
             self.log.warning("Hold type %s was already set for %s" % (hold_type, self.jobid))
 
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def release_hold(self, hold_type=None):
         """Release hold on job of specified type."""
         # we can't set this default for hold_type in function signature,
@@ -441,6 +430,7 @@ class PbsJob(object):
         else:
             return 'running'
 
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def info(self, types=None):
         """
         Return jobinfo
@@ -483,6 +473,7 @@ class PbsJob(object):
         self.log.debug("Found jobinfo %s" % job_details)
         return job_details
 
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def remove(self):
         """Remove the job with id jobid"""
         result = pbs.pbs_deljob(self.pbsconn, self.jobid, '')  # use empty string, not NULL
