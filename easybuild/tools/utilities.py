@@ -122,3 +122,19 @@ def import_available_modules(namespace):
                     raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
                 modules.append(mod)
     return modules
+
+
+def only_if_module_is_available(modname):
+    """Decorator to guard functions/methods against missing required module with specified name."""
+    def wrap(orig):
+        """Decorated function, raises ImportError if specified module is not available."""
+        try:
+            __import__(modname)
+            return orig
+
+        except ImportError as err:
+            def error(*args):
+                raise ImportError("%s; required module '%s' is not available" % (err, modname))
+            return error
+
+    return wrap

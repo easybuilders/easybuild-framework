@@ -277,7 +277,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
-        ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
+        # TODO FIXME: drop this once 2.0/.yeb support works
+        ec_files = [fil for fil in ec_files if not ('v2.0/' in fil or 'yeb/' in fil)]
 
         build_options = {
             'check_osdeps': False,
