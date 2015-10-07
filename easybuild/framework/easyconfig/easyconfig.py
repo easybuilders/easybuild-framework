@@ -145,10 +145,7 @@ class EasyConfig(object):
         self._config = copy.deepcopy(DEFAULT_CONFIG)
 
         # obtain name and easyblock specifications from raw easyconfig contents
-        eb_format = None
-        if self.path:
-            eb_format = os.path.splitext(self.path)[-1]
-        self.software_name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'], eb_format)
+        self.software_name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
 
         # determine line of extra easyconfig parameters
         if extra_options is None:

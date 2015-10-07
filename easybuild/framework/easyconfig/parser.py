@@ -35,7 +35,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
-from easybuild.framework.easyconfig.format.yeb import FormatYeb
+from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
@@ -55,7 +55,7 @@ REPLACED_PARAMETERS = {
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
 
 
-def fetch_parameters_from_easyconfig(rawtxt, params, eb_format='.eb'):
+def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     Fetch (initial) parameter definition from the given easyconfig file contents.
     @param rawtxt: contents of the easyconfig file
@@ -63,10 +63,7 @@ def fetch_parameters_from_easyconfig(rawtxt, params, eb_format='.eb'):
     """
     param_values = []
     for param in params:
-        if eb_format == '.yeb':
-            regex = re.compile(r"^\s*%s\s*: \s*(?P<param>\S.*?)\s*$" % param, re.M)
-        else:
-            regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        regex = re.compile(r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*$" % param, re.M)
         res = regex.search(rawtxt)
         if res:
             param_values.append(res.group('param').strip("'\""))
@@ -92,11 +89,9 @@ class EasyConfigParser(object):
 
         self.format_version = format_version
         self._formatter = None
-        if filename and os.path.splitext(filename)[-1] == '.yeb':
-            self._formatter = FormatYeb(filename)
         if rawcontent is not None:
             self.rawcontent = rawcontent
-            self._set_formatter()
+            self._set_formatter(filename)
         elif filename is not None:
             self._check_filename(filename)
             self.process()
@@ -108,7 +103,7 @@ class EasyConfigParser(object):
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)
-        self._set_formatter()
+        self._set_formatter(filename)
 
     def _check_filename(self, fn):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""
@@ -158,11 +153,14 @@ class EasyConfigParser(object):
             raise EasyBuildError("More than one format class found matching version %s in %s",
                                  self.format_version, found_classes)
 
-    def _set_formatter(self):
+    def _set_formatter(self, filename):
         """Obtain instance of the formatter"""
         if self._formatter is None:
-            klass = self._get_format_version_class()
-            self._formatter = klass()
+            if is_yeb_format(filename, self.rawcontent):
+                self._formatter = FormatYeb(filename)
+            else:
+                klass = self._get_format_version_class()
+                self._formatter = klass()
         self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):
