@@ -76,6 +76,7 @@ class SvnRepository(FileRepository):
 
     USABLE = HAVE_PYSVN
 
+    @only_if_module_is_available('pysvn', url='http://pysvn.tigris.org/')
     def __init__(self, *args):
         """
         Set self.client to None. Real logic is in setupRepo and createWorkingCopy
@@ -83,7 +84,6 @@ class SvnRepository(FileRepository):
         self.client = None
         FileRepository.__init__(self, *args)
 
-    @only_if_module_is_available('pysvn', url='http://pysvn.tigris.org/')
     def setup_repo(self):
         """
         Set up SVN repository.

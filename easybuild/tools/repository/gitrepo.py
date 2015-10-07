@@ -75,6 +75,7 @@ class GitRepository(FileRepository):
 
     USABLE = HAVE_GIT
 
+    @only_if_module_is_available('git', pkgname='GitPython')
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
@@ -83,14 +84,12 @@ class GitRepository(FileRepository):
         self.client = None
         FileRepository.__init__(self, *args)
 
-    @only_if_module_is_available('git', pkgname='GitPython')
     def setup_repo(self):
         """
         Set up git repository.
         """
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
-    @only_if_module_is_available('git', pkgname='GitPython')
     def create_working_copy(self):
         """
         Create git working copy.

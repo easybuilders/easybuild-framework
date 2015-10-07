@@ -82,7 +82,11 @@ class GC3Pie(JobBackend):
     DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
     REQ_SVN_REVISION = 4287  # use integer value, not a string!
 
-    @only_if_module_is_available('gc3libs.core', pkgname='gc3pie')
+    @only_if_module_is_available('gc3libs', pkgname='gc3pie')
+    def __init__(self, *args, **kwargs):
+        """GC3Pie constructor."""
+        super(GC3Pie, self).__init__(*args, **kwargs)
+
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
         # location of __version__ to use may change, depending on the minimal required SVN revision for development versions
@@ -108,7 +112,6 @@ class GC3Pie(JobBackend):
             raise EasyBuildError("Failed to parse GC3Pie version string '%s' using pattern %s",
                                  version_str, version_regex.pattern)
 
-    @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def init(self):
         """
         Initialise the GC3Pie job backend.
@@ -131,7 +134,6 @@ class GC3Pie(JobBackend):
         # before polling again (in seconds)
         self.poll_interval = build_option('job_polling_interval')
 
-    @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """
         Create and return a job object with the given parameters.
@@ -195,7 +197,6 @@ class GC3Pie(JobBackend):
 
         return Application(['/bin/sh', '-c', script], **named_args)
 
-    @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def queue(self, job, dependencies=frozenset()):
         """
         Add a job to the queue, optionally specifying dependencies.
@@ -206,7 +207,6 @@ class GC3Pie(JobBackend):
         # since it's not trivial to determine the correct job count from self.jobs, we keep track of a count ourselves
         self.job_cnt += 1
 
-    @only_if_module_is_available('gc3libs.exceptions', pkgname='gc3pie')
     def complete(self):
         """
         Complete a bulk job submission.
@@ -253,7 +253,6 @@ class GC3Pie(JobBackend):
         print_msg("Done processing jobs", log=self.log, silent=build_option('silent'))
         self._print_status_report()
 
-    @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def _print_status_report(self):
         """
         Print a job status report to STDOUT and the log file.

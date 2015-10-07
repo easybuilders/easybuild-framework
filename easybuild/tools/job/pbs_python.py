@@ -68,6 +68,10 @@ class PbsPython(JobBackend):
     REQ_VERSION = '4.1.0'
 
     @only_if_module_is_available('pbs', pkgname='pbs_python')
+    def __init__(self, *args, **kwargs):
+        """PbsPython constructor."""
+        super(GC3Pie, self).__init__(*args, **kwargs)
+
     def _check_version(self):
         """Check whether pbs_python version complies with required version."""
         version_regex = re.compile('pbs_python version (?P<version>.*)')
@@ -81,7 +85,6 @@ class PbsPython(JobBackend):
             raise EasyBuildError("Failed to parse pbs_python version string '%s' using pattern %s",
                                  pbs.version, version_regex.pattern)
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def __init__(self, *args, **kwargs):
         """Constructor."""
         pbs_server = kwargs.pop('pbs_server', None)
@@ -101,7 +104,6 @@ class PbsPython(JobBackend):
         self.connect_to_server()
         self._submitted = []
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def connect_to_server(self):
         """Connect to PBS server, set and return connection."""
         if not self.conn:
@@ -148,13 +150,11 @@ class PbsPython(JobBackend):
 
         self.log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def disconnect_from_server(self):
         """Disconnect current connection."""
         pbs.pbs_disconnect(self.conn)
         self.conn = None
 
-    @only_if_module_is_available('PBSQuery', pkgname='pbs_python')
     def _get_ppn(self):
         """Guess PBS' `ppn` value for a full node."""
         # cache this value as it's not likely going to change over the
@@ -256,7 +256,6 @@ class PbsJob(object):
         """
         self.deps.extend(jobs)
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _submit(self):
         """Submit the jobscript txt, set self.jobid"""
         txt = self.script
@@ -341,7 +340,6 @@ class PbsJob(object):
             self.jobid = jobid
             os.remove(scriptfn)
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def set_hold(self, hold_type=None):
         """Set hold on job of specified type."""
         # we can't set this default for hold_type in function signature,
@@ -363,7 +361,6 @@ class PbsJob(object):
         else:
             self.log.warning("Hold type %s was already set for %s" % (hold_type, self.jobid))
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def release_hold(self, hold_type=None):
         """Release hold on job of specified type."""
         # we can't set this default for hold_type in function signature,
@@ -430,7 +427,6 @@ class PbsJob(object):
         else:
             return 'running'
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def info(self, types=None):
         """
         Return jobinfo
@@ -473,7 +469,6 @@ class PbsJob(object):
         self.log.debug("Found jobinfo %s" % job_details)
         return job_details
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def remove(self):
         """Remove the job with id jobid"""
         result = pbs.pbs_deljob(self.pbsconn, self.jobid, '')  # use empty string, not NULL
