@@ -24,6 +24,7 @@
 # #
 """
 YAML easyconfig format (.yeb)
+Useful: http://www.yaml.org/spec/1.2/spec.html
 
 @author: Caroline De Brouwer (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -32,9 +33,11 @@ import os
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import EasyConfigFormat
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-
+from easybuild.tools.utilities import quote_str
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 
@@ -61,6 +64,7 @@ except ImportError as err:
 
 
 YEB_FORMAT_EXTENSION = '.yeb'
+INDENT_4_SPACES = '    '
 
 
 class FormatYeb(EasyConfigFormat):
@@ -75,22 +79,43 @@ class FormatYeb(EasyConfigFormat):
 
     def validate(self):
         """Format validation"""
-        # TODO for YAML
+        _log.info("yaml format validation isn't implemented (yet) - validate always returns true")
+        return True
 
     @requires_yaml
     def get_config_dict(self):
         """
         Return parsed easyconfig as a dictionary, based on specified arguments.
         """
-        f = read_file(self.filename)
-        return yaml.load(f)
+        return self.parsed_yeb
 
     def parse(self, txt):
         """
-        Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
+        Process YAML file
         """
-        #TODO
-        pass
+        if self.filename:
+            txt = read_file(self.filename)
+
+        txt = self.inject_constants_dict(txt)
+        self.parsed_yeb = yaml.load(txt)
+
+    def inject_constants_dict(self, txt):
+        constants_dict = build_easyconfig_constants_dict()
+        constants_dict.update(build_easyconfig_variables_dict())
+
+        full_txt = ['%YAML 1.2', '---']
+        full_txt.append('constants: ')
+        for key, value in constants_dict.items():
+            #TODO License values!
+            if isinstance(value, basestring):
+                full_txt.append('%s- &%s %s' % (INDENT_4_SPACES, key.upper(), quote_str(value)))
+
+        for line in txt.splitlines():
+            if not line.startswith('%YAML') and not line.startswith('---'):
+                full_txt.append(line)
+
+        return '\n'.join(full_txt)
+
 
     def dump(self, ecfg, default_values, templ_const, templ_val):
         #TODO
@@ -106,8 +131,11 @@ def is_yeb_format(filename, rawcontent):
     Determine whether easyconfig is in .yeb format.
     If filename is None, rawcontent will be used to check the format.
     """
+    yeb = False
     if filename:
         return os.path.splitext(filename)[-1] == YEB_FORMAT_EXTENSION
     else:
-        # FIXME: check whether file starts with '---' (and require it when parsing)
-        raise NotImplementedError("Checking for .yeb format based on raw content")
+        for line in rawcontent.splitlines():
+            if line.startswith('name: '):
+                yeb = True
+        return yeb
