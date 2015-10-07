@@ -476,7 +476,7 @@ def find_base_dir():
         ignoredirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
-        lst = [d for d in lst if not d.startswith('.') or d in ignoredirs]
+        lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
