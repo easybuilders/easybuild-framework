@@ -71,6 +71,7 @@ class FormatYeb(EasyConfigFormat):
         """FormatYeb constructor"""
         self.filename = filename
         super(FormatYeb, self).__init__()
+        self.log.experimental("Parsing .yeb easyconfigs")
 
     def validate(self):
         """Format validation"""
