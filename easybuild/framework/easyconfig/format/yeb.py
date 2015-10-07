@@ -23,24 +23,44 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-This describes the easyconfig YAML format
-@author: Caroline De Brouwer (Ghent University)
-"""
+YAML easyconfig format (.yeb)
 
+@author: Caroline De Brouwer (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+"""
 import os
-import re
-import tempfile
-import yaml
 from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, get_format_version
 from easybuild.framework.easyconfig.format.format import EasyConfigFormat
-from easybuild.framework.easyconfig.format.version import EasyVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file
 
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
+
+
+try:
+    import yaml
+
+    def requires_yaml(fn):
+        """No-op decorator."""
+        return fn
+
+except ImportError as err:
+    _log.debug("'yaml' Python module (PyYAML) is not available")
+
+    # PyYAML not available, transform method in a raised EasyBuildError
+    def requires_yaml(_):
+        """Decorator which raises an EasyBuildError because PyYAML is not available."""
+        def fail(*args, **kwargs):
+            """Raise EasyBuildError since PyYAML is not available."""
+            errmsg = "Python module 'yaml' is not available. Please make sure PyYAML is installed and usable: %s"
+            raise EasyBuildError(errmsg, err)
+
+        return fail
+
+
+YEB_FORMAT_EXTENSION = 'yeb'
 
 
 class FormatYeb(EasyConfigFormat):
@@ -48,6 +68,7 @@ class FormatYeb(EasyConfigFormat):
     USABLE = True
 
     def __init__(self, filename):
+        """FormatYeb constructor"""
         self.filename = filename
         super(FormatYeb, self).__init__()
 
@@ -77,89 +98,14 @@ class FormatYeb(EasyConfigFormat):
         #TODO
         pass
 
-def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
+
+def is_yeb_format(filename, rawcontent):
     """
-    Easyconfigs can contain blocks (headed by a [Title]-line)
-    which contain commands specific to that block. Commands in the beginning of the file
-    above any block headers are common and shared between each block.
+    Determine whether easyconfig is in .yeb format.
+    If filename is None, rawcontent will be used to check the format.
     """
-    reg_block = re.compile(r"^\s*\[([\w.-]+)\]\s*$", re.M)
-    reg_dep_block = re.compile(r"^\s*block\s*: (\s*.*?)\s*$", re.M)
-
-    spec_fn = os.path.basename(spec)
-    try:
-        txt = open(spec).read()
-    except IOError, err:
-        raise EasyBuildError("Failed to read file %s: %s", spec, err)
-
-    # split into blocks using regex
-    pieces = reg_block.split(txt)
-    # the first block contains common statements
-    common = pieces.pop(0)
-
-    # determine version of easyconfig format
-    ec_format_version = get_format_version(txt)
-    if ec_format_version is None:
-        ec_format_version = FORMAT_DEFAULT_VERSION
-    _log.debug("retrieve_blocks_in_spec: derived easyconfig format version: %s" % ec_format_version)
-
-    # blocks in easyconfigs are only supported in format versions prior to 2.0
-    if pieces and ec_format_version < EasyVersion('2.0'):
-        # make a map of blocks
-        blocks = []
-        while pieces:
-            block_name = pieces.pop(0)
-            block_contents = pieces.pop(0)
-
-            if block_name in [b['name'] for b in blocks]:
-                raise EasyBuildError("Found block %s twice in %s.", block_name, spec)
-
-            block = {'name': block_name, 'contents': block_contents}
-
-            # dependency block
-            dep_block = reg_dep_block.search(block_contents)
-            if dep_block:
-                dependencies = eval(dep_block.group(1))
-                if type(dependencies) == list:
-                    block['dependencies'] = dependencies
-                else:
-                    block['dependencies'] = [dependencies]
-
-            blocks.append(block)
-
-        # make a new easyconfig for each block
-        # they will be processed in the same order as they are all described in the original file
-        specs = []
-        for block in blocks:
-            name = block['name']
-            if only_blocks and not (name in only_blocks):
-                print_msg("Skipping block %s-%s" % (spec_fn, name), silent=silent)
-                continue
-
-            (fd, block_path) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (spec_fn, name))
-            os.close(fd)
-
-            txt = common
-
-            if 'dependencies' in block:
-                for dep in block['dependencies']:
-                    if not dep in [b['name'] for b in blocks]:
-                        raise EasyBuildError("Block %s depends on %s, but block was not found.", name, dep)
-
-                    dep = [b for b in blocks if b['name'] == dep][0]
-                    txt += "\n# Dependency block %s" % (dep['name'])
-                    txt += dep['contents']
-
-            txt += "\n# Main block %s" % name
-            txt += block['contents']
-
-            write_file(block_path, txt)
-
-            specs.append(block_path)
-
-        _log.debug("Found %s block(s) in %s" % (len(specs), spec))
-        return specs
+    if filename:
+        return os.path.splitext(filename)[-1] == YEB_FORMAT_EXTENSION
     else:
-        # no blocks, one file
-        return [spec]
-
+        # FIXME
+        raise NotImplementedError("Checking for .yeb format based on raw content")
