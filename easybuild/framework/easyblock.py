@@ -1155,6 +1155,8 @@ class EasyBlock(object):
                 else:
                     raise EasyBuildError("Specified start dir %s does not exist", abs_start_dir)
 
+        self.log.info("Using %s as start dir", self.cfg['start_dir'])
+
         try:
             os.chdir(self.cfg['start_dir'])
             self.log.debug("Changed to real build directory %s (start_dir)" % self.cfg['start_dir'])

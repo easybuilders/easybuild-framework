@@ -697,23 +697,33 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
-        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
 
-        eb = EasyBlock(ec['ec'])
-        eb.silent = True
-        eb.cfg['stop'] = 'patch'
-        eb.run_all_steps(False)
-        eb.guess_start_dir()
-        self.assertEqual(os.getcwd(), os.path.join(eb.builddir, "toy-0.0"))
+        def check_start_dir(expected_start_dir):
+            """Check start dir."""
+            eb = EasyBlock(ec['ec'])
+            eb.silent = True
+            eb.cfg['stop'] = 'patch'
+            eb.run_all_steps(False)
+            eb.guess_start_dir()
+            abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
+            self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
+            self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
 
-        ec['ec']['start_dir'] = "%(name)s-%(version)s"
+        # default (no start_dir specified): use unpacked dir as start dir
+        self.assertEqual(ec['ec']['start_dir'], None)
+        check_start_dir('toy-0.0')
 
-        eb = EasyBlock(ec['ec'])
-        eb.silent = True
-        eb.cfg['stop'] = 'patch'
-        eb.run_all_steps(False)
-        eb.guess_start_dir()
-        self.assertEqual(os.getcwd(), os.path.join(eb.builddir, "toy-0.0"))
+        # using start_dir equal to the one we're in is OK
+        ec['ec']['start_dir'] = '%(name)s-%(version)s'
+        self.assertEqual(ec['ec']['start_dir'], 'toy-0.0')
+        check_start_dir('toy-0.0')
+
+        # clean error when specified start dir does not exist
+        ec['ec']['start_dir'] = 'thisstartdirisnotthere'
+        err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
+        self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
 
 def suite():
