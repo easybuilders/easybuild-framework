@@ -64,7 +64,7 @@ from easybuild.tools.utilities import only_if_module_is_available, quote_str
 try:
     # PyGraph (used for generating dependency graphs)
     # https://pypi.python.org/pypi/python-graph-core
-    import pygraph.classes.digraph as digraph
+    from pygraph.classes.digraph import digraph
     # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
     # graphviz (used for creating dependency graph images)
