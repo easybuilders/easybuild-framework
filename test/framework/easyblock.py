@@ -695,6 +695,26 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
 
+    def test_guess_start_dir(self):
+        """Test guessing the start dir."""
+        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+        eb.cfg['stop'] = 'patch'
+        eb.run_all_steps(False)
+        eb.guess_start_dir()
+        self.assertEqual(os.getcwd(), os.path.join(eb.builddir, "toy-0.0"))
+
+        ec['ec']['start_dir'] = "%(name)s-%(version)s"
+
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+        eb.cfg['stop'] = 'patch'
+        eb.run_all_steps(False)
+        eb.guess_start_dir()
+        self.assertEqual(os.getcwd(), os.path.join(eb.builddir, "toy-0.0"))
+
 
 def suite():
     """ return all the tests in this file """
