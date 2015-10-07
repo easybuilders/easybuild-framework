@@ -71,13 +71,7 @@ class YebTest(EnhancedTestCase):
                 # multi-line string is always terminated with '\n' in YAML, so strip it off
                 yeb_val = yeb_val.strip()
 
-            #self.assertEqual(yeb_val, eb_val)
-
-        # FIXME: drop the below, uncomment the line above
-            if yeb_val != eb_val:
-                print '>>> ', key, yeb_val, type(yeb_val), eb_val, type(eb_val)
-                no_match = True
-        self.assertFalse(no_match)
+            self.assertEqual(yeb_val, eb_val)
 
     def test_is_yeb_format(self):
         """ Test is_yeb_format function """
