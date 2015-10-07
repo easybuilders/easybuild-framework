@@ -473,10 +473,10 @@ def find_base_dir():
     def get_local_dirs_purged():
         # e.g. always purge the log directory
         # and hidden directories
-        ignoreDirs = ["easybuild"]
+        ignoredirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
-        lst = [Dir for Dir in lst if not Dir.startswith('.') or Dir in ignoreDirs]
+        lst = [d for d in lst if not d.startswith('.') or d in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
