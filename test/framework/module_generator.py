@@ -369,7 +369,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
             'GCC-4.6.3.eb': 'GCC/9e9ab5a1e978f0843b5aedb63ac4f14c51efb859',
-            'gzip-1.4.eb': 'gzip/8805ec3152d2a4a08b6c06d740c23abe1a4d059f',
+            'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/863557cc81811f8c3f4426a4b45aa269fa54130b',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/b63c2b8cc518905473ccda023100b2d3cff52d55',
             'gzip-1.5-ictce-4.1.13.eb': 'gzip/3d49f0e112708a95f79ed38b91b506366c0299ab',
