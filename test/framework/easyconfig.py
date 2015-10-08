@@ -1511,6 +1511,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(isinstance(ec.software_license, LicenseGPLv3))
         self.assertTrue(issubclass(ec.software_license.__class__, License))
 
+        ec['software_license'] = 'LicenseThatDoesNotExist'
+        err_pat = r"Invalid license LicenseThatDoesNotExist \(known licenses:"
+        self.assertErrorRegex(EasyBuildError, err_pat, ec.validate_license)
+
 
 def suite():
     """ returns all the testcases in this module """
