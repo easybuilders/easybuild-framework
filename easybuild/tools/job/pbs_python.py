@@ -70,7 +70,7 @@ class PbsPython(JobBackend):
     @only_if_module_is_available('pbs', pkgname='pbs_python')
     def __init__(self, *args, **kwargs):
         """PbsPython constructor."""
-        super(GC3Pie, self).__init__(*args, **kwargs)
+        super(PbsPython, self).__init__(*args, **kwargs)
 
     def _check_version(self):
         """Check whether pbs_python version complies with required version."""
