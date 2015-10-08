@@ -60,6 +60,7 @@ class LicenseTest(EnhancedTestCase):
         lics = what_licenses()
         for lic in lics:
             self.assertTrue(isinstance(lic, basestring))
+            self.assertTrue(lic.startswith('License'))
             self.assertTrue(issubclass(lics[lic], License))
 
 
