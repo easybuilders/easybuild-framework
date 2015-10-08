@@ -30,7 +30,7 @@ Unit tests for easyconfig/licenses.py
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.framework.easyconfig.licenses import License, VeryRestrictive, what_licenses
+from easybuild.framework.easyconfig.licenses import License, LicenseVeryRestrictive, what_licenses
 
 
 class LicenseTest(EnhancedTestCase):
@@ -39,9 +39,9 @@ class LicenseTest(EnhancedTestCase):
     def test_common_ones(self):
         """Check if a number of common licenses can be found"""
         lics = what_licenses()
-        commonlicenses = ['VeryRestrictive', 'GPLv2', 'GPLv3']
+        commonlicenses = ['LicenseVeryRestrictive', 'LicenseGPLv2', 'LicenseGPLv3']
         for lic in commonlicenses:
-            self.assertTrue(lic in lics)
+            self.assertTrue(lic in lics, "%s found in %s" % (lic, lics.keys()))
 
     def test_default_license(self):
         """Verify that the default License class is very restrictive"""
@@ -51,9 +51,9 @@ class LicenseTest(EnhancedTestCase):
 
     def test_veryrestrictive_license(self):
         """Verify that the very restrictive class is very restrictive"""
-        self.assertFalse(VeryRestrictive.DISTRIBUTE_SOURCE)
-        self.assertTrue(VeryRestrictive.GROUP_SOURCE)
-        self.assertTrue(VeryRestrictive.GROUP_BINARY)
+        self.assertFalse(LicenseVeryRestrictive.DISTRIBUTE_SOURCE)
+        self.assertTrue(LicenseVeryRestrictive.GROUP_SOURCE)
+        self.assertTrue(LicenseVeryRestrictive.GROUP_BINARY)
 
     def test_licenses(self):
         """Test format of available licenses."""
@@ -61,6 +61,7 @@ class LicenseTest(EnhancedTestCase):
         for lic in lics:
             self.assertTrue(isinstance(lic, basestring))
             self.assertTrue(issubclass(lics[lic], License))
+
 
 def suite():
     """ returns all the testcases in this module """

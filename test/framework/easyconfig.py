@@ -303,7 +303,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "787393bfc465c85607a5b24486e861c5",',  # MD5 checksum for source (gzip-1.4.eb)
+            '           "a5464d79c2c8d4935e383ebd070b305e",',  # MD5 checksum for source (gzip-1.4.eb)
             '           "44893c3ed46a7c7ab2e72fea7d19925d",',  # MD5 checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
@@ -1506,7 +1506,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
         ec.validate_license()
         # constant GPLv3 is resolved as string
-        self.assertEqual(ec['software_license'], 'GPLv3')
+        self.assertEqual(ec['software_license'], 'LicenseGPLv3')
         # software_license is defined as License subclass
         self.assertTrue(isinstance(ec.software_license, LicenseGPLv3))
         self.assertTrue(issubclass(ec.software_license.__class__, License))

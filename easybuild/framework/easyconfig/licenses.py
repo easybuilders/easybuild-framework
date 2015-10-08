@@ -74,12 +74,12 @@ class License(object):
         self.group_binary = self.GROUP_BINARY
 
 
-class VeryRestrictive(License):
+class LicenseVeryRestrictive(License):
     """Default license should be very restrictive, so nothing to do here, just a placeholder"""
     pass
 
 
-class LicenseUnknown(VeryRestrictive):
+class LicenseUnknown(LicenseVeryRestrictive):
     """A (temporary) license, could be used as default in case nothing was specified"""
     pass
 
@@ -161,7 +161,7 @@ def what_licenses():
     for lic in get_subclasses(License):
         if lic.HIDDEN:
             continue
-        res[lic().name] = lic
+        res[lic.__name__] = lic
 
     return res
 
@@ -171,12 +171,16 @@ EASYCONFIG_LICENSES_DICT = what_licenses()
 
 def license_documentation():
     """Generate the easyconfig licenses documentation"""
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
+    indent_l0 = ' ' * 2
+    indent_l1 = indent_l0 + ' ' * 2
     doc = []
 
     doc.append("Constants that can be used in easyconfigs")
     for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
-        doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
+        lic_inst = lic()
+        strver = ''
+        if lic_inst.version:
+            strver = " (version: %s)" % '.'.join([str(d) for d in lic_inst.version])
+        doc.append("%s%s: %s%s" % (indent_l1, lic_inst.name, lic_inst.description, strver))
 
-    return "\n".join(doc)
+    return '\n'.join(doc)

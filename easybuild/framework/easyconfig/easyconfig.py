@@ -345,8 +345,8 @@ class EasyConfig(object):
             # create License instance
             self.software_license = EASYCONFIG_LICENSES_DICT[lic]()
         else:
-            known_licenses = ', '.join(EASYCONFIG_LICENSES_DICT.keys())
-            raise EasyBuildError("Invalid license %s (known licenses: )", lic, known_licenses)
+            known_licenses = ', '.join(sorted(EASYCONFIG_LICENSES_DICT.keys()))
+            raise EasyBuildError("Invalid license %s (known licenses: %s)", lic, known_licenses)
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)
