@@ -36,6 +36,7 @@ Set of file tools.
 @author: Sotiris Fragkiskos (NTUA, CERN)
 """
 import glob
+import hashlib
 import os
 import re
 import shutil
@@ -93,23 +94,14 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-    md5_class = hashlib.md5
-    sha1_class = hashlib.sha1
-except ImportError:
-    import md5, sha
-    md5_class = md5.md5
-    sha1_class = sha.sha
 
 # default checksum for source and patch files
 DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, md5_class()),
-    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
