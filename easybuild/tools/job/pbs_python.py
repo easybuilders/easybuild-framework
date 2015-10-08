@@ -72,6 +72,8 @@ class PbsPython(JobBackend):
         """PbsPython constructor."""
         super(PbsPython, self).__init__(*args, **kwargs)
 
+    # _check_version is called by __init__, so guard it (too) with the decorator
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _check_version(self):
         """Check whether pbs_python version complies with required version."""
         version_regex = re.compile('pbs_python version (?P<version>.*)')
