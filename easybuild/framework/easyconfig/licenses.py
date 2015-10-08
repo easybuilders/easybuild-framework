@@ -28,10 +28,12 @@ Easyconfig licenses module that provides all licenses that can
 be used within an Easyconfig file.
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
+
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
@@ -51,14 +53,20 @@ class License(object):
 
     CLASSNAME_PREFIX = 'License'
 
-    def __init__(self):
+    @property
+    def name(self):
+        """Return license name."""
         if self.NAME is None:
             name = self.__class__.__name__
             if name.startswith(self.CLASSNAME_PREFIX):
                 name = name[len(self.CLASSNAME_PREFIX):]
         else:
             name = self.NAME
-        self.name = name
+
+        return name
+
+    def __init__(self):
+        """License constructor."""
         self.version = self.VERSION
         self.description = self.DESCRIPTION
         self.distribute_source = self.DISTRIBUTE_SOURCE
@@ -153,14 +161,12 @@ def what_licenses():
     for lic in get_subclasses(License):
         if lic.HIDDEN:
             continue
-        lic_instance = lic()
-        res[lic_instance.name] = lic_instance
+        res[lic().name] = lic
 
     return res
 
 
 EASYCONFIG_LICENSES_DICT = what_licenses()
-EASYCONFIG_LICENSES = EASYCONFIG_LICENSES_DICT.keys()
 
 
 def license_documentation():

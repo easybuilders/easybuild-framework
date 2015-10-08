@@ -214,6 +214,7 @@ class EasyConfig(object):
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
 
+        self.software_license = None
 
     def copy(self):
         """
@@ -335,16 +336,17 @@ class EasyConfig(object):
 
     def validate_license(self):
         """Validate the license"""
-        lic = self._config['software_license'][0]
+        lic = self['software_license']
         if lic is None:
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                raise EasyBuildError("License is mandatory, but 'software_license' is undefined")
-        elif not isinstance(lic, License):
-            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.',
-                                 lic, lic.__class__.__name__)
-        elif not lic.name in EASYCONFIG_LICENSES_DICT:
-            raise EasyBuildError('Invalid license %s (classname: %s).', lic.name, lic.__class__.__name__)
+                raise EasyBuildError("Software license is mandatory, but 'software_license' is undefined")
+        elif lic in EASYCONFIG_LICENSES_DICT:
+            # create License instance
+            self.software_license = EASYCONFIG_LICENSES_DICT[lic]()
+        else:
+            known_licenses = ', '.join(EASYCONFIG_LICENSES_DICT.keys())
+            raise EasyBuildError("Invalid license %s (known licenses: )", lic, known_licenses)
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)

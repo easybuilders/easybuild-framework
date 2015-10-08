@@ -46,6 +46,7 @@ from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs, parse_easyconfigs
@@ -1490,6 +1491,25 @@ class EasyConfigTest(EnhancedTestCase):
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
+
+    def test_software_license(self):
+        """Tests related to software_license easyconfig parameter."""
+        # default: None
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        ec = EasyConfig(ec_file)
+        ec.validate_license()
+        self.assertEqual(ec['software_license'], None)
+        self.assertEqual(ec.software_license, None)
+
+        # specified software license gets handled correctly
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4.eb')
+        ec = EasyConfig(ec_file)
+        ec.validate_license()
+        # constant GPLv3 is resolved as string
+        self.assertEqual(ec['software_license'], 'GPLv3')
+        # software_license is defined as License subclass
+        self.assertTrue(isinstance(ec.software_license, LicenseGPLv3))
+        self.assertTrue(issubclass(ec.software_license.__class__, License))
 
 
 def suite():

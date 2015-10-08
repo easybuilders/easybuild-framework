@@ -55,6 +55,13 @@ class LicenseTest(EnhancedTestCase):
         self.assertTrue(VeryRestrictive.GROUP_SOURCE)
         self.assertTrue(VeryRestrictive.GROUP_BINARY)
 
+    def test_licenses(self):
+        """Test format of available licenses."""
+        lics = what_licenses()
+        for lic in lics:
+            self.assertTrue(isinstance(lic, basestring))
+            self.assertTrue(issubclass(lics[lic], License))
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(LicenseTest)
