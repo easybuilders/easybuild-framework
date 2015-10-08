@@ -28,6 +28,7 @@ Unit tests for filetools.py
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import shutil
@@ -93,6 +94,18 @@ class FileToolsTest(EnhancedTestCase):
         """tests should be run from the base easybuild directory"""
         # used to be part of test_parse_log_error
         self.assertEqual(os.getcwd(), ft.find_base_dir())
+
+    def test_find_base_dir(self):
+        """test if we find the correct base dir"""
+        tmpdir = tempfile.mkdtemp()
+
+        foodir = os.path.join(tmpdir, 'foo')
+        os.mkdir(foodir)
+        os.mkdir(os.path.join(tmpdir, '.bar'))
+        os.mkdir(os.path.join(tmpdir, 'easybuild'))
+
+        os.chdir(tmpdir)
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
 
     def test_encode_class_name(self):
         """Test encoding of class names."""

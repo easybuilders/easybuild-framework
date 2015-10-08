@@ -124,8 +124,11 @@ def import_available_modules(namespace):
     return modules
 
 
-def only_if_module_is_available(modname):
+def only_if_module_is_available(modname, pkgname=None, url=None):
     """Decorator to guard functions/methods against missing required module with specified name."""
+    if pkgname and url is None:
+        url = 'https://pypi.python.org/pypi/%s' % pkgname
+
     def wrap(orig):
         """Decorated function, raises ImportError if specified module is not available."""
         try:
@@ -134,7 +137,12 @@ def only_if_module_is_available(modname):
 
         except ImportError as err:
             def error(*args):
-                raise ImportError("%s; required module '%s' is not available" % (err, modname))
+                msg = "%s; required module '%s' is not available" % (err, modname)
+                if pkgname:
+                    msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
+                elif url:
+                    msg += " (available from %s)" % url
+                raise ImportError(msg)
             return error
 
     return wrap
