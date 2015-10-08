@@ -149,6 +149,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         """Clean up after running testcase."""
         super(EnhancedTestCase, self).tearDown()
 
+        self.log.info("Cleaning up for test %s", self.id())
+
         # go back to where we were before
         os.chdir(self.cwd)
 
