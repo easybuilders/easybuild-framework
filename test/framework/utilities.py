@@ -88,6 +88,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         log = fancylogger.getLogger(fname=False)
         self.orig_log_handlers = log.handlers[:]
 
+        log.info("setting up test %s" % self._testMethodName)
+
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
         self.test_prefix = set_tmpdir()
