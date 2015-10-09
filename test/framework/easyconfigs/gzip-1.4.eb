@@ -35,3 +35,6 @@ sanity_check_paths = {
 # run 'gzip -h' and 'gzip --version' after installation
 sanity_check_commands = [True, ('gzip', '--version')]
 
+software_license = GPLv3
+
+moduleclass = 'tools'
