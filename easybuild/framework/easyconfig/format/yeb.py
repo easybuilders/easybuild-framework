@@ -48,6 +48,8 @@ except ImportError:
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 
 
+YAML_DIR = r'%YAML'
+YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
 
 
@@ -62,7 +64,7 @@ class FormatYeb(EasyConfigFormat):
 
     def validate(self):
         """Format validation"""
-        _log.info(".yeb format validation isn't implemented (yet) - validate always returns true")
+        _log.info(".yeb format validation isn't implemented (yet) - validation always passes")
         return True
 
     def get_config_dict(self):
@@ -80,9 +82,8 @@ class FormatYeb(EasyConfigFormat):
         self.parsed_yeb = yaml.load(txt)
 
     def _inject_constants_dict(self, txt):
-        """FIXME"""
+        """Inject constants so they are resolved when actually parsing the YAML text."""
         constants_dict = build_easyconfig_constants_dict()
-        constants_dict.update(build_easyconfig_variables_dict())
 
         lines = txt.splitlines()
 
@@ -91,17 +92,13 @@ class FormatYeb(EasyConfigFormat):
         # ---
         yaml_header = []
         for i, line in enumerate(lines):
-            if line.startswith('%YAML'):
-                if lines[i+1].startswith('---'):
+            if line.startswith(YAML_DIR):
+                if lines[i+1].startswith(YAML_SEP):
                     yaml_header.extend([lines.pop(i), lines.pop(i)])
 
         injected_constants = ['__CONSTANTS__: ']
         for key, value in constants_dict.items():
-            #TODO License values!
-            if isinstance(value, basestring):
-                injected_constants.append('%s- &%s %s' % (INDENT_4SPACES, key, quote_str(value)))
-            else:
-                self.log.debug("Not injecting value for non-string constant %s (%s)", key, value)
+            injected_constants.append('%s- &%s %s' % (INDENT_4SPACES, key, quote_str(value)))
 
         full_txt = '\n'.join(yaml_header + injected_constants + lines)
 
