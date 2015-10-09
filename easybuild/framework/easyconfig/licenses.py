@@ -167,20 +167,3 @@ def what_licenses():
 
 
 EASYCONFIG_LICENSES_DICT = what_licenses()
-
-
-def license_documentation():
-    """Generate the easyconfig licenses documentation"""
-    indent_l0 = ' ' * 2
-    indent_l1 = indent_l0 + ' ' * 2
-    doc = []
-
-    doc.append("Constants that can be used in easyconfigs")
-    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
-        lic_inst = lic()
-        strver = ''
-        if lic_inst.version:
-            strver = " (version: %s)" % '.'.join([str(d) for d in lic_inst.version])
-        doc.append("%s%s: %s%s" % (indent_l1, lic_inst.name, lic_inst.description, strver))
-
-    return '\n'.join(doc)
