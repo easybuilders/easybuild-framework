@@ -33,8 +33,10 @@ Set of file tools.
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
+@author: Sotiris Fragkiskos (NTUA, CERN)
 """
 import glob
+import hashlib
 import os
 import re
 import shutil
@@ -92,23 +94,14 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-    md5_class = hashlib.md5
-    sha1_class = hashlib.sha1
-except ImportError:
-    import md5, sha
-    md5_class = md5.md5
-    sha1_class = sha.sha
 
 # default checksum for source and patch files
 DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, md5_class()),
-    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
@@ -471,12 +464,11 @@ def find_base_dir():
     """
     def get_local_dirs_purged():
         # e.g. always purge the log directory
-        ignoreDirs = ["easybuild"]
+        # and hidden directories
+        ignoredirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
-        for ignDir in ignoreDirs:
-            if ignDir in lst:
-                lst.remove(ignDir)
+        lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
@@ -503,59 +495,47 @@ def find_base_dir():
 
 def extract_cmd(filepath, overwrite=False):
     """
-    Determines the file type of file fn, returns extract cmd
-    - based on file suffix
-    - better to use Python magic?
+    Determines the file type of file at filepath, returns extract cmd based on file suffix
     """
     filename = os.path.basename(filepath)
-    exts = [x.lower() for x in filename.split('.')]
-    target = '.'.join(exts[:-1])
-    cmd_tmpl = None
 
-    # gzipped or gzipped tarball
-    if exts[-1] in ['gz']:
-        if exts[-2] in ['tar']:
-            # unzip .tar.gz in one go
-            cmd_tmpl = "tar xzf %(filepath)s"
-        else:
-            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
+    extract_cmds = {
+        # gzipped or gzipped tarball
+        '.gtgz':    "tar xzf %(filepath)s",
+        '.gz':      "gunzip -c %(filepath)s > %(target)s",
+        '.tar.gz':  "tar xzf %(filepath)s",
+        '.tgz':     "tar xzf %(filepath)s",
+        # bzipped or bzipped tarball
+        '.bz2':     "bunzip2 %(filepath)s",
+        '.tar.bz2': "tar xjf %(filepath)s",
+        '.tb2':     "tar xjf %(filepath)s",
+        '.tbz':     "tar xjf %(filepath)s",
+        '.tbz2':    "tar xjf %(filepath)s",
+        # xzipped or xzipped tarball
+        '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
+        '.txz':     "unxz %(filepath)s --stdout | tar x",
+        '.xz':      "unxz %(filepath)s",
+        # tarball
+        '.tar':     "tar xf %(filepath)s",
+        # zip file
+        '.zip':     "unzip -qq -o %(filepath)s" if overwrite else "unzip -qq %(filepath)s",
+        # iso file
+        '.iso':     "7z x %(filepath)s",
+        # tar.Z: using compress (LZW)
+        '.tar.z':   "tar xZf %(filepath)s",
+    }
 
-    elif exts[-1] in ['tgz', 'gtgz']:
-        cmd_tmpl = "tar xzf %(filepath)s"
+    suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
+    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in suffixes])
+    res = re.search(pat, filename, flags=re.IGNORECASE)
+    if res:
+        ext = res.group('ext')
+    else:
+        raise EasyBuildError('Unknown file type for file %s', filename)
 
-    # bzipped or bzipped tarball
-    elif exts[-1] in ['bz2']:
-        if exts[-2] in ['tar']:
-            cmd_tmpl = 'tar xjf %(filepath)s'
-        else:
-            cmd_tmpl = "bunzip2 %(filepath)s"
+    target = filename.rstrip(ext)
 
-    elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
-        cmd_tmpl = "tar xjf %(filepath)s"
-
-    # xzipped or xzipped tarball
-    elif exts[-1] in ['xz']:
-        if exts[-2] in ['tar']:
-            cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
-        else:
-            cmd_tmpl = "unxz %(filepath)s"
-
-    elif exts[-1] in ['txz']:
-        cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
-
-    # tarball
-    elif exts[-1] in ['tar']:
-        cmd_tmpl = "tar xf %(filepath)s"
-
-    # zip file
-    elif exts[-1] in ['zip']:
-        if overwrite:
-            cmd_tmpl = "unzip -qq -o %(filepath)s"
-        else:
-            cmd_tmpl = "unzip -qq %(filepath)s"
-
-    if cmd_tmpl is None:
-        raise EasyBuildError('Unknown file type for file %s (%s)', filepath, exts)
+    cmd_tmpl = extract_cmds[ext.lower()]
 
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
@@ -929,21 +909,26 @@ def move_logs(src_logfile, target_logfile):
 
 
 def cleanup(logfile, tempdir, testing):
-    """Cleanup the specified log file and the tmp directory"""
-    if not testing and logfile is not None:
-        try:
-            for log in glob.glob('%s*' % logfile):
-                os.remove(log)
-        except OSError, err:
-            raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-        print_msg('temporary log file(s) %s* have been removed.' % (logfile), log=None, silent=testing)
+    """Cleanup the specified log file and the tmp directory, if desired."""
 
-    if not testing and tempdir is not None:
-        try:
-            shutil.rmtree(tempdir, ignore_errors=True)
-        except OSError, err:
-            raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
+    if build_option('cleanup_tmpdir') and not testing:
+        if logfile is not None:
+            try:
+                for log in [logfile] + glob.glob('%s.[0-9]*' % logfile):
+                    os.remove(log)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
+            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+
+        if tempdir is not None:
+            try:
+                shutil.rmtree(tempdir, ignore_errors=True)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+
+    else:
+        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):

@@ -90,6 +90,11 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False):
         return val
 
 
+def quote_py_str(val):
+    """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
+
+
 def remove_unwanted_chars(inputstring):
     """Remove unwanted characters from the given string and return a copy
 
@@ -117,3 +122,27 @@ def import_available_modules(namespace):
                     raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
                 modules.append(mod)
     return modules
+
+
+def only_if_module_is_available(modname, pkgname=None, url=None):
+    """Decorator to guard functions/methods against missing required module with specified name."""
+    if pkgname and url is None:
+        url = 'https://pypi.python.org/pypi/%s' % pkgname
+
+    def wrap(orig):
+        """Decorated function, raises ImportError if specified module is not available."""
+        try:
+            __import__(modname)
+            return orig
+
+        except ImportError as err:
+            def error(*args):
+                msg = "%s; required module '%s' is not available" % (err, modname)
+                if pkgname:
+                    msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
+                elif url:
+                    msg += " (available from %s)" % url
+                raise ImportError(msg)
+            return error
+
+    return wrap

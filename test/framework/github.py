@@ -29,6 +29,7 @@ Unit tests for talking to GitHub.
 """
 
 import os
+import re
 import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
@@ -36,7 +37,8 @@ from unittest import TestLoader, main
 from urllib2 import URLError
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.github import Githubfs, fetch_github_token, fetch_easyconfigs_from_pr
+from easybuild.tools.filetools import read_file, write_file
+import easybuild.tools.github as gh
 
 
 # test account, for which a token is available
@@ -56,11 +58,11 @@ class GithubTest(EnhancedTestCase):
     def setUp(self):
         """setup"""
         super(GithubTest, self).setUp()
-        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+        self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
         if self.github_token is None:
             self.ghfs = None
         else:
-            self.ghfs = Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT, None, self.github_token)
+            self.ghfs = gh.Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT, None, self.github_token)
 
     def test_walk(self):
         """test the gitubfs walk function"""
@@ -111,18 +113,57 @@ class GithubTest(EnhancedTestCase):
         all_ecs = ['gzip-1.6-ictce-6.2.5.eb', 'icc-2013_sp1.2.144.eb', 'ictce-6.2.5.eb', 'ifort-2013_sp1.2.144.eb',
                    'imkl-11.1.2.144.eb', 'impi-4.1.3.049.eb']
         try:
-            ec_files = fetch_easyconfigs_from_pr(726, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+            ec_files = gh.fetch_easyconfigs_from_pr(726, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
             self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
             self.assertEqual(all_ecs, sorted(os.listdir(tmpdir)))
 
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
-            self.assertErrorRegex(EasyBuildError, err_msg, fetch_easyconfigs_from_pr, 897, github_user=GITHUB_TEST_ACCOUNT)
+            self.assertErrorRegex(EasyBuildError, err_msg, gh.fetch_easyconfigs_from_pr, 897,
+                                  github_user=GITHUB_TEST_ACCOUNT)
 
         except URLError, err:
             print "Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err
 
         shutil.rmtree(tmpdir)
+
+    def test_fetch_latest_commit_sha(self):
+        """Test fetch_latest_commit_sha function."""
+        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
+        self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
+        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
+        self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
+
+    def test_download_repo(self):
+        """Test download_repo function."""
+        # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
+        path = gh.download_repo(path=self.test_prefix)
+        repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
+        self.assertTrue(os.path.samefile(path, repodir))
+        self.assertTrue(os.path.exists(repodir))
+        shafile = os.path.join(repodir, 'latest-sha')
+        self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
+        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2015a.eb')))
+
+        # existing downloaded repo is not reperformed, except if SHA is different
+        account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
+        repodir = os.path.join(self.test_prefix, account, '%s-%s' % (repo, branch))
+        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch)
+
+        # put 'latest-sha' fail in place, check whether repo was (re)downloaded (should not)
+        shafile = os.path.join(repodir, 'latest-sha')
+        write_file(shafile, latest_sha)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        self.assertTrue(os.path.samefile(path, repodir))
+        self.assertEqual(os.listdir(repodir), ['latest-sha'])
+
+        # remove 'latest-sha' file and verify that download was performed
+        os.remove(shafile)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        self.assertTrue(os.path.samefile(path, repodir))
+        self.assertTrue('easybuild' in os.listdir(repodir))
+        self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
+        self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
 
 
 def suite():

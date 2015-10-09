@@ -42,4 +42,4 @@ toolchains = dummy == dummy, goolf, GCC == 4.6.3, goolf == 1.4.10, ictce == 4.1.
 
 [DEFAULT]
 easyblock = ConfigureMake
-moduleclass = base
+moduleclass = tools

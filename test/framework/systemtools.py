@@ -403,14 +403,14 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_det_parallelism_native(self):
         """Test det_parallelism function (native calls)."""
-        self.assertTrue(det_parallelism(None, None) > 0)
+        self.assertTrue(det_parallelism() > 0)
         # specified parallellism
-        self.assertEqual(det_parallelism(5, None), 5)
+        self.assertEqual(det_parallelism(par=5), 5)
         # max parallellism caps
-        self.assertEqual(det_parallelism(None, 1), 1)
+        self.assertEqual(det_parallelism(maxpar=1), 1)
         self.assertEqual(det_parallelism(16, 1), 1)
-        self.assertEqual(det_parallelism(5, 2), 2)
-        self.assertEqual(det_parallelism(5, 10), 5)
+        self.assertEqual(det_parallelism(par=5, maxpar=2), 2)
+        self.assertEqual(det_parallelism(par=5, maxpar=10), 5)
 
     def test_det_parallelism_mocked(self):
         """Test det_parallelism function (with mocked ulimit/get_avail_core_count)."""
@@ -418,14 +418,21 @@ class SystemToolsTest(EnhancedTestCase):
 
         # mock number of available cores to 8
         st.get_avail_core_count = lambda: 8
-        self.assertTrue(det_parallelism(None, None), 8)
+        self.assertTrue(det_parallelism(), 8)
         # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
         st.run_cmd = mocked_run_cmd
-        self.assertTrue(det_parallelism(None, None), 4)
-        self.assertTrue(det_parallelism(6, None), 4)
-        self.assertTrue(det_parallelism(2, None), 2)
+        self.assertTrue(det_parallelism(), 4)
+        self.assertTrue(det_parallelism(par=6), 4)
+        self.assertTrue(det_parallelism(maxpar=2), 2)
 
         st.get_avail_core_count = orig_get_avail_core_count
+
+    def test_det_terminal_size(self):
+        """Test det_terminal_size function."""
+        (height, width) = st.det_terminal_size()
+        self.assertTrue(isinstance(height, int) and height > 0)
+        self.assertTrue(isinstance(width, int) and width > 0)
+
 
 def suite():
     """ returns all the testcases in this module """

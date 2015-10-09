@@ -42,6 +42,8 @@ from distutils.version import LooseVersion
 
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.constants import constant_documentation
+from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
@@ -194,9 +196,12 @@ class EasyBuildOptions(GeneralOption):
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
+            'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
+            'color': ("Allow color output", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
+            'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
@@ -216,6 +221,8 @@ class EasyBuildOptions(GeneralOption):
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
+            'parallel': ("Specify (maximum) level of parallellism used during build procedure",
+                         'int', 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
@@ -264,8 +271,7 @@ class EasyBuildOptions(GeneralOption):
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
-            'module-naming-scheme': ("Module naming scheme",
-                                     'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
+            'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
@@ -355,6 +361,7 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
+            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
@@ -447,6 +454,12 @@ class EasyBuildOptions(GeneralOption):
                 msg = msg % (subdir_opt, typ, val)
                 error_msgs.append(msg)
 
+        # specified module naming scheme must be a known one
+        avail_mnss = avail_module_naming_schemes()
+        if self.options.module_naming_scheme and self.options.module_naming_scheme not in avail_mnss:
+            msg = "Selected module naming scheme '%s' is unknown: %s" % (self.options.module_naming_scheme, avail_mnss)
+            error_msgs.append(msg)
+
         if error_msgs:
             raise EasyBuildError("Found problems validating the options: %s", '\n'.join(error_msgs))
 
@@ -500,6 +513,11 @@ class EasyBuildOptions(GeneralOption):
             token = fetch_github_token(self.options.github_user)
             if token is None:
                 raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
+
+        # make sure autopep8 is available when it needs to be
+        if self.options.dump_autopep8:
+            if not HAVE_AUTOPEP8:
+                raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
 
         self._postprocess_external_modules_metadata()
 

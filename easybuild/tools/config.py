@@ -46,6 +46,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.run import run_cmd
 
 
@@ -77,6 +78,7 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_STRICT = run.WARN
+
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -110,10 +112,10 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'only_blocks',
         'optarch',
+        'parallel',
         'regtest_output_dir',
         'skip',
         'stop',
-        'suffix_modules_path',
         'test_report_env_filter',
         'testoutput',
         'umask',
@@ -121,6 +123,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'allow_modules_tool_mismatch',
         'debug',
+        'dump_autopep8',
         'experimental',
         'force',
         'group_writable_installdir',
@@ -138,6 +141,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_tmpdir',
     ],
     DEFAULT_STRICT: [
         'strict',
@@ -150,6 +154,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
+    ],
+    GENERAL_CLASS: [
+        'suffix_modules_path',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -240,7 +247,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         For all known/required keys, check if exists and return all key/value pairs.
             no_missing: boolean, when True, will throw error message for missing values
         """
-        missing = [x for x in self.KNOWN_KEYS if not x in self]
+        missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
             raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
 

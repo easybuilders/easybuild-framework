@@ -1028,7 +1028,7 @@ class EasyBlock(object):
         env = copy.deepcopy(os.environ)
 
         # create fake module
-        fake_mod_path = self.make_module_step(True)
+        fake_mod_path = self.make_module_step(fake=True)
 
         # load fake module
         self.modules_tool.prepend_module_path(fake_mod_path)
@@ -1194,6 +1194,20 @@ class EasyBlock(object):
         """
         Verify if all is ok to start build.
         """
+        # set level of parallelism for build
+        par = build_option('parallel')
+        if self.cfg['parallel']:
+            if par is None:
+                par = self.cfg['parallel']
+                self.log.debug("Desired parallelism specified via 'parallel' easyconfig parameter: %s", par)
+            else:
+                par = min(int(par), int(self.cfg['parallel']))
+                self.log.debug("Desired parallelism: minimum of 'parallel' build option/easyconfig parameter: %s", par)
+        else:
+            self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+        self.cfg['parallel'] = det_parallelism(par=par, maxpar=self.cfg['maxparallel'])
+        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
+
         # check whether modules are loaded
         loadedmods = self.modules_tool.loaded_modules()
         if len(loadedmods) > 0:
@@ -1266,10 +1280,6 @@ class EasyBlock(object):
                 check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
                 fil[DEFAULT_CHECKSUM] = check_sum
                 self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
-
-        # set level of parallelism for build
-        self.cfg['parallel'] = det_parallelism(self.cfg['parallel'], self.cfg['maxparallel'])
-        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
@@ -1688,10 +1698,7 @@ class EasyBlock(object):
         """
         Generate a module file.
         """
-        self.module_generator.set_fake(fake)
-
-        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        modpath = self.module_generator.prepare(mod_symlink_paths)
+        modpath = self.module_generator.prepare(fake=fake)
 
         txt = self.make_module_description()
         txt += self.make_module_dep()
@@ -1700,15 +1707,17 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
-        write_file(self.module_generator.filename, txt)
+        mod_filepath = self.module_generator.get_module_filepath(fake=fake)
+        write_file(mod_filepath, txt)
 
-        self.log.info("Module file %s written: %s", self.module_generator.filename, txt)
+        self.log.info("Module file %s written: %s", mod_filepath, txt)
 
          # only update after generating final module file
         if not fake:
             self.modules_tool.update()
 
-        self.module_generator.create_symlinks()
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+        self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
         if not fake:
             self.make_devel_module()
