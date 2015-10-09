@@ -46,6 +46,7 @@ from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs, parse_easyconfigs
@@ -302,7 +303,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "787393bfc465c85607a5b24486e861c5",',  # MD5 checksum for source (gzip-1.4.eb)
+            '           "a5464d79c2c8d4935e383ebd070b305e",',  # MD5 checksum for source (gzip-1.4.eb)
             '           "44893c3ed46a7c7ab2e72fea7d19925d",',  # MD5 checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
@@ -872,18 +873,20 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
-            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
-            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
+            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
+            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
         ]:
             ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), validate=False)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), validate=False, build_specs=specs)
 
             ec2_dict = ec2.asdict()
-            # reset mandatory attributes from format2 that are not in format 1
-            for attr in ['docurls', 'software_license', 'software_license_urls']:
+            # reset mandatory attributes from format2 that are not defined in format 1 easyconfigs
+            for attr in ['docurls', 'software_license_urls']:
                 ec2_dict[attr] = None
 
-            self.assertEqual(ec1.asdict(), ec2_dict)
+            self.assertEqual(ec1.asdict(), ec2_dict, "Parsed %s is equivalent with %s" % (eb_file1, eb_file2))
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
@@ -1490,6 +1493,29 @@ class EasyConfigTest(EnhancedTestCase):
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
+
+    def test_software_license(self):
+        """Tests related to software_license easyconfig parameter."""
+        # default: None
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        ec = EasyConfig(ec_file)
+        ec.validate_license()
+        self.assertEqual(ec['software_license'], None)
+        self.assertEqual(ec.software_license, None)
+
+        # specified software license gets handled correctly
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4.eb')
+        ec = EasyConfig(ec_file)
+        ec.validate_license()
+        # constant GPLv3 is resolved as string
+        self.assertEqual(ec['software_license'], 'LicenseGPLv3')
+        # software_license is defined as License subclass
+        self.assertTrue(isinstance(ec.software_license, LicenseGPLv3))
+        self.assertTrue(issubclass(ec.software_license.__class__, License))
+
+        ec['software_license'] = 'LicenseThatDoesNotExist'
+        err_pat = r"Invalid license LicenseThatDoesNotExist \(known licenses:"
+        self.assertErrorRegex(EasyBuildError, err_pat, ec.validate_license)
 
 
 def suite():

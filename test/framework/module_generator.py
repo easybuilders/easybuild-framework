@@ -370,10 +370,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
             'GCC-4.6.3.eb': 'GCC/9e9ab5a1e978f0843b5aedb63ac4f14c51efb859',
-            'gzip-1.4.eb': 'gzip/8805ec3152d2a4a08b6c06d740c23abe1a4d059f',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/863557cc81811f8c3f4426a4b45aa269fa54130b',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/b63c2b8cc518905473ccda023100b2d3cff52d55',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3d49f0e112708a95f79ed38b91b506366c0299ab',
+            'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/fceb41e04c26b540b7276c4246d1ecdd1e8251c9',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/ae16b3a0a330d4323987b360c0d024f244ac4498',
             'toy-0.0.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
             'toy-0.0-multiple.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
         }
@@ -381,7 +381,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # test determining module name for dependencies (i.e. non-parsed easyconfigs)
         # using a module naming scheme that requires all easyconfig parameters
-        ec2mod_map['gzip-1.5-goolf-1.4.10.eb'] = 'gzip/.b63c2b8cc518905473ccda023100b2d3cff52d55'
+        ec2mod_map['gzip-1.5-goolf-1.4.10.eb'] = 'gzip/.fceb41e04c26b540b7276c4246d1ecdd1e8251c9'
         for dep_ec, dep_spec in [
             ('GCC-4.6.3.eb', {
                 'name': 'GCC',
@@ -518,7 +518,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                              ['Compiler/GCC/4.7.2/%s' % c for c in moduleclasses]),
             'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2/mpi',
                              ['MPI/GCC/4.7.2/OpenMPI/1.6.4/%s' % c for c in moduleclasses]),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/base',
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/tools',
                              []),
             'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core/toolchain',
                              []),
