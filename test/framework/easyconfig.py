@@ -873,18 +873,20 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
-            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
-            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
+            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
+            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
         ]:
             ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), validate=False)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), validate=False, build_specs=specs)
 
             ec2_dict = ec2.asdict()
-            # reset mandatory attributes from format2 that are not in format 1
-            for attr in ['docurls', 'software_license', 'software_license_urls']:
+            # reset mandatory attributes from format2 that are not defined in format 1 easyconfigs
+            for attr in ['docurls', 'software_license_urls']:
                 ec2_dict[attr] = None
 
-            self.assertEqual(ec1.asdict(), ec2_dict)
+            self.assertEqual(ec1.asdict(), ec2_dict, "Parsed %s is equivalent with %s" % (eb_file1, eb_file2))
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
