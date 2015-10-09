@@ -26,15 +26,13 @@
 Unit tests for docs.py.
 """
 import inspect
-import os
 import re
-import sys
 from unittest import TestLoader, main
 
-from easybuild.framework.easyconfig.licenses import license_documentation
-from easybuild.tools.docs import gen_easyblocks_overview_rst
+from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst
 from easybuild.tools.utilities import import_available_modules
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase
+
 
 class DocsTest(EnhancedTestCase):
 
@@ -92,7 +90,7 @@ class DocsTest(EnhancedTestCase):
 
     def test_license_docs(self):
         """Test license_documentation function."""
-        lic_docs = license_documentation()
+        lic_docs = avail_easyconfig_licenses_txt()
         gplv3 = "GPLv3: The GNU General Public License"
         self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
 
