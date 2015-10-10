@@ -130,7 +130,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
+def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None, maxhits=50):
     """
     Executes a command cmd
     - looks for questions and tries to answer based on qa dictionary
@@ -227,8 +227,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     else:
         runLog = None
 
-    maxHitCount = 50
-
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
@@ -296,7 +294,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         else:
             hitCount = 0
 
-        if hitCount > maxHitCount:
+        if hitCount > maxhits:
             # explicitly kill the child process before exiting
             try:
                 os.killpg(p.pid, signal.SIGKILL)
@@ -305,7 +303,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
             raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
-                                 cmd, maxHitCount, stdoutErr[-500:])
+                                 cmd, maxhits, stdoutErr[-500:])
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)

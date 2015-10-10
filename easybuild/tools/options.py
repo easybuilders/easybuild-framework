@@ -222,6 +222,8 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
+            'parallel': ("Specify (maximum) level of parallellism used during build procedure",
+                         'int', 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
