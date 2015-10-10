@@ -96,6 +96,13 @@ class EasyBuildOptions(GeneralOption):
     ALLOPTSMANDATORY = False  # allow more than one argument
     CONFIGFILES_RAISE_MISSING = True  # don't allow non-existing config files to be specified
 
+    # don't allow passing of values that are look very similar to an existing option (due to a typo)
+    # require to use --longopt=value instead to remove ambiguity and unexpected behaviour due to small typos
+    ALLOW_OPTION_NAME_AS_VALUE = False  # exact match for option name (without the '-') as value
+    ALLOW_OPTION_AS_VALUE = False  # exact match for option as value
+    ALLOW_DASH_AS_VALUE = False  # any value starting with a '-'
+    ALLOW_TYPO_AS_VALUE = False  # value with similarity score from difflib.get_close_matches
+
     def __init__(self, *args, **kwargs):
         """Constructor."""
 
