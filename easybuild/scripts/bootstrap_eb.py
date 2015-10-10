@@ -536,6 +536,14 @@ sources = [%(sources)s]
 allow_system_deps = [('Python', SYS_PYTHON_VERSION)]
 
 preinstallopts = '%(preinstallopts)s'
+
+pyshortver = '.'.join(SYS_PYTHON_VERSION.split('.')[:2])
+sanity_check_paths = {
+    'files': ['bin/eb'],
+    'dirs': ['lib/python%s/site-packages' % pyshortver],
+}
+
+moduleclass = 'tools'
 """
 
 # distribute_setup.py script (https://pypi.python.org/pypi/distribute)
