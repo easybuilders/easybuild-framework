@@ -243,7 +243,7 @@ class Compiler(Toolchain):
             self.variables.nappend(var, cflags)
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
-        for var in ['FFLAGS', 'F90FLAGS']:  # FIXME F77FLAGS?
+        for var in ['FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.variables.nappend(var, flags)
             self.variables.nappend(var, fflags)
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')

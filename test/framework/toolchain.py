@@ -167,7 +167,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optimization_flags(self):
         """Test whether optimization flags are being set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default optimization flag (e.g. -O2)
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
@@ -194,7 +194,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
@@ -227,7 +227,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_shared(self):
         """Test whether shared compiler flags are set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
@@ -248,7 +248,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
@@ -270,7 +270,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
@@ -296,7 +296,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
-        flag_vars = ['FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
@@ -316,7 +316,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']  # FIXME F77FLAGS?
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default precision flag
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
@@ -470,8 +470,9 @@ class ToolchainTest(EnhancedTestCase):
 
         self.assertTrue('-mt_mpi' in tc.get_variable('CFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('CXXFLAGS'))
+        self.assertTrue('-mt_mpi' in tc.get_variable('FCFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('FFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))  # FIXME F77FLAGS?
+        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')

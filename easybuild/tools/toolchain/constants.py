@@ -45,9 +45,9 @@ COMPILER_VARIABLES = [
 COMPILER_FLAGS = [
     ('CFLAGS', 'C compiler flags'),
     ('CXXFLAGS', 'C++ compiler flags'),
+    ('FCFLAGS', 'Fortran compiler flags'),
     ('FFLAGS', 'Fortran compiler flags'),
     ('F90FLAGS', 'Fortran 90 compiler flags'),
-    # FIXME F77FLAGS?
 ]
 
 COMPILER_MAP_CLASS = {
@@ -79,9 +79,9 @@ CO_COMPILER_MAP_CLASS = {
     FlagList: [
         ('CUDA_CFLAGS', 'CUDA C compiler flags'),
         ('CUDA_CXXFLAGS', 'CUDA C++ compiler flags'),
+        ('CUDA_FCFLAGS', 'CUDA Fortran compiler flags'),
         ('CUDA_FFLAGS', 'CUDA Fortran compiler flags'),
         ('CUDA_F90FLAGS', 'CUDA Fortran 90 compiler flags'),
-        # FIXME CUDA_F77FLAGS?
     ],
 }
 
