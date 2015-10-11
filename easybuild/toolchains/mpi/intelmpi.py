@@ -54,7 +54,7 @@ class IntelMPI(Mpich2):
         """Add I_MPI_XXX variables to set."""
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
-        for var in COMPILER_VARIABLES:
+        for var, _ in COMPILER_VARIABLES:
             self.variables.nappend('I_MPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
         super(IntelMPI, self)._set_mpi_compiler_variables()
@@ -67,5 +67,5 @@ class IntelMPI(Mpich2):
         # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
         if self.options.get('openmp', None) and self.options.get('usempi', None):
             mt_mpi_option = ['mt_mpi']
-            for flags_var in COMPILER_FLAGS:
+            for flags_var, _ in COMPILER_FLAGS:
                 self.variables.nappend(flags_var, mt_mpi_option)
