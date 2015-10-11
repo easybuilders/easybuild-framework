@@ -59,7 +59,7 @@ class OpenMPI(Mpi):
 
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands (depends on OpenMPI version) and add OMPI_* variables to set."""
-        ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)
+        ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
         if LooseVersion(ompi_ver) >= LooseVersion('1.7'):
             self.MPI_COMPILER_MPIF77 = 'mpifort'
             self.MPI_COMPILER_MPIF90 = 'mpifort'
