@@ -52,7 +52,7 @@ class Mpich(Mpi):
     #MPI_COMPILER_MPIFC = 'mpifort'
 
     # clear MPI wrapper command options
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var[0], '') for var in MPI_COMPILER_VARIABLES])
 
     def _set_mpi_compiler_variables(self):
         """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
