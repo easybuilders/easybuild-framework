@@ -57,10 +57,8 @@ class OpenMPI(Mpi):
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
-    def __init__(self, *args, **kwargs):
-        """Toolchain constructor."""
-        super(OpenMPI, self).__init__(*args, **kwargs)
-
+    def _set_compiler_vars(self):
+        """Set the compiler variables"""
         ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)
         if LooseVersion(ompi_ver) >= LooseVersion('1.7'):
             self.MPI_COMPILER_MPIF77 = 'mpifort'
@@ -70,6 +68,8 @@ class OpenMPI(Mpi):
             self.MPI_COMPILER_MPIF77 = 'mpif77'
             self.MPI_COMPILER_MPIF90 = 'mpif90'
             self.MPI_COMPILER_MPIFC = 'mpifc'
+
+        super(OpenMPI, self)._set_compiler_vars()
 
     def _set_mpi_compiler_variables(self):
         """Add OMPI_* variables to set."""
