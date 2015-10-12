@@ -114,7 +114,7 @@ TEMPLATE_CONSTANTS = [
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
 ]
 
-extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz']
+extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
 for ext in extensions:
     suffix = ext.replace('.', '_').upper()
     TEMPLATE_CONSTANTS += [
@@ -124,6 +124,7 @@ for ext in extensions:
 
 # TODO derived config templates
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
+
 
 def template_constant_dict(config, ignore=None, skip_lower=True):
     """Create a dict for templating the values in the easyconfigs.
@@ -195,7 +196,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if t_v is None:
                 continue
             try:
-                template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name':name}] = t_v.lower()
+                template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = t_v.lower()
             except:
                 _log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)" %
                            (name, t_v, type(t_v)))

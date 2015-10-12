@@ -112,6 +112,7 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'only_blocks',
         'optarch',
+        'parallel',
         'regtest_output_dir',
         'skip',
         'stop',

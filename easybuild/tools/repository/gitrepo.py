@@ -46,6 +46,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
+from easybuild.tools.utilities import only_if_module_is_available
 from easybuild.tools.version import VERSION
 
 _log = fancylogger.getLogger('gitrepo', fname=False)
@@ -54,7 +55,7 @@ _log = fancylogger.getLogger('gitrepo', fname=False)
 # failing imports are just ignored
 # a NameError should be catched where these are used
 
-# GitPython
+# GitPython (http://gitorious.org/git-python)
 try:
     import git
     from git import GitCommandError
@@ -74,6 +75,7 @@ class GitRepository(FileRepository):
 
     USABLE = HAVE_GIT
 
+    @only_if_module_is_available('git', pkgname='GitPython')
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
@@ -86,11 +88,6 @@ class GitRepository(FileRepository):
         """
         Set up git repository.
         """
-        try:
-            git.GitCommandError
-        except NameError, err:
-            raise EasyBuildError("It seems like GitPython is not available: %s", err)
-
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
     def create_working_copy(self):
