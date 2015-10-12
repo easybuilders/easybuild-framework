@@ -1546,6 +1546,10 @@ class EasyBlock(object):
         - if *any* of the files/subdirectories in the installation directory listed
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
+        # constants for library checking (TODO: should probably be defined somewhere else/configurab;e)
+        LIB_DIRS = ['lib', 'lib64']
+        LIB_SUFFIXES = {'static': ['.a'], 'shared': ['.so', '.dyn']}
+
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
             'files': lambda fp: os.path.exists(fp),  # files must exist
@@ -1565,6 +1569,24 @@ class EasyBlock(object):
                 self.log.info("Using default sanity check paths: %s" % paths)
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
+
+            # transform specified libs into simple file paths
+            if 'libs' in paths.keys():
+                for lib in paths['libs']:
+                    if 'name' in lib.keys() and 'kind' in lib.keys():
+                        if lib['kind'] in LIB_SUFFIXES.keys():
+                            # TODO: also check possible library version numbers (e.g. libawesome.so.3.0.1)
+                            libpaths = ()
+                            for dir in LIB_DIRS:
+                                for suffix in LIB_SUFFIXES[lib['kind']]:
+                                    libpaths += (os.path.join(dir, lib['name'] + suffix), )
+                            paths['files'] += [libpaths]
+                        else:
+                            raise EasyBuildError("Library kind must either be static or shared.")
+                    else:
+                        raise EasyBuildError("Libraries are specified via 'name' and 'kind'.")
+                # remove the libs
+                del paths['libs']
 
         # check sanity check paths
         ks = sorted(paths.keys())
