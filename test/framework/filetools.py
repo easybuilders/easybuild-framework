@@ -441,6 +441,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.weld_paths('/foo/bar', 'foobar/baz'), '/foo/bar/foobar/baz/')
         self.assertEqual(ft.weld_paths('foo', 'bar/'), 'foo/bar/')
         self.assertEqual(ft.weld_paths('foo/', '/bar'), '/bar/')
+        self.assertEqual(ft.weld_paths('/foo/', '/bar'), '/bar/')
 
         # overlap is taken into account
         self.assertEqual(ft.weld_paths('foo/bar', 'bar/baz'), 'foo/bar/baz/')
@@ -448,6 +449,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar/baz'), 'foo/bar/baz/')
         self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar'), 'foo/bar/')
         self.assertEqual(ft.weld_paths('/foo/bar', 'foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
 
 def suite():

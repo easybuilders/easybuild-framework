@@ -843,24 +843,23 @@ def expand_glob_paths(glob_paths):
 def weld_paths(path1, path2):
     """Weld two paths together, taking into account overlap between tail of 1st path with head of 2nd path."""
     # strip path1 for use in comparisons
-    path1s = path1.strip(os.path.sep)
+    path1s = path1.rstrip(os.path.sep)
 
     # init part2 head/tail/parts
-    path2_head = path2.strip(os.path.sep)
+    path2_head = path2.rstrip(os.path.sep)
     path2_tail = ''
     path2_parts = path2.split(os.path.sep)
+    # if path2 is an absolute path, make sure it stays that way
+    if path2_parts[0] == '':
+        path2_parts[0] = os.path.sep
 
     while path2_parts and not path1s.endswith(path2_head):
-        path2_tail = os.path.join(path2_parts.pop(-1), path2_tail)
+        path2_tail = os.path.join(path2_parts.pop(), path2_tail)
         if path2_parts:
             # os.path.join requires non-empty list
-            path2_head = os.path.join(*path2_parts).strip(os.path.sep)
+            path2_head = os.path.join(*path2_parts)
         else:
             path2_head = None
-
-    # take into account that path2 is absolute path
-    if path2.startswith(os.path.sep):
-        path2_tail = os.path.sep + path2_tail
 
     return os.path.join(path1, path2_tail)
 
