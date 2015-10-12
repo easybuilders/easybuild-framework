@@ -1101,8 +1101,10 @@ class ActiveMNS(object):
             orig_name = ec['name']
             ec['name'] = ec['modaltsoftname']
             self.log.info("Replaced software name '%s' with '%s' when determining module name", orig_name, ec['name'])
+        else:
+            self.log.debug("No alternative software name specified to determine module name with")
 
-        mod_name = mns_method(self.check_ec_type(ec))
+        mod_name = mns_method(ec)
 
         # restore original software name if it was tampered with
         if orig_name is not None:
