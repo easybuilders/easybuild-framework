@@ -105,7 +105,7 @@ class FileToolsTest(EnhancedTestCase):
         os.mkdir(os.path.join(tmpdir, 'easybuild'))
 
         os.chdir(tmpdir)
-        self.assertEqual(foodir, ft.find_base_dir())
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
