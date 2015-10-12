@@ -160,7 +160,7 @@ DEFAULT_CONFIG = {
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
-    'modname': [None, "Module name to use (rather than using software name", MODULES],
+    'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],

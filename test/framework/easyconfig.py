@@ -1494,12 +1494,12 @@ class EasyConfigTest(EnhancedTestCase):
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
 
-    def test_alt_name(self):
+    def test_modaltsoftname(self):
         """Test specifying an alternative name for the software name, to use when determining module name."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb')
         ectxt = read_file(ec_file)
         modified_ec_file = os.path.join(self.test_prefix, os.path.basename(ec_file))
-        write_file(modified_ec_file, ectxt + "\nmodname = 'notreallyatoy'")
+        write_file(modified_ec_file, ectxt + "\nmodaltsoftname = 'notreallyatoy'")
         ec = EasyConfig(modified_ec_file)
         self.assertEqual(ec.full_mod_name, 'notreallyatoy/0.0-deps')
         self.assertEqual(ec.short_mod_name, 'notreallyatoy/0.0-deps')
