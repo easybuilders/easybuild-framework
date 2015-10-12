@@ -618,8 +618,15 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_patch_step(self):
         """Test patch step."""
-        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
         orig_sources = ec['ec']['sources'][:]
+
+        toy_patches = [
+            'toy-0.0_typo.patch',  # test for applying patch
+            ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
+        ]
+        self.assertEqual(ec['ec']['patches'], toy_patches)
 
         # test applying patches without sources
         ec['ec']['sources'] = []
@@ -634,6 +641,11 @@ class EasyBlockTest(EnhancedTestCase):
         eb.fetch_step()
         eb.extract_step()
         eb.patch_step()
+        # verify that patches were applied
+        toydir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
+        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+        self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
