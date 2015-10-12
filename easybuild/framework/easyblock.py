@@ -64,7 +64,7 @@ from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file, rmtree2
-from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
+from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
@@ -1136,19 +1136,30 @@ class EasyBlock(object):
         -- if abspath: use that
         -- else, treat it as subdir for regular procedure
         """
-        tmpdir = ''
+        start_dir = ''
         if self.cfg['start_dir']:
-            tmpdir = self.cfg['start_dir']
+            start_dir = self.cfg['start_dir']
 
-        if not os.path.isabs(tmpdir):
+        if not os.path.isabs(start_dir):
             if len(self.src) > 0 and not self.skip and self.src[0]['finalpath']:
-                self.cfg['start_dir'] = os.path.join(self.src[0]['finalpath'], tmpdir)
+                topdir = self.src[0]['finalpath']
             else:
-                self.cfg['start_dir'] = os.path.join(self.builddir, tmpdir)
+                topdir = self.builddir
+
+            abs_start_dir = os.path.join(topdir, start_dir)
+            if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
+                self.cfg['start_dir'] = topdir
+            else:
+                if os.path.exists(abs_start_dir):
+                    self.cfg['start_dir'] = abs_start_dir
+                else:
+                    raise EasyBuildError("Specified start dir %s does not exist", abs_start_dir)
+
+        self.log.info("Using %s as start dir", self.cfg['start_dir'])
 
         try:
             os.chdir(self.cfg['start_dir'])
-            self.log.debug("Changed to real build directory %s" % (self.cfg['start_dir']))
+            self.log.debug("Changed to real build directory %s (start_dir)" % self.cfg['start_dir'])
         except OSError, err:
             raise EasyBuildError("Can't change to real build directory %s: %s", self.cfg['start_dir'], err)
 
@@ -1347,8 +1358,9 @@ class EasyBlock(object):
             else:
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
-            src = os.path.abspath("%s/%s" % (beginpath, srcpathsuffix))
-            self.log.debug("Applying patch %s in path %s" % (patch, src))
+            # detect partial overlap between paths
+            src = os.path.abspath(weld_paths(beginpath, srcpathsuffix))
+            self.log.debug("Applying patch %s in path %s", patch, src)
 
             if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
                 raise EasyBuildError("Applying patch %s failed", patch['name'])
