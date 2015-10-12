@@ -379,7 +379,13 @@ class Toolchain(object):
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
     def _simulated_load_dependency_module(self, name, version, metadata):
-        """Set environment variables picked up by utility functions for dependencies specified as external modules."""
+        """
+        Set environment variables picked up by utility functions for dependencies specified as external modules.
+
+        @param name: software name
+        @param version: software version
+        @param metadata: dictionary with software metadata ('prefix' for software installation prefix)
+        """
 
         self.log.debug("Defining $EB* environment variables for software named %s", name)
 

@@ -1022,7 +1022,7 @@ def create_paths(path, name, version):
 
 def robot_find_easyconfig(name, version):
     """
-    Find an easyconfig for module in path
+    Find an easyconfig for module in path, returns (absolute) path to easyconfig file (or None, if none is found).
     """
     key = (name, version)
     if key in _easyconfig_files_cache:

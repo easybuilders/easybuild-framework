@@ -58,7 +58,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_error, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env
@@ -244,11 +244,13 @@ class EasyBlock(object):
 
         this_module = inspect.getmodule(self)
         eb_class = self.__class__.__name__
-        eb_loc = this_module.__file__
-        self.log.info("This is easyblock %s from module %s (%s)", eb_class, this_module.__name__, eb_loc)
+        eb_mod_name = this_module.__name__
+        eb_mod_loc = this_module.__file__
+        self.log.info("This is easyblock %s from module %s (%s)", eb_class, eb_mod_name, eb_mod_loc)
 
         if self.dry_run:
-            dry_run_msg("*** DRY RUN using '%s' easyblock (from %s) ***\n" % (eb_class, eb_loc), silent=self.silent)
+            msg = "*** DRY RUN using '%s' easyblock (%s @ %s) ***\n" % (eb_class, eb_mod_name, eb_mod_loc)
+            dry_run_msg(msg, silent=self.silent)
 
     def close_log(self):
         """
@@ -1635,8 +1637,10 @@ class EasyBlock(object):
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
-            'files': lambda fp: os.path.exists(fp),  # files must exist
-            'dirs': lambda dp: os.path.isdir(dp) and os.listdir(dp),  # directories must exist and be non-empty
+            # files must exist
+            'files': ('file', lambda fp: os.path.exists(fp)),
+            # directories must exist and be non-empty
+            'dirs': ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
         }
 
         # prepare sanity check paths
@@ -1696,8 +1700,8 @@ class EasyBlock(object):
         """Dry run version of sanity_check_step method."""
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
-        for key in path_keys_and_check:
-            dry_run_msg("Sanity check paths - %s" % key, silent=self.silent)
+        for key, (typ, _) in path_keys_and_check.items():
+            dry_run_msg("Sanity check paths - %s ['%s']" % (typ, key), silent=self.silent)
             if paths[key]:
                 for path in sorted(paths[key]):
                     dry_run_msg("  * %s" % str(path), silent=self.silent)
@@ -1716,13 +1720,7 @@ class EasyBlock(object):
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         # check sanity check paths
-        for key, check_fn in path_keys_and_check.items():
-            if key == 'dirs':
-                typ = "(non-empty) directory"
-            elif key == 'files':
-                typ = 'file'
-            else:
-                raise EasyBuildError("Unknown type of sanity check paths: %s", typ)
+        for key, (typ, check_fn) in path_keys_and_check.items():
 
             for xs in paths[key]:
                 if isinstance(xs, basestring):
@@ -1821,6 +1819,8 @@ class EasyBlock(object):
     def make_module_step(self, fake=False):
         """
         Generate module file
+
+        @param fake: generate 'fake' module in temporary location, rather than actual module file
         """
         modpath = self.module_generator.prepare(fake=fake)
 
@@ -1834,6 +1834,7 @@ class EasyBlock(object):
         mod_filepath = self.module_generator.get_module_filepath(fake=fake)
 
         if self.dry_run:
+            # only report generating actual module file during dry run, don't mention temporary module files
             if not fake:
                 msg = "Generating module file %s, with contents:\n" % mod_filepath
                 dry_run_msg(msg, silent=self.silent)
@@ -1948,33 +1949,34 @@ class EasyBlock(object):
 
         return skip
 
-    def run_step(self, step, methods):
+    def run_step(self, step, step_methods):
         """
         Run step, returns false when execution should be stopped
         """
         self.log.info("Starting %s step", step)
         self.update_config_template_run_step()
-        for m in methods:
-            self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
+        for step_method in step_methods:
+            self.log.info("Running method %s part of step %s" % ('_'.join(step_method.func_code.co_names), step))
 
             if self.dry_run:
-
-                dry_run_msg("[%s method]" % m(self).__name__, silent=self.silent)
+                dry_run_msg("[%s method]" % step_method(self).__name__, silent=self.silent)
 
                 # if an known possible error occurs, just report it and continue
                 try:
-                    m(self)()
+                    # step_method is a lambda function that takes an EasyBlock instance as an argument,
+                    # and returns the actual method, so use () to execute it
+                    step_method(self)()
                 except Exception as err:
                     if build_option('extended_dry_run_ignore_errors'):
-                        dry_run_msg("!!! WARNING !!! ignoring error: %s" % err, silent=self.silent)
+                        dry_run_warning("ignoring error \"%s\"" % err, silent=self.silent)
                         self.ignored_errors = True
                     else:
                         raise
-
                 dry_run_msg('', silent=self.silent)
-
             else:
-                m(self)()
+                # step_method is a lambda function that takes an EasyBlock instance as an argument,
+                # and returns the actual method, so use () to execute it
+                step_method(self)()
 
         if self.cfg['stop'] == step:
             self.log.info("Stopping after %s step.", step)
@@ -2104,8 +2106,8 @@ class EasyBlock(object):
         return True
 
 
-def print_dry_run_warning(loc, silent=True):
-    """Print dry run warning."""
+def print_dry_run_note(loc, silent=True):
+    """Print note on interpreting dry run output."""
     msg = '\n'.join([
         '',
         "Important note: the actual build & install procedure that will be performed may diverge",
@@ -2152,7 +2154,8 @@ def build_and_install_one(ecdict, init_env):
         app_class = get_easyblock_class(easyblock, name=name)
 
         if dry_run:
-            print_dry_run_warning('below', silent=silent)
+            # print note on interpreting dry run output (argument is reference to location of dry run messages)
+            print_dry_run_note('below', silent=silent)
 
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
@@ -2276,11 +2279,13 @@ def build_and_install_one(ecdict, init_env):
         print_msg("\nWARNING: %s\n" % app.postmsg, log=_log, silent=silent)
 
     if dry_run:
-        print_dry_run_warning('above', silent=silent)
+        # print note on interpreting dry run output (argument is reference to location of dry run messages)
+        print_dry_run_note('above', silent=silent)
 
     if app.ignored_errors:
-        msg = "\n!!! WARNING !!! One or more errors were ignored, see warnings above\n"
-        dry_run_msg(msg, silent=silent)
+        dry_run_warning("One or more errors were ignored, see warnings above", silent=silent)
+    else:
+        dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
     if application_log:
         print_msg("Results of the build can be found in the log file %s" % application_log, log=_log, silent=silent)

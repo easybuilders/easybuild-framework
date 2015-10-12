@@ -63,15 +63,17 @@ strictness = WARN
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
             forced=False, verbose=True):
     """
-    Executes a command cmd
-    - returns exitcode and stdout+stderr (mixed)
-    - no input though stdin
-    - if log_ok or log_all are set -> will raise EasyBuildError if non-zero exit-code
-    - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
-    - inp is the input given to the command
-    - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
-    - if log_output is True -> all output of command will be logged to a tempfile
-    - path is the path run_cmd should chdir to before doing anything
+    Run specified command (in a subshell)
+    @param cmd: command to run
+    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    @param log_all: always log command output and exit code
+    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    @param inp: the input given to the command via stdin
+    @param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    @param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
+    @param path: path to execute the command is; current working directory is used if unspecified
+    @param forced: force running the command, even during dry run
+    @param verbose: include message on running the command in dry run output
     """
     cwd = os.getcwd()
 
@@ -149,16 +151,16 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """
-    Executes a command cmd
-    - looks for questions and tries to answer based on qa dictionary
-    - provided answers can be either strings or lists of strings (which will be used iteratively)
-    - returns exitcode and stdout+stderr (mixed)
-    - no input though stdin
-    - if log_ok or log_all are set -> will log.error if non-zero exit-code
-    - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
-    - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
-    - if log_output is True -> all output of command will be logged to a tempfile
-    - path is the path run_cmd should chdir to before doing anything
+    Run specified interactive command (in a subshell)
+    @param cmd: command to run
+    @param qa: dictionary which maps question to answers
+    @param no_qa: list of patters that are not questions
+    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    @param log_all: always log command output and exit code
+    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    @param std_qa: dictionary which maps question regex patterns to answers
+    @param path: path to execute the command is; current working directory is used if unspecified
     """
     cwd = os.getcwd()
 
@@ -364,7 +366,14 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
 def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
-    will parse and perform error checks based on strictness setting
+    Parse command output and construct return value.
+    @param cmd: executed command
+    @param stdouterr: combined stdout/stderr of executed command
+    @param ec: exit code of executed command
+    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    @param log_all: always log command output and exit code
+    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False

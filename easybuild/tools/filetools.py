@@ -165,20 +165,12 @@ def write_file(path, txt, append=False, forced=False):
         dry_run_msg("file written: %s" % path, silent=build_option('silent'))
         return
 
-    handle = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        if append:
-            handle = open(path, 'a')
-        else:
-            handle = open(path, 'w')
-        handle.write(txt)
-        handle.close()
+        with open(path, 'a' if append else 'w') as handle:
+            handle.write(txt)
     except IOError, err:
-        # make sure file handle is always closed
-        if handle is not None:
-            handle.close()
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
@@ -635,7 +627,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
             try:
                 shutil.copy2(patch_file, dest)
                 _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-                return 'ok'
+                # early exit, work is done after copying
+                return True
             except IOError, err:
                 raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
 
@@ -643,11 +636,10 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
-    patch_level = level
-    if patch_level is None and build_option('extended_dry_run'):
-        patch_level = '<derived>'
+    if level is None and build_option('extended_dry_run'):
+        level = '<derived>'
 
-    elif patch_level is None:
+    elif level is None:
         # guess value for -p (patch level)
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
@@ -658,16 +650,16 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
             raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
             return
 
-        patch_level = guess_patch_level(patched_files, adest)
+        level = guess_patch_level(patched_files, adest)
 
-        if patch_level is None:  # patch_level can also be 0 (zero), so don't use "not patch_level"
+        if level is None:  # level can also be 0 (zero), so don't use "not level"
             # no match
             raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, adest)
         else:
-            _log.debug("Guessed patch level %d for patch %s" % (patch_level, patch_file))
+            _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
 
     else:
-        _log.debug("Using specified patch level %d for patch %s" % (patch_level, patch_file))
+        _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     try:
         os.chdir(adest)
@@ -675,7 +667,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     except OSError, err:
         raise EasyBuildError("Can't change to directory %s: %s", adest, err)
 
-    patch_cmd = "patch -b -p%s -i %s" % (patch_level, apatch)
+    patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
     result = run.run_cmd(patch_cmd, simple=True)
     if not result:
         raise EasyBuildError("Patching with patch %s failed", patch_file)
@@ -684,11 +676,17 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
 
 def apply_regex_substitutions(path, regex_subs):
-    """Apply specified list of regex substitutions."""
+    """
+    Apply specified list of regex substitutions.
 
+    @param path: path to file to patch
+    @param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
+    """
     # early exit in 'dry run' mode
     if build_option('extended_dry_run'):
-        dry_run_msg("patching file %s" % path, silent=build_option('silent'))
+        dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
+        for regex, subtxt in regex_subs:
+            dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
         return
 
     for i, (regex, subtxt) in enumerate(regex_subs):

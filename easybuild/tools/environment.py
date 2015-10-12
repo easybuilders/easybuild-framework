@@ -84,6 +84,8 @@ def setvar(key, value, verbose=True):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
+
+    @param verbose: include message in dry run output for defining this environment variable
     """
     if key in os.environ:
         oldval_info = "previous value: '%s'" % os.environ[key]
