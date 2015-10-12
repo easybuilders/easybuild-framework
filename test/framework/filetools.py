@@ -404,9 +404,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 %s+ postinstallcmds = " % green
+        expected = "28 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("26 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
@@ -429,9 +429,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[10], expected)
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 + postinstallcmds = "
+        expected = "28 + postinstallcmds = "
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("26 + (1/2) toy-0.0-deps.eb" in lines)
+        self.assertTrue("29 + (1/2) toy-0.0-deps.eb" in lines)
 
         self.assertEqual(lines[-1], "=====")
 

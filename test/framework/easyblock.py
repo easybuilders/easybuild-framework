@@ -447,7 +447,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = get_easyblock_instance(ec)
 
         eb.fetch_patches()
-        self.assertEqual(len(eb.patches), 1)
+        self.assertEqual(len(eb.patches), 2)
         self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
         self.assertFalse('level' in eb.patches[0])
 

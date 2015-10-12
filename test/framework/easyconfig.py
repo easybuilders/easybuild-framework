@@ -303,7 +303,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
             '           "787393bfc465c85607a5b24486e861c5",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "44893c3ed46a7c7ab2e72fea7d19925d",',  # MD5 checksum for patch (toy-0.0.eb)
+            '           "fad34da3432ee2fd4d6554b86c8df4bf",',  # MD5 checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
             ']',
@@ -1122,7 +1122,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
-        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
+        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
