@@ -1359,7 +1359,7 @@ class EasyBlock(object):
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
             # detect partial overlap between paths
-            src = weld_paths(beginpath, srcpathsuffix)
+            src = os.path.abspath(weld_paths(beginpath, srcpathsuffix))
             self.log.debug("Applying patch %s in path %s", patch, src)
 
             if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
