@@ -41,3 +41,13 @@ class Mpich2(Mpich):
     MPI_MODULE_NAME = ["MPICH2"]
     MPI_FAMILY = TC_CONSTANT_MPICH2
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
+
+    def _set_mpi_compiler_variables(self):
+        """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
+
+        # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
+        self.MPI_COMPILER_MPIF77 = 'mpif77'
+        self.MPI_COMPILER_MPIF90 = 'mpif90'
+        self.MPI_COMPILER_MPIFC = 'mpif90'
+
+        super(Mpich2, self)._set_mpi_compiler_variables()

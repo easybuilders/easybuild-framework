@@ -87,9 +87,10 @@ class ToolchainTest(EnhancedTestCase):
 
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpifc')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
         self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
@@ -104,15 +105,16 @@ class ToolchainTest(EnhancedTestCase):
 
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
+        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
         self.assertEqual(tc.get_variable('F90'), 'mpif90')
-        self.assertEqual(tc.get_variable('FC'), 'mpifc')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
 
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpifc')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
         self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
         self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
@@ -454,13 +456,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
-        self.assertEqual(tc.get_variable('F90'), 'mpifc')
-        self.assertEqual(tc.get_variable('FC'), 'mpifc')
+        self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpifc')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpifc')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
         modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
@@ -477,12 +479,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
         self.assertEqual(tc.get_variable('F90'), 'mpif90')
-        self.assertEqual(tc.get_variable('FC'), 'mpifc')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpifc')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
         # cleanup
         shutil.rmtree(tmpdir)

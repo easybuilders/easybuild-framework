@@ -47,7 +47,7 @@ class OpenMPI(Mpi):
 
     MPI_LIBRARY_NAME = 'mpi'
 
-    # version-dependent, see http://www.open-mpi.org/faq/?category=mpi-apps#override-wrappers-after-v1.0
+    # version-dependent, so defined at runtime
     MPI_COMPILER_MPIF77 = None
     MPI_COMPILER_MPIF90 = None
     MPI_COMPILER_MPIFC = None
@@ -60,6 +60,7 @@ class OpenMPI(Mpi):
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands (depends on OpenMPI version) and add OMPI_* variables to set."""
         ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
+        # version-dependent, see http://www.open-mpi.org/faq/?category=mpi-apps#override-wrappers-after-v1.0
         if LooseVersion(ompi_ver) >= LooseVersion('1.7'):
             self.MPI_COMPILER_MPIF77 = 'mpifort'
             self.MPI_COMPILER_MPIF90 = 'mpifort'
@@ -67,7 +68,7 @@ class OpenMPI(Mpi):
         else:
             self.MPI_COMPILER_MPIF77 = 'mpif77'
             self.MPI_COMPILER_MPIF90 = 'mpif90'
-            self.MPI_COMPILER_MPIFC = 'mpifc'
+            self.MPI_COMPILER_MPIFC = 'mpif90'
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:
