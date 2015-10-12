@@ -1903,7 +1903,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         common_args = []
 
         eb_go = parse_options(args=common_args + ['-r', 'f'])
-        self.assertFalse(eb_go.options.robot == 'f')
+        self.assertFalse('f' in eb_go.options.robot)
 
 
 def suite():
