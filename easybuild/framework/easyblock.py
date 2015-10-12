@@ -64,7 +64,7 @@ from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file, rmtree2
-from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
+from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
@@ -1358,8 +1358,9 @@ class EasyBlock(object):
             else:
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
-            src = os.path.abspath("%s/%s" % (beginpath, srcpathsuffix))
-            self.log.debug("Applying patch %s in path %s" % (patch, src))
+            # detect partial overlap between paths
+            src = weld_paths(beginpath, srcpathsuffix)
+            self.log.debug("Applying patch %s in path %s", patch, src)
 
             if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
                 raise EasyBuildError("Applying patch %s failed", patch['name'])

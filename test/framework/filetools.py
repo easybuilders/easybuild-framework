@@ -435,6 +435,20 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(lines[-1], "=====")
 
+    def test_weld_paths(self):
+        """Test weld_paths."""
+        # works like os.path.join is there's no overlap
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foobar/baz'), '/foo/bar/foobar/baz/')
+        self.assertEqual(ft.weld_paths('foo', 'bar/'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('foo/', '/bar'), '/bar/')
+
+        # overlap is taken into account
+        self.assertEqual(ft.weld_paths('foo/bar', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar/baz', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foo/bar'), '/foo/bar/')
+
 
 def suite():
     """ returns all the testcases in this module """
