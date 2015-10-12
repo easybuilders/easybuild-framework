@@ -13,7 +13,7 @@ module-whatis {Intel Math Kernel Library is a library of highly optimized,
  applications that require maximum performance. Core math functions include
  BLAS, LAPACK, ScaLAPACK, Sparse Solvers, Fast Fourier Transforms, Vector Math, and more. - Homepage: http://software.intel.com/en-us/intel-mkl/}
 
-set root	/var/folders/8s/_frgh9sj6m744mxt5w5lyztr0000gn/T/eb-WdZm_W/eb-y0XbqZ/eb-I_RMeR/tmp1USZhO
+set root	/tmp/eb-bI0pBy/eb-DmuEpJ/eb-leoYDw/eb-UtJJqp/tmp8P3FOY
 
 conflict    imkl
 
