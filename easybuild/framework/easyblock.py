@@ -74,7 +74,7 @@ from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.systemtools import det_parallelism, use_group
+from easybuild.tools.systemtools import det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -97,6 +97,11 @@ TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
+
+# constants for library checking (TODO: should probably be configurable)
+LIB_DIRS = ['lib', 'lib64']
+LIB_STATIC_SUFFIXES = ['a']
+LIB_SHARED_SUFFIXES = [get_shared_lib_ext()]
 
 
 _log = fancylogger.getLogger('easyblock')
@@ -1546,10 +1551,6 @@ class EasyBlock(object):
         - if *any* of the files/subdirectories in the installation directory listed
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
-        # constants for library checking (TODO: should probably be defined somewhere else/configurab;e)
-        LIB_DIRS = ['lib', 'lib64']
-        LIB_SUFFIXES = {'static': ['.a'], 'shared': ['.so', '.dyn']}
-
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
             'files': lambda fp: os.path.exists(fp),  # files must exist
@@ -1570,23 +1571,18 @@ class EasyBlock(object):
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
 
+            def gen_library_paths(name, suffixes):
+                libpaths = []
+                for dir in LIB_DIRS:
+                    for suffix in suffixes:
+                        libpaths += os.path.join(dir, "%s.%s" % (name, suffix))
+                return tuple(libpaths)
+
             # transform specified libs into simple file paths
-            if 'libs' in paths.keys():
-                for lib in paths['libs']:
-                    if 'name' in lib.keys() and 'kind' in lib.keys():
-                        if lib['kind'] in LIB_SUFFIXES.keys():
-                            # TODO: also check possible library version numbers (e.g. libawesome.so.3.0.1)
-                            libpaths = ()
-                            for dir in LIB_DIRS:
-                                for suffix in LIB_SUFFIXES[lib['kind']]:
-                                    libpaths += (os.path.join(dir, lib['name'] + suffix), )
-                            paths['files'] += [libpaths]
-                        else:
-                            raise EasyBuildError("Library kind must either be static or shared.")
-                    else:
-                        raise EasyBuildError("Libraries are specified via 'name' and 'kind'.")
-                # remove the libs
-                del paths['libs']
+            for lib in paths.pop('shared_libs', []):
+                paths['files'].append(gen_library_paths(lib, LIB_SHARED_SUFFIXES))
+            for lib in paths.pop('static_libs', []):
+                paths['files'].append(gen_library_paths(lib, LIB_STATIC_SUFFIXES))
 
         # check sanity check paths
         ks = sorted(paths.keys())
