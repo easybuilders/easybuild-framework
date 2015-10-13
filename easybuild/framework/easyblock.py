@@ -844,7 +844,7 @@ class EasyBlock(object):
 
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)
-        loads = [self.module_generator.load_module(d, self.cfg['recursive_mod_unload']) for d in deps]
+        loads = [self.module_generator.load_module(d, recursive_module_unload=self.cfg['recursive_module_unload']) for d in deps]
         unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
 
         # Force unloading any other modules

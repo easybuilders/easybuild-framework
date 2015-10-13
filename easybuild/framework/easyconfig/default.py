@@ -166,7 +166,7 @@ DEFAULT_CONFIG = {
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
-    'recursive_mod_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
+    'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
