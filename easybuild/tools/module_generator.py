@@ -195,7 +195,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name, recursive_mod_unload):
+    def load_module(self, mod_name, recursive_mod_unload=False):
         """
         Generate load statements for module.
         """
@@ -359,7 +359,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name, recursive_mod_unload):
+    def load_module(self, mod_name, recursive_mod_unload=False):
         """
         Generate load statements for module.
         """
