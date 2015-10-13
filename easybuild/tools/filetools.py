@@ -36,6 +36,7 @@ Set of file tools.
 @author: Sotiris Fragkiskos (NTUA, CERN)
 """
 import glob
+import hashlib
 import os
 import re
 import shutil
@@ -93,23 +94,14 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-    md5_class = hashlib.md5
-    sha1_class = hashlib.sha1
-except ImportError:
-    import md5, sha
-    md5_class = md5.md5
-    sha1_class = sha.sha
 
 # default checksum for source and patch files
 DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, md5_class()),
-    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
@@ -472,12 +464,11 @@ def find_base_dir():
     """
     def get_local_dirs_purged():
         # e.g. always purge the log directory
-        ignoreDirs = ["easybuild"]
+        # and hidden directories
+        ignoredirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
-        for ignDir in ignoreDirs:
-            if ignDir in lst:
-                lst.remove(ignDir)
+        lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
         return lst
 
     lst = get_local_dirs_purged()
@@ -847,6 +838,30 @@ def expand_glob_paths(glob_paths):
         paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
 
     return nub(paths)
+
+
+def weld_paths(path1, path2):
+    """Weld two paths together, taking into account overlap between tail of 1st path with head of 2nd path."""
+    # strip path1 for use in comparisons
+    path1s = path1.rstrip(os.path.sep)
+
+    # init part2 head/tail/parts
+    path2_head = path2.rstrip(os.path.sep)
+    path2_tail = ''
+    path2_parts = path2.split(os.path.sep)
+    # if path2 is an absolute path, make sure it stays that way
+    if path2_parts[0] == '':
+        path2_parts[0] = os.path.sep
+
+    while path2_parts and not path1s.endswith(path2_head):
+        path2_tail = os.path.join(path2_parts.pop(), path2_tail)
+        if path2_parts:
+            # os.path.join requires non-empty list
+            path2_head = os.path.join(*path2_parts)
+        else:
+            path2_head = None
+
+    return os.path.join(path1, path2_tail)
 
 
 def symlink(source_path, symlink_path):

@@ -28,6 +28,7 @@ Unit tests for filetools.py
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import shutil
@@ -93,6 +94,18 @@ class FileToolsTest(EnhancedTestCase):
         """tests should be run from the base easybuild directory"""
         # used to be part of test_parse_log_error
         self.assertEqual(os.getcwd(), ft.find_base_dir())
+
+    def test_find_base_dir(self):
+        """test if we find the correct base dir"""
+        tmpdir = tempfile.mkdtemp()
+
+        foodir = os.path.join(tmpdir, 'foo')
+        os.mkdir(foodir)
+        os.mkdir(os.path.join(tmpdir, '.bar'))
+        os.mkdir(os.path.join(tmpdir, 'easybuild'))
+
+        os.chdir(tmpdir)
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -391,9 +404,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 %s+ postinstallcmds = " % green
+        expected = "28 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("26 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
@@ -416,11 +429,28 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[10], expected)
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 + postinstallcmds = "
+        expected = "28 + postinstallcmds = "
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("26 + (1/2) toy-0.0-deps.eb" in lines)
+        self.assertTrue("29 + (1/2) toy-0.0-deps.eb" in lines)
 
         self.assertEqual(lines[-1], "=====")
+
+    def test_weld_paths(self):
+        """Test weld_paths."""
+        # works like os.path.join is there's no overlap
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foobar/baz'), '/foo/bar/foobar/baz/')
+        self.assertEqual(ft.weld_paths('foo', 'bar/'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('foo/', '/bar'), '/bar/')
+        self.assertEqual(ft.weld_paths('/foo/', '/bar'), '/bar/')
+
+        # overlap is taken into account
+        self.assertEqual(ft.weld_paths('foo/bar', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar/baz', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
 
 def suite():
