@@ -186,6 +186,13 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(constants['GPLv2'], 'LicenseGPLv2')
         self.assertEqual(constants['EXTERNAL_MODULE'], 'EXTERNAL_MODULE')
 
+    def test_check_value_types(self):
+        """Test checking of easyconfig parameter value types."""
+        test_ec = os.path.join(TESTDIRBASE, 'gzip-1.4-broken.eb')
+        error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'name'.*'version'.*"
+        ecp = EasyConfigParser(test_ec)
+        self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
+
 
 def suite():
     """ returns all the testcases in this module """
