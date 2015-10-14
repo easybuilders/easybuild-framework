@@ -58,20 +58,26 @@ class YebTest(EnhancedTestCase):
         test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
 
         # test parsing
-        ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, 'bzip2.yeb'))
+        test_files = {
+            'bzip2.yeb': 'bzip2-1.0.6-GCC-4.9.2.eb',
+            'gzip.yeb': 'gzip-1.6-gcc-4.9.2.eb',
+        }
 
-        # compare with parsed result of .eb easyconfig
-        ec_eb = EasyConfig(os.path.join(test_easyconfigs, 'bzip2-1.0.6-GCC-4.9.2.eb'))
+        for yeb_file, eb_file in test_files.items():
+            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, yeb_file))
 
-        no_match = False
-        for key in sorted(ec_yeb.asdict()):
-            eb_val = ec_eb[key]
-            yeb_val = ec_yeb[key]
-            if key == 'description':
-                # multi-line string is always terminated with '\n' in YAML, so strip it off
-                yeb_val = yeb_val.strip()
+            # compare with parsed result of .eb easyconfig
+            ec_eb = EasyConfig(os.path.join(test_easyconfigs, eb_file))
 
-            self.assertEqual(yeb_val, eb_val)
+            no_match = False
+            for key in sorted(ec_yeb.asdict()):
+                eb_val = ec_eb[key]
+                yeb_val = ec_yeb[key]
+                if key == 'description':
+                    # multi-line string is always terminated with '\n' in YAML, so strip it off
+                    yeb_val = yeb_val.strip()
+
+                self.assertEqual(yeb_val, eb_val)
 
     def test_is_yeb_format(self):
         """ Test is_yeb_format function """
