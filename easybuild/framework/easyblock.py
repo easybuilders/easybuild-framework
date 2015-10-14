@@ -771,6 +771,7 @@ class EasyBlock(object):
         load_lines = []
         # capture all the EBDEVEL vars
         # these should be all the dependencies and we should load them
+        recursive_unload = self.cfg['recursive_module_unload']
         for key in os.environ:
             # legacy support
             if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX):
@@ -778,7 +779,8 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_lines.append(self.module_generator.load_module(mod_name))
+                        load_statement = self.module_generator.load_module(mod_name, recursive_unload=recursive_unload)
+                        load_lines.append(load_statement)
             elif key.startswith('SOFTDEVEL'):
                 self.log.nosupport("Environment variable SOFTDEVEL* being relied on", '2.0')
 
@@ -844,7 +846,8 @@ class EasyBlock(object):
 
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)
-        loads = [self.module_generator.load_module(d) for d in deps]
+        recursive_unload = self.cfg['recursive_module_unload']
+        loads = [self.module_generator.load_module(d, recursive_unload=recursive_unload) for d in deps]
         unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
 
         # Force unloading any other modules
