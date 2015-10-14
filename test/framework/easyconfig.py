@@ -304,7 +304,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
             '           "a5464d79c2c8d4935e383ebd070b305e",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "44893c3ed46a7c7ab2e72fea7d19925d",',  # MD5 checksum for patch (toy-0.0.eb)
+            '           "fad34da3432ee2fd4d6554b86c8df4bf",',  # MD5 checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
             ']',
@@ -1125,7 +1125,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
-        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
+        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
@@ -1493,6 +1493,17 @@ class EasyConfigTest(EnhancedTestCase):
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
+
+    def test_modaltsoftname(self):
+        """Test specifying an alternative name for the software name, to use when determining module name."""
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb')
+        ectxt = read_file(ec_file)
+        modified_ec_file = os.path.join(self.test_prefix, os.path.basename(ec_file))
+        write_file(modified_ec_file, ectxt + "\nmodaltsoftname = 'notreallyatoy'")
+        ec = EasyConfig(modified_ec_file)
+        self.assertEqual(ec.full_mod_name, 'notreallyatoy/0.0-deps')
+        self.assertEqual(ec.short_mod_name, 'notreallyatoy/0.0-deps')
+        self.assertEqual(ec['name'], 'toy')
 
     def test_software_license(self):
         """Tests related to software_license easyconfig parameter."""

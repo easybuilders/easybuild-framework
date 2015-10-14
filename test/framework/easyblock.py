@@ -447,7 +447,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = get_easyblock_instance(ec)
 
         eb.fetch_patches()
-        self.assertEqual(len(eb.patches), 1)
+        self.assertEqual(len(eb.patches), 2)
         self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
         self.assertFalse('level' in eb.patches[0])
 
@@ -618,8 +618,15 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_patch_step(self):
         """Test patch step."""
-        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
         orig_sources = ec['ec']['sources'][:]
+
+        toy_patches = [
+            'toy-0.0_typo.patch',  # test for applying patch
+            ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
+        ]
+        self.assertEqual(ec['ec']['patches'], toy_patches)
 
         # test applying patches without sources
         ec['ec']['sources'] = []
@@ -634,6 +641,11 @@ class EasyBlockTest(EnhancedTestCase):
         eb.fetch_step()
         eb.extract_step()
         eb.patch_step()
+        # verify that patches were applied
+        toydir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
+        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+        self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
@@ -694,6 +706,36 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
+
+    def test_guess_start_dir(self):
+        """Test guessing the start dir."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+
+        def check_start_dir(expected_start_dir):
+            """Check start dir."""
+            eb = EasyBlock(ec['ec'])
+            eb.silent = True
+            eb.cfg['stop'] = 'patch'
+            eb.run_all_steps(False)
+            eb.guess_start_dir()
+            abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
+            self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
+            self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+
+        # default (no start_dir specified): use unpacked dir as start dir
+        self.assertEqual(ec['ec']['start_dir'], None)
+        check_start_dir('toy-0.0')
+
+        # using start_dir equal to the one we're in is OK
+        ec['ec']['start_dir'] = '%(name)s-%(version)s'
+        self.assertEqual(ec['ec']['start_dir'], 'toy-0.0')
+        check_start_dir('toy-0.0')
+
+        # clean error when specified start dir does not exist
+        ec['ec']['start_dir'] = 'thisstartdirisnotthere'
+        err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
+        self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
 
 def suite():
