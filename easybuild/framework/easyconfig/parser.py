@@ -108,7 +108,11 @@ class EasyConfigParser(object):
         self._set_formatter()
 
     def check_values_types(self, cfg):
-        """Check types of easyconfig parameter values."""
+        """
+        Check types of easyconfig parameter values.
+
+        @param cfg: dictionary with easyconfig parameter values (result of get_config_dict())
+        """
         wrong_type_msgs = []
         for key in cfg:
             if not check_type_of_param_value(key, cfg[key]):

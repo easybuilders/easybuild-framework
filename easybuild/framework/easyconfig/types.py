@@ -43,7 +43,12 @@ _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
 
 def check_type_of_param_value(key, value):
-    """Check value type of specified easyconfig parameter."""
+    """
+    Check value type of specified easyconfig parameter.
+
+    @param key: name of easyconfig parameter
+    @param value: easyconfig parameter value, of which type should be checked
+    """
     type_ok = True
 
     if key in TYPES:
