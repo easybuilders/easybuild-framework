@@ -41,16 +41,20 @@ class TypeCheckingTest(EnhancedTestCase):
         """Test check_type_of_param_value function."""
         # check selected values that should be strings
         for key in ['name', 'version']:
-            self.assertTrue(check_type_of_param_value(key, 'foo'))
+            self.assertEqual(check_type_of_param_value(key, 'foo'), (True, 'foo'))
             for not_a_string in [100, 1.5, ('bar',), ['baz'], None]:
-                self.assertFalse(check_type_of_param_value(key, not_a_string))
+                self.assertEqual(check_type_of_param_value(key, not_a_string), (False, None))
             # value doesn't matter, only type does
-            self.assertTrue(check_type_of_param_value(key, ''))
+            self.assertEqual(check_type_of_param_value(key, ''), (True, ''))
 
         # parameters with no type specification always pass the check
         key = 'nosucheasyconfigparametereverhopefully'
         for val in ['foo', 100, 1.5, ('bar',), ['baz'], '', None]:
-            self.assertTrue(check_type_of_param_value(key, val))
+            self.assertEqual(check_type_of_param_value(key, val), (True, val))
+
+        # check use of auto_convert
+        self.assertEqual(check_type_of_param_value('version', 1.5), (False, None))
+        self.assertEqual(check_type_of_param_value('version', 1.5, auto_convert=True), (True, '1.5'))
 
     def test_convert_value_type(self):
         """Test convert_value_type function."""
