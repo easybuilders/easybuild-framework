@@ -69,7 +69,10 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type('0', int), 0)
         self.assertEqual(convert_value_type('-123', int), -123)
         self.assertEqual(convert_value_type('1.6', float), 1.6)
+        self.assertEqual(convert_value_type('5', float), 5.0)
         self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '', int)
+        # 1.6 can't be parsed as an int (yields "invalid literal for int() with base 10" error)
+        self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '1.6', int)
 
         # idempotency
         self.assertEqual(convert_value_type('foo', basestring), 'foo')
