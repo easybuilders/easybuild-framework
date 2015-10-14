@@ -35,6 +35,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.framework.easyconfig.types import TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
@@ -99,12 +100,27 @@ class EasyConfigParser(object):
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
+        self.check_types()
+
         self._formatter.extract_comments(self.rawcontent)
 
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)
         self._set_formatter()
+
+    def check_types(self):
+        """Check types of easyconfig parameter values."""
+        params = self.get_config_dict()
+        wrong_type_msgs = []
+        for key in params:
+            if not check_type_of_param_value(key, params[key]):
+                wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
+
+        if wrong_type_msgs:
+            raise EasyBuildError("Type checking of easyconfig parameter values failed: %s", ' '.join(wrong_type_msgs))
+        else:
+            self.log.info("Type checking of easyconfig parameter values passed!")
 
     def _check_filename(self, fn):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""
