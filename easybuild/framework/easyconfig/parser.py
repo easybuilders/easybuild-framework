@@ -100,8 +100,6 @@ class EasyConfigParser(object):
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
-        self.check_values_types()
-
         self._formatter.extract_comments(self.rawcontent)
 
     def process(self, filename=None):
@@ -109,12 +107,11 @@ class EasyConfigParser(object):
         self._read(filename=filename)
         self._set_formatter()
 
-    def check_values_types(self):
+    def check_values_types(self, cfg):
         """Check types of easyconfig parameter values."""
-        params = self.get_config_dict()
         wrong_type_msgs = []
-        for key in params:
-            if not check_type_of_param_value(key, params[key]):
+        for key in cfg:
+            if not check_type_of_param_value(key, cfg[key]):
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
 
         if wrong_type_msgs:
@@ -201,7 +198,11 @@ class EasyConfigParser(object):
         # allows to bypass the validation step, typically for testing
         if validate:
             self._formatter.validate()
-        return self._formatter.get_config_dict()
+
+        cfg = self._formatter.get_config_dict()
+        self.check_values_types(cfg)
+
+        return cfg
 
     def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump easyconfig in format it was parsed from."""
