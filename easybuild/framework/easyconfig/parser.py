@@ -115,7 +115,8 @@ class EasyConfigParser(object):
         """
         wrong_type_msgs = []
         for key in cfg:
-            if not check_type_of_param_value(key, cfg[key]):
+            type_ok, _ = check_type_of_param_value(key, cfg[key])
+            if not type_ok:
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
 
         if wrong_type_msgs:
