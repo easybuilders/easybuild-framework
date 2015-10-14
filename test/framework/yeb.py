@@ -63,11 +63,11 @@ class YebTest(EnhancedTestCase):
             'gzip.yeb': 'gzip-1.6-gcc-4.9.2.eb',
         }
 
-        for filename in test_files:
-            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, filename))
+        for yeb_file, eb_file in test_files.items():
+            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, yeb_file))
 
             # compare with parsed result of .eb easyconfig
-            ec_eb = EasyConfig(os.path.join(test_easyconfigs, test_files[filename]))
+            ec_eb = EasyConfig(os.path.join(test_easyconfigs, eb_file))
 
             no_match = False
             for key in sorted(ec_yeb.asdict()):
