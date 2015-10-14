@@ -30,12 +30,21 @@ Support for checking types of easyconfig parameter values.
 """
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
+
+
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, int]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
+}
+TYPE_CONVERSION_FUNCTIONS = {
+    basestring: str,
+    float: float,
+    int: int,
+    str: str,
 }
 
 
@@ -65,3 +74,31 @@ def check_type_of_param_value(key, value):
         _log.debug("No type specified for easyconfig parameter '%s', so skipping type check.", key)
 
     return type_ok
+
+
+def convert_value_type(val, typ):
+    """
+    Try to convert type of provided value to specific type.
+
+    @param val: value to convert type of
+    @param typ: target type
+    """
+    res = None
+
+    if isinstance(val, typ):
+        _log.debug("Value %s is already of specified target type %s, no conversion needed", val, typ)
+        res = val
+
+    elif typ in TYPE_CONVERSION_FUNCTIONS:
+        func = TYPE_CONVERSION_FUNCTIONS[typ]
+        _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
+        try:
+            res = func(val)
+            _log.debug("Type conversion seems to have worked, new type: %s", type(res))
+        except Exception as err:
+            raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s", val, type(val), typ, func, err)
+
+    else:
+        raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
+
+    return res

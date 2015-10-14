@@ -30,7 +30,8 @@ Unit tests for easyconfig/types.py
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.framework.easyconfig.types import check_type_of_param_value
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -50,6 +51,32 @@ class TypeCheckingTest(EnhancedTestCase):
         key = 'nosucheasyconfigparametereverhopefully'
         for val in ['foo', 100, 1.5, ('bar',), ['baz'], '', None]:
             self.assertTrue(check_type_of_param_value(key, val))
+
+    def test_convert_value_type(self):
+        """Test convert_value_type function."""
+        # to string
+        self.assertEqual(convert_value_type(100, basestring), '100')
+        self.assertEqual(convert_value_type((100,), str), '(100,)')
+        self.assertEqual(convert_value_type([100], basestring), '[100]')
+        self.assertEqual(convert_value_type(None, str), 'None')
+
+        # to int/float
+        self.assertEqual(convert_value_type('100', int), 100)
+        self.assertEqual(convert_value_type('0', int), 0)
+        self.assertEqual(convert_value_type('-123', int), -123)
+        self.assertEqual(convert_value_type('1.6', float), 1.6)
+        self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '', int)
+
+        # idempotency
+        self.assertEqual(convert_value_type('foo', basestring), 'foo')
+        self.assertEqual(convert_value_type('foo', str), 'foo')
+        self.assertEqual(convert_value_type(100, int), 100)
+        self.assertEqual(convert_value_type(1.6, float), 1.6)
+
+        # no conversion function available for specific type
+        class Foo():
+            pass
+        self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
 
 
 def suite():
