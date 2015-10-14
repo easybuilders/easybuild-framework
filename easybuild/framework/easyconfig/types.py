@@ -30,6 +30,7 @@ Support for checking types of easyconfig parameter values.
 """
 from vsc.utils import fancylogger
 
+# easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, int]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
@@ -44,6 +45,7 @@ _log = fancylogger.getLogger('easyconfig.types', fname=False)
 def check_type_of_param_value(key, value):
     """Check value type of specified easyconfig parameter."""
     type_ok = True
+
     if key in TYPES:
         expected_type = TYPES[key]
         if expected_type in EASY_TYPES:
@@ -54,7 +56,6 @@ def check_type_of_param_value(key, value):
                 type_ok = False
                 _log.warning("Value type checking of easyconfig parameter '%s' FAILED: expected '%s', got '%s'",
                              key, expected_type.__name__, type(value).__name__)
-
     else:
         _log.debug("No type specified for easyconfig parameter '%s', so skipping type check.", key)
 

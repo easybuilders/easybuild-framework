@@ -100,7 +100,7 @@ class EasyConfigParser(object):
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
-        self.check_types()
+        self.check_values_types()
 
         self._formatter.extract_comments(self.rawcontent)
 
@@ -109,7 +109,7 @@ class EasyConfigParser(object):
         self._read(filename=filename)
         self._set_formatter()
 
-    def check_types(self):
+    def check_values_types(self):
         """Check types of easyconfig parameter values."""
         params = self.get_config_dict()
         wrong_type_msgs = []
