@@ -17,7 +17,7 @@ vars:
 
     - &blaslib OpenBLAS
     - &blasver 0.2.6
-    - &blas OpenBLAS-0.2.6  #FIXME avoid hard coding (this is blaslib + blasver)
+    - &blas !join [*blaslib, -, *blasver]
     - &blas_suff -LAPACK-3.4.2
 
     - &comp_mpi_tc_name gompi
@@ -27,13 +27,12 @@ vars:
 # compiler toolchain dependencies
 # we need GCC and OpenMPI as explicit dependencies instead of gompi toolchain
 # because of toolchain preperation functions
-# FIXME don't hardcode blas+blas_suff
 dependencies: [
     *comp,
     [OpenMPI, 1.6.4, '', *comp],
     [*blaslib, *blasver, *blas_suff, *comp_mpi_tc],
     [FFTW, 3.3.3, '', *comp_mpi_tc],
-    [ScaLAPACK, 2.0.2, -OpenBLAS-0.2.6-LAPACK-3.4.2, *comp_mpi_tc]
+    [ScaLAPACK, 2.0.2, !join [-, *blas, *blas_suff], *comp_mpi_tc]
 ]
 
 moduleclass: toolchain
