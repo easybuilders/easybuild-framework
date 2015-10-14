@@ -35,6 +35,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.framework.easyconfig.types import TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
@@ -105,6 +106,22 @@ class EasyConfigParser(object):
         """Create an instance"""
         self._read(filename=filename)
         self._set_formatter()
+
+    def check_values_types(self, cfg):
+        """
+        Check types of easyconfig parameter values.
+
+        @param cfg: dictionary with easyconfig parameter values (result of get_config_dict())
+        """
+        wrong_type_msgs = []
+        for key in cfg:
+            if not check_type_of_param_value(key, cfg[key]):
+                wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
+
+        if wrong_type_msgs:
+            raise EasyBuildError("Type checking of easyconfig parameter values failed: %s", ', '.join(wrong_type_msgs))
+        else:
+            self.log.info("Type checking of easyconfig parameter values passed!")
 
     def _check_filename(self, fn):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""
@@ -185,7 +202,11 @@ class EasyConfigParser(object):
         # allows to bypass the validation step, typically for testing
         if validate:
             self._formatter.validate()
-        return self._formatter.get_config_dict()
+
+        cfg = self._formatter.get_config_dict()
+        self.check_values_types(cfg)
+
+        return cfg
 
     def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump easyconfig in format it was parsed from."""

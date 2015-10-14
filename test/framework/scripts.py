@@ -75,7 +75,7 @@ class ScriptsTest(EnhancedTestCase):
         for root, subfolders, files in os.walk(easyconfigs_dir):
             if 'v2.0' in subfolders:
                 subfolders.remove('v2.0')
-            for ec_file in files:
+            for ec_file in [f for f in files if 'broken' not in os.path.basename(f)]:
                 shutil.copy2(os.path.join(root, ec_file), tmpdir)
 
         cmd = "%s %s --local --quiet --path %s" % (sys.executable, script, tmpdir)

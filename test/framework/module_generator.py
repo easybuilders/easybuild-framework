@@ -298,7 +298,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         def test_mns():
             """Test default module naming scheme."""
             # test default naming scheme
-            for ec_file in ec_files:
+            for ec_file in [f for f in ec_files if not 'broken' in os.path.basename(f)]:
                 ec_path = os.path.abspath(ec_file)
                 ecs = process_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
