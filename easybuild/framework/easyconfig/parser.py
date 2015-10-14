@@ -115,7 +115,7 @@ class EasyConfigParser(object):
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
 
         if wrong_type_msgs:
-            raise EasyBuildError("Type checking of easyconfig parameter values failed: %s", ' '.join(wrong_type_msgs))
+            raise EasyBuildError("Type checking of easyconfig parameter values failed: %s", ', '.join(wrong_type_msgs))
         else:
             self.log.info("Type checking of easyconfig parameter values passed!")
 
