@@ -941,7 +941,7 @@ def cleanup(logfile, tempdir, testing):
                     os.remove(log)
             except OSError, err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-            print_msg("Tmporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
 
         if tempdir is not None:
             try:
