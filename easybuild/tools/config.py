@@ -383,10 +383,6 @@ def install_path(typ=None):
     else:
         _log.debug("%s install path as specified by '%s': %s", typ, key, res)
 
-    if build_option('extended_dry_run'):
-        res = os.path.join(tempfile.gettempdir(), '__ROOT__', res.lstrip(os.path.sep))
-        _log.debug("Using fake %s install directory: %s", typ, res)
-
     return res
 
 

@@ -378,7 +378,7 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
-    def _simulated_load_dependency_module(self, name, version, metadata):
+    def _simulated_load_dependency_module(self, name, version, metadata, verbose=False):
         """
         Set environment variables picked up by utility functions for dependencies specified as external modules.
 
@@ -398,11 +398,11 @@ class Toolchain(object):
             else:
                 val = prefix
                 self.log.debug("Using specified prefix for software named %s: %s", name, val)
-            setvar(get_software_root_env_var_name(name), val)
+            setvar(get_software_root_env_var_name(name), val, verbose=verbose)
 
         # define $EBVERSION env var for software version, picked up by get_software_version
         if version is not None:
-            setvar(get_software_version_env_var_name(name), version)
+            setvar(get_software_version_env_var_name(name), version, verbose=verbose)
 
     def _load_toolchain_module(self, silent=False):
         """Load toolchain module."""
@@ -411,7 +411,6 @@ class Toolchain(object):
 
         if self.dry_run:
 
-            fake_root = os.path.join(tempfile.gettempdir(), '__fake__')
             tcmods_exists = self.modules_tool.exist([tc_mod])[0]
 
             dry_run_msg("Loading toolchain module...\n", silent=silent)
@@ -421,20 +420,19 @@ class Toolchain(object):
                 self.modules_tool.load([tc_mod], silent=silent)
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
-                dry_run_msg("module load %s [SIMULATED]" % tc_mod, silent=silent)
-                # provide fake prefix so $EBROOT* gets defined
-                fake_prefix = os.path.join(fake_root, tc_mod)
-                self._simulated_load_dependency_module(self.name, self.version, {'prefix': fake_prefix})
-
-                # also simulate loads for toolchain dependencies, if required information is available
+                # first simulate loads for toolchain dependencies, if required information is available
                 if self.tcdeps is not None:
                     for tcdep in self.tcdeps:
                         modname = tcdep['short_mod_name']
-                        dry_run_msg(" module load %s [SIMULATED]" % modname, silent=silent)
-                        # provide fake prefix so $EBROOT* gets defined
-                        fake_prefix = os.path.join(fake_root, tcdep['name'], tcdep['version'])
-                        self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': fake_prefix})
+                        dry_run_msg("module load %s [SIMULATED]" % modname, silent=silent)
+                        # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
+                        deproot = '$%s' % get_software_root_env_var_name(tcdep['name'])
+                        self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': deproot})
 
+                dry_run_msg("module load %s [SIMULATED]" % tc_mod, silent=silent)
+                # provide fake prefix so $EBROOT* gets defined
+                tcroot = '$%s' % get_software_root_env_var_name(self.name)
+                self._simulated_load_dependency_module(self.name, self.version, {'prefix': tcroot})
         else:
             # make sure toolchain is available using short module name by running 'module use' on module path subdir
             if self.init_modpaths:
@@ -452,7 +450,6 @@ class Toolchain(object):
         if self.dry_run:
             dry_run_msg("\nLoading modules for dependencies...\n", silent=silent)
 
-            fake_root = os.path.join(tempfile.gettempdir(), '__fake__')
             mod_names = [dep['short_mod_name'] for dep in self.dependencies]
             mods_exist = self.modules_tool.exist(mod_names)
 
@@ -464,9 +461,9 @@ class Toolchain(object):
                     dry_run_msg("module load %s" % mod_name, silent=silent)
                 else:
                     dry_run_msg("module load %s [SIMULATED]" % mod_name, silent=silent)
-                    # provide fake prefix so $EBROOT* gets defined
-                    fake_prefix = os.path.join(fake_root, mod_name)
-                    self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': fake_prefix})
+                    # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
+                    deproot = '$%s' % get_software_root_env_var_name(dep['name'])
+                    self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
         else:
             # load modules for all dependencies
             dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
@@ -485,7 +482,7 @@ class Toolchain(object):
                            mod_name, names, versions)
 
             for name, version in zip(names, versions):
-                self._simulated_load_dependency_module(name, version, metadata)
+                self._simulated_load_dependency_module(name, version, metadata, verbose=True)
 
     def _load_modules(self, silent=False):
         """Load modules for toolchain and dependencies."""

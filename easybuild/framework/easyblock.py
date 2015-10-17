@@ -58,7 +58,8 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, print_error, print_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
+from easybuild.tools.build_log import print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env
@@ -142,7 +143,8 @@ class EasyBlock(object):
 
         # build/install directories
         self.builddir = None
-        self.installdir = None
+        self.installdir = None  # software
+        self.installdir_mod = None  # module file
 
         # extensions
         self.exts = None
@@ -222,6 +224,7 @@ class EasyBlock(object):
         self.gen_installdir()
 
         self.ignored_errors = False
+
         if self.dry_run:
             self.init_dry_run()
 
@@ -264,14 +267,14 @@ class EasyBlock(object):
     #
     def init_dry_run(self):
         """Initialise easyblock instance for performing a dry run."""
+        # replace build/install dirs with temporary directories in dry run mode
+        tmp_root_dir = os.path.realpath(os.path.join(tempfile.gettempdir(), '__ROOT__'))
+        self.builddir = os.path.join(tmp_root_dir, self.builddir.lstrip(os.path.sep))
+        self.installdir = os.path.join(tmp_root_dir, self.installdir.lstrip(os.path.sep))
+        self.installdir_mod = os.path.join(tmp_root_dir, self.installdir_mod.lstrip(os.path.sep))
 
-        # replace build/install dir
-        self.builddir = os.path.join(tempfile.gettempdir(), '__ROOT__', self.builddir.lstrip(os.path.sep))
-        dry_run_msg("Using fake build directory: %s" % self.builddir, silent=self.silent)
-        # software/build install directories are faked via install_path
-        dry_run_msg("Using fake software install directory: %s" % self.installdir, silent=self.silent)
-        mod_install_path = self.module_generator.get_modules_path()
-        dry_run_msg("Using fake modules install directory: %s\n" % mod_install_path, silent=self.silent)
+        # register fake build/install dirs so the original values can be printed during dry run
+        dry_run_set_dirs(tmp_root_dir, self.builddir, self.installdir, self.installdir_mod)
 
     #
     # FETCH UTILITY FUNCTIONS
@@ -739,7 +742,12 @@ class EasyBlock(object):
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
-            self.log.info("Install dir set to %s" % self.installdir)
+            self.log.info("Software install dir set to %s" % self.installdir)
+
+            mod_basepath = install_path('mod')
+            mod_path_suffix = build_option('suffix_modules_path')
+            self.installdir_mod = os.path.join(os.path.abspath(mod_basepath), mod_path_suffix)
+            self.log.info("Module install dir set to %s" % self.installdir_mod)
         else:
             raise EasyBuildError("Can't set installation directory")
 
@@ -877,10 +885,9 @@ class EasyBlock(object):
         self.log.debug("Full list of dependencies: %s" % deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
-        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
-        full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
+        full_mod_subdir = os.path.join(self.installdir_mod, self.cfg.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
-        top_paths = [mod_install_path] + [os.path.join(mod_install_path, p) for p in init_modpaths]
+        top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, deps)
 
@@ -994,11 +1001,9 @@ class EasyBlock(object):
         """
         txt = ''
         if self.cfg['include_modpath_extensions']:
-            top_modpath = install_path('mod')
-            mod_path_suffix = build_option('suffix_modules_path')
             modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
             self.log.debug("Including module path extensions returned by module naming scheme: %s" % modpath_exts)
-            full_path_modpath_extensions = [os.path.join(top_modpath, mod_path_suffix, ext) for ext in modpath_exts]
+            full_path_modpath_extensions = [os.path.join(self.installdir_mod, ext) for ext in modpath_exts]
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
@@ -1343,12 +1348,11 @@ class EasyBlock(object):
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
-        mod_path_suffix = build_option('suffix_modules_path')
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
         parent_subdir = os.path.dirname(self.install_subdir)
         pardirs = [
-            os.path.join(install_path(), parent_subdir),
-            os.path.join(install_path('mod'), mod_path_suffix, parent_subdir),
+            self.installdir,
+            os.path.join(self.installdir_mod, parent_subdir),
         ]
         for mod_symlink_path in mod_symlink_paths:
             pardirs.append(os.path.join(install_path('mod'), mod_symlink_path, parent_subdir))
@@ -1678,7 +1682,10 @@ class EasyBlock(object):
         for i, command in enumerate(commands):
             # set command to default. This allows for config files with
             # non-tuple commands
-            if not isinstance(command, tuple):
+            if isinstance(command, basestring):
+                self.log.debug("Using %s as sanity check command" % command)
+                command = (command, None)
+            elif not isinstance(command, tuple):
                 self.log.debug("Setting sanity check command to default")
                 command = (None, None)
 
