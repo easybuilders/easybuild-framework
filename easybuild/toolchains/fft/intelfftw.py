@@ -31,7 +31,7 @@ Support for Intel FFTW as toolchain FFT library.
 import os
 from distutils.version import LooseVersion
 
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_warning
 from easybuild.tools.config import build_option
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.tools.modules import get_software_root, get_software_version
@@ -94,6 +94,6 @@ class IntelFFTW(Fftw):
             msg = "Not all FFTW interface libraries %s are found in %s" % (check_fftw_libs, fft_lib_dirs)
             msg += ", can't set $FFT_LIB."
             if build_option('extended_dry_run'):
-                dry_run_msg("\nWARNING: %s\n" % msg, silent=build_option('silent'))
+                dry_run_warning(msg, silent=build_option('silent'))
             else:
                 raise EasyBuildError(msg)
