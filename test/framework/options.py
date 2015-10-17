@@ -1955,8 +1955,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
             re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
         ]
-        ignoring_error_regex = re.compile(r"!!! WARNING !!! ignoring error", re.M)
-        ignored_error_regex = re.compile(r"!!! WARNING !!! One or more errors were ignored, see warnings above", re.M)
+        ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
+        ignored_error_regex = re.compile(r"WARNING: One or more errors were ignored, see warnings above", re.M)
 
         for opt in ['--extended-dry-run', '-x']:
             # check for expected patterns in output of --extended-dry-run/-x
