@@ -71,7 +71,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     @param inp: the input given to the command via stdin
     @param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     @param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
-    @param path: path to execute the command is; current working directory is used if unspecified
+    @param path: path to execute the command in; current working directory is used if unspecified
     @param forced: force running the command, even during dry run
     @param verbose: include message on running the command in dry run output
     """

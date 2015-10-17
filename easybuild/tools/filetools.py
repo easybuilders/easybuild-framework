@@ -654,14 +654,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     else:
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-    try:
-        os.chdir(adest)
-        _log.debug("Changing to directory %s" % adest)
-    except OSError, err:
-        raise EasyBuildError("Can't change to directory %s: %s", adest, err)
-
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    result = run.run_cmd(patch_cmd, simple=True)
+    result = run.run_cmd(patch_cmd, simple=True, path=adest)
     if not result:
         raise EasyBuildError("Patching with patch %s failed", patch_file)
 
