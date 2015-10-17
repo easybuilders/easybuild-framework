@@ -34,6 +34,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.format import Dependency
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
@@ -169,6 +170,29 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['toolchain']['name'], 'goolf')
 
         self.assertErrorRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
+
+    def test_easyconfig_constants(self):
+        """Test available easyconfig constants."""
+        constants = build_easyconfig_constants_dict()
+        # make sure both keys and values are only strings
+        for constant_name in constants:
+            self.assertTrue(isinstance(constant_name, basestring), "Constant name %s is a string" % constant_name)
+            val = constants[constant_name]
+            self.assertTrue(isinstance(val, basestring), "Constant value %s is a string" % val)
+
+        # check a couple of randomly picked constant values
+        self.assertEqual(constants['SOURCE_TAR_GZ'], '%(name)s-%(version)s.tar.gz')
+        self.assertEqual(constants['PYPI_SOURCE'], 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s')
+        self.assertEqual(constants['GPLv2'], 'LicenseGPLv2')
+        self.assertEqual(constants['EXTERNAL_MODULE'], 'EXTERNAL_MODULE')
+
+    def test_check_value_types(self):
+        """Test checking of easyconfig parameter value types."""
+        test_ec = os.path.join(TESTDIRBASE, 'gzip-1.4-broken.eb')
+        error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'name'.*'version'.*"
+        ecp = EasyConfigParser(test_ec)
+        self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
+
 
 def suite():
     """ returns all the testcases in this module """

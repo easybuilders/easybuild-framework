@@ -30,6 +30,7 @@ Unit tests for scripts
 import os
 import re
 import shutil
+import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
@@ -74,10 +75,10 @@ class ScriptsTest(EnhancedTestCase):
         for root, subfolders, files in os.walk(easyconfigs_dir):
             if 'v2.0' in subfolders:
                 subfolders.remove('v2.0')
-            for ec_file in files:
+            for ec_file in [f for f in files if 'broken' not in os.path.basename(f)]:
                 shutil.copy2(os.path.join(root, ec_file), tmpdir)
 
-        cmd = "python %s --local --quiet --path %s" % (script, tmpdir)
+        cmd = "%s %s --local --quiet --path %s" % (sys.executable, script, tmpdir)
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be

@@ -88,6 +88,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         log = fancylogger.getLogger(fname=False)
         self.orig_log_handlers = log.handlers[:]
 
+        log.info("setting up test %s" % self.id())
+
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
         self.test_prefix = set_tmpdir()
@@ -146,6 +148,8 @@ class EnhancedTestCase(_EnhancedTestCase):
     def tearDown(self):
         """Clean up after running testcase."""
         super(EnhancedTestCase, self).tearDown()
+
+        self.log.info("Cleaning up for test %s", self.id())
 
         # go back to where we were before
         os.chdir(self.cwd)

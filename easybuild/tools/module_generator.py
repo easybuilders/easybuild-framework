@@ -195,13 +195,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name):
+    def load_module(self, mod_name, recursive_unload=False):
         """
         Generate load statements for module.
         """
-        if build_option('recursive_mod_unload'):
+        if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
-            # when "module unload" is called on the module in which the depedency "module load" is present,
+            # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
             load_statement = [self.LOAD_TEMPLATE, '']
         else:
@@ -359,11 +359,11 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name):
+    def load_module(self, mod_name, recursive_unload=False):
         """
         Generate load statements for module.
         """
-        if build_option('recursive_mod_unload'):
+        if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
