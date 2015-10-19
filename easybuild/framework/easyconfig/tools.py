@@ -170,7 +170,13 @@ def get_toolchain_hierarchy(parent_toolchain):
             unique_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
 
             if len(unique_versions) == 1:
-                toolchain_list += [dep_tcs[0]]
+                # Check if we have dummy toolchain
+                if subtoolchains[current['name']] == DUMMY_TOOLCHAIN_NAME:
+                    if build_option('add_dummy_to_minimal_toolchains'):
+                        toolchain_list += [dep_tcs[0]]
+                    break
+                else:
+                    toolchain_list += [dep_tcs[0]]
             elif len(unique_versions) == 0:
                 # Check if we have dummy toolchain
                 if subtoolchains[current['name']] == DUMMY_TOOLCHAIN_NAME:
