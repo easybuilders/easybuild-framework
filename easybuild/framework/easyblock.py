@@ -612,7 +612,7 @@ class EasyBlock(object):
                         continue
 
                     if self.dry_run:
-                        dry_run_msg("  * %s downloaded to %s" % (filename, targetpath), silent=self.silent)
+                        dry_run_msg("  * %s will be downloaded to %s" % (filename, targetpath), silent=self.silent)
                         if extension and urls:
                             # extensions typically have custom source URLs specified, only mention first
                             dry_run_msg("    (from %s, ...)" % fullurl, silent=self.silent)
@@ -637,8 +637,12 @@ class EasyBlock(object):
                     else:
                         failedpaths.append(fullurl)
 
-                raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
-                                     "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
+                if self.dry_run:
+                    dry_run_msg("  * %s (MISSING)" % filename, silent=self.silent)
+                    return filename
+                else:
+                    raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
+                                         "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS

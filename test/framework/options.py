@@ -1954,6 +1954,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
             re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
             re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+            re.compile(r"^\(no ignored errors during dry run\)", re.M),
         ]
         ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
         ignored_error_regex = re.compile(r"WARNING: One or more errors were ignored, see warnings above", re.M)
