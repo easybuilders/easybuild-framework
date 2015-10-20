@@ -134,7 +134,7 @@ class EasyBuildOptions(GeneralOption):
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
-            'rebuild': ("Rebuild the software without skipping dependency tests",None, 'store_true', False),
+            'rebuild': ("Rebuild the software without skipping dependency tests", None, 'store_true', False),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
