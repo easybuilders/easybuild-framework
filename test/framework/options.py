@@ -198,6 +198,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
 
+        # check that --rebuild works
+        args = [
+                eb_file,
+                '--rebuild',
+                '--debug',
+               ]
+        outtxt = self.eb_main(args)
+
+        self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --rebuild")
+
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
 
