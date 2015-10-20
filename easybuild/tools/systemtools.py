@@ -229,7 +229,7 @@ def get_cpu_speed():
                 cpu_freq = float(res.group('cpu_freq'))
                 _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
             else:
-                raise SystemToolsException("Failed to determine CPU frequency from %s" % PROC_CPUINFO_FP)
+                _log.debug("Failed to determine CPU frequency from %s", PROC_CPUINFO_FP)
         else:
             _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling: %s" % PROC_CPUINFO_FP)
 
