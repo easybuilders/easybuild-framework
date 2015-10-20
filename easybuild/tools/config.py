@@ -113,6 +113,7 @@ BUILD_OPTIONS_CMDLINE = {
         'only_blocks',
         'optarch',
         'parallel',
+        'rebuild',
         'regtest_output_dir',
         'skip',
         'stop',
