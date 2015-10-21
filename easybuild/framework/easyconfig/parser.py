@@ -83,9 +83,9 @@ class EasyConfigParser(object):
                  auto_convert_value_types=True):
         """
         Initialise the EasyConfigParser class
-        @param filename: path to an easyconfig file
+        @param filename: path to easyconfig file to parse
         @param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
-        @param rawcontent: contents of an easyconfig file
+        @param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
         @param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
                                          in case they are wrong
         """
