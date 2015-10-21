@@ -11,7 +11,6 @@ description: Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and For
 
 toolchain: {name: dummy, version: dummy}
 
-
 # fake ictce toolchain easyconfig, no dependencies (good enough for testing)
 fake_dependencies: [
     [icc, *compver],

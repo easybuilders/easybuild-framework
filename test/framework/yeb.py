@@ -29,6 +29,7 @@ Unit tests for .yeb easyconfig format
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import yaml
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
@@ -100,12 +101,21 @@ class YebTest(EnhancedTestCase):
     def test_join(self):
         """ Test yaml_join function """
 
-        stream = "hw: !join [hello, world]"
+        stream = [
+            "variables:",
+            "   - &f foo",
+            "   - &b bar",
+            "",
+            "fb1: !join [foo, bar]",
+            "fb2: !join [*f, bar]",
+            "fb3: !join [*f, *b]",
+        ]
+
         # import here for testing yaml_join separately
-        import yaml
         from easybuild.framework.easyconfig.format.yeb import yaml_join
-        loaded = yaml.load(stream)
-        self.assertEqual(loaded.get('hw'), 'helloworld')
+        loaded = yaml.load('\n'.join(stream))
+        for key in ['fb1', 'fb2', 'fb3']:
+            self.assertEqual(loaded.get(key), 'foobar')
 
 
 def suite():
