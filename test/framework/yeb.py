@@ -61,8 +61,8 @@ class YebTest(EnhancedTestCase):
         test_files = {
             'bzip2.yeb': 'bzip2-1.0.6-GCC-4.9.2.eb',
             'gzip.yeb': 'gzip-1.6-gcc-4.9.2.eb',
-            'intel-2015b.yeb': 'intel-2015b.eb',
             'goolf-1.4.10.yeb': 'goolf-1.4.10.eb',
+            'ictce-4.1.13.yeb': 'ictce-4.1.13.eb'
         }
 
         for yeb_file, eb_file in test_files.items():

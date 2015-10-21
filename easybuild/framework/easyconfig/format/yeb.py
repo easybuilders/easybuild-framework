@@ -53,6 +53,20 @@ YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
 
 
+def yaml_join(loader, node):
+    """
+    defines custom YAML join function.
+    see http://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
+    @param loader: the YAML Loader
+    @param node: the YAML (sequence) node
+    """
+    seq = loader.construct_sequence(node)
+    return ''.join([str(i) for i in seq])
+
+# register the tag handler
+yaml.add_constructor('!join', yaml_join)
+
+
 class FormatYeb(EasyConfigFormat):
     """Support for easyconfig YAML format"""
     USABLE = True
@@ -128,12 +142,3 @@ def is_yeb_format(filename, rawcontent):
                 isyeb = True
     return isyeb
 
-# join functionality:
-# from http://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
-# define custom tag handler
-def join(loader, node):
-    seq = loader.construct_sequence(node)
-    return ''.join([str(i) for i in seq])
-
-# register the tag handler
-yaml.add_constructor('!join', join)
