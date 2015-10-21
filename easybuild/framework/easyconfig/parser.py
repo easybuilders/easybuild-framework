@@ -79,11 +79,21 @@ class EasyConfigParser(object):
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None, format_version=None, rawcontent=None):
-        """Initialise the EasyConfigParser class"""
+    def __init__(self, filename=None, format_version=None, rawcontent=None,
+                 auto_convert_value_types=True):
+        """
+        Initialise the EasyConfigParser class
+        @param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
+        @param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
+        @param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
+        @param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
+                                         in case they are wrong
+        """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.rawcontent = None  # the actual unparsed content
+
+        self.auto_convert = auto_convert_value_types
 
         self.get_fn = None  # read method and args
         self.set_fn = None  # write method and args
@@ -114,10 +124,12 @@ class EasyConfigParser(object):
         """
         wrong_type_msgs = []
         for key in cfg:
-            type_ok, newval = check_type_of_param_value(key, cfg[key], auto_convert=True)
+            type_ok, newval = check_type_of_param_value(key, cfg[key], self.auto_convert)
             if not type_ok:
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
-            else:
+            elif newval != cfg[key]:
+                self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
+                                 key, cfg[key], type(cfg[key]), newval, type(newval))
                 cfg[key] = newval
 
         if wrong_type_msgs:
