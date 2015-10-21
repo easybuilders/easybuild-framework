@@ -109,7 +109,8 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
+                auto_convert_value_types=True):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -118,6 +119,8 @@ class EasyConfig(object):
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         @param rawtxt: raw contents of easyconfig file
+        @param auto_convert_value_types: indicates wether easyconfig value types should be automatically converted in
+                                         case they are wrong
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -184,7 +187,8 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt)
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                        auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # handle allowed system dependencies

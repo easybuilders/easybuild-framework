@@ -79,11 +79,14 @@ class EasyConfigParser(object):
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None, format_version=None, rawcontent=None):
+    def __init__(self, filename=None, format_version=None, rawcontent=None,
+                 auto_convert_value_types=True):
         """Initialise the EasyConfigParser class"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.rawcontent = None  # the actual unparsed content
+
+        self.auto_convert = auto_convert_value_types
 
         self.get_fn = None  # read method and args
         self.set_fn = None  # write method and args
@@ -106,7 +109,7 @@ class EasyConfigParser(object):
         self._read(filename=filename)
         self._set_formatter(filename)
 
-    def check_values_types(self, cfg):
+    def check_values_types(self, cfg, auto_convert=True):
         """
         Check types of easyconfig parameter values.
 
@@ -114,10 +117,12 @@ class EasyConfigParser(object):
         """
         wrong_type_msgs = []
         for key in cfg:
-            type_ok, newval = check_type_of_param_value(key, cfg[key], auto_convert=True)
+            type_ok, newval = check_type_of_param_value(key, cfg[key], auto_convert)
             if not type_ok:
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
-            else:
+            elif newval != cfg[key]:
+                self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
+                    key, cfg[key], type(cfg[key]), newval, type(newval))
                 cfg[key] = newval
 
         if wrong_type_msgs:
@@ -209,7 +214,7 @@ class EasyConfigParser(object):
             self._formatter.validate()
 
         cfg = self._formatter.get_config_dict()
-        self.check_values_types(cfg)
+        self.check_values_types(cfg, self.auto_convert)
 
         return cfg
 
