@@ -190,7 +190,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         """Test checking of easyconfig parameter value types."""
         test_ec = os.path.join(TESTDIRBASE, 'gzip-1.4-broken.eb')
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'name'.*'version'.*"
-        ecp = EasyConfigParser(test_ec)
+        ecp = EasyConfigParser(test_ec, auto_convert_value_types=False)
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
 
 

@@ -3,7 +3,7 @@
 easyblock: ConfigureMake
 
 name: gzip
-version: '1.6'
+version: 1.6
 
 homepage: 'http://www.gnu.org/software/gzip/'
 description:
