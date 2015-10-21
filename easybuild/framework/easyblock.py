@@ -1200,6 +1200,13 @@ class EasyBlock(object):
             else:
                 topdir = self.builddir
 
+            # during dry run, use subdirectory that would likely result from unpacking
+            if self.dry_run and os.path.samefile(topdir, self.builddir):
+                topdir = os.path.join(self.builddir, '%s-%s' % (self.name, self.version))
+                self.log.info("Modified parent directory of start dir in dry run mode to likely path %s", topdir)
+                # make sure start_dir subdir exists (cfr. check below)
+                mkdir(os.path.join(topdir, start_dir), parents=True)
+
             abs_start_dir = os.path.join(topdir, start_dir)
             if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
                 self.cfg['start_dir'] = topdir
