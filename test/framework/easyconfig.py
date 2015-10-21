@@ -1532,8 +1532,12 @@ class EasyConfigTest(EnhancedTestCase):
         """Test value tupe checking of easyconfig parameters."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-broken.eb')
         # name/version parameters have values of wrong type in this broken easyconfig
-        error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'name'.*'version'.*"
+        error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
+
+        # test default behaviour: auto-converting of mismatching value types
+        ec = EasyConfig(ec_file)
+        self.assertEqual(ec['version'], '1.4')
 
 
 def suite():
