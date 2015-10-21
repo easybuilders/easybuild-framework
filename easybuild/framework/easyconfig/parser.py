@@ -122,7 +122,7 @@ class EasyConfigParser(object):
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
             elif newval != cfg[key]:
                 self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
-                    key, cfg[key], type(cfg[key]), newval, type(newval))
+                                 key, cfg[key], type(cfg[key]), newval, type(newval))
                 cfg[key] = newval
 
         if wrong_type_msgs:
