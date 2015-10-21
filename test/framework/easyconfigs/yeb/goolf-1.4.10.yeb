@@ -21,7 +21,7 @@ version: *version
 homepage: (none)
 description: |
     GNU Compiler Collection (GCC) based compiler toolchain, including
-     OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK.
+    OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK.
 
 toolchain: {name: dummy, version: dummy}
 
