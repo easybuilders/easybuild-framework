@@ -1600,7 +1600,7 @@ class EasyBlock(object):
                 found = False
                 for name in xs:
                     path = os.path.join(self.installdir, name)
-                    if os.path.exists(path):
+                    if check_fn(path):
                         self.log.debug("Sanity check: found %s %s in %s" % (key[:-1], name, self.installdir))
                         found = True
                         break
