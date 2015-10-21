@@ -81,7 +81,14 @@ class EasyConfigParser(object):
 
     def __init__(self, filename=None, format_version=None, rawcontent=None,
                  auto_convert_value_types=True):
-        """Initialise the EasyConfigParser class"""
+        """
+        Initialise the EasyConfigParser class
+        @param filename: path to an easyconfig file
+        @param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
+        @param rawcontent: contents of an easyconfig file
+        @param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
+                                         in case they are wrong
+        """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.rawcontent = None  # the actual unparsed content
