@@ -109,7 +109,7 @@ class EasyConfigParser(object):
         self._read(filename=filename)
         self._set_formatter(filename)
 
-    def check_values_types(self, cfg, auto_convert=True):
+    def check_values_types(self, cfg):
         """
         Check types of easyconfig parameter values.
 
@@ -117,7 +117,7 @@ class EasyConfigParser(object):
         """
         wrong_type_msgs = []
         for key in cfg:
-            type_ok, newval = check_type_of_param_value(key, cfg[key], auto_convert)
+            type_ok, newval = check_type_of_param_value(key, cfg[key], self.auto_convert)
             if not type_ok:
                 wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
             elif newval != cfg[key]:
@@ -214,7 +214,7 @@ class EasyConfigParser(object):
             self._formatter.validate()
 
         cfg = self._formatter.get_config_dict()
-        self.check_values_types(cfg, self.auto_convert)
+        self.check_values_types(cfg)
 
         return cfg
 
