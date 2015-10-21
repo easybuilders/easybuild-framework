@@ -96,6 +96,18 @@ class YebTest(EnhancedTestCase):
         self.assertFalse(is_yeb_format(test_eb, None))
         self.assertFalse(is_yeb_format(None, raw_eb))
 
+
+    def test_join(self):
+        """ Test yaml_join function """
+
+        stream = "hw: !join [hello, world]"
+        # import here for testing yaml_join separately
+        import yaml
+        from easybuild.framework.easyconfig.format.yeb import yaml_join
+        loaded = yaml.load(stream)
+        self.assertEqual(loaded.get('hw'), 'helloworld')
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(YebTest)
