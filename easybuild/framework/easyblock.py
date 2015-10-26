@@ -1391,8 +1391,9 @@ class EasyBlock(object):
         for fil in self.src + self.patches:
             if self.dry_run:
                 # dry run mode: only report checksums, don't actually verify them
+                filename = os.path.basename(fil['path'])
                 expected_checksum = fil['checksum'] or '(none)'
-                dry_run_msg("* expected checksum for %s: %s" % (os.path.basename(fil['path']), expected_checksum))
+                dry_run_msg("* expected checksum for %s: %s" % (filename, expected_checksum), silent=self.silent)
             else:
                 if not verify_checksum(fil['path'], fil['checksum']):
                     raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
