@@ -1389,11 +1389,15 @@ class EasyBlock(object):
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
         for fil in self.src + self.patches:
-            ok = verify_checksum(fil['path'], fil['checksum'])
-            if not ok:
-                raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
+            if self.dry_run:
+                # dry run mode: only report checksums, don't actually verify them
+                expected_checksum = fil['checksum'] or '(none)'
+                dry_run_msg("* expected checksum for %s: %s" % (os.path.basename(fil['path']), expected_checksum))
             else:
-                self.log.info("Checksum verification for %s using %s passed." % (fil['path'], fil['checksum']))
+                if not verify_checksum(fil['path'], fil['checksum']):
+                    raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
+                else:
+                    self.log.info("Checksum verification for %s using %s passed." % (fil['path'], fil['checksum']))
 
     def extract_step(self):
         """
