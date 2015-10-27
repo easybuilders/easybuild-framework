@@ -79,31 +79,23 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
-        cc = tc.get_variable('CC')
-        self.assertEqual(cc, "gcc")
-        cxx = tc.get_variable('CXX')
-        self.assertEqual(cxx, "g++")
-        f77 = tc.get_variable('F77')
-        self.assertEqual(f77, "gfortran")
-        f90 = tc.get_variable('F90')
-        self.assertEqual(f90, "gfortran")
-        mpicc = tc.get_variable('MPICC')
-        self.assertEqual(mpicc, "mpicc")
-        mpicxx = tc.get_variable('MPICXX')
-        self.assertEqual(mpicxx, "mpicxx")
-        mpif77 = tc.get_variable('MPIF77')
-        self.assertEqual(mpif77, "mpif77")
-        mpif90 = tc.get_variable('MPIF90')
-        self.assertEqual(mpif90, "mpif90")
+        self.assertEqual(tc.get_variable('CC'), 'gcc')
+        self.assertEqual(tc.get_variable('CXX'), 'g++')
+        self.assertEqual(tc.get_variable('F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('F90'), 'gfortran')
+        self.assertEqual(tc.get_variable('FC'), 'gfortran')
 
-        ompi_cc = tc.get_variable('OMPI_CC')
-        self.assertEqual(ompi_cc, "gcc")
-        ompi_cxx = tc.get_variable('OMPI_CXX')
-        self.assertEqual(ompi_cxx, "g++")
-        ompi_f77 = tc.get_variable('OMPI_F77')
-        self.assertEqual(ompi_f77, "gfortran")
-        ompi_fc = tc.get_variable('OMPI_FC')
-        self.assertEqual(ompi_fc, "gfortran")
+        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+
+        self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
+        self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
+        self.assertEqual(tc.get_variable('OMPI_F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('OMPI_FC'), 'gfortran')
 
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -111,32 +103,23 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({'usempi': True})
         tc.prepare()
 
-        cc = tc.get_variable('CC')
-        self.assertEqual(cc, "mpicc")
-        cxx = tc.get_variable('CXX')
-        self.assertEqual(cxx, "mpicxx")
-        f77 = tc.get_variable('F77')
-        self.assertEqual(f77, "mpif77")
-        f90 = tc.get_variable('F90')
-        self.assertEqual(f90, "mpif90")
+        self.assertEqual(tc.get_variable('CC'), 'mpicc')
+        self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
+        # OpenMPI 1.4.5, so old MPI compiler wrappers for Fortran
+        self.assertEqual(tc.get_variable('F77'), 'mpif77')
+        self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
 
-        mpicc = tc.get_variable('MPICC')
-        self.assertEqual(mpicc, "mpicc")
-        mpicxx = tc.get_variable('MPICXX')
-        self.assertEqual(mpicxx, "mpicxx")
-        mpif77 = tc.get_variable('MPIF77')
-        self.assertEqual(mpif77, "mpif77")
-        mpif90 = tc.get_variable('MPIF90')
-        self.assertEqual(mpif90, "mpif90")
+        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
-        ompi_cc = tc.get_variable('OMPI_CC')
-        self.assertEqual(ompi_cc, "gcc")
-        ompi_cxx = tc.get_variable('OMPI_CXX')
-        self.assertEqual(ompi_cxx, "g++")
-        ompi_f77 = tc.get_variable('OMPI_F77')
-        self.assertEqual(ompi_f77, "gfortran")
-        ompi_fc = tc.get_variable('OMPI_FC')
-        self.assertEqual(ompi_fc, "gfortran")
+        self.assertEqual(tc.get_variable('OMPI_CC'), 'gcc')
+        self.assertEqual(tc.get_variable('OMPI_CXX'), 'g++')
+        self.assertEqual(tc.get_variable('OMPI_F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('OMPI_FC'), 'gfortran')
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -144,14 +127,11 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({'usempi': True})
         tc.prepare()
 
-        cc_seq = tc.get_variable('CC_SEQ')
-        self.assertEqual(cc_seq, "gcc")
-        cxx_seq = tc.get_variable('CXX_SEQ')
-        self.assertEqual(cxx_seq, "g++")
-        f77_seq = tc.get_variable('F77_SEQ')
-        self.assertEqual(f77_seq, "gfortran")
-        f90_seq = tc.get_variable('F90_SEQ')
-        self.assertEqual(f90_seq, "gfortran")
+        self.assertEqual(tc.get_variable('CC_SEQ'), 'gcc')
+        self.assertEqual(tc.get_variable('CXX_SEQ'), 'g++')
+        self.assertEqual(tc.get_variable('F77_SEQ'), 'gfortran')
+        self.assertEqual(tc.get_variable('F90_SEQ'), 'gfortran')
+        self.assertEqual(tc.get_variable('FC_SEQ'), 'gfortran')
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
@@ -189,7 +169,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optimization_flags(self):
         """Test whether optimization flags are being set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default optimization flag (e.g. -O2)
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
@@ -216,7 +196,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
@@ -249,7 +229,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_shared(self):
         """Test whether shared compiler flags are set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
@@ -270,7 +250,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
@@ -292,7 +272,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
@@ -318,7 +298,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
-        flag_vars = ['FFLAGS', 'F90FLAGS']
+        flag_vars = ['FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
@@ -338,7 +318,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
 
-        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
         # check default precision flag
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
@@ -372,6 +352,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'clang++')
         self.assertEqual(tc.get_variable('F77'), 'gfortran')
         self.assertEqual(tc.get_variable('F90'), 'gfortran')
+        self.assertEqual(tc.get_variable('FC'), 'gfortran')
 
     def test_comp_family(self):
         """Test determining compiler family."""
@@ -431,22 +412,22 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def setup_sandbox_for_intel_fftw(self):
+    def setup_sandbox_for_intel_fftw(self, imklver='10.3.12.361'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # rewrite $root in imkl module so we can put required lib*.a files in place
         tmpdir = tempfile.mkdtemp()
 
         test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-        imkl_module_path = os.path.join(test_modules_path, 'imkl', '10.3.12.361')
+        imkl_module_path = os.path.join(test_modules_path, 'imkl', imklver)
         imkl_module_txt = open(imkl_module_path, 'r').read()
         regex = re.compile('^(set\s*root).*$', re.M)
         imkl_module_alt_txt = regex.sub(r'\1\t%s' % tmpdir, imkl_module_txt)
         open(imkl_module_path, 'w').write(imkl_module_alt_txt)
 
         fftw_libs = ['fftw3xc_intel', 'fftw3x_cdft', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
-        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core']
-        for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64']:
+        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
             os.makedirs(os.path.join(tmpdir, subdir))
             for fftlib in fftw_libs:
                 write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
@@ -464,6 +445,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'icpc')
         self.assertEqual(tc.get_variable('F77'), 'ifort')
         self.assertEqual(tc.get_variable('F90'), 'ifort')
+        self.assertEqual(tc.get_variable('FC'), 'ifort')
         modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
@@ -475,10 +457,12 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
         self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
         modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
@@ -488,16 +472,19 @@ class ToolchainTest(EnhancedTestCase):
 
         self.assertTrue('-mt_mpi' in tc.get_variable('CFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('CXXFLAGS'))
+        self.assertTrue('-mt_mpi' in tc.get_variable('FCFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('FFLAGS'))
         self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
         self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('FC'), 'mpif90')
         self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
         # cleanup
         shutil.rmtree(tmpdir)
@@ -616,6 +603,77 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(modules.get_software_root('foobar'), '/foo/bar')
         self.assertEqual(modules.get_software_version('toy'), '1.2.3')
 
+    def test_old_new_iccifort(self):
+        """Test whether preparing for old/new Intel compilers works correctly."""
+        tmpdir1, imkl_module_path1, imkl_module_txt1 = self.setup_sandbox_for_intel_fftw(imklver='10.3.12.361')
+        tmpdir2, imkl_module_path2, imkl_module_txt2 = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
+
+        # incl. -lguide
+        libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_ictce3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
+
+        # no -lguide
+        libblas_mt_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
+        libblas_mt_ictce4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
+
+        # incl. -lmkl_solver*
+        libscalack_ictce3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
+        libscalack_ictce3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+
+        # no -lmkl_solver*
+        libscalack_ictce4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+
+        libblas_mt_goolfc = "-lopenblas -lgfortran"
+        libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
+
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        opts = {'i8': True}
+        tc.set_options(opts)
+        tc.prepare()
+        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        modules_tool().purge()
+
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+
+        # cleanup
+        shutil.rmtree(tmpdir1)
+        shutil.rmtree(tmpdir2)
+        write_file(imkl_module_path1, imkl_module_txt1)
+        write_file(imkl_module_path2, imkl_module_txt2)
 
 def suite():
     """ return all the tests"""

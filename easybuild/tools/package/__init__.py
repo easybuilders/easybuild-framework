@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,15 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of a test module naming scheme that can be used to migrate from EasyBuildMNS to HierarchicalMNS.
+This declares the namespace for the tools.package submodule of EasyBuild,
+which contains support for packaging and package naming schemes that can be overriden to cover site customizations.
 
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
-from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
-from easybuild.tools.module_naming_scheme.hierarchical_mns import HierarchicalMNS
+from pkgutil import extend_path
 
-class MigrateFromEBToHMNS(HierarchicalMNS, EasyBuildMNS):
-
-    def det_install_subdir(self, ec):
-        """Determine name of software installation subdirectory of install path, using EasyBuild MNS."""
-        return EasyBuildMNS.det_full_module_name(self, ec)
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

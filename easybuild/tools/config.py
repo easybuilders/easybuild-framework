@@ -46,12 +46,18 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
 
 
+PKG_TOOL_FPM = 'fpm'
+PKG_TYPE_RPM = 'rpm'
+
+
+DEFAULT_JOB_BACKEND = 'PbsPython'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Tcl'
@@ -59,11 +65,16 @@ DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
+    'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
     'subdir_software': 'software',
 }
+DEFAULT_PKG_RELEASE = '1'
+DEFAULT_PKG_TOOL = PKG_TOOL_FPM
+DEFAULT_PKG_TYPE = PKG_TYPE_RPM
+DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_STRICT = run.WARN
@@ -92,13 +103,19 @@ BUILD_OPTIONS_CMDLINE = {
         'github_user',
         'group',
         'ignore_dirs',
+        'job_backend_config',
+        'job_cores',
+        'job_max_walltime',
+        'job_output_dir',
+        'job_polling_interval',
+        'job_target_resource',
         'modules_footer',
         'only_blocks',
         'optarch',
+        'parallel',
         'regtest_output_dir',
         'skip',
         'stop',
-        'suffix_modules_path',
         'test_report_env_filter',
         'testoutput',
         'umask',
@@ -106,10 +123,14 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'allow_modules_tool_mismatch',
         'debug',
+        'dump_autopep8',
         'experimental',
         'force',
+        'group_writable_installdir',
         'hidden',
         'module_only',
+        'package',
+        'read_only_installdir',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -120,9 +141,22 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_tmpdir',
     ],
     DEFAULT_STRICT: [
         'strict',
+    ],
+    DEFAULT_PKG_RELEASE: [
+        'package_release',
+    ],
+    DEFAULT_PKG_TOOL: [
+        'package_tool',
+    ],
+    DEFAULT_PKG_TYPE: [
+        'package_type',
+    ],
+    GENERAL_CLASS: [
+        'suffix_modules_path',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -190,11 +224,14 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'installpath',
         'installpath_modules',
         'installpath_software',
+        'job_backend',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
         'module_syntax',
         'modules_tool',
+        'packagepath',
+        'package_naming_scheme',
         'prefix',
         'repository',
         'repositorypath',
@@ -210,7 +247,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         For all known/required keys, check if exists and return all key/value pairs.
             no_missing: boolean, when True, will throw error message for missing values
         """
-        missing = [x for x in self.KNOWN_KEYS if not x in self]
+        missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
             raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
 
@@ -363,6 +400,20 @@ def get_repositorypath():
     return ConfigurationVariables()['repositorypath']
 
 
+def get_package_naming_scheme():
+    """
+    Return the package naming scheme
+    """
+    return ConfigurationVariables()['package_naming_scheme']
+
+
+def package_path():
+    """
+    Return the path where built packages are copied to
+    """
+    return ConfigurationVariables()['packagepath']
+
+
 def get_modules_tool():
     """
     Return modules tool (EnvironmentModulesC, Lmod, ...)
@@ -376,6 +427,14 @@ def get_module_naming_scheme():
     Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
+
+
+def get_job_backend():
+    """
+    Return job execution backend (PBS, GC3Pie, ...)
+    """
+    # 'job_backend' key will only be present after EasyBuild config is initialized
+    return ConfigurationVariables().get('job_backend', None)
 
 
 def get_module_syntax():
@@ -446,16 +505,6 @@ def get_log_filename(name, version, add_salt=False):
         filepath = "%s.%d" % (filepath, counter)
 
     return filepath
-
-
-def read_only_installdir():
-    """
-    Return whether installation dir should be fully read-only after installation.
-    """
-    # FIXME (see issue #123): add a config option to set this, should be True by default (?)
-    # this also needs to be checked when --force is used;
-    # install dir will have to (temporarily) be made writeable again for owner in that case
-    return False
 
 
 def module_classes():

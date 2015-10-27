@@ -64,64 +64,63 @@ class ModuleGenerator(object):
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
-        self.fake = fake
-        self.tmpdir = None
-        self.filename = None
-        self.class_mod_file = None
-        self.module_path = None
-        self.class_mod_files = None
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        self.fake_mod_path = tempfile.mkdtemp()
 
-    def prepare(self, mod_symlink_paths):
-        """
-        Creates the absolute filename for the module.
-        """
-        mod_path_suffix = build_option('suffix_modules_path')
+    def get_modules_path(self, fake=False, mod_path_suffix=None):
+        """Return path to directory where module files should be generated in."""
+        mod_path = install_path('mod')
+        if fake:
+            self.log.debug("Fake mode: using %s (instead of %s)" % (self.fake_mod_path, mod_path))
+            mod_path = self.fake_mod_path
+
+        if mod_path_suffix is None:
+            mod_path_suffix = build_option('suffix_modules_path')
+
+        return os.path.join(mod_path, mod_path_suffix)
+
+    def get_module_filepath(self, fake=False, mod_path_suffix=None):
+        """Return path to module file."""
+        mod_path = self.get_modules_path(fake=fake, mod_path_suffix=mod_path_suffix)
         full_mod_name = self.app.full_mod_name + self.MODULE_FILE_EXTENSION
+        return os.path.join(mod_path, full_mod_name)
+
+    def prepare(self, fake=False):
+        """
+        Prepare for generating module file: Creates the absolute filename for the module.
+        """
+        mod_path = self.get_modules_path(fake=fake)
         # module file goes in general moduleclass category
-        self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
-        self.class_mod_files = [os.path.join(self.module_path, p, full_mod_name) for p in mod_symlink_paths]
 
-        # create directories and links
-        for path in [os.path.dirname(x) for x in [self.filename] + self.class_mod_files]:
-            mkdir(path, parents=True)
+        mod_filepath = self.get_module_filepath(fake=fake)
+        mkdir(os.path.dirname(mod_filepath), parents=True)
 
-        # remove module file if it's there (it'll be recreated), see Application.make_module
-        if os.path.exists(self.filename):
-            os.remove(self.filename)
+        # remove module file if it's there (it'll be recreated), see EasyBlock.make_module
+        if os.path.exists(mod_filepath):
+            self.log.debug("Removing existing module file %s", mod_filepath)
+            os.remove(mod_filepath)
 
-        return os.path.join(self.module_path, mod_path_suffix)
+        return mod_path
 
-    def create_symlinks(self):
+    def create_symlinks(self, mod_symlink_paths, fake=False):
         """Create moduleclass symlink(s) to actual module file."""
+        mod_filepath = self.get_module_filepath(fake=fake)
+        class_mod_files = [self.get_module_filepath(fake=fake, mod_path_suffix=p) for p in mod_symlink_paths]
         try:
-            # remove symlink if its there (even if it's broken)
-            for class_mod_file in self.class_mod_files:
+            for class_mod_file in class_mod_files:
+                # remove symlink if its there (even if it's broken)
                 if os.path.lexists(class_mod_file):
+                    self.log.debug("Removing existing symlink %s", class_mod_file)
                     os.remove(class_mod_file)
-                os.symlink(self.filename, class_mod_file)
+
+                mkdir(os.path.dirname(class_mod_file), parents=True)
+                os.symlink(mod_filepath, class_mod_file)
+
         except OSError, err:
-            raise EasyBuildError("Failed to create symlinks from %s to %s: %s",
-                                 self.class_mod_files, self.filename, err)
+            raise EasyBuildError("Failed to create symlinks from %s to %s: %s", class_mod_files, mod_filepath, err)
 
-    def is_fake(self):
-        """Return whether this ModuleGenerator instance generates fake modules or not."""
-        return self.fake
-
-    def set_fake(self, fake):
-        """Determine whether this ModuleGenerator instance should generate fake modules."""
-        self.log.debug("Updating fake for this ModuleGenerator instance to %s (was %s)" % (fake, self.fake))
-        self.fake = fake
-        # fake mode: set installpath to temporary dir
-        if self.fake:
-            self.tmpdir = tempfile.mkdtemp()
-            self.log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, self.module_path))
-            self.module_path = self.tmpdir
-        else:
-            self.module_path = install_path('mod')
-
-    def comment(self, str):
+    def comment(self, msg):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
@@ -201,13 +200,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name):
+    def load_module(self, mod_name, recursive_unload=False):
         """
         Generate load statements for module.
         """
-        if build_option('recursive_mod_unload'):
+        if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
-            # when "module unload" is called on the module in which the depedency "module load" is present,
+            # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
             load_statement = [self.LOAD_TEMPLATE, '']
         else:
@@ -221,9 +220,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
         cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
         return '\n'.join(['', cond_unload])
 
-    def prepend_paths(self, key, paths, allow_abs=False):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths.
+
+        @param key: environment variable to prepend paths to
+        @param paths: list of paths to prepend
+        @param allow_abs: allow providing of absolute paths
+        @param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         template = "prepend-path\t%s\t\t%s\n"
 
@@ -239,7 +243,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for (non-empty) relative paths
                 if path:
-                    abspaths.append(os.path.join('$root', path))
+                    if expand_relpaths:
+                        abspaths.append(os.path.join('$root', path))
+                    else:
+                        abspaths.append(path)
                 else:
                     abspaths.append('$root')
             else:
@@ -362,11 +369,11 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name):
+    def load_module(self, mod_name, recursive_unload=False):
         """
         Generate load statements for module.
         """
-        if build_option('recursive_mod_unload'):
+        if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
@@ -383,29 +390,38 @@ class ModuleGeneratorLua(ModuleGenerator):
         cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
         return '\n'.join(['', cond_unload])
 
-    def prepend_paths(self, key, paths, allow_abs=False):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths
+
+        @param key: environment variable to prepend paths to
+        @param paths: list of paths to prepend
+        @param allow_abs: allow providing of absolute paths
+        @param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s", paths, key)
             paths = [paths]
 
-        for i, path in enumerate(paths):
+        abspaths = []
+        for path in paths:
             if os.path.isabs(path):
                 if allow_abs:
-                    paths[i] = quote_str(path)
+                    abspaths.append(quote_str(path))
                 else:
                     raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
                                          path)
             else:
                 # use pathJoin for (non-empty) relative paths
                 if path:
-                    paths[i] = self.PATH_JOIN_TEMPLATE % path
+                    if expand_relpaths:
+                        abspaths.append(self.PATH_JOIN_TEMPLATE % path)
+                    else:
+                        abspaths.append(quote_str(path))
                 else:
-                    paths[i] = 'root'
+                    abspaths.append('root')
 
-        statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in paths]
+        statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in abspaths]
         return ''.join(statements)
 
     def use(self, paths):

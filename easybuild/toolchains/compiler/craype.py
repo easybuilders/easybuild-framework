@@ -80,6 +80,7 @@ class CrayPECompiler(Compiler):
 
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
+    COMPILER_FC = 'ftn'
 
     # suffix for PrgEnv module that matches this toolchain
     # e.g. 'gnu' => 'PrgEnv-gnu/<version>'

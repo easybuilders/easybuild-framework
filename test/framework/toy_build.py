@@ -36,6 +36,7 @@ import stat
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
+from test.framework.package import mock_fpm
 from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -44,8 +45,9 @@ import easybuild.tools.module_naming_scheme  # required to dynamically load test
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -480,6 +482,31 @@ class ToyBuildTest(EnhancedTestCase):
         # restore original umask
         os.umask(orig_umask)
 
+    def test_toy_permissions_installdir(self):
+        """Test --read-only-installdir and --group-write-installdir."""
+        # set umask hard to verify default reliably
+        orig_umask = os.umask(0022)
+
+        self.test_toy_build()
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        shutil.rmtree(self.test_installpath)
+
+        self.test_toy_build(extra_args=['--read-only-installdir'])
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
+        shutil.rmtree(self.test_installpath)
+
+        self.test_toy_build(extra_args=['--group-writable-installdir'])
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
+
+        # restore original umask
+        os.umask(orig_umask)
+
     def test_toy_gid_sticky_bits(self):
         """Test setting gid and sticky bits."""
         subdirs = [
@@ -693,8 +720,8 @@ class ToyBuildTest(EnhancedTestCase):
         """Test toy build with extensions and non-dummy toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
-        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
-        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
     def test_toy_hidden(self):
         """Test installing a hidden module."""
@@ -969,6 +996,39 @@ class ToyBuildTest(EnhancedTestCase):
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+
+    def test_package(self):
+        """Test use of --package and accompanying package configuration settings."""
+        mock_fpm(self.test_prefix)
+        pkgpath = os.path.join(self.test_prefix, 'pkgs')
+
+        extra_args = [
+            '--experimental',
+            '--package',
+            '--package-release=321',
+            '--package-tool=fpm',
+            '--package-type=foo',
+            '--packagepath=%s' % pkgpath,
+        ]
+
+        self.test_toy_build(extra_args=extra_args)
+
+        toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.321.foo' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+
+    def test_package_skip(self):
+        """Test use of --package with --skip."""
+        mock_fpm(self.test_prefix)
+        pkgpath = os.path.join(self.test_prefix, 'packages')  # default path
+
+        self.test_toy_build(['--packagepath=%s' % pkgpath])
+        self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
+
+        self.test_toy_build(extra_args=['--experimental', '--package', '--skip'], verify=False)
+
+        toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+
 
 def suite():
     """ return all the tests in this file """

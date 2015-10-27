@@ -46,15 +46,16 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import quote_py_str, quote_str, remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -63,7 +64,7 @@ from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import template_constant_dict
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -73,6 +74,15 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+
+
+try:
+    import autopep8
+    HAVE_AUTOPEP8 = True
+except ImportError as err:
+    _log.warning("Failed to import autopep8, dumping easyconfigs with reformatting enabled will not work: %s", err)
+    HAVE_AUTOPEP8 = False
+
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -99,7 +109,8 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
+                 auto_convert_value_types=True):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -108,6 +119,8 @@ class EasyConfig(object):
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         @param rawtxt: raw contents of easyconfig file
+        @param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
+                                         in case they are wrong
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -148,7 +161,8 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        self._config.update(self.extra_options)
+        # deep copy to make sure self.extra_options remains unchanged
+        self._config.update(copy.deepcopy(self.extra_options))
 
         self.mandatory = MANDATORY_PARAMS[:]
 
@@ -173,6 +187,8 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                       auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # handle allowed system dependencies
@@ -186,6 +202,11 @@ class EasyConfig(object):
         # filter hidden dependencies from list of dependencies
         self.filter_hidden_deps()
 
+        # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
+        self.all_dependencies = copy.deepcopy(self.dependencies())
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            self.all_dependencies.append(self.toolchain.as_dict())
+
         # keep track of whether the generated module file should be hidden
         if hidden is None:
             hidden = build_option('hidden')
@@ -196,6 +217,8 @@ class EasyConfig(object):
         self.full_mod_name = mns.det_full_module_name(self)
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
+
+        self.software_license = None
 
     def copy(self):
         """
@@ -236,9 +259,8 @@ class EasyConfig(object):
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
         self.log.info("Parsing easyconfig file %s with rawcontent: %s" % (self.path, self.rawtxt))
-        parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt)
-        parser.set_specifications(arg_specs)
-        local_vars = parser.get_config_dict()
+        self.parser.set_specifications(arg_specs)
+        local_vars = self.parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
 
         # make sure all mandatory parameters are defined
@@ -318,16 +340,17 @@ class EasyConfig(object):
 
     def validate_license(self):
         """Validate the license"""
-        lic = self._config['software_license'][0]
+        lic = self['software_license']
         if lic is None:
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                raise EasyBuildError("License is mandatory, but 'software_license' is undefined")
-        elif not isinstance(lic, License):
-            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.',
-                                 lic, lic.__class__.__name__)
-        elif not lic.name in EASYCONFIG_LICENSES_DICT:
-            raise EasyBuildError('Invalid license %s (classname: %s).', lic.name, lic.__class__.__name__)
+                raise EasyBuildError("Software license is mandatory, but 'software_license' is undefined")
+        elif lic in EASYCONFIG_LICENSES_DICT:
+            # create License instance
+            self.software_license = EASYCONFIG_LICENSES_DICT[lic]()
+        else:
+            known_licenses = ', '.join(sorted(EASYCONFIG_LICENSES_DICT.keys()))
+            raise EasyBuildError("Invalid license %s (known licenses: %s)", lic, known_licenses)
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)
@@ -421,9 +444,9 @@ class EasyConfig(object):
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
+        self.log.debug("Dependencies BEFORE filtering: %s" % deps)
         filter_deps = build_option('filter_deps')
         if filter_deps:
-            self.log.debug("Dependencies BEFORE filtering: %s" % deps)
             filtered_deps = []
             for dep in deps:
                 if dep['name'] not in filter_deps:
@@ -470,52 +493,37 @@ class EasyConfig(object):
         """
         Dump this easyconfig to file, with the given filename.
         """
-        eb_file = file(fp, "w")
+        orig_enable_templating = self.enable_templating
 
-        def to_str(x):
-            """Return quoted version of x"""
-            if isinstance(x, basestring):
-                if '\n' in x or ('"' in x and "'" in x):
-                    return '"""%s"""' % x
-                elif "'" in x:
-                    return '"%s"' % x
-                else:
-                    return "'%s'" % x
-            else:
-                return "%s" % x
+        # templated values should be dumped unresolved
+        self.enable_templating = False
 
-        # ordered groups of keys to obtain a nice looking easyconfig file
-        grouped_keys = [
-            ['name', 'version', 'versionprefix', 'versionsuffix'],
-            ['homepage', 'description'],
-            ['toolchain', 'toolchainopts'],
-            ['source_urls', 'sources'],
-            ['patches'],
-            ['builddependencies', 'dependencies', 'hiddendependencies'],
-            ['parallel', 'maxparallel'],
-            ['osdependencies']
-        ]
+        # build dict of default values
+        default_values = dict([(key, DEFAULT_CONFIG[key][0]) for key in DEFAULT_CONFIG])
+        default_values.update(dict([(key, self.extra_options[key][0]) for key in self.extra_options]))
 
-        # print easyconfig parameters ordered and in groups specified above
-        ebtxt = []
-        printed_keys = []
-        for group in grouped_keys:
-            for key1 in group:
-                val = self._config[key1][0]
-                for key2, [def_val, _, _] in DEFAULT_CONFIG.items():
-                    # only print parameters that are different from the default value
-                    if key1 == key2 and val != def_val:
-                        ebtxt.append("%s = %s" % (key1, to_str(val)))
-                        printed_keys.append(key1)
-            ebtxt.append("")
+        self.generate_template_values()
+        templ_const = dict([(quote_py_str(const[1]), const[0]) for const in TEMPLATE_CONSTANTS])
 
-        # print other easyconfig parameters at the end
-        for key, [val, _, _] in DEFAULT_CONFIG.items():
-            if not key in printed_keys and val != self._config[key][0]:
-                ebtxt.append("%s = %s" % (key, to_str(self._config[key][0])))
+        # reverse map of templates longer than 2 characters, to inject template values where possible, sorted on length
+        keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
+        templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
-        eb_file.write('\n'.join(ebtxt))
-        eb_file.close()
+        ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        self.log.debug("Dumped easyconfig: %s", ectxt)
+
+        if build_option('dump_autopep8'):
+            autopep8_opts = {
+                'aggressive': 1,  # enable non-whitespace changes, but don't be too aggressive
+                'max_line_length': 120,
+            }
+            self.log.info("Reformatting dumped easyconfig using autopep8 (options: %s)", autopep8_opts)
+            ectxt = autopep8.fix_code(ectxt, options=autopep8_opts)
+            self.log.debug("Dumped easyconfig after autopep8 reformatting: %s", ectxt)
+
+        write_file(fp, ectxt.strip())
+
+        self.enable_templating = orig_enable_templating
 
     def _validate(self, attr, values):  # private method
         """
@@ -927,7 +935,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     if build_specs is None:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
-            return copy.deepcopy(_easyconfigs_cache[cache_key])
+            return [e.copy() for e in _easyconfigs_cache[cache_key]]
 
     easyconfigs = []
     for spec in blocks:
@@ -982,11 +990,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
                 easyconfig['dependencies'].append(dep)
 
-            # this is used by the parallel builder
-            easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
-
     if cache_key is not None:
-        _easyconfigs_cache[cache_key] = copy.deepcopy(easyconfigs)
+        _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
 
     return easyconfigs
 
@@ -1092,7 +1097,22 @@ class ActiveMNS(object):
             - string representing module name has length > 0
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
-        mod_name = mns_method(self.check_ec_type(ec))
+        ec = self.check_ec_type(ec)
+
+        # replace software name with desired replacement (if specified)
+        orig_name = None
+        if ec.get('modaltsoftname', None):
+            orig_name = ec['name']
+            ec['name'] = ec['modaltsoftname']
+            self.log.info("Replaced software name '%s' with '%s' when determining module name", orig_name, ec['name'])
+        else:
+            self.log.debug("No alternative software name specified to determine module name with")
+
+        mod_name = mns_method(ec)
+
+        # restore original software name if it was tampered with
+        if orig_name is not None:
+            ec['name'] = orig_name
 
         if not is_valid_module_name(mod_name):
             raise EasyBuildError("%s is not a valid module name", str(mod_name))
@@ -1107,8 +1127,13 @@ class ActiveMNS(object):
     def det_full_module_name(self, ec, force_visible=False):
         """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
         self.log.debug("Determining full module name for %s (force_visible: %s)" % (ec, force_visible))
-        mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
-        self.log.debug("Obtained valid full module name %s" % mod_name)
+        if ec.get('external_module', False):
+            # external modules have the module name readily available, and may lack the info required by the MNS
+            mod_name = ec['full_mod_name']
+            self.log.debug("Full module name for external module: %s", mod_name)
+        else:
+            mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
+            self.log.debug("Obtained valid full module name %s", mod_name)
         return mod_name
 
     def det_install_subdir(self, ec):
@@ -1130,7 +1155,7 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        if not self.is_short_modname_for(mod_name, ec['name']):
+        if not self.is_short_modname_for(mod_name, ec.get('modaltsoftname', None) or ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
         return mod_name
