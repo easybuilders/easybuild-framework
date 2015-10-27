@@ -700,14 +700,14 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         for root, dirs, files in os.walk(name):
             paths = []
             if not onlydirs:
-                if not skip_symlinks:
-                    paths.extend(files)
-                else:
+                if skip_symlinks:
                     for path in files:
-                        if not os.path.islink(os.path.join(root, path)):
-                            paths.append(path)
-                        else:
+                        if os.path.islink(os.path.join(root, path)):
                             _log.debug("Not adjusting permissions for symlink %s", path)
+                        else:
+                            paths.append(path)
+                else:
+                    paths.extend(files)
             if not onlyfiles:
                 # os.walk skips symlinked dirs by default, i.e., no special handling needed here
                 paths.extend(dirs)
