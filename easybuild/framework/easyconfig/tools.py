@@ -145,12 +145,13 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
 def toolchain_hierarchy_cache(func):
     mydict = dict()
     def wrapped_func(arg):
-        if (arg['name'], arg['version']) in mydict:
+        myarg = (arg['name'], arg['version'])
+        if myarg in mydict:
             _log.debug("Using cache to return hierarchy for toolchain %s" % arg)
-            return mydict[(arg['name'], arg['version'])]
+            return mydict[myarg]
         else:
             new_val = func(arg)
-            mydict[(arg['name'], arg['version'])] = new_val
+            mydict[myarg] = new_val
             return new_val
     return wrapped_func
 
