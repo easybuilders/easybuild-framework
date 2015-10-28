@@ -93,7 +93,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             # no compiler in toolchain, dummy toolchain
             res = None
         elif len(tc_comps) == 1:
-            res = (tc_comps[0]['name'], tc_comps[0]['version'])
+            res = (tc_comps[0]['name'], self.det_full_version(tc_comps[0]))
         else:
             comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
             comp_names = comp_versions.keys()

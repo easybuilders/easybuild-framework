@@ -1667,8 +1667,8 @@ class EasyBlock(object):
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
-            # files must exist
-            'files': ('file', lambda fp: os.path.exists(fp)),
+            # files must exist and not be a directory
+            'files': ('file', lambda fp: os.path.exists(fp) and not os.path.isdir(fp))
             # directories must exist and be non-empty
             'dirs': ("(non-empty) directory", lambda dp: os.path.isdir(dp) and os.listdir(dp)),
         }
