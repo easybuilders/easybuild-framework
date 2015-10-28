@@ -242,10 +242,6 @@ def deep_refresh_dependencies(ec,altered_dep):
                 ]:
         if new_ec[key]:
             new_ec[key] = refresh_dependencies(new_ec[key],altered_dep)
-    for key in ['dependencies',
-                'hiddendependencies',
-                'builddependencies'
-                ]:
         if new_ec['ec'][key]:
             new_ec['ec'][key] = refresh_dependencies(new_ec['ec'][key],altered_dep)
 
