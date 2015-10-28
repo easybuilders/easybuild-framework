@@ -669,20 +669,20 @@ def apply_regex_substitutions(path, regex_subs):
     @param path: path to file to patch
     @param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     """
-    # early exit in 'dry run' mode
+    # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
         dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
         for regex, subtxt in regex_subs:
             dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
-        return
 
-    for i, (regex, subtxt) in enumerate(regex_subs):
-        regex_subs[i] = (re.compile(regex), subtxt)
+    else:
+        for i, (regex, subtxt) in enumerate(regex_subs):
+            regex_subs[i] = (re.compile(regex), subtxt)
 
-    for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
-        for regex, subtxt in regex_subs:
-            line = regex.sub(subtxt, line)
-            sys.stdout.write(line)
+        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+            for regex, subtxt in regex_subs:
+                line = regex.sub(subtxt, line)
+                sys.stdout.write(line)
 
 
 def modify_env(old, new):
@@ -795,25 +795,25 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
-    # early exit in 'dry run' mode
+    # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
         dry_run_msg("Perl script patched: %s" % path, silent=build_option('silent'))
-        return
 
-    txt = read_file(path)
-    origpath = "%s.eb.orig" % path
-    write_file(origpath, txt)
-    _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
+    else:
+        txt = read_file(path)
+        origpath = "%s.eb.orig" % path
+        write_file(origpath, txt)
+        _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
 
-    # force autoflush for Perl print buffer
-    lines = txt.split('\n')
-    newtxt = '\n'.join([
-        lines[0],  # shebang line
-        "\nuse IO::Handle qw();",
-        "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
-    ] + lines[1:])
+        # force autoflush for Perl print buffer
+        lines = txt.split('\n')
+        newtxt = '\n'.join([
+            lines[0],  # shebang line
+            "\nuse IO::Handle qw();",
+            "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
+        ] + lines[1:])
 
-    write_file(path, newtxt)
+        write_file(path, newtxt)
 
 
 def mkdir(path, parents=False, set_gid=None, sticky=None):
