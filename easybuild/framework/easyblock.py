@@ -252,8 +252,7 @@ class EasyBlock(object):
         self.log.info("This is easyblock %s from module %s (%s)", eb_class, eb_mod_name, eb_mod_loc)
 
         if self.dry_run:
-            msg = "*** DRY RUN using '%s' easyblock (%s @ %s) ***\n" % (eb_class, eb_mod_name, eb_mod_loc)
-            dry_run_msg(msg, silent=self.silent)
+            self.dry_run_msg("*** DRY RUN using '%s' easyblock (%s @ %s) ***\n", eb_class, eb_mod_name, eb_mod_loc)
 
     def close_log(self):
         """
@@ -263,7 +262,7 @@ class EasyBlock(object):
         fancylogger.logToFile(self.logfile, enable=False)
 
     #
-    # INIT UTILITIES
+    # DRY RUN UTILITIES
     #
     def init_dry_run(self):
         """Initialise easyblock instance for performing a dry run."""
@@ -275,6 +274,12 @@ class EasyBlock(object):
 
         # register fake build/install dirs so the original values can be printed during dry run
         dry_run_set_dirs(tmp_root_dir, self.builddir, self.installdir, self.installdir_mod)
+
+    def dry_run_msg(self, msg, *args):
+        """Print dry run message."""
+        if args:
+            msg = msg % args
+        dry_run_msg(msg, silent=self.silent)
 
     #
     # FETCH UTILITY FUNCTIONS
@@ -404,7 +409,7 @@ class EasyBlock(object):
         self.cfg.enable_templating = True
 
         if self.dry_run:
-            dry_run_msg("\nList of sources/patches for extensions:", silent=self.silent)
+            self.dry_run_msg("\nList of sources/patches for extensions:")
 
         for ext in exts_list:
             if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
@@ -578,7 +583,7 @@ class EasyBlock(object):
 
             if foundfile:
                 if self.dry_run:
-                    dry_run_msg("  * %s found at %s" % (filename, foundfile), silent=self.silent)
+                    self.dry_run_msg("  * %s found at %s", filename, foundfile)
                 return foundfile
             else:
                 # try and download source files from specified source URLs
@@ -612,10 +617,10 @@ class EasyBlock(object):
                         continue
 
                     if self.dry_run:
-                        dry_run_msg("  * %s will be downloaded to %s" % (filename, targetpath), silent=self.silent)
+                        self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)
                         if extension and urls:
                             # extensions typically have custom source URLs specified, only mention first
-                            dry_run_msg("    (from %s, ...)" % fullurl, silent=self.silent)
+                            self.dry_run_msg("    (from %s, ...)", fullurl)
                         downloaded = True
 
                     else:
@@ -638,7 +643,7 @@ class EasyBlock(object):
                         failedpaths.append(fullurl)
 
                 if self.dry_run:
-                    dry_run_msg("  * %s (MISSING)" % filename, silent=self.silent)
+                    self.dry_run_msg("  * %s (MISSING)", filename)
                     return filename
                 else:
                     raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
@@ -1327,15 +1332,15 @@ class EasyBlock(object):
 
         if self.dry_run:
 
-            dry_run_msg("Available download URLs for sources/patches:", silent=self.silent)
+            self.dry_run_msg("Available download URLs for sources/patches:")
             if self.cfg['source_urls']:
                 for source_url in self.cfg['source_urls']:
-                    dry_run_msg("  * %s/$source" % source_url, silent=self.silent)
+                    self.dry_run_msg("  * %s/$source", source_url)
             else:
-                dry_run_msg('(none)', silent=self.silent)
+                self.dry_run_msg('(none)')
 
             # actual list of sources is printed via _obtain_file_dry_run method
-            dry_run_msg("\nList of sources:", silent=self.silent)
+            self.dry_run_msg("\nList of sources:")
 
         # fetch sources
         if self.cfg['sources']:
@@ -1345,7 +1350,7 @@ class EasyBlock(object):
 
         if self.dry_run:
             # actual list of patches is printed via _obtain_file_dry_run method
-            dry_run_msg("\nList of patches:", silent=self.silent)
+            self.dry_run_msg("\nList of patches:")
 
         # fetch patches
         if self.cfg['patches']:
@@ -1358,7 +1363,7 @@ class EasyBlock(object):
         else:
             self.log.info('no patches provided')
             if self.dry_run:
-                dry_run_msg('(none)', silent=self.silent)
+                self.dry_run_msg('(none)')
 
         # compute checksums for all source and patch files
         if not (skip_checksums or self.dry_run):
@@ -1393,7 +1398,7 @@ class EasyBlock(object):
                 # dry run mode: only report checksums, don't actually verify them
                 filename = os.path.basename(fil['path'])
                 expected_checksum = fil['checksum'] or '(none)'
-                dry_run_msg("* expected checksum for %s: %s" % (filename, expected_checksum), silent=self.silent)
+                self.dry_run_msg("* expected checksum for %s: %s", filename, expected_checksum)
             else:
                 if not verify_checksum(fil['path'], fil['checksum']):
                     raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
@@ -1453,8 +1458,7 @@ class EasyBlock(object):
         Pre-configure step. Set's up the builddir just before starting configure
         """
         if self.dry_run:
-            msg = "Defining build environment, based on toolchain (options) and specified dependencies...\n"
-            dry_run_msg(msg, silent=self.silent)
+            self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
 
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
@@ -1592,7 +1596,7 @@ class EasyBlock(object):
             if self.dry_run:
                 eb_class = cls.__name__
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % (ext['name'], ext['version'], eb_class)
-                dry_run_msg(msg, silent=self.silent)
+                self.dry_run_msg(msg)
 
             # real work
             inst.prerun()
@@ -1730,19 +1734,19 @@ class EasyBlock(object):
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         for key, (typ, _) in path_keys_and_check.items():
-            dry_run_msg("Sanity check paths - %s ['%s']" % (typ, key), silent=self.silent)
+            self.dry_run_msg("Sanity check paths - %s ['%s']", typ, key)
             if paths[key]:
                 for path in sorted(paths[key]):
-                    dry_run_msg("  * %s" % str(path), silent=self.silent)
+                    self.dry_run_msg("  * %s", str(path))
             else:
-                dry_run_msg("  (none)", silent=self.silent)
+                self.dry_run_msg("  (none)")
 
-        dry_run_msg("Sanity check commands", silent=self.silent)
+        self.dry_run_msg("Sanity check commands")
         if commands:
             for command in sorted(commands):
-                dry_run_msg("  * %s" % str(command), silent=self.silent)
+                self.dry_run_msg("  * %s", str(command))
         else:
-            dry_run_msg("  (none)", silent=self.silent)
+            self.dry_run_msg("  (none)")
 
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
@@ -1865,10 +1869,9 @@ class EasyBlock(object):
         if self.dry_run:
             # only report generating actual module file during dry run, don't mention temporary module files
             if not fake:
-                msg = "Generating module file %s, with contents:\n" % mod_filepath
-                dry_run_msg(msg, silent=self.silent)
+                self.dry_run_msg("Generating module file %s, with contents:\n", mod_filepath)
                 for line in txt.split('\n'):
-                    dry_run_msg(' ' * 4 + line, silent=self.silent)
+                    self.dry_run_msg(' ' * 4 + line)
 
         else:
             write_file(mod_filepath, txt)
@@ -1988,7 +1991,7 @@ class EasyBlock(object):
             self.log.info("Running method %s part of step %s" % ('_'.join(step_method.func_code.co_names), step))
 
             if self.dry_run:
-                dry_run_msg("[%s method]" % step_method(self).__name__, silent=self.silent)
+                self.dry_run_msg("[%s method]", step_method(self).__name__)
 
                 # if an known possible error occurs, just report it and continue
                 try:
@@ -2001,7 +2004,7 @@ class EasyBlock(object):
                         self.ignored_errors = True
                     else:
                         raise
-                dry_run_msg('', silent=self.silent)
+                self.dry_run_msg('')
             else:
                 # step_method is a lambda function that takes an EasyBlock instance as an argument,
                 # and returns the actual method, so use () to execute it
@@ -2123,7 +2126,7 @@ class EasyBlock(object):
                     print_msg("%s [skipped]" % descr, log=self.log, silent=self.silent)
                 else:
                     if self.dry_run:
-                        dry_run_msg("%s... [DRY RUN]\n" % descr, silent=self.silent)
+                        self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
                     self.run_step(step_name, step_methods)
