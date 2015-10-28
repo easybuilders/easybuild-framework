@@ -333,6 +333,7 @@ def init_config(args=None, build_options=None):
     # initialize build options
     if build_options is None:
         build_options = {
+            'extended_dry_run': False,
             'external_modules_metadata': ConfigObj(),
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
