@@ -126,6 +126,7 @@ class YebTest(EnhancedTestCase):
             "",
             "mm1: !majmin [*version]",
             "mm2: !majmin [*comp_version]",
+            "mm3: !majmin 5.4.17",
         ]
 
         # import here for testing yaml_join separately
@@ -133,6 +134,7 @@ class YebTest(EnhancedTestCase):
         loaded = yaml.load('\n'.join(stream))
         self.assertEqual(loaded.get('mm1'), '2.7')
         self.assertEqual(loaded.get('mm2'), '1.4')
+        self.assertEqual(loaded.get('mm3'), '5.4')
 
 
 

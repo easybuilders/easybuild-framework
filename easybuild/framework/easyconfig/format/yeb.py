@@ -67,10 +67,17 @@ def yaml_versionmajorminor(loader, node):
     """
     defines custom YAML function to get major version.
     @param loader: the YAML Loader
-    @param node: the YAML (scalar) node
+    @param node: the YAML (sequence) node - for now, ideally this would be a scalar
     """
-    pyver = loader.construct_sequence(node)
-    return '.'.join(pyver[0].split('.')[:2])
+    # this should be fixed
+    if isinstance(node, yaml.nodes.ScalarNode):
+        pyver = loader.construct_scalar(node)
+    elif isinstance(node, yaml.nodes.SequenceNode):
+        pyver = loader.construct_sequence(node)
+        pyver = pyver[0]
+        _log.debug("Extracting version from list")
+
+    return '.'.join(pyver.split('.')[:2])
 
 
 # register the tag handlers
