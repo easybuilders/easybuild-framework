@@ -127,7 +127,7 @@ class RunTest(EnhancedTestCase):
         outfile = os.path.join(self.test_prefix, 'cmd.out')
         self.assertFalse(os.path.exists(outfile))
         self.mock_stdout(True)
-        run_cmd("echo 'This is always echoed' > %s" % outfile, forced=True)
+        run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         # nothing printed to stdout, but command was run
