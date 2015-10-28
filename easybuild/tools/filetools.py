@@ -686,7 +686,7 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False):
+                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=True):
     """
     Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
@@ -700,9 +700,17 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         for root, dirs, files in os.walk(name):
             paths = []
             if not onlydirs:
-                paths += files
+                if skip_symlinks:
+                    for path in files:
+                        if os.path.islink(os.path.join(root, path)):
+                            _log.debug("Not adjusting permissions for symlink %s", path)
+                        else:
+                            paths.append(path)
+                else:
+                    paths.extend(files)
             if not onlyfiles:
-                paths += dirs
+                # os.walk skips symlinked dirs by default, i.e., no special handling needed here
+                paths.extend(dirs)
 
             for path in paths:
                 allpaths.append(os.path.join(root, path))
