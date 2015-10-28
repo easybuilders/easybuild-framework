@@ -415,7 +415,7 @@ class Toolchain(object):
 
             # load toolchain module, or simulate load of toolchain components if it is not available
             if self.modules_tool.exist([tc_mod])[0]:
-                self.modules_tool.load([tc_mod], silent=silent)
+                self.modules_tool.load([tc_mod])
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
                 # first simulate loads for toolchain dependencies, if required information is available
@@ -440,7 +440,7 @@ class Toolchain(object):
 
             # load modules for all dependencies
             self.log.debug("Loading module for toolchain: %s" % tc_mod)
-            self.modules_tool.load([tc_mod], silent=silent)
+            self.modules_tool.load([tc_mod])
 
     def _load_dependencies_modules(self, silent=False):
         """Load modules for dependencies, and handle special cases like external modules."""
@@ -455,7 +455,7 @@ class Toolchain(object):
             for dep, dep_mod_exists in zip(self.dependencies, mods_exist):
                 mod_name = dep['short_mod_name']
                 if dep_mod_exists:
-                    self.modules_tool.load([mod_name], silent=silent)
+                    self.modules_tool.load([mod_name])
                     dry_run_msg("module load %s" % mod_name, silent=silent)
                 else:
                     dry_run_msg("module load %s [SIMULATED]" % mod_name, silent=silent)
@@ -466,7 +466,7 @@ class Toolchain(object):
             # load modules for all dependencies
             dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
             self.log.debug("Loading modules for dependencies: %s" % dep_mods)
-            self.modules_tool.load(dep_mods, silent=silent)
+            self.modules_tool.load(dep_mods)
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
         for dep in [d for d in self.dependencies if d['external_module']]:
