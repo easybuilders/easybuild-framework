@@ -1,12 +1,11 @@
 _internal_variables_:
     - &numpyversion 1.9.2
     - &scipyversion 0.15.1
-    - &name Python
     - &version 2.7.10
 
 easyblock: ConfigureMake
 
-name: *name
+name: Python
 version: *version
 
 homepage: http://python.org/
@@ -17,7 +16,7 @@ description: |
 toolchain: {name: ictce, version: 4.1.13}
 toolchainopts: {pic: True, opt: True, optarch: True}
 
-source_urls: [!join ["http://www.python.org/ftp/python/", *version]]
+source_urls: [!join ["http://www.python.org/ftp/python/", *version, /]]
 sources: [*SOURCE_TGZ]
 
 # python needs bzip2 to build the bz2 package
@@ -85,18 +84,18 @@ exts_list: [
         source_urls: ["https://pypi.python.org/packages/source/s/six/"],
     }],
     [dateutil, 2.4.2, {
-        source_tmpl: !join [python-, *name, -, *version, .tar.gz],
+        source_tmpl: python-%(name)s-%(version)s.tar.gz,
         source_urls: ["https://pypi.python.org/packages/source/p/python-dateutil/"],
     }],
     [deap, 1.0.2, {
-        source_tmpl: !join [*name, -, *version, .post2.tar.gz],
+        source_tmpl: "%(name)s-%(version)s.post2.tar.gz",
         source_urls: ["https://pypi.python.org/packages/source/d/deap/"],
     }],
     [decorator, 3.4.2, {
         source_urls: ["https://pypi.python.org/packages/source/d/decorator/"],
     }],
     [arff, 2.0.2, {
-        source_tmpl: !join [liac-, *name, -, *version, .zip],
+        source_tmpl: liac-%(name)s-%(version)s.zip,
         source_urls: ["https://pypi.python.org/packages/source/l/liac-arff/"],
     }],
     [pycrypto, 2.6.1, {

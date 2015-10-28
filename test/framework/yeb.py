@@ -70,7 +70,6 @@ class YebTest(EnhancedTestCase):
 
         for filename in test_files:
             ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
-
             # compare with parsed result of .eb easyconfig
             ec_eb = EasyConfig(os.path.join(test_easyconfigs, '%s.eb' % filename))
 
