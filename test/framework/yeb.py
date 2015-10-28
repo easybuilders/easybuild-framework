@@ -63,7 +63,9 @@ class YebTest(EnhancedTestCase):
             'bzip2.yeb': 'bzip2-1.0.6-GCC-4.9.2.eb',
             'gzip.yeb': 'gzip-1.6-gcc-4.9.2.eb',
             'goolf-1.4.10.yeb': 'goolf-1.4.10.eb',
-            'ictce-4.1.13.yeb': 'ictce-4.1.13.eb'
+            'ictce-4.1.13.yeb': 'ictce-4.1.13.eb',
+            'sqlite-3.8.10.2.yeb': 'sqlite-3.8.10.2.eb',
+            'python-2.7.10.yeb': 'python-2.7.10.eb',
         }
 
         for yeb_file, eb_file in test_files.items():
