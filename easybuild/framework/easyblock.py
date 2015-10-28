@@ -2000,7 +2000,7 @@ class EasyBlock(object):
                     step_method(self)()
                 except Exception as err:
                     if build_option('extended_dry_run_ignore_errors'):
-                        dry_run_warning("ignoring error \"%s\"" % err, silent=self.silent)
+                        dry_run_warning("ignoring error %s" % err, silent=self.silent)
                         self.ignored_errors = True
                     else:
                         raise
