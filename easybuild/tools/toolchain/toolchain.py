@@ -104,7 +104,8 @@ class Toolchain(object):
 
         self.tcdeps = tcdeps
 
-        self.dry_run = build_option('extended_dry_run')
+        # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
+        self.dry_run = build_option('extended_dry_run', default=False)
 
         self.modules_tool = modules_tool()
         self.mns = mns
@@ -410,13 +411,10 @@ class Toolchain(object):
         tc_mod = self.det_short_module_name()
 
         if self.dry_run:
-
-            tcmods_exists = self.modules_tool.exist([tc_mod])[0]
-
             dry_run_msg("Loading toolchain module...\n", silent=silent)
 
-            # load toolchain module, or simulate load of toolchain components if its not available
-            if tcmods_exists:
+            # load toolchain module, or simulate load of toolchain components if it is not available
+            if self.modules_tool.exist([tc_mod])[0]:
                 self.modules_tool.load([tc_mod], silent=silent)
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
@@ -430,7 +428,7 @@ class Toolchain(object):
                         self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': deproot})
 
                 dry_run_msg("module load %s [SIMULATED]" % tc_mod, silent=silent)
-                # provide fake prefix so $EBROOT* gets defined
+                # use name of $EBROOT* env var as value for $EBROOT* env var (results in sensible dry run output)
                 tcroot = '$%s' % get_software_root_env_var_name(self.name)
                 self._simulated_load_dependency_module(self.name, self.version, {'prefix': tcroot})
         else:
