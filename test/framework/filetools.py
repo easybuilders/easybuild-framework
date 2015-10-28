@@ -28,6 +28,7 @@ Unit tests for filetools.py
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import shutil
@@ -39,6 +40,7 @@ from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.multidiff import multidiff
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -58,6 +60,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.zip', "unzip -qq test.zip"),
             ('/some/path/test.tar', "tar xf /some/path/test.tar"),
             ('test.tar.gz', "tar xzf test.tar.gz"),
+            ('test.TAR.GZ', "tar xzf test.TAR.GZ"),
             ('test.tgz', "tar xzf test.tgz"),
             ('test.gtgz', "tar xzf test.gtgz"),
             ('test.bz2', "bunzip2 test.bz2"),
@@ -66,14 +69,19 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tb2', "tar xjf test.tb2"),
             ('test.tar.bz2', "tar xjf test.tar.bz2"),
             ('test.gz', "gunzip -c test.gz > test"),
+            ('untar.gz', "gunzip -c untar.gz > untar"),
             ("/some/path/test.gz", "gunzip -c /some/path/test.gz > test"),
             ('test.xz', "unxz test.xz"),
             ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
             ('test.txz', "unxz test.txz --stdout | tar x"),
+            ('test.iso', "7z x test.iso"),
+            ('test.tar.Z', "tar xZf test.tar.Z"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
+
+        self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
 
     def test_convert_name(self):
         """Test convert_name function."""
@@ -86,6 +94,18 @@ class FileToolsTest(EnhancedTestCase):
         """tests should be run from the base easybuild directory"""
         # used to be part of test_parse_log_error
         self.assertEqual(os.getcwd(), ft.find_base_dir())
+
+    def test_find_base_dir(self):
+        """test if we find the correct base dir"""
+        tmpdir = tempfile.mkdtemp()
+
+        foodir = os.path.join(tmpdir, 'foo')
+        os.mkdir(foodir)
+        os.mkdir(os.path.join(tmpdir, '.bar'))
+        os.mkdir(os.path.join(tmpdir, 'easybuild'))
+
+        os.chdir(tmpdir)
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -267,7 +287,7 @@ class FileToolsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         path1 = os.path.join(tmpdir, 'path1')
         ft.mkdir(path1)
-        path2 = os.path.join(tmpdir, 'path2') 
+        path2 = os.path.join(tmpdir, 'path2')
         ft.mkdir(path1)
         symlink = os.path.join(tmpdir, 'symlink')
         os.symlink(path1, symlink)
@@ -343,11 +363,94 @@ class FileToolsTest(EnhancedTestCase):
         logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1',
                 os.path.basename(self.logfile),
                 'foo.log', 'foo.log.1']
-        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if not f.startswith('tmp')]), logs)
+        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if 'log' in f]), logs)
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+
+    def test_multidiff(self):
+        """Test multidiff function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        other_toy_ecs = [
+            os.path.join(test_easyconfigs, 'toy-0.0-deps.eb'),
+            os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'),
+        ]
+
+        # default (colored)
+        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs).split('\n')
+        expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb"
+
+        red = "\x1b[0;41m"
+        green = "\x1b[0;42m"
+        endcol = "\x1b[0m"
+
+        self.assertEqual(lines[0], expected)
+        self.assertEqual(lines[1], "=====")
+
+        # different versionsuffix
+        self.assertEqual(lines[2], "3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-gompi-1.3.12-test.eb" % (red, endcol))
+        self.assertEqual(lines[3], "3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-deps.eb" % (red, endcol))
+
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
+        expected = "7 %(endcol)s-%(endcol)s toolchain = {"
+        expected += "'name': '%(endcol)s%(red)sgo%(endcol)sm\x1b[0m%(red)spi%(endcol)s', "
+        expected = expected % {'endcol': endcol, 'green': green, 'red': red}
+        self.assertTrue(lines[7].startswith(expected))
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added chars in toolchain name/version, in green)
+        expected = "7 %(endcol)s+%(endcol)s toolchain = {"
+        expected += "'name': '%(endcol)s%(green)sdu%(endcol)sm\x1b[0m%(green)smy%(endcol)s', "
+        expected = expected % {'endcol': endcol, 'green': green, 'red': red}
+        self.assertTrue(lines[8].startswith(expected))
+
+        # no postinstallcmds in toy-0.0-deps.eb
+        expected = "28 %s+ postinstallcmds = " % green
+        self.assertTrue(any([line.startswith(expected) for line in lines]))
+        self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        self.assertEqual(lines[-1], "=====")
+
+        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
+        self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb")
+        self.assertEqual(lines[1], "=====")
+
+        # different versionsuffix
+        self.assertEqual(lines[2], "3 - versionsuffix = '-test' (1/2) toy-0.0-gompi-1.3.12-test.eb")
+        self.assertEqual(lines[3], "3 - versionsuffix = '-deps' (1/2) toy-0.0-deps.eb")
+
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
+        expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy"
+        self.assertTrue(lines[7].startswith(expected))
+        expected = "  ?                       ^^ ^^               ^^^^^^"
+        self.assertEqual(lines[8], expected)
+        # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
+        expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
+        self.assertTrue(lines[9].startswith(expected))
+        expected = "  ?                       ^^ ^^               ^^^^^"
+        self.assertEqual(lines[10], expected)
+
+        # no postinstallcmds in toy-0.0-deps.eb
+        expected = "28 + postinstallcmds = "
+        self.assertTrue(any([line.startswith(expected) for line in lines]))
+        self.assertTrue("29 + (1/2) toy-0.0-deps.eb" in lines)
+
+        self.assertEqual(lines[-1], "=====")
+
+    def test_weld_paths(self):
+        """Test weld_paths."""
+        # works like os.path.join is there's no overlap
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foobar/baz'), '/foo/bar/foobar/baz/')
+        self.assertEqual(ft.weld_paths('foo', 'bar/'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('foo/', '/bar'), '/bar/')
+        self.assertEqual(ft.weld_paths('/foo/', '/bar'), '/bar/')
+
+        # overlap is taken into account
+        self.assertEqual(ft.weld_paths('foo/bar', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar/baz', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
 
 def suite():

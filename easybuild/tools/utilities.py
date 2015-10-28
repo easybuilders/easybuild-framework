@@ -32,7 +32,10 @@ import os
 import string
 import sys
 from vsc.utils import fancylogger
+
 import easybuild.tools.environment as env
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('tools.utilities')
 
@@ -56,12 +59,12 @@ def flatten(lst):
     return res
 
 
-def quote_str(x, escape_newline=False):
+def quote_str(val, escape_newline=False, prefer_single_quotes=False):
     """
     Obtain a new value to be used in string replacement context.
 
     For non-string values, it just returns the exact same value.
- 
+
     For string values, it tries to escape the string in quotes, e.g.,
     foo becomes 'foo', foo'bar becomes "foo'bar",
     foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
@@ -69,15 +72,27 @@ def quote_str(x, escape_newline=False):
     @param escape_newline: wrap strings that include a newline in triple quotes
     """
 
-    if isinstance(x, basestring):
-        if ("'" in x and '"' in x) or (escape_newline and '\n' in x):
-            return '"""%s"""' % x
-        elif '"' in x:
-            return "'%s'" % x
+    if isinstance(val, basestring):
+        # forced triple double quotes
+        if ("'" in val and '"' in val) or (escape_newline and '\n' in val):
+            return '"""%s"""' % val
+        # single quotes to escape double quote used in strings
+        elif '"' in val:
+            return "'%s'" % val
+        # if single quotes are preferred, use single quotes;
+        # unless a space or a single quote are in the string
+        elif prefer_single_quotes and "'" not in val and ' ' not in val:
+            return "'%s'" % val
+        # fallback on double quotes (required in tcl syntax)
         else:
-            return '"%s"' % x
+            return '"%s"' % val
     else:
-        return x
+        return val
+
+
+def quote_py_str(val):
+    """Version of quote_str specific for generating use in Python context (e.g., easyconfig parameters)."""
+    return quote_str(val, escape_newline=True, prefer_single_quotes=True)
 
 
 def remove_unwanted_chars(inputstring):
@@ -101,5 +116,33 @@ def import_available_modules(namespace):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])
                 _log.debug("importing module %s" % modpath)
-                modules.append(__import__(modpath, globals(), locals(), ['']))
+                try:
+                    mod = __import__(modpath, globals(), locals(), [''])
+                except ImportError as err:
+                    raise EasyBuildError("import_available_modules: Failed to import %s: %s", modpath, err)
+                modules.append(mod)
     return modules
+
+
+def only_if_module_is_available(modname, pkgname=None, url=None):
+    """Decorator to guard functions/methods against missing required module with specified name."""
+    if pkgname and url is None:
+        url = 'https://pypi.python.org/pypi/%s' % pkgname
+
+    def wrap(orig):
+        """Decorated function, raises ImportError if specified module is not available."""
+        try:
+            __import__(modname)
+            return orig
+
+        except ImportError as err:
+            def error(*args):
+                msg = "%s; required module '%s' is not available" % (err, modname)
+                if pkgname:
+                    msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
+                elif url:
+                    msg += " (available from %s)" % url
+                raise ImportError(msg)
+            return error
+
+    return wrap

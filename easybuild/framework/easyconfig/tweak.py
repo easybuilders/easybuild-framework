@@ -143,10 +143,11 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     # determine new toolchain if it's being changed
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
+        # note: this assumes that the toolchain spec is single-line
         tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
         res = tc_regexp.search(ectxt)
         if not res:
-            raise EasyBuildError("No toolchain found in easyconfig file %s?", src_fn)
+            raise EasyBuildError("No toolchain found in easyconfig file %s: %s", src_fn, ectxt)
 
         toolchain = eval(res.group(1))
         for key in ['name', 'version']:

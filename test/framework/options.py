@@ -40,6 +40,7 @@ from urllib2 import URLError
 
 import easybuild.tools.build_log
 import easybuild.tools.options
+import easybuild.tools.toolchain
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
@@ -49,6 +50,7 @@ from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
@@ -101,7 +103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                                )
         outtxt = topt.parser.help_to_file.getvalue()
 
-        self.assertTrue(re.search("-H, --help", outtxt), "Long documentation expanded in long help")
+        self.assertTrue(re.search("-H OUTPUT_FORMAT, --help=OUTPUT_FORMAT", outtxt), "Long documentation expanded in long help")
         self.assertTrue(re.search("show short help message and exit", outtxt), "Documentation included in long help")
         self.assertTrue(re.search("Software search and build options", outtxt), "Not all option groups included in short help (1)")
         self.assertTrue(re.search("Regression test options", outtxt), "Not all option groups included in short help (2)")
@@ -200,7 +202,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test skipping installation of module (--skip, -k)."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -504,18 +506,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        # adjust PYTHONPATH such that test easyblocks are found
-
-        import easybuild
-        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        if not eb_blocks_path in sys.path:
-            sys.path.append(eb_blocks_path)
-            easybuild = reload(easybuild)
-
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
-
         # simple view
         for list_arg in ['--list-easyblocks', '--list-easyblocks=simple']:
 
@@ -526,7 +516,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     list_arg,
                     '--unittest-file=%s' % self.logfile,
                    ]
-            outtxt = self.eb_main(args, logfile=dummylogfn)
+            self.eb_main(args, logfile=dummylogfn)
             logtxt = read_file(self.logfile)
 
             for pat in [
@@ -546,7 +536,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 '--list-easyblocks=detailed',
                 '--unittest-file=%s' % self.logfile,
                ]
-        outtxt = self.eb_main(args, logfile=dummylogfn)
+        self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
 
         for pat in [
@@ -812,7 +802,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
              "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
             ("goolf-1.4.10.eb", "Core/toolchain", "goolf/1.4.10", 'x'),
-            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/base", "gzip/1.5", ' '),  # listed but not there: ' '
+            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/tools", "gzip/1.5", ' '),  # listed but not there: ' '
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
@@ -1687,6 +1677,226 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'])
         self.assertEqual(ebopts.generate_cmd_line(), ['--search=foobar'])
+
+    def test_include_easyblocks(self):
+        """Test --include-easyblocks."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        # existing test EB_foo easyblock found without include a custom one
+        args = [
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        test_easyblocks = os.path.dirname(os.path.abspath(__file__))
+        path_pattern = os.path.join(test_easyblocks, 'sandbox', 'easybuild', 'easyblocks', 'f', 'foo.py')
+        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
+        self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
+
+        # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.foo']
+
+        # include extra test easyblocks
+        foo_txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class EB_foo(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'foo.py'), foo_txt)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        args = [
+            '--include-easyblocks=%s/*.py' % self.test_prefix,
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks', 'foo.py')
+        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
+        self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
+
+        # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.foo']
+
+    def test_include_module_naming_schemes(self):
+        """Test --include-module-naming-schemes."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        mns_regex = re.compile(r'^\s*TestIncludedMNS', re.M)
+
+        # TestIncludedMNS module naming scheme is not available by default
+        args = [
+            '--avail-module-naming-schemes',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
+
+        # include extra test MNS
+        mns_txt = '\n'.join([
+            'from easybuild.tools.module_naming_scheme import ModuleNamingScheme',
+            'class TestIncludedMNS(ModuleNamingScheme):',
+            '   pass',
+        ])
+        write_file(os.path.join(self.test_prefix, 'test_mns.py'), mns_txt)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        args = [
+            '--avail-module-naming-schemes',
+            '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
+
+        # undo successful import
+        del sys.modules['easybuild.tools.module_naming_scheme.test_mns']
+
+    def test_use_included_module_naming_scheme(self):
+        """Test using an included module naming scheme."""
+        # try selecting the added module naming scheme
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # include extra test MNS
+        mns_txt = '\n'.join([
+            'import os',
+            'from easybuild.tools.module_naming_scheme import ModuleNamingScheme',
+            'class AnotherTestIncludedMNS(ModuleNamingScheme):',
+            '   def det_full_module_name(self, ec):',
+            "       return os.path.join(ec['name'], ec['version'])",
+        ])
+        write_file(os.path.join(self.test_prefix, 'test_mns.py'), mns_txt)
+
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            '--unittest-file=%s' % self.logfile,
+            '--module-naming-scheme=AnotherTestIncludedMNS',
+            '--force',
+            eb_file,
+        ]
+
+        # selecting a module naming scheme that doesn't exist leads to 'invalid choice'
+        error_regex = "Selected module naming scheme \'AnotherTestIncludedMNS\' is unknown"
+        self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, logfile=dummylogfn,
+                              raise_error=True, raise_systemexit=True)
+
+        args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
+        self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True, verbose=True)
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+        self.assertTrue(os.path.exists(toy_mod), "Found %s" % toy_mod)
+
+    def test_include_toolchains(self):
+        """Test --include-toolchains."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        # set processed attribute to false, to trigger rescan in search_toolchain
+        setattr(easybuild.tools.toolchain, '%s_PROCESSED' % TC_CONST_PREFIX, False)
+
+        tc_regex = re.compile(r'^\s*test_included_toolchain: TestIncludedCompiler', re.M)
+
+        # TestIncludedCompiler is not available by default
+        args = [
+            '--list-toolchains',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
+
+        # include extra test toolchain
+        comp_txt = '\n'.join([
+            'from easybuild.tools.toolchain.compiler import Compiler',
+            'class TestIncludedCompiler(Compiler):',
+            "   COMPILER_MODULE_NAME = ['TestIncludedCompiler']",
+        ])
+        mkdir(os.path.join(self.test_prefix, 'compiler'))
+        write_file(os.path.join(self.test_prefix, 'compiler', 'test_comp.py'), comp_txt)
+
+        tc_txt = '\n'.join([
+            'from easybuild.toolchains.compiler.test_comp import TestIncludedCompiler',
+            'class TestIncludedToolchain(TestIncludedCompiler):',
+            "   NAME = 'test_included_toolchain'",
+        ])
+        write_file(os.path.join(self.test_prefix, 'test_tc.py'), tc_txt)
+
+        args = [
+            '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
+            '--list-toolchains',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
+
+        # undo successful import
+        del sys.modules['easybuild.toolchains.compiler.test_comp']
+        del sys.modules['easybuild.toolchains.test_tc']
+
+    def test_cleanup_tmpdir(self):
+        """Test --cleanup-tmpdir."""
+        args = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb'),
+            '--dry-run',
+            '--try-software-version=1.0',  # so we get a tweaked easyconfig
+        ]
+
+        tmpdir = tempfile.gettempdir()
+        # just making sure this is empty before we get started
+        self.assertEqual(os.listdir(tmpdir), [])
+
+        # force silence (since we're not using testing mode)
+        self.mock_stdout(True)
+
+        # default: cleanup tmpdir & logfile
+        self.eb_main(args, raise_error=True, testing=False)
+        self.assertEqual(os.listdir(tmpdir), [])
+        self.assertFalse(os.path.exists(self.logfile))
+
+        # disable cleaning up tmpdir
+        args.append('--disable-cleanup-tmpdir')
+        self.eb_main(args, raise_error=True, testing=False)
+        tmpdir_files = os.listdir(tmpdir)
+        # tmpdir and logfile are still there \o/
+        self.assertTrue(len(tmpdir_files) == 1)
+        self.assertTrue(os.path.exists(self.logfile))
+        # tweaked easyconfigs is still there \o/
+        tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
+        self.assertTrue(os.path.exists(os.path.join(tweaked_dir, 'toy-1.0.eb')))
+
+    def test_review_pr(self):
+        """Test --review-pr."""
+        self.mock_stdout(True)
+        # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
+        self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
 
 
 def suite():

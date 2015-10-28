@@ -28,12 +28,15 @@ Module with useful functions for getting system information
 @author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
+import fcntl
 import grp  # @UnresolvedImport
 import os
 import platform
 import pwd
 import re
+import struct
 import sys
+import termios
 from socket import gethostname
 from vsc.utils import fancylogger
 from vsc.utils.affinity import sched_getaffinity
@@ -226,7 +229,7 @@ def get_cpu_speed():
                 cpu_freq = float(res.group('cpu_freq'))
                 _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
             else:
-                raise SystemToolsException("Failed to determine CPU frequency from %s" % PROC_CPUINFO_FP)
+                _log.debug("Failed to determine CPU frequency from %s", PROC_CPUINFO_FP)
         else:
             _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling: %s" % PROC_CPUINFO_FP)
 
@@ -467,7 +470,7 @@ def use_group(group_name):
     return group
 
 
-def det_parallelism(par, maxpar):
+def det_parallelism(par=None, maxpar=None):
     """
     Determine level of parallelism that should be used.
     Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) / 6)
@@ -499,3 +502,22 @@ def det_parallelism(par, maxpar):
         par = min(par, maxpar)
 
     return par
+
+
+def det_terminal_size():
+    """
+    Determine the current size of the terminal window.
+    @return: tuple with terminal width and height
+    """
+    # see http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
+    try:
+        height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
+    except Exception as err:
+        _log.warning("First attempt to determine terminal size failed: %s", err)
+        try:
+            height, width = [int(x) for x in os.popen("stty size").read().strip().split()]
+        except Exception as err:
+            _log.warning("Second attempt to determine terminal size failed, going to return defaults: %s", err)
+            height, width = 25, 80
+
+    return height, width
