@@ -960,7 +960,9 @@ class EasyBlock(object):
             modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
             self.log.debug("Including module path extensions returned by module naming scheme: %s" % modpath_exts)
             full_path_modpath_extensions = [os.path.join(top_modpath, mod_path_suffix, ext) for ext in modpath_exts]
-            # module path extensions must exist, otherwise loading this module file will fail
+            # module path extensions must exist since the generated module will run 'module use' on them;
+            # this is only really true for Tcl/C env mods, but we cannot make any assumptions on which modules tool
+            # will be used to consume the generated module (better safe than sorry)
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
             txt = self.module_generator.use(full_path_modpath_extensions)
