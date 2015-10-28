@@ -333,9 +333,15 @@ def init_build_options(build_options=None, cmdline_options=None):
     return BuildOptions(bo)
 
 
-def build_option(key):
+def build_option(key, **kwargs):
     """Obtain value specified build option."""
-    return BuildOptions()[key]
+    build_options = BuildOptions()
+    if key in build_options:
+        return build_options[key]
+    elif 'default' in kwargs:
+        return kwargs['default']
+    else:
+        raise EasyBuildError("Undefined build option: %s", key)
 
 
 def build_path():
