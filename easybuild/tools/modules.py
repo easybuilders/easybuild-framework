@@ -380,7 +380,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None, silent=False):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None):
         """
         Load all requested modules.
 
