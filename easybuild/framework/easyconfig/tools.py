@@ -142,6 +142,19 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
 
     return ordered_ecs, new_unprocessed, new_avail_modules
 
+def simple_toolchain_hierarchy_cache(func):
+    mydict = dict()
+    def wrapped_func(arg):
+        if (arg['name'], arg['version']) in mydict:
+            _log.debug("Using cache to return hierarchy for toolchain %s" % arg)
+            return mydict[(arg['name'], arg['version'])]
+        else:
+            new_val = func(arg)
+            mydict[(arg['name'], arg['version'])] = new_val
+            return new_val
+    return wrapped_func
+
+@simple_toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain):
     # Grab all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
