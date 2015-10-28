@@ -1465,15 +1465,6 @@ class EasyBlock(object):
         # guess directory to start configure/build/install process in, and move there
         self.guess_start_dir()
 
-        if self.dry_run:
-            loaded_mods = self.modules_tool.list()
-            dry_run_msg("\nFull list of loaded modules:", silent=self.silent)
-            if loaded_mods:
-                for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
-                    dry_run_msg("  %d) %s" % (i+1, mod_name), silent=self.silent)
-            else:
-                dry_run_msg("  (none)", silent=self.silent)
-
     def configure_step(self):
         """Configure build  (abstract method)."""
         raise NotImplementedError

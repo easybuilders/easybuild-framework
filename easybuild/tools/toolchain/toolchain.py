@@ -506,6 +506,17 @@ class Toolchain(object):
             self._load_toolchain_module(silent=silent)
             self._load_dependencies_modules(silent=silent)
 
+        # include list of loaded modules in dry run output
+        if self.dry_run:
+            loaded_mods = self.modules_tool.list()
+            dry_run_msg("\nFull list of loaded modules:", silent=silent)
+            if loaded_mods:
+                for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
+                    dry_run_msg("  %d) %s" % (i+1, mod_name), silent=silent)
+            else:
+                dry_run_msg("  (none)", silent=silent)
+            dry_run_msg('', silent=silent)
+
     def _verify_toolchain(self):
         """Verify toolchain: check toolchain definition against dependencies of toolchain module."""
         # determine direct toolchain dependencies
