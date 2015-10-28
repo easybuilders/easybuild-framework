@@ -49,7 +49,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.options import EasyBuildOptions, parse_options
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
@@ -1897,6 +1897,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
+
+    def test_allow_values_that_are_probably_meant_to_be_options(self):
+        """Test detecting typos or ambiguities on the eb command line."""
+        common_args = []
+
+        eb_go = parse_options(args=common_args + ['-r', 'f'])
+        self.assertFalse('f' in eb_go.options.robot)
 
 
 def suite():
