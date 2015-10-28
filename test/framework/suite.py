@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 
 # initialize EasyBuild logging, so we disable it
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import set_tmpdir
+from easybuild.tools.options import set_tmpdir
 
 # set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
 try:
@@ -62,6 +62,7 @@ import test.framework.easyconfigparser as ep
 import test.framework.easyconfigformat as ef
 import test.framework.ebconfigobj as ebco
 import test.framework.easyconfigversion as ev
+import test.framework.environment as env
 import test.framework.docs as d
 import test.framework.filetools as f
 import test.framework.format_convert as f_c
@@ -106,7 +107,7 @@ log = fancylogger.getLogger()
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw,
-         p, i, pkg, d, et, y]
+         p, i, pkg, d, env, et, y]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 

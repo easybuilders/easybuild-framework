@@ -58,7 +58,9 @@ class EB_toy(EasyBlock):
         if self.cfg['allow_system_deps']:
             if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
                 raise EasyBuildError("Sanity check on allowed Python system dep failed.")
-        os.rename('%s.source' % name, '%s.c' % name)
+
+        if os.path.exists("%s.source" % name):
+            os.rename('%s.source' % name, '%s.c' % name)
 
     def build_step(self, name=None):
         """Build toy."""
@@ -75,7 +77,8 @@ class EB_toy(EasyBlock):
             name = self.name
         bindir = os.path.join(self.installdir, 'bin')
         mkdir(bindir, parents=True)
-        shutil.copy2(name, bindir)
+        if os.path.exists(name):
+            shutil.copy2(name, bindir)
         # also install a dummy libtoy.a, to make the default sanity check happy
         libdir = os.path.join(self.installdir, 'lib')
         mkdir(libdir, parents=True)
