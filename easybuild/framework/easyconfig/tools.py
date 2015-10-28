@@ -55,14 +55,13 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
-# a NameError should be catched where these are used
+# a NameError should be caught where these are used
 
 try:
     # PyGraph (used for generating dependency graphs)
@@ -358,7 +357,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
                     new_avail_modules.append(ec['full_mod_name'])
             except (IOError, OSError), err:
-                print_error("Failed to create easyconfig %s: %s" % (newspec, err))
+                _log.error("Failed to create easyconfig %s: %s" % (newspec, err))
         else:
             new_unprocessed.append(new_ec)
 
