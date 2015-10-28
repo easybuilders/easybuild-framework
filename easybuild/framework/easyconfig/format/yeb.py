@@ -63,9 +63,19 @@ def yaml_join(loader, node):
     seq = loader.construct_sequence(node)
     return ''.join([str(i) for i in seq])
 
-# register the tag handler
-yaml.add_constructor('!join', yaml_join)
+def yaml_versionmajorminor(loader, node):
+    """
+    defines custom YAML function to get major version.
+    @param loader: the YAML Loader
+    @param node: the YAML (scalar) node
+    """
+    pyver = loader.construct_sequence(node)
+    return '.'.join(pyver[0].split('.')[:2])
 
+
+# register the tag handlers
+yaml.Loader.add_constructor(u'!join', yaml_join)
+yaml.Loader.add_constructor(u'!majmin', yaml_versionmajorminor)
 
 class FormatYeb(EasyConfigFormat):
     """Support for easyconfig YAML format"""
