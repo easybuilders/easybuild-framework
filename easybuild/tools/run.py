@@ -61,7 +61,7 @@ ERROR = 'error'
 strictness = WARN
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            forced=False, verbose=True):
+            force_in_dry_run=False, verbose=True):
     """
     Run specified command (in a subshell)
     @param cmd: command to run
@@ -72,13 +72,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     @param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
     @param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
     @param path: path to execute the command in; current working directory is used if unspecified
-    @param forced: force running the command, even during dry run
+    @param force_in_dry_run: force running the command during dry run
     @param verbose: include message on running the command in dry run output
     """
     cwd = os.getcwd()
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
-    if not forced and build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option('extended_dry_run'):
         if path is None:
             path = cwd
         if verbose:
