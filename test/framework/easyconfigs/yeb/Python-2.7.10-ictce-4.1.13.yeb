@@ -6,8 +6,8 @@ _internal_variables_:
 
 easyblock: ConfigureMake
 
-name: Python
-version: 2.7.10
+name: *name
+version: *version
 
 homepage: http://python.org/
 description: |
@@ -17,10 +17,11 @@ description: |
 toolchain: {name: ictce, version: 4.1.13}
 toolchainopts: {pic: True, opt: True, optarch: True}
 
-source_urls: ["http://www.python.org/ftp/python/2.7.10/"]
+source_urls: [!join ["http://www.python.org/ftp/python/", *version]]
 sources: [*SOURCE_TGZ]
 
 # python needs bzip2 to build the bz2 package
+# commented out for testing to avoid having to add them all - dependencies are tested in other files
 dependencies: [
 #    [bzip2, 1.0.6],
 #    [zlib, 1.2.8],
@@ -32,7 +33,7 @@ dependencies: [
 #    nice to have an up to date openssl for security reasons
 ]
 
-# fixme: tuple values
+# fixme: tuple values; see issue #1442
 # osdependencies: [[openssl-devel, libssl-dev, libopenssl-devel]]
 
 # order is important!
