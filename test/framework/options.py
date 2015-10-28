@@ -422,7 +422,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         logtxt = read_file(self.logfile)
-        self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known compiler toolchains")
+        self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known toolchains found in: %s" % logtxt)
         # toolchain elements should be in alphabetical order
         tcs = {
             'dummy': [],
