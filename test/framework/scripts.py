@@ -82,7 +82,7 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(19 "
+        regex = r"Supported Packages \(21 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
             'B': '1',  # bzip2
@@ -92,7 +92,8 @@ class ScriptsTest(EnhancedTestCase):
             'H': '1',  # hwloc
             'I': '7',  # icc, iccifort, ictce, ifort, iimpi, imkl, impi
             'O': '2',  # OpenMPI, OpenBLAS
-            'S': '1',  # ScaLAPACK
+            'P': '1',  # Python
+            'S': '2',  # ScaLAPACK, SQLite
             'T': '1',  # toy
         }
         self.assertTrue(' - '.join(["[%(l)s](#%(l)s)" % {'l': l} for l in sorted(per_letter.keys())]))
