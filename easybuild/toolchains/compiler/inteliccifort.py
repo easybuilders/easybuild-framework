@@ -80,6 +80,7 @@ class IntelIccIfort(Compiler):
 
     COMPILER_F77 = 'ifort'
     COMPILER_F90 = 'ifort'
+    COMPILER_FC = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {

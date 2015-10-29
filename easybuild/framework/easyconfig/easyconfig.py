@@ -109,7 +109,8 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
+                 auto_convert_value_types=True):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -118,6 +119,8 @@ class EasyConfig(object):
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         @param rawtxt: raw contents of easyconfig file
+        @param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
+                                         in case they are wrong
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -184,7 +187,8 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt)
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                       auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # handle allowed system dependencies
@@ -480,7 +484,21 @@ class EasyConfig(object):
         returns the Toolchain used
         """
         if self._toolchain is None:
-            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS())
+            # provide list of (direct) toolchain dependencies (name & version), if easyconfig can be found for toolchain
+            tcdeps = None
+            tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
+            if tcname != DUMMY_TOOLCHAIN_NAME:
+                tc_ecfile = robot_find_easyconfig(tcname, tcversion)
+                if tc_ecfile is None:
+                    self.log.debug("No easyconfig found for toolchain %s version %s, can't determine dependencies",
+                                   tcname, tcversion)
+                else:
+                    self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
+                    tc_ec = process_easyconfig(tc_ecfile)[0]
+                    tcdeps = tc_ec['dependencies']
+                    self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
+
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS(), tcdeps=tcdeps)
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
@@ -1010,18 +1028,20 @@ def create_paths(path, name, version):
 
 def robot_find_easyconfig(name, version):
     """
-    Find an easyconfig for module in path
+    Find an easyconfig for module in path, returns (absolute) path to easyconfig file (or None, if none is found).
     """
     key = (name, version)
     if key in _easyconfig_files_cache:
         _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfig_files_cache[key]))
         return _easyconfig_files_cache[key]
+
     paths = build_option('robot_path')
-    if not paths:
-        raise EasyBuildError("No robot path specified, which is required when looking for easyconfigs (use --robot)")
-    if not isinstance(paths, (list, tuple)):
+    if paths is None:
+        paths = []
+    elif not isinstance(paths, (list, tuple)):
         paths = [paths]
-    # candidate easyconfig paths
+
+    res = None
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
@@ -1029,9 +1049,12 @@ def robot_find_easyconfig(name, version):
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                 _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
-                return _easyconfig_files_cache[key]
+                res = _easyconfig_files_cache[key]
+                break
+        if res:
+            break
 
-    return None
+    return res
 
 
 class ActiveMNS(object):
