@@ -39,11 +39,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 
-try:
-    import yaml
-except ImportError:
-    pass
-
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 
@@ -63,8 +58,13 @@ def yaml_join(loader, node):
     seq = loader.construct_sequence(node)
     return ''.join([str(i) for i in seq])
 
-# register the tag handler
-yaml.add_constructor('!join', yaml_join)
+
+try:
+    import yaml
+    # register the tag handlers
+    yaml.add_constructor('!join', yaml_join)
+except ImportError:
+    pass
 
 
 class FormatYeb(EasyConfigFormat):
@@ -141,4 +141,3 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
-
