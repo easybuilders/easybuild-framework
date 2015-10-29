@@ -320,7 +320,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
     diff_filepath = os.path.join(path, diff_fn)
-    download_file(diff_fn, pr_data['diff_url'], diff_filepath)
+    download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
     os.remove(diff_filepath)
 
@@ -342,7 +342,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         sha = last_commit['sha']
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
-        download_file(fn, full_url, path=os.path.join(path, fn))
+        download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
 
     all_files = [os.path.basename(x) for x in patched_files]
     tmp_files = os.listdir(path)

@@ -37,7 +37,7 @@ import copy
 import os
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_path
+from easybuild.tools.config import build_option, build_path
 from easybuild.tools.run import run_cmd
 
 
@@ -57,11 +57,14 @@ class Extension(object):
         if not 'name' in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
 
-        self.src = self.ext.get('src', None)
-        self.patches = self.ext.get('patches', None)
+        # list of source/patch files: we use an empty list as default value like in EasyBlock
+        self.src = self.ext.get('src', [])
+        self.patches = self.ext.get('patches', [])
         self.options = copy.deepcopy(self.ext.get('options', {}))
 
-        self.toolchain.prepare(self.cfg['onlytcmod'])
+        # don't re-prepare the build environment when doing a dry run, since it'll be the same as for the parent
+        if not build_option('extended_dry_run'):
+            self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True)
 
         self.sanity_check_fail_msgs = []
 

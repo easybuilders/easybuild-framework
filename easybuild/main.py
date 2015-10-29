@@ -130,7 +130,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         # dump test report next to log file
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
-        if 'log_file' in ec_res:
+        if 'log_file' in ec_res and ec_res['log_file']:
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
@@ -296,7 +296,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         sys.exit(0)
 
     # skip modules that are already installed unless forced
-    if not options.force:
+    if not (options.force or options.extended_dry_run):
         retained_ecs = skip_available(easyconfigs)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:

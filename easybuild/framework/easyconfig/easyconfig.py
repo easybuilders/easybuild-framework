@@ -109,7 +109,8 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None,
+                 auto_convert_value_types=True):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
@@ -118,6 +119,8 @@ class EasyConfig(object):
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         @param rawtxt: raw contents of easyconfig file
+        @param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
+                                         in case they are wrong
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -184,7 +187,8 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt)
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                       auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # handle allowed system dependencies
@@ -214,6 +218,7 @@ class EasyConfig(object):
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
 
+        self.software_license = None
 
     def copy(self):
         """
@@ -335,16 +340,17 @@ class EasyConfig(object):
 
     def validate_license(self):
         """Validate the license"""
-        lic = self._config['software_license'][0]
+        lic = self['software_license']
         if lic is None:
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                raise EasyBuildError("License is mandatory, but 'software_license' is undefined")
-        elif not isinstance(lic, License):
-            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.',
-                                 lic, lic.__class__.__name__)
-        elif not lic.name in EASYCONFIG_LICENSES_DICT:
-            raise EasyBuildError('Invalid license %s (classname: %s).', lic.name, lic.__class__.__name__)
+                raise EasyBuildError("Software license is mandatory, but 'software_license' is undefined")
+        elif lic in EASYCONFIG_LICENSES_DICT:
+            # create License instance
+            self.software_license = EASYCONFIG_LICENSES_DICT[lic]()
+        else:
+            known_licenses = ', '.join(sorted(EASYCONFIG_LICENSES_DICT.keys()))
+            raise EasyBuildError("Invalid license %s (known licenses: %s)", lic, known_licenses)
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)
@@ -478,7 +484,21 @@ class EasyConfig(object):
         returns the Toolchain used
         """
         if self._toolchain is None:
-            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS())
+            # provide list of (direct) toolchain dependencies (name & version), if easyconfig can be found for toolchain
+            tcdeps = None
+            tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
+            if tcname != DUMMY_TOOLCHAIN_NAME:
+                tc_ecfile = robot_find_easyconfig(tcname, tcversion)
+                if tc_ecfile is None:
+                    self.log.debug("No easyconfig found for toolchain %s version %s, can't determine dependencies",
+                                   tcname, tcversion)
+                else:
+                    self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
+                    tc_ec = process_easyconfig(tc_ecfile)[0]
+                    tcdeps = tc_ec['dependencies']
+                    self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
+
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS(), tcdeps=tcdeps)
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
@@ -1008,18 +1028,20 @@ def create_paths(path, name, version):
 
 def robot_find_easyconfig(name, version):
     """
-    Find an easyconfig for module in path
+    Find an easyconfig for module in path, returns (absolute) path to easyconfig file (or None, if none is found).
     """
     key = (name, version)
     if key in _easyconfig_files_cache:
         _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfig_files_cache[key]))
         return _easyconfig_files_cache[key]
+
     paths = build_option('robot_path')
-    if not paths:
-        raise EasyBuildError("No robot path specified, which is required when looking for easyconfigs (use --robot)")
-    if not isinstance(paths, (list, tuple)):
+    if paths is None:
+        paths = []
+    elif not isinstance(paths, (list, tuple)):
         paths = [paths]
-    # candidate easyconfig paths
+
+    res = None
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
@@ -1027,9 +1049,12 @@ def robot_find_easyconfig(name, version):
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
                 _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
-                return _easyconfig_files_cache[key]
+                res = _easyconfig_files_cache[key]
+                break
+        if res:
+            break
 
-    return None
+    return res
 
 
 class ActiveMNS(object):
@@ -1091,7 +1116,22 @@ class ActiveMNS(object):
             - string representing module name has length > 0
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
-        mod_name = mns_method(self.check_ec_type(ec))
+        ec = self.check_ec_type(ec)
+
+        # replace software name with desired replacement (if specified)
+        orig_name = None
+        if ec.get('modaltsoftname', None):
+            orig_name = ec['name']
+            ec['name'] = ec['modaltsoftname']
+            self.log.info("Replaced software name '%s' with '%s' when determining module name", orig_name, ec['name'])
+        else:
+            self.log.debug("No alternative software name specified to determine module name with")
+
+        mod_name = mns_method(ec)
+
+        # restore original software name if it was tampered with
+        if orig_name is not None:
+            ec['name'] = orig_name
 
         if not is_valid_module_name(mod_name):
             raise EasyBuildError("%s is not a valid module name", str(mod_name))
@@ -1134,7 +1174,7 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        if not self.is_short_modname_for(mod_name, ec['name']):
+        if not self.is_short_modname_for(mod_name, ec.get('modaltsoftname', None) or ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
         return mod_name

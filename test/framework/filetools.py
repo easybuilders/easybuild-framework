@@ -28,6 +28,7 @@ Unit tests for filetools.py
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import shutil
@@ -74,6 +75,7 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
             ('test.txz', "unxz test.txz --stdout | tar x"),
             ('test.iso', "7z x test.iso"),
+            ('test.tar.Z', "tar xZf test.tar.Z"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -92,6 +94,18 @@ class FileToolsTest(EnhancedTestCase):
         """tests should be run from the base easybuild directory"""
         # used to be part of test_parse_log_error
         self.assertEqual(os.getcwd(), ft.find_base_dir())
+
+    def test_find_base_dir(self):
+        """test if we find the correct base dir"""
+        tmpdir = tempfile.mkdtemp()
+
+        foodir = os.path.join(tmpdir, 'foo')
+        os.mkdir(foodir)
+        os.mkdir(os.path.join(tmpdir, '.bar'))
+        os.mkdir(os.path.join(tmpdir, 'easybuild'))
+
+        os.chdir(tmpdir)
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -273,7 +287,7 @@ class FileToolsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         path1 = os.path.join(tmpdir, 'path1')
         ft.mkdir(path1)
-        path2 = os.path.join(tmpdir, 'path2') 
+        path2 = os.path.join(tmpdir, 'path2')
         ft.mkdir(path1)
         symlink = os.path.join(tmpdir, 'symlink')
         os.symlink(path1, symlink)
@@ -390,9 +404,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 %s+ postinstallcmds = " % green
+        expected = "28 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("26 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
@@ -415,11 +429,104 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[10], expected)
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "25 + postinstallcmds = "
+        expected = "28 + postinstallcmds = "
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("26 + (1/2) toy-0.0-deps.eb" in lines)
+        self.assertTrue("29 + (1/2) toy-0.0-deps.eb" in lines)
 
         self.assertEqual(lines[-1], "=====")
+
+    def test_weld_paths(self):
+        """Test weld_paths."""
+        # works like os.path.join is there's no overlap
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foobar/baz'), '/foo/bar/foobar/baz/')
+        self.assertEqual(ft.weld_paths('foo', 'bar/'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('foo/', '/bar'), '/bar/')
+        self.assertEqual(ft.weld_paths('/foo/', '/bar'), '/bar/')
+
+        # overlap is taken into account
+        self.assertEqual(ft.weld_paths('foo/bar', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar/baz', 'bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar/baz'), 'foo/bar/baz/')
+        self.assertEqual(ft.weld_paths('foo/bar', 'foo/bar'), 'foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', 'foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
+        self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
+
+
+    def test_adjust_permissions(self):
+        """Test adjust_permissions"""
+        # set umask hard to run test reliably
+        orig_umask = os.umask(0022)
+
+        # prep files/dirs/(broken) symlinks is test dir
+
+        # file: rw-r--r--
+        ft.write_file(os.path.join(self.test_prefix, 'foo'), 'foo')
+        foo_perms = os.stat(os.path.join(self.test_prefix, 'foo'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IRGRP, stat.S_IROTH]:
+            self.assertTrue(foo_perms & bit)
+        for bit in [stat.S_IXUSR, stat.S_IWGRP, stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+            self.assertFalse(foo_perms & bit)
+
+        # dir: rwxr-xr-x
+        ft.mkdir(os.path.join(self.test_prefix, 'bar'))
+        bar_perms = os.stat(os.path.join(self.test_prefix, 'bar'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IXGRP, stat.S_IROTH, stat.S_IXOTH]:
+            self.assertTrue(bar_perms & bit)
+        for bit in [stat.S_IWGRP, stat.S_IWOTH]:
+            self.assertFalse(bar_perms & bit)
+
+        # file in dir: rw-r--r--
+        foobar_path = os.path.join(self.test_prefix, 'bar', 'foobar')
+        ft.write_file(foobar_path, 'foobar')
+        foobar_perms = os.stat(foobar_path)[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IRGRP, stat.S_IROTH]:
+            self.assertTrue(foobar_perms & bit)
+        for bit in [stat.S_IXUSR, stat.S_IWGRP, stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+            self.assertFalse(foobar_perms & bit)
+
+        # include symlink
+        os.symlink(foobar_path, os.path.join(self.test_prefix, 'foobar_symlink'))
+
+        # include broken symlink (symlinks are skipped, so this shouldn't cause problems)
+        tmpfile = os.path.join(self.test_prefix, 'thiswontbetherelong')
+        ft.write_file(tmpfile, 'poof!')
+        os.symlink(tmpfile, os.path.join(self.test_prefix, 'broken_symlink'))
+        os.remove(tmpfile)
+
+        # test default behaviour:
+        # recursive, add permissions, relative to existing permissions, both files and dirs, skip symlinks
+        # add user execution, group write permissions
+        ft.adjust_permissions(self.test_prefix, stat.S_IXUSR|stat.S_IWGRP)
+
+        # foo file: rwxrw-r--
+        foo_perms = os.stat(os.path.join(self.test_prefix, 'foo'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IWGRP, stat.S_IROTH]:
+            self.assertTrue(foo_perms & bit)
+        for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+            self.assertFalse(foo_perms & bit)
+
+        # bar dir: rwxrwxr-x
+        bar_perms = os.stat(os.path.join(self.test_prefix, 'bar'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IWGRP, stat.S_IXGRP,
+                    stat.S_IROTH, stat.S_IXOTH]:
+            self.assertTrue(bar_perms & bit)
+        self.assertFalse(bar_perms & stat.S_IWOTH)
+
+        # foo/foobar file: rwxrw-r--
+        for path in [os.path.join(self.test_prefix, 'bar', 'foobar'), os.path.join(self.test_prefix, 'foobar_symlink')]:
+            perms = os.stat(path)[stat.ST_MODE]
+            for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IWGRP, stat.S_IROTH]:
+                self.assertTrue(perms & bit)
+            for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+                self.assertFalse(perms & bit)
+
+        # broken symlinks are trouble if symlinks are not skipped
+        self.assertErrorRegex(EasyBuildError, "No such file or directory", ft.adjust_permissions, self.test_prefix,
+                              stat.S_IXUSR, skip_symlinks=False)
+
+        # restore original umask
+        os.umask(orig_umask)
 
 
 def suite():
