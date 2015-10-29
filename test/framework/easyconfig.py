@@ -1535,6 +1535,26 @@ class EasyConfigTest(EnhancedTestCase):
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'name'.*'version'.*"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file)
 
+    def test_eq_hash(self):
+        """Test comparing two EasyConfig instances."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec1 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+        ec2 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+
+        # different instances, same parsed easyconfig
+        self.assertFalse(ec1 is ec2)
+        self.assertEqual(ec1, ec2)
+        self.assertTrue(ec1 == ec2)
+        self.assertFalse(ec1 != ec2)
+
+        # hashes should also be identical
+        self.assertEqual(hash(ec1), hash(ec2))
+
+        # other parsed easyconfig is not equal
+        ec3 = EasyConfig(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
+        self.assertFalse(ec1 == ec3)
+        self.assertTrue(ec1 != ec3)
+
 
 def suite():
     """ returns all the testcases in this module """

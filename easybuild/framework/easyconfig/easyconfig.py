@@ -726,6 +726,10 @@ class EasyConfig(object):
         """Is this EasyConfig instance equivalent to the provided one?"""
         return self.asdict() == ec.asdict()
 
+    def __ne__(self, ec):
+        """Is this EasyConfig instance equivalent to the provided one?"""
+        return self.asdict() != ec.asdict()
+
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
         def make_hashable(val):
