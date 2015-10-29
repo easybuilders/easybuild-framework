@@ -370,8 +370,8 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
         ec_format_version = FORMAT_DEFAULT_VERSION
     _log.debug("retrieve_blocks_in_spec: derived easyconfig format version: %s" % ec_format_version)
 
-    # blocks in easyconfigs are only supported in format versions prior to 2.0
-    if pieces and ec_format_version < EasyVersion('2.0'):
+    # blocks in easyconfigs are only supported in easyconfig format 1.0
+    if pieces and ec_format_version == EasyVersion('1.0'):
         # make a map of blocks
         blocks = []
         while pieces:
