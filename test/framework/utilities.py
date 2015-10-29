@@ -46,13 +46,13 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import module_classes, set_tmpdir
+from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions
+from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -155,7 +155,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.chdir(self.cwd)
 
         # restore original environment
-        modify_env(os.environ, self.orig_environ)
+        modify_env(os.environ, self.orig_environ, verbose=False)
 
         # restore original Python search path
         sys.path = self.orig_sys_path
@@ -333,6 +333,7 @@ def init_config(args=None, build_options=None):
     # initialize build options
     if build_options is None:
         build_options = {
+            'extended_dry_run': False,
             'external_modules_metadata': ConfigObj(),
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],

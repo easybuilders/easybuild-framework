@@ -41,7 +41,7 @@ import easybuild.tools.options as eboptions
 from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path, source_paths, install_path, get_repositorypath
-from easybuild.tools.config import set_tmpdir, BuildOptions, ConfigurationVariables
+from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
@@ -336,35 +336,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         del os.environ['EASYBUILD_CONFIGFILES']
         sys.path[:] = orig_sys_path
-
-    def test_set_tmpdir(self):
-        """Test set_tmpdir config function."""
-        self.purge_environment()
-
-        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
-            parent = tmpdir
-            if parent is None:
-                parent = tempfile.gettempdir()
-
-            mytmpdir = set_tmpdir(tmpdir=tmpdir)
-
-            for var in ['TMPDIR', 'TEMP', 'TMP']:
-                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
-                self.assertEqual(os.environ[var], mytmpdir)
-            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
-            tempfile_tmpdir = tempfile.mkdtemp()
-            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
-            fd, tempfile_tmpfile = tempfile.mkstemp()
-            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
-
-            # tmp_logdir follows tmpdir
-            self.assertEqual(get_build_log_path(), mytmpdir)
-
-            # cleanup
-            os.close(fd)
-            shutil.rmtree(mytmpdir)
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
 
     def test_configuration_variables(self):
         """Test usage of ConfigurationVariables."""

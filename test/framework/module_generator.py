@@ -112,6 +112,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test load part in generated module file."""
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # default: guarded module load (which implies no recursive unloading)
             expected = [
                 '',
                 "if { ![ is-loaded mod_name ] } {",
@@ -122,14 +123,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
 
             # with recursive unloading: no if is-loaded guard
-            init_config(build_options={'recursive_mod_unload': True})
             expected = [
                 '',
                 "module load mod_name",
                 '',
             ]
+            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
+
+            init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
         else:
+            # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
                 '',
                 'if not isloaded("mod_name") then',
@@ -139,12 +143,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
-            init_config(build_options={'recursive_mod_unload': True})
+            # with recursive unloading: no if isloaded guard
             expected = '\n'.join([
                 '',
                 'load("mod_name")',
                 '',
             ])
+            self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
+
+            init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
     def test_unload(self):
@@ -277,7 +284,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
-        ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
+        # TODO FIXME: drop this once 2.0/.yeb support works
+        ec_files = [fil for fil in ec_files if not ('v2.0/' in fil or 'yeb/' in fil)]
 
         build_options = {
             'check_osdeps': False,
@@ -291,7 +299,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         def test_mns():
             """Test default module naming scheme."""
             # test default naming scheme
-            for ec_file in ec_files:
+            for ec_file in [f for f in ec_files if not 'broken' in os.path.basename(f)]:
                 ec_path = os.path.abspath(ec_file)
                 ecs = process_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
@@ -409,7 +417,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'), hidden=True)
         self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-goolf-1.4.10.eb'])
-        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/b7515d0efd346970f55e7aa8522e239a70007021')
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/a86eb41d8f9c1d6f2d3d61cdb8f420cc2a21cada')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
