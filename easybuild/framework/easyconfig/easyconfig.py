@@ -722,6 +722,8 @@ class EasyConfig(object):
         else:
             return default
 
+    # *both* __eq__ and __ne__ must be implemented for == and != comparisons to work correctly
+    # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
         return self.asdict() == ec.asdict()
