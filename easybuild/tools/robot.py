@@ -168,7 +168,6 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=
                                                       use_any_existing_modules=use_any_existing_modules)
             else:
                 res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
-            print 'res', res
             more_ecs, easyconfigs, avail_modules = res
             for ec in more_ecs:
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
