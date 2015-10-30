@@ -47,6 +47,7 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig
+from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
@@ -219,66 +220,71 @@ def get_toolchain_hierarchy(parent_toolchain):
     return toolchain_hierarchy
 
 
-def refresh_dependencies(initial_dependencies,altered_dep):
+def refresh_dependencies(initial_dependencies, altered_dep):
     """
     Refresh derived arguments in a dependency
     @param initial_dependencies: initial dependency list
-    @param altered_dep: The dependency to be refreshed
+    @param altered_dep: the dependency to be refreshed
     """
-    if altered_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
-        altered_dep['toolchain']['dummy'] = True
-    # Update module name
+    # indicate whether the toolchain is a 'dummy' toolchain
+    altered_dep['dummy'] = altered_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+
+    # update short/full module names
     altered_dep['short_mod_name'] = ActiveMNS().det_short_module_name(altered_dep)
     altered_dep['full_mod_name'] = ActiveMNS().det_full_module_name(altered_dep)
 
-    # Now replace the dependency in the list
+    # replace the dependency in the list of dependencies
     new_dependencies = []
-    for d in initial_dependencies:
-        if d['name'] == altered_dep['name']:
-            new_dependencies += [altered_dep]
+    for dep in initial_dependencies:
+        if dep['name'] == altered_dep['name']:
+            new_dependencies.append(altered_dep)
         else:
-            new_dependencies += [d]
+            new_dependencies.append(dep)
+
     return new_dependencies
 
-def deep_refresh_dependencies(ec,altered_dep):
+
+def deep_refresh_dependencies(ec, altered_dep):
     """
     Deep refresh derived arguments in a dependency
     @param ec: the original easyconifg instance
-    @param altered_dep: The dependency to be refreshed
-
+    @param altered_dep: the dependency to be refreshed
     """
     new_ec = ec.copy()
 
-    # Change all the various places the dependencies can appear
-    for key in ['dependencies',
-                'hiddendependencies',
-                'builddependencies'
-                ]:
-        if new_ec[key]:
-            new_ec[key] = refresh_dependencies(new_ec[key],altered_dep)
-        if new_ec['ec'][key]:
-            new_ec['ec'][key] = refresh_dependencies(new_ec['ec'][key],altered_dep)
+    # change all the various places the dependencies can appear
+    for key in DEPENDENCY_PARAMETERS:
+        if key in new_ec:
+            new_ec[key] = refresh_dependencies(new_ec[key], altered_dep)
+        if 'ec' in new_ec:
+            new_ec['ec'][key] = refresh_dependencies(new_ec['ec'][key], altered_dep)
 
     return new_ec
 
-def robot_find_minimal_easyconfig_for_dependency(dependency):
+
+def robot_find_minimal_easyconfig_for_dependency(dep):
     """
     Find an easyconfig with minimal toolchain for a dependency
     """
-    orig_dep = dependency
-    # Populate the toolchain hierarchy
-    toolchains = get_toolchain_hierarchy(dependency['toolchain'])
+    orig_dep = dep
+    toolchain_hierarchy = get_toolchain_hierarchy(dep['toolchain'])
 
-    for tc in reversed(toolchains):
-        dependency['toolchain'] = tc
-        eb_file = robot_find_easyconfig(dependency['name'], det_full_ec_version(dependency))
+    res = None
+    # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
+    for toolchain in reversed(toolchain_hierarchy):
+        dep['toolchain'] = toolchain
+        eb_file = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
         if eb_file is not None:
-            if dependency['toolchain'] != orig_dep['toolchain']:
-                _log.info("Minimally resolving dependency %s with minimal dependency file %s" % (orig_dep, eb_file))
-            # Return the file we found
-            return (dependency, eb_file)
-    _log.debug("Irresolvable minimal dependency found: %s" % orig_dep)
-    return None
+            if dep['toolchain'] != orig_dep['toolchain']:
+                _log.info("Minimally resolving dependency %s with easyconfig file %s", orig_dep, eb_file)
+            res = (dep, eb_file)
+            break
+
+    if res is None:
+        _log.debug("Irresolvable minimal dependency found: %s", orig_dep)
+
+    return res
+
 
 def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
     """
