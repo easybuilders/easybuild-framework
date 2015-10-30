@@ -99,11 +99,12 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def check_module_availability(full_mod_name, avail_modules, retain_all_deps):
+def check_module_availability(full_mod_name, avail_modules, retain_all_deps, hidden):
+    modtool = modules_tool()
     resolved = full_mod_name in avail_modules
     if not retain_all_deps:
         # hidden modules need special care, since they may not be included in list of available modules
-        resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+        resolved |= hidden and modtool.exist([full_mod_name])[0]
     return resolved
 
 def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
@@ -123,7 +124,7 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
             if full_mod_name is None:
                 full_mod_name = ActiveMNS().det_full_module_name(dep)
 
-            dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps)
+            dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps, dep['hidden'])
             if not dep_resolved:
                 # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
                 # since no corresponding easyconfig can be found for them
@@ -315,7 +316,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     for tc in toolchains:
                         dep['toolchain'] = tc
                         full_mod_name = ActiveMNS().det_full_module_name(dep)
-                        dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps)
+                        dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps, dep['hidden'])
                         if dep_resolved:
                             # Need to update the dependency in the original easyconfig
                             new_ec = deep_refresh_dependencies(new_ec,dep)
@@ -328,7 +329,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                         new_ec = deep_refresh_dependencies(new_ec, dep)
                         # Now check for the existence of the module of the dep
                         full_mod_name = ActiveMNS().det_full_module_name(dep)
-                        dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps)
+                        dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps, dep['hidden'])
                     else:
                         _log.debug("Irresolvable minimal dependency found in robot search: %s" % orig_dep)
             else:
@@ -336,7 +337,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                 full_mod_name = dep.get('full_mod_name', None)
                 if full_mod_name is None:
                     full_mod_name = ActiveMNS().det_full_module_name(dep)
-                dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps)
+                dep_resolved = check_module_availability(full_mod_name, new_avail_modules, retain_all_deps, dep['hidden'])
             if not dep_resolved:
                 # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
                 # since no corresponding easyconfig can be found for them
