@@ -2314,10 +2314,10 @@ def build_and_install_one(ecdict, init_env):
         # print note on interpreting dry run output (argument is reference to location of dry run messages)
         print_dry_run_note('above', silent=silent)
 
-    if app.ignored_errors:
-        dry_run_warning("One or more errors were ignored, see warnings above", silent=silent)
-    else:
-        dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
+        if app.ignored_errors:
+            dry_run_warning("One or more errors were ignored, see warnings above", silent=silent)
+        else:
+            dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
     if application_log:
         print_msg("Results of the build can be found in the log file %s" % application_log, log=_log, silent=silent)
