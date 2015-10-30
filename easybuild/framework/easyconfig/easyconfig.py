@@ -742,11 +742,12 @@ class EasyConfig(object):
                 val = tuple([(key, make_hashable(val)) for (key, val) in sorted(val.items())])
             return val
 
-        tup = ()
+        lst = []
         for (key, val) in sorted(self.asdict().items()):
-            tup += (key, make_hashable(val))
+            lst.append((key, make_hashable(val)))
 
-        return hash(tup)
+        # a list is not hashable, but a tuple is
+        return hash(tuple(lst))
 
     def asdict(self):
         """
