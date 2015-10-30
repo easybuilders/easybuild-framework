@@ -49,7 +49,8 @@ from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
-from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import deep_refresh_dependencies, dep_graph, find_related_easyconfigs
+from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -1558,6 +1559,41 @@ class EasyConfigTest(EnhancedTestCase):
         ec3 = EasyConfig(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
         self.assertFalse(ec1 == ec3)
         self.assertTrue(ec1 != ec3)
+
+    def test_deep_refresh_dependencies(self):
+        """Test deep_refresh_dependencies function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0-deps.eb'))
+
+        dep = copy.deepcopy(toy_ec['dependencies'][0])
+        dep['toolchain']['name'] = 'GCC'
+        dep['toolchain']['version'] = '4.7.2'
+        dep['versionsuffix'] = '-test'
+
+        self.assertEqual(toy_ec['dependencies'][0]['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(toy_ec['dependencies'][0]['versionsuffix'], '')
+        self.assertEqual(toy_ec['dependencies'][0]['dummy'], True)
+        self.assertEqual(toy_ec['dependencies'][0]['short_mod_name'], 'ictce/4.1.13')
+        self.assertEqual(toy_ec['dependencies'][0]['full_mod_name'], 'ictce/4.1.13')
+        self.assertEqual(toy_ec['dependencies'][1]['toolchain'], None)
+        self.assertEqual(toy_ec['dependencies'][1]['versionsuffix'], '')
+        self.assertEqual(toy_ec['dependencies'][1]['dummy'], False)
+        self.assertEqual(toy_ec['dependencies'][1]['short_mod_name'], 'GCC/4.7.2')
+        self.assertEqual(toy_ec['dependencies'][1]['full_mod_name'], 'GCC/4.7.2')
+
+        new_ec = deep_refresh_dependencies(toy_ec, dep)
+
+        self.assertEqual(new_ec['dependencies'][0]['toolchain'], {'name': 'GCC', 'version': '4.7.2'})
+        self.assertEqual(new_ec['dependencies'][0]['versionsuffix'], '-test')
+        self.assertEqual(new_ec['dependencies'][0]['dummy'], False)
+        self.assertEqual(new_ec['dependencies'][0]['short_mod_name'], 'ictce/4.1.13-GCC-4.7.2-test')
+        self.assertEqual(new_ec['dependencies'][0]['full_mod_name'], 'ictce/4.1.13-GCC-4.7.2-test')
+        # 2nd dep is unchanged
+        self.assertEqual(new_ec['dependencies'][1]['toolchain'], None)
+        self.assertEqual(new_ec['dependencies'][1]['versionsuffix'], '')
+        self.assertEqual(new_ec['dependencies'][1]['dummy'], False)
+        self.assertEqual(new_ec['dependencies'][1]['short_mod_name'], 'GCC/4.7.2')
+        self.assertEqual(new_ec['dependencies'][1]['full_mod_name'], 'GCC/4.7.2')
 
 
 def suite():
