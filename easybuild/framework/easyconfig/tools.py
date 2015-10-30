@@ -114,7 +114,6 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     ordered_ecs = []
     new_avail_modules = avail_modules[:]
     new_unprocessed = []
-    modtool = modules_tool()
 
     for ec in unprocessed:
         new_ec = ec.copy()
