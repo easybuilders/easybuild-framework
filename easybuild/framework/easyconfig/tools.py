@@ -141,69 +141,83 @@ def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
 
     return ordered_ecs, new_unprocessed, new_avail_modules
 
+
 def toolchain_hierarchy_cache(func):
-    mydict = dict()
-    def wrapped_func(arg):
-        myarg = (arg['name'], arg['version'])
-        if myarg in mydict:
-            _log.debug("Using cache to return hierarchy for toolchain %s" % arg)
-            return mydict[myarg]
+    """Function decorator to cache (and retrieve cached) toolchain hierarchy queries."""
+    cache = {}
+
+    def cache_aware_func(toolchain):
+        """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
+        cache_key = (toolchain['name'], toolchain['version'])
+
+        # fetch from cache if available, cache it if it's not
+        if cache_key in cache:
+            _log.debug("Using cache to return hierarchy for toolchain %s", str(toolchain))
+            return cache[cache_key]
         else:
-            new_val = func(arg)
-            mydict[myarg] = new_val
-            return new_val
-    return wrapped_func
+            toolchain_hierarchy = func(toolchain)
+            cache[cache_key] = toolchain_hierarchy
+            return cache[cache_key]
+
+    return cache_aware_func
+
 
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain):
-    # Grab all possible subtoolchains
+    """
+    Determine list of subtoolchain for specified parent toolchain.
+
+    @param parent_toolchain: dictionary with name/version of parent toolchain
+    """
+    # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
     subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
-    # The parent is the first element in the list
-    toolchain_list = [parent_toolchain]
-    current = parent_toolchain
-    while True:
-        # Get the next subtoolchain
-        if subtoolchains[current['name']]:
-            # Grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
-            path = robot_find_easyconfig(current['name'],current['version'])
-            if path is None:
-                raise EasyBuildError("Could not find easyconfig for toolchain %s " % current)
-            # Parse the easyconfig
-            parsed_ec = process_easyconfig(path)[0]
-            # Search the dependencies for the version of the subtoolchain
-            dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
-                                           if dep_toolchain['toolchain']['name'] == subtoolchains[current['name']]]
-            # Check we have a unique version and add it to the list
-            unique_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
 
-            if len(unique_versions) == 1:
-                # Check if we have dummy toolchain
-                if subtoolchains[current['name']] == DUMMY_TOOLCHAIN_NAME:
-                    if build_option('add_dummy_to_minimal_toolchains'):
-                        toolchain_list += [dep_tcs[0]]
-                    break
-                else:
-                    toolchain_list += [dep_tcs[0]]
-            elif len(unique_versions) == 0:
-                # Check if we have dummy toolchain
-                if subtoolchains[current['name']] == DUMMY_TOOLCHAIN_NAME:
-                    if build_option('add_dummy_to_minimal_toolchains'):
-                        toolchain_list += [{'name': DUMMY_TOOLCHAIN_NAME, 'version': ''}]
-                    break
-                else:
-                    _log.info("Your toolchain hierarchy is not fully populated!")
-                    EasyBuildError("No version found for subtoolchain %s in dependencies of %s"
-                                   % (subtoolchains[current], current))
+    current_tc_name, current_tc_version = parent_toolchain['name'], parent_toolchain['version']
+    subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+
+    # the parent toolchain is at the top of the hierarchy
+    toolchain_hierarchy = [parent_toolchain]
+
+    while subtoolchain_name:
+        # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
+        path = robot_find_easyconfig(current_tc_name, current_tc_version)
+        if path is None:
+            raise EasyBuildError("Could not find easyconfig for %(name)s toolchain version %(version)s",
+                                 current_tc_name, current_tc_version)
+
+        # parse the easyconfig
+        parsed_ec = process_easyconfig(path)[0]
+        # search the dependencies for the version of the subtoolchain
+        dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
+                                              if dep_toolchain['toolchain']['name'] == subtoolchain_name]
+        unique_dep_tc_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
+
+        if len(unique_dep_tc_versions) == 1:
+            subtoolchain_version = dep_tcs[0]['version']
+
+        elif len(unique_dep_tc_versions) == 0:
+            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                subtoolchain_version = ''
             else:
-                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s"
-                                     % (subtoolchains[current], current))
-            current = dep_tcs[0]
+                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                     subtoolchain_name, current_tc_name)
         else:
-            break
-    _log.info("Found toolchain hierarchy %s", toolchain_list)
+            raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                 subtoolchain_name, current_tc_name, unique_dep_tc_versions)
 
-    return toolchain_list
+        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
+            # we're done
+            break
+
+        # append to hierarchy and move to next
+        current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
+        subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+        toolchain_hierarchy.append({'name': current_tc_name, 'version': current_tc_version})
+
+    _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
+    return toolchain_hierarchy
+
 
 def refresh_dependencies(initial_dependencies,altered_dep):
     """
