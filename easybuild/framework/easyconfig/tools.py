@@ -366,8 +366,8 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                     ordered_ecs.append(new_ec)
                     _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
                     new_avail_modules.append(ec['full_mod_name'])
-            except (IOError, OSError), err:
-                _log.error("Failed to create easyconfig %s: %s" % (newspec, err))
+            except (IOError, OSError) as err:
+                raise EasyBuildError("Failed to create easyconfig %s: %s", newspec, err)
         else:
             new_unprocessed.append(new_ec)
 
