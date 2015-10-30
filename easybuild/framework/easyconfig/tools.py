@@ -295,14 +295,12 @@ def robot_find_minimal_easyconfig_for_dependency(dep):
     res = None
     # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
     for toolchain in reversed(toolchain_hierarchy):
-        print dep['name'], toolchain
         dep['toolchain'] = toolchain
         eb_file = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
         if eb_file is not None:
             if dep['toolchain'] != orig_dep['toolchain']:
                 _log.info("Minimally resolving dependency %s with easyconfig file %s", orig_dep, eb_file)
             res = (dep, eb_file)
-            print '=>', eb_file
             break
 
     if res is None:
