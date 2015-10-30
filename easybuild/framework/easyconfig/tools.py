@@ -297,11 +297,12 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
         for dep in new_ec['dependencies']:
             dep_resolved = False
             orig_dep = dep
-            if dep['toolchain'] in toolchains:
-                deptoolchains = toolchains[toolchains.index(dep['toolchain']):]
+            # We only find minimal dependencies if the dependency uses the same toolchain as the parent
+            # ,i.e., we respect explicitly defined toolchains
+            if dep['toolchain'] == new_ec['ec']['toolchain']:
                 if use_any_existing_modules:
                     # Only search for toolchains further down the chain
-                    for tc in deptoolchains:
+                    for tc in toolchains:
                         dep['toolchain'] = tc
                         full_mod_name = ActiveMNS().det_full_module_name(dep)
                         dep_resolved = full_mod_name in avail_modules
@@ -313,7 +314,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
                             new_ec = deep_refresh_dependencies(new_ec,dep)
                             break
                 if not dep_resolved:
-                    # If we can't resolve it, we find the minimal easyconfig for the resolution and update the dependency
+                    # If we can't resolve it yet, we find the minimal easyconfig and update the dependency
                     (dep, eb_file) = robot_find_minimal_easyconfig_for_dependency(dep)
                     if eb_file is not None:
                         # Refresh the dependency
@@ -347,6 +348,7 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
 
         new_ec['dependencies'] = deps
 
+        # Once all dependencies are resolved we can add the easyconfig to our list
         if len(new_ec['dependencies']) == 0:
             minimal_dir = os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs')
             if not os.path.exists(minimal_dir):
@@ -354,10 +356,9 @@ def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=
             newspec = os.path.join(minimal_dir, "%s-%s.eb" % (new_ec['ec']['name'], det_full_ec_version(new_ec['ec'])))
             _log.debug("Attempting dumping minimal easyconfig to %s and adding it to final list" % newspec)
             try:
-
                 # only copy if the files are not the same file already (yes, it happens)
                 if os.path.exists(newspec):
-                    _log.debug("Not creating easyconfig file %s since file exists" % newspec)
+                    _log.debug("Not creating minimal easyconfig file %s since file exists" % newspec)
                 else:
                     oldspec = new_ec['spec']
                     new_ec['spec'] = newspec
