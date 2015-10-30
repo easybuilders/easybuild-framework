@@ -39,9 +39,10 @@ from unittest import main as unittestmain
 
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.robot as robot
-from easybuild.framework.easyconfig.tools import skip_available
+from easybuild.framework.easyconfig.tools import get_toolchain_hierarchy, skip_available, toolchain_hierarchy_cache
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import write_file
 from easybuild.tools.github import fetch_github_token
@@ -406,6 +407,42 @@ class RobotTest(EnhancedTestCase):
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
             regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+    def test_get_toolchain_hierarchy(self):
+        """Test get_toolchain_hierarchy function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
+        self.assertEqual(goolf_hierarchy, [
+            {'name': 'goolf', 'version': '1.4.10'},
+            {'name': 'gompi', 'version': '1.4.10'},
+            {'name': 'GCC', 'version': '4.7.2'},
+        ])
+
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'})
+        self.assertEqual(iimpi_hierarchy, [
+            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+            {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
+        ])
+
+        # test also including dummy
+        init_config(build_options={
+            'add_dummy_to_minimal_toolchains': True,
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        # testing with gompi/1.4.10, since the result for goolf/1.4.10 is cached (and it's hard to reset the cache)
+        gompi_hierarchy = get_toolchain_hierarchy({'name': 'gompi', 'version': '1.4.10'})
+        self.assertEqual(gompi_hierarchy, [
+            {'name': 'gompi', 'version': '1.4.10'},
+            {'name': 'GCC', 'version': '4.7.2'},
+            {'name': 'dummy', 'version': ''},
+        ])
 
 
 def suite():
