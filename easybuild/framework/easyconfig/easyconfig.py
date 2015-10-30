@@ -722,9 +722,15 @@ class EasyConfig(object):
         else:
             return default
 
+    # *both* __eq__ and __ne__ must be implemented for == and != comparisons to work correctly
+    # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
         return self.asdict() == ec.asdict()
+
+    def __ne__(self, ec):
+        """Is this EasyConfig instance equivalent to the provided one?"""
+        return self.asdict() != ec.asdict()
 
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
@@ -736,11 +742,12 @@ class EasyConfig(object):
                 val = tuple([(key, make_hashable(val)) for (key, val) in sorted(val.items())])
             return val
 
-        tup = ()
+        lst = []
         for (key, val) in sorted(self.asdict().items()):
-            tup += (key, make_hashable(val))
+            lst.append((key, make_hashable(val)))
 
-        return hash(tup)
+        # a list is not hashable, but a tuple is
+        return hash(tuple(lst))
 
     def asdict(self):
         """
