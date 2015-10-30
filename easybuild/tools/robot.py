@@ -115,10 +115,10 @@ def dry_run(easyconfigs, short=False):
     return '\n'.join(lines)
 
 
-def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=False, use_any_existing_modules=False):
+def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=False, use_any_existing_modules=False):
     """
     Work through the list of easyconfigs to determine an optimal order
-    @param unprocessed: list of easyconfigs
+    @param easyconfigs: list of easyconfigs
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     @param minimal_toolchains: boolean for whether to try to resolve dependencies with minimum possible toolchain
@@ -143,53 +143,53 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
 
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
-    being_installed = [p['full_mod_name'] for p in unprocessed]
+    being_installed = [p['full_mod_name'] for p in easyconfigs]
     avail_modules = [m for m in avail_modules if not m in being_installed]
 
-    _log.debug('unprocessed before resolving deps: %s' % unprocessed)
+    _log.debug('easyconfigs before resolving deps: %s' % easyconfigs)
 
     # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
     irresolvable = []
     loopcnt = 0
     maxloopcnt = 10000
-    while unprocessed:
+    while easyconfigs:
         # make sure this stops, we really don't want to get stuck in an infinite loop
         loopcnt += 1
         if loopcnt > maxloopcnt:
-            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)",
-                                 maxloopcnt, unprocessed, irresolvable)
+            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (easyconfigs: %s, irresolvable: %s)",
+                                 maxloopcnt, easyconfigs, irresolvable)
 
         # first try resolving dependencies without using external dependencies
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
             if minimal_toolchains:
-                res = find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps,
+                res = find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps,
                                                       use_any_existing_modules=use_any_existing_modules)
             else:
-                res = find_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps)
-            more_ecs, unprocessed, avail_modules = res
+                res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
+            more_ecs, easyconfigs, avail_modules = res
             for ec in more_ecs:
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
         # dependencies marked as external modules should be resolved via available modules at this point
-        missing_external_modules = [d['full_mod_name'] for ec in unprocessed for d in ec['dependencies']
+        missing_external_modules = [d['full_mod_name'] for ec in easyconfigs for d in ec['dependencies']
                                     if d.get('external_module', False)]
         if missing_external_modules:
             raise EasyBuildError("Missing modules for one or more dependencies marked as external modules: %s",
                                  missing_external_modules)
 
         # robot: look for existing dependencies, add them
-        if robot and unprocessed:
+        if robot and easyconfigs:
 
             # rely on EasyBuild module naming scheme when resolving dependencies, since we know that will
             # generate sensible module names that include the necessary information for the resolution to work
             # (name, version, toolchain, versionsuffix)
-            being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
+            being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in easyconfigs]
 
             additional = []
-            for entry in unprocessed:
+            for entry in easyconfigs:
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
@@ -223,7 +223,7 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                                                  path, dep_mod_name, mods)
 
                         for ec in processed_ecs:
-                            if not ec in unprocessed + additional:
+                            if not ec in easyconfigs + additional:
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
@@ -231,12 +231,12 @@ def resolve_dependencies(unprocessed, retain_all_deps=False, minimal_toolchains=
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
             # add additional (new) easyconfigs to list of stuff to process
-            unprocessed.extend(additional)
-            _log.debug("Unprocessed dependencies: %s", unprocessed)
+            easyconfigs.extend(additional)
+            _log.debug("Unprocessed dependencies: %s", easyconfigs)
 
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
-            irresolvable = [dep for x in unprocessed for dep in x['dependencies']]
+            irresolvable = [dep for x in easyconfigs for dep in x['dependencies']]
             break
 
     if irresolvable:

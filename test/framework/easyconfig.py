@@ -1305,7 +1305,8 @@ class EasyConfigTest(EnhancedTestCase):
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
-            r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
+            # use of templates in *dependencies is disabled for now, since it can cause problems
+            #r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
             r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
