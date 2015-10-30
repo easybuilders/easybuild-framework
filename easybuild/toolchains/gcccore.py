@@ -23,17 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for Intel compilers toolchain (icc, ifort)
+EasyBuild support for GCC compiler toolchain.
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-# Need to import the GCCbase class so I can get the name from there
-from easybuild.toolchains.gcccore import GCCcore
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
-class IccIfort(IntelIccIfort):
-    """Compiler toolchain with Intel compilers (icc/ifort)."""
-    NAME = 'iccifort'
-    SUBTOOLCHAIN = GCCcore.NAME
+class GCCcore(Gcc):
+    """Compiler-only toolchain, including only GCC and binutils."""
+    NAME = 'GCCcore'
+    COMPILER_MODULE_NAME = ['GCCcore']    
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
