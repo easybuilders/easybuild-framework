@@ -30,11 +30,13 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-from test.framework.utilities import EnhancedTestCase
+import re
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
 from easybuild.tools.run import _log as run_log
 
@@ -94,6 +96,56 @@ class RunTest(EnhancedTestCase):
         """Test basic parse_log_for_error functionality."""
         errors = parse_log_for_error("error failed", True)
         self.assertEqual(len(errors), 1)
+
+    def test_dry_run(self):
+        """Test use of functions under (extended) dry run."""
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        run_cmd("somecommand foo 123 bar")
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        expected_regex = re.compile('\n'.join([
+            r"  running command \"somecommand foo 123 bar\"",
+            r"  \(in .*\)",
+        ]))
+        self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
+
+        # check disabling 'verbose'
+        self.mock_stdout(True)
+        run_cmd("somecommand foo 123 bar", verbose=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(txt, '')
+
+        # check forced run
+        outfile = os.path.join(self.test_prefix, 'cmd.out')
+        self.assertFalse(os.path.exists(outfile))
+        self.mock_stdout(True)
+        run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        # nothing printed to stdout, but command was run
+        self.assertEqual(txt, '')
+        self.assertTrue(os.path.exists(outfile))
+        self.assertEqual(read_file(outfile), "This is always echoed\n")
+
+        # Q&A commands
+        self.mock_stdout(True)
+        run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        expected_regex = re.compile('\n'.join([
+            r"  running interactive command \"some_qa_cmd\"",
+            r"  \(in .*\)",
+        ]))
+        self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
 
 
 def suite():

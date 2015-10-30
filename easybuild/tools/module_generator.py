@@ -97,7 +97,7 @@ class ModuleGenerator(object):
         mkdir(os.path.dirname(mod_filepath), parents=True)
 
         # remove module file if it's there (it'll be recreated), see EasyBlock.make_module
-        if os.path.exists(mod_filepath):
+        if os.path.exists(mod_filepath) and not build_option('extended_dry_run'):
             self.log.debug("Removing existing module file %s", mod_filepath)
             os.remove(mod_filepath)
 

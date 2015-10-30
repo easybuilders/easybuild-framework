@@ -42,7 +42,6 @@ from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
-from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
@@ -246,7 +245,7 @@ class ModulesTool(object):
             else:
                 out, ec = None, 1
         else:
-            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False, force_in_dry_run=True)
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
