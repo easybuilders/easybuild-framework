@@ -30,7 +30,7 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-# Need to import the GCCbase class so I can get the name from there
+# Need to import the GCCcore class so I can get the name from there
 from easybuild.toolchains.gcccore import GCCcore
 
 class IccIfort(IntelIccIfort):
