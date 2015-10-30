@@ -67,7 +67,7 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
 
 def dry_run(easyconfigs, short=False, build_specs=None):
     """
-    Compose dry run overview for supplied easyconfigs ([ ] for unavailable, [x] for available, [F] for forced)
+    Compose dry run overview for supplied easyconfigs ([ ] for unavailable, [x] for available, [F] for forced, [R] for rebuild)
     @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
     @param short: use short format for overview: use a variable for common prefixes
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
@@ -94,6 +94,8 @@ def dry_run(easyconfigs, short=False, build_specs=None):
             ans = ' '
         elif build_option('force') and spec['spec'] in listed_ec_paths:
             ans = 'F'
+        elif build_option('rebuild') and spec['spec'] in listed_ec_paths:
+            ans = 'R'
         else:
             ans = 'x'
 
