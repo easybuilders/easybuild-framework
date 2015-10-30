@@ -46,3 +46,4 @@ class DummyCompiler(Compiler):
 
     COMPILER_F77 = '%sF77' % TC_CONSTANT_DUMMY
     COMPILER_F90 = '%sF90' % TC_CONSTANT_DUMMY
+    COMPILER_FC = '%sFC' % TC_CONSTANT_DUMMY
