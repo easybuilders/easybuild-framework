@@ -280,6 +280,7 @@ def robot_find_minimal_easyconfig_for_dependency(dependency):
     _log.debug("Irresolvable minimal dependency found: %s" % orig_dep)
     return None
 
+
 def find_minimally_resolved_modules(unprocessed, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
