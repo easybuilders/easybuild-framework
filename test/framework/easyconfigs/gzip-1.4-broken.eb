@@ -11,8 +11,8 @@
 ##
 easyblock = 'ConfigureMake'
 
-# wrong type of values, on purpose
-name = ['gzip']  # 'gzip'
+name = 'gzip'
+# wrong type of value (on purpose, for testing), should be a string
 version = 1.4  # '1.4'
 
 homepage = "http://www.gzip.org/"

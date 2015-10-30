@@ -79,7 +79,7 @@ class GitRepository(FileRepository):
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
-        All the real logic is in the setupRepo and createWorkingCopy methods
+        All the real logic is in the setup_repo and create_working_copy methods
         """
         self.client = None
         FileRepository.__init__(self, *args)
@@ -102,7 +102,7 @@ class GitRepository(FileRepository):
             client.clone(self.repo)
             reponame = os.listdir(self.wc)[0]
             self.log.debug("rep name is %s" % reponame)
-        except git.GitCommandError, err:
+        except (git.GitCommandError, OSError), err:
             # it might already have existed
             self.log.warning("Git local repo initialization failed, it might already exist: %s", err)
 
