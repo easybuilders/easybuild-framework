@@ -27,11 +27,10 @@ EasyBuild support for gpsmpi compiler toolchain (includes GCC and Parastation MP
 
 """
 
-from easybuild.toolchains.gmpich import Gmpich
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.mpi.psmpi import Psmpi
 
 
-class Gpsmpi(Gmpich):
+class Gpsmpi(Gcc, Psmpi):
     """Compiler toolchain with GCC and Parastation MPICH."""
     NAME = 'gpsmpi'
-    # Use Parastation naming
-    MPI_MODULE_NAME = ["psmpi"]
