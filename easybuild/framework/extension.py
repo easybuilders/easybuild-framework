@@ -53,6 +53,7 @@ class Extension(object):
         self.log = self.master.log
         self.cfg = self.master.cfg.copy()
         self.ext = copy.deepcopy(ext)
+        self.dry_run = self.master.dry_run
 
         if not 'name' in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
