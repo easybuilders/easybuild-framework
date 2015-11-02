@@ -118,6 +118,26 @@ class YebTest(EnhancedTestCase):
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 
+    def test_majmin(self):
+        """ Test yaml_versionmajorminor function """
+        stream = [
+            "variables:",
+            "   - &version 2.7.65",
+            "   - &comp_version 1.4.8.7",
+            "",
+            "mm1: !majmin [*version]",
+            "mm2: !majmin [*comp_version]",
+            "mm3: !majmin 5.4.17",
+        ]
+
+        # import here for testing yaml_join separately
+        from easybuild.framework.easyconfig.format.yeb import yaml_versionmajorminor
+        loaded = yaml.load('\n'.join(stream))
+        self.assertEqual(loaded.get('mm1'), '2.7')
+        self.assertEqual(loaded.get('mm2'), '1.4')
+        self.assertEqual(loaded.get('mm3'), '5.4')
+
+
 
 def suite():
     """ returns all the testcases in this module """
