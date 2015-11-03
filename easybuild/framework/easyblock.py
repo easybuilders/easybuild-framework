@@ -2366,7 +2366,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
                     return get_easyblock_instance(obj)
                 else:
                     apploginfo(obj, "Running %s step" % step)
-                    method(obj)
+                    method(obj)()
             except Exception, err:  # catch all possible errors, also crashes in EasyBuild code itself
                 fullerr = str(err)
                 if not isinstance(err, EasyBuildError):
@@ -2413,7 +2413,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
                     _log.info("Skipping step %s" % step_name)
                 else:
                     for step_method in step_methods:
-                        method_name = '_'.join(step_method.func_code.co_names)
+                        method_name = step_method(app).__name__
                         perform_step('_'.join([step_name, method_name]), app, step_method, applog)
 
             # close log and move it
