@@ -65,14 +65,14 @@ class EasyBlockTest(EnhancedTestCase):
         self.test_tmp_logdir = tempfile.mkdtemp()
         os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir
 
-    def test_empty(self):
+    def xtest_empty(self):
         self.contents = "# empty"
         self.writeEC()
         """ empty files should not parse! """
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "Value of incorrect type passed", EasyBlock, "")
 
-    def test_easyblock(self):
+    def xtest_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
 
         def check_extra_options_format(extra_options):
@@ -146,7 +146,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
-    def test_fake_module_load(self):
+    def xtest_fake_module_load(self):
         """Testcase for fake module load"""
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -166,7 +166,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
-    def test_make_module_req(self):
+    def xtest_make_module_req(self):
         """Testcase for make_module_req"""
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -211,7 +211,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
-    def test_extensions_step(self):
+    def xtest_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -246,7 +246,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
-    def test_skip_extensions_step(self):
+    def xtest_skip_extensions_step(self):
         """Test the skip_extensions_step"""
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -275,7 +275,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
-    def test_make_module_step(self):
+    def xtest_make_module_step(self):
         """Test the make_module_step"""
         name = "pi"
         version = "3.14"
@@ -368,7 +368,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-    def test_gen_dirs(self):
+    def xtest_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -415,7 +415,7 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout = stdoutorig
         eb.close_log()
 
-    def test_get_easyblock_instance(self):
+    def xtest_get_easyblock_instance(self):
         """Test get_easyblock_instance function."""
         # adjust PYTHONPATH such that test easyblocks are found
         testdir = os.path.abspath(os.path.dirname(__file__))
@@ -439,7 +439,7 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
-    def test_fetch_patches(self):
+    def xtest_fetch_patches(self):
         """Test fetch_patches method."""
         # adjust PYTHONPATH such that test easyblocks are found
         testdir = os.path.abspath(os.path.dirname(__file__))
@@ -478,7 +478,7 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         self.assertRaises(EasyBuildError, eb.fetch_patches, patch_specs=patches)
 
-    def test_obtain_file(self):
+    def xtest_obtain_file(self):
         """Test obtain_file method."""
         toy_tarball = 'toy-0.0.tar.gz'
         testdir = os.path.abspath(os.path.dirname(__file__))
@@ -537,7 +537,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
-    def test_check_readiness(self):
+    def xtest_check_readiness(self):
         """Test check_readiness method."""
         init_config(build_options={'validate': False})
 
@@ -565,7 +565,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
-    def test_exclude_path_to_top_of_module_tree(self):
+    def xtest_exclude_path_to_top_of_module_tree(self):
         """
         Make sure that modules under the HierarchicalMNS are correct,
         w.r.t. not including any load statements for modules that build up the path to the top of the module tree.
@@ -616,7 +616,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
 
-    def test_patch_step(self):
+    def xtest_patch_step(self):
         """Test patch step."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
@@ -663,7 +663,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         eb.run_all_steps(True)
 
-    def test_parallel(self):
+    def xtest_parallel(self):
         """Test defining of parallellism."""
         toy_ec = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
         toytxt = read_file(toy_ec)
@@ -707,7 +707,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
 
-    def test_guess_start_dir(self):
+    def xtest_guess_start_dir(self):
         """Test guessing the start dir."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
