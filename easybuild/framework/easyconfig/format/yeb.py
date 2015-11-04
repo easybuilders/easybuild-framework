@@ -94,6 +94,12 @@ class FormatYeb(EasyConfigFormat):
         """
         txt = self._inject_constants_dict(txt)
         self.parsed_yeb = yaml.load(txt)
+        # make dict out of toolchain
+        if not isinstance(self.parsed_yeb['toolchain'], dict):
+            self.parsed_yeb['toolchain'] = {
+                'name': self.parsed_yeb['toolchain'].split(',')[0].strip(),
+                'version': self.parsed_yeb['toolchain'].split(',')[1].strip(),
+            }
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
