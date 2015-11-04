@@ -34,19 +34,13 @@ from easybuild.tools.build_log import EasyBuildError
 
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, int]
+EASY_TYPES = [basestring, int, dict]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
+    'toolchain': dict,
 }
-TYPE_CONVERSION_FUNCTIONS = {
-    basestring: str,
-    float: float,
-    int: int,
-    str: str,
-}
-
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -116,3 +110,34 @@ def convert_value_type(val, typ):
         raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
 
     return res
+
+def to_dict(tc):
+    """
+    Convert a toolchain string "foo, v0" to a dictionary {'name':'foo', 'version':'v0'}
+
+    @param toolchain_str: a toolchain string
+    """
+    # check if tc is a string or a list of two values; else, it can not be converted
+    if isinstance(tc, basestring):
+        if tc.count(',') != 1:
+            raise EasyBuildError("Can not convert string %s to toolchain dict. Expected format: name,version" % tc)
+        else:
+            tc_split = tc.split(',')
+            return {'name':tc_split[0].strip(), 'version':tc_split[1].strip()}
+
+    elif isinstance(tc, list):
+        if len(tc) != 2:
+            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements")
+        else:
+            return {'name':tc[0], 'version':tc[1]}
+
+    else:
+        raise EasyBuildError("Conversion of type %s to toolchain dict is not supported" % type(tc))
+
+TYPE_CONVERSION_FUNCTIONS = {
+    basestring: str,
+    float: float,
+    int: int,
+    str: str,
+    dict: to_dict,
+}

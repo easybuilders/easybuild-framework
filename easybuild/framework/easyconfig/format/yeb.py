@@ -35,6 +35,7 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
+from easybuild.framework.easyconfig.types import check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
@@ -94,12 +95,9 @@ class FormatYeb(EasyConfigFormat):
         """
         txt = self._inject_constants_dict(txt)
         self.parsed_yeb = yaml.load(txt)
-        # make dict out of toolchain
-        if not isinstance(self.parsed_yeb['toolchain'], dict):
-            self.parsed_yeb['toolchain'] = {
-                'name': self.parsed_yeb['toolchain'].split(',')[0].strip(),
-                'version': self.parsed_yeb['toolchain'].split(',')[1].strip(),
-            }
+        # toolchain param value check, convert to dict if alt format is used
+        check_type_of_param_value('toolchain', self.parsed_yeb['toolchain'], auto_convert=True)
+
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
