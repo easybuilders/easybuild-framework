@@ -39,7 +39,9 @@ from unittest import main as unittestmain
 
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.robot as robot
-from easybuild.framework.easyconfig.tools import get_toolchain_hierarchy, skip_available, toolchain_hierarchy_cache
+from easybuild.framework.easyconfig.tools import find_resolved_modules, find_minimally_resolved_modules
+from easybuild.framework.easyconfig.tools import get_toolchain_hierarchy, robot_find_minimal_easyconfig_for_dependency
+from easybuild.framework.easyconfig.tools import skip_available, toolchain_hierarchy_cache
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -443,6 +445,86 @@ class RobotTest(EnhancedTestCase):
             {'name': 'GCC', 'version': '4.7.2'},
             {'name': 'dummy', 'version': ''},
         ])
+
+    def test_find_resolved_modules(self):
+        """Test find_resolved_modules function."""
+        nodeps = {
+            'name': 'nodeps',
+            'version': '1.2.3',
+            'versionsuffix': '',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'dependencies': [],
+            'full_mod_name': 'nodeps/1.2.3',
+            'spec': 'nodeps-1.2.3.eb',
+            'hidden': False,
+        }
+        dep1 = {
+            'name': 'foo',
+            'version': '2.3.4',
+            'toolchain': {'name': 'GCC', 'version': '4.7.2'},
+            'versionsuffix': '',
+            'hidden': False,
+        }
+        dep2 = {
+            'name': 'bar',
+            'version': '3.4.5',
+            'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+            'versionsuffix': '-test',
+            'hidden': False,
+        }
+        onedep = {
+            'name': 'onedep',
+            'version': '3.14',
+            'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+            'dependencies': [dep1],
+            'full_mod_name': 'onedep/3.14-goolf-1.4.10',
+            'spec': 'onedep-3.14-goolf-1.4.10.eb',
+        }
+        threedeps = {
+            'name': 'twodeps',
+            'version': '9.8.7',
+            'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+            'dependencies': [dep1, dep2, nodeps],
+            'full_mod_name': 'twodeps/9.8.7-goolf-1.4.10',
+            'spec': 'twodeps-9.8.7-goolf-1.4.10.eb',
+        }
+        ecs = [
+            nodeps,
+            onedep,
+            threedeps,
+        ]
+        mods = ['foo/2.3.4-GCC-4.7.2', 'bar/3.4.5-gompi-1.4.10', 'bar/3.4.5-GCC-4.7.2']
+
+        ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods)
+
+        # all dependencies are resolved for easyconfigs included in ordered_ecs
+        self.assertFalse(any([ec['dependencies'] for ec in ordered_ecs]))
+
+        # nodeps/ondep easyconfigs have all dependencies resolved
+        self.assertEqual(len(ordered_ecs), 2)
+        self.assertEqual(nodeps, ordered_ecs[0])
+        onedep['dependencies'] = []
+        self.assertEqual(onedep, ordered_ecs[1])
+
+        # threedeps has available dependencies (foo, nodeps) filtered out
+        self.assertEqual(len(new_easyconfigs), 1)
+        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'twodeps/9.8.7-goolf-1.4.10')
+        self.assertEqual(len(new_easyconfigs[0]['dependencies']), 1)
+        self.assertEqual(new_easyconfigs[0]['dependencies'][0]['name'], 'bar')
+
+        self.assertTrue(new_avail_modules, mods + ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
+
+        # also check results with retaining all dependencies enabled
+        ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, [], retain_all_deps=True)
+
+        self.assertEqual(len(ordered_ecs), 2)
+        self.assertEqual([ec['full_mod_name'] for ec in ordered_ecs], ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
+
+        self.assertEqual(len(new_easyconfigs), 1)
+        self.assertEqual(len(new_easyconfigs[0]['dependencies']), 2)
+        self.assertEqual([dep['name'] for dep in new_easyconfigs[0]['dependencies']], ['foo', 'bar'])
+
+        self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
 
 
 def suite():
