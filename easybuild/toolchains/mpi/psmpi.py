@@ -23,18 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Support for MPICH2 as toolchain MPI library.
+Support for Parastation MPI as toolchain MPI library.
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
-@author: Jens Timmerman (Ghent University)
 """
 
 from easybuild.toolchains.mpi.mpich import Mpich
 
 
 class Psmpi(Mpich):
-    """MPICH2 MPI class"""
+    """Parastation MPI class"""
     MPI_MODULE_NAME = ['psmpi']
 
     def _set_mpi_compiler_variables(self):
