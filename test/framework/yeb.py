@@ -120,12 +120,12 @@ class YebTest(EnhancedTestCase):
             self.assertEqual(loaded.get(key), 'foobar')
 
 
-    def test_toolchain_alt_format(self):
+    def test_bad_toolchain_format(self):
         """ Test alternate toolchain format name,version """
         # only test bad cases - the right ones are tested with the test files in test_parse_yeb
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
-        expected = 'Can not convert string GCC,4.9,2 to toolchain dict. Expected format: name,version'
+        expected = r'Can not convert list .* to toolchain dict. Expected 2 elements'
         self.assertErrorRegex(EasyBuildError, expected, EasyConfig, os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
 
 

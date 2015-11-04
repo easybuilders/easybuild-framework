@@ -111,33 +111,28 @@ def convert_value_type(val, typ):
 
     return res
 
-def to_dict(tc):
+def to_toolchain(tcspec):
     """
     Convert a toolchain string "foo, v0" to a dictionary {'name':'foo', 'version':'v0'}
 
-    @param toolchain_str: a toolchain string
+    @param tcspec: a toolchain in the form of a string or a list
     """
     # check if tc is a string or a list of two values; else, it can not be converted
-    if isinstance(tc, basestring):
-        if tc.count(',') != 1:
-            raise EasyBuildError("Can not convert string %s to toolchain dict. Expected format: name,version" % tc)
-        else:
-            tc_split = tc.split(',')
-            return {'name':tc_split[0].strip(), 'version':tc_split[1].strip()}
+    if isinstance(tcspec, basestring):
+        tcspec = tcspec.split(',')
 
-    elif isinstance(tc, list):
-        if len(tc) != 2:
+    if isinstance(tcspec, list):
+        if len(tcspec) == 2:
+            return {'name':tcspec[0].strip(), 'version':tcspec[1].strip()}
+        else:
             raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements")
-        else:
-            return {'name':tc[0], 'version':tc[1]}
-
     else:
-        raise EasyBuildError("Conversion of type %s to toolchain dict is not supported" % type(tc))
+        raise EasyBuildError("Conversion of type %s to toolchain dict is not supported" % type(tcspec))
 
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
     float: float,
     int: int,
     str: str,
-    dict: to_dict,
+    dict: to_toolchain,
 }
