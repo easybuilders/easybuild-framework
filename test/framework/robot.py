@@ -39,9 +39,10 @@ from unittest import main as unittestmain
 
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.robot as robot
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, find_minimally_resolved_modules
 from easybuild.framework.easyconfig.tools import get_toolchain_hierarchy, robot_find_minimal_easyconfig_for_dependency
-from easybuild.framework.easyconfig.tools import skip_available, toolchain_hierarchy_cache
+from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -566,6 +567,56 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue(new_gzip14 != gzip14)
         self.assertEqual(new_gzip14['toolchain'], {'name': 'dummy', 'version': ''})
         self.assertTrue(os.path.samefile(ecfile, os.path.join(test_easyconfigs, 'gzip-1.4.eb')))
+
+    def test_find_minimally_resolved_modules(self):
+        """Test find_minimally_resolved_modules function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
+        barec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'bar'",
+            "version = '1.2.3'",
+            "homepage = 'http://example.com'",
+            "description = 'foo'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
+            # to test resolving of dependencies with minimal toolchain
+            # for each of these, we know test easyconfigs are available (which are required here)
+            "dependencies = [",
+            "   ('OpenMPI', '1.6.4'),",  # available with GCC/4.7.2
+            "   ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2'),",  # available with gompi/1.4.10
+            "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2'),",  # available with gompi/1.4.10
+            "   ('SQLite', '3.8.10.2'),",  # only available with goolf/1.4.10
+            "]",
+        ])
+        write_file(barec, barec_txt)
+        bar = process_easyconfig(barec)[0]
+
+        ecs = [bar]
+        mods = [
+            'goolf/1.4.10',
+            # include modules for dependencies, with subtoolchains rather than full toolchain (except for SQLite)
+            'OpenMPI/1.6.4-GCC-4.7.2',
+            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
+            'SQLite/3.8.10.2-goolf-1.4.10',
+        ]
+        ordered_ecs, new_easyconfigs, new_avail_modules = find_minimally_resolved_modules(ecs, mods)
+
+        # all dependencies are resolved for easyconfigs included in ordered_ecs
+        self.assertEqual(len(ordered_ecs), 1)
+        self.assertEqual(ordered_ecs[0]['dependencies'], [])
+
+        # module is added to list of available modules
+        self.assertTrue(bar['ec'].full_mod_name in new_avail_modules)
+
+        # nothing left
+        self.assertEqual(new_easyconfigs, [])
 
 
 def suite():
