@@ -526,6 +526,47 @@ class RobotTest(EnhancedTestCase):
 
         self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
 
+    def test_robot_find_minimal_easyconfig_for_dependency(self):
+        """Test robot_find_minimal_easyconfig_for_dependency."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+
+        gzip15 = {
+            'name': 'gzip',
+            'version': '1.5',
+            'versionsuffix': '',
+            'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+        }
+        new_gzip15, ecfile = robot_find_minimal_easyconfig_for_dependency(gzip15)
+        self.assertEqual(new_gzip15, gzip15)
+        self.assertTrue(os.path.samefile(ecfile, os.path.join(test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb')))
+
+        # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
+        gzip14 = {
+            'name': 'gzip',
+            'version': '1.4',
+            'versionsuffix': '',
+            'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+        }
+        self.assertEqual(robot_find_minimal_easyconfig_for_dependency(gzip14), None)
+
+        # use gompi/1.4.10 toolchain, to dance around caching of toolchain hierarchy
+        gzip14['toolchain'] = {'name': 'gompi', 'version': '1.4.10'}
+
+        # test also including dummy toolchain
+        init_config(build_options={
+            'add_dummy_to_minimal_toolchains': True,
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        new_gzip14, ecfile = robot_find_minimal_easyconfig_for_dependency(gzip14)
+        self.assertTrue(new_gzip14 != gzip14)
+        self.assertEqual(new_gzip14['toolchain'], {'name': 'dummy', 'version': ''})
+        self.assertTrue(os.path.samefile(ecfile, os.path.join(test_easyconfigs, 'gzip-1.4.eb')))
+
 
 def suite():
     """ returns all the testcases in this module """
