@@ -357,11 +357,12 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
                     # check whether a module using one of the (sub)toolchains is available for this dependency
                     # if so, pick the minimal subtoolchain for which a module is available
                     for toolchain in toolchain_hierarchy:
-                        dep['toolchain'] = toolchain
-                        full_mod_name = ActiveMNS().det_full_module_name(dep)
-                        dep_resolved = module_is_available(full_mod_name, modtool, avail_modules, dep['hidden'])
+                        cand_dep = copy.deepcopy(dep)
+                        cand_dep['toolchain'] = toolchain
+                        full_mod_name = ActiveMNS().det_full_module_name(cand_dep)
+                        dep_resolved = module_is_available(full_mod_name, modtool, avail_modules, cand_dep['hidden'])
                         if dep_resolved:
-                            new_dep = dep
+                            new_dep = cand_dep
                             _log.debug("Module found for dep %s using toolchain %s: %s", dep, toolchain, full_mod_name)
                             break
 
@@ -369,9 +370,9 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
                     # if no module was found for this dependency with any of the (sub)modules,
                     # or if EasyBuild was configured not to take existing modules into account first,
                     # we find the minimal easyconfig and update the dependency
-                    (dep, eb_file) = robot_find_minimal_easyconfig_for_dependency(dep)
-                    if eb_file is not None:
-                        new_dep = dep
+                    res = robot_find_minimal_easyconfig_for_dependency(dep)
+                    if res is not None:
+                        new_dep, _ = res
                         # now check for the existence of the module of the dep
                         full_mod_name = ActiveMNS().det_full_module_name(new_dep)
                         dep_resolved = module_is_available(full_mod_name, modtool, avail_modules, new_dep['hidden'])
@@ -383,6 +384,7 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
                 if new_dep is not None:
                     new_ec = deep_refresh_dependencies(new_ec, new_dep)
                     _log.debug("Updated easyconfig after replacing dep %s with %s: %s", orig_dep, new_dep, new_ec)
+                    dep = new_dep
 
             if not dep_resolved:
                 # no module available (yet) => retain dependency as one to be resolved
