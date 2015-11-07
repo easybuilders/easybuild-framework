@@ -190,7 +190,11 @@ def toolchain_hierarchy_cache(func):
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain):
     """
-    Determine list of subtoolchain for specified parent toolchain.
+    Determine list of subtoolchains for specified parent toolchain.
+    Result starts with the most minimal subtoolchains first, ends with specified toolchain.
+
+    The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
+    build option is enabled.
 
     @param parent_toolchain: dictionary with name/version of parent toolchain
     """
@@ -235,10 +239,10 @@ def get_toolchain_hierarchy(parent_toolchain):
             # we're done
             break
 
-        # append to hierarchy and move to next
+        # add to hierarchy and move to next
         current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
         subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
-        toolchain_hierarchy.append({'name': current_tc_name, 'version': current_tc_version})
+        toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
@@ -295,7 +299,7 @@ def robot_find_minimal_easyconfig_for_dependency(dep):
 
     res = None
     # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
-    for toolchain in reversed(toolchain_hierarchy):
+    for toolchain in toolchain_hierarchy:
         newdep['toolchain'] = toolchain
         eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
         if eb_file is not None:
@@ -356,7 +360,7 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
                 if use_existing_modules:
                     # check whether a module using one of the (sub)toolchains is available for this dependency
                     # if so, pick the minimal subtoolchain for which a module is available
-                    for toolchain in reversed(toolchain_hierarchy):
+                    for toolchain in toolchain_hierarchy:
                         cand_dep = copy.deepcopy(dep)
                         cand_dep['toolchain'] = toolchain
                         full_mod_name = ActiveMNS().det_full_module_name(cand_dep)

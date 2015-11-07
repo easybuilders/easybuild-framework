@@ -517,15 +517,15 @@ class RobotTest(EnhancedTestCase):
 
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
         self.assertEqual(goolf_hierarchy, [
-            {'name': 'goolf', 'version': '1.4.10'},
-            {'name': 'gompi', 'version': '1.4.10'},
             {'name': 'GCC', 'version': '4.7.2'},
+            {'name': 'gompi', 'version': '1.4.10'},
+            {'name': 'goolf', 'version': '1.4.10'},
         ])
 
         iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'})
         self.assertEqual(iimpi_hierarchy, [
-            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
             {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
+            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
         ])
 
         # test also including dummy
@@ -538,9 +538,9 @@ class RobotTest(EnhancedTestCase):
         # testing with gompi/1.4.10, since the result for goolf/1.4.10 is cached (and it's hard to reset the cache)
         gompi_hierarchy = get_toolchain_hierarchy({'name': 'gompi', 'version': '1.4.10'})
         self.assertEqual(gompi_hierarchy, [
-            {'name': 'gompi', 'version': '1.4.10'},
-            {'name': 'GCC', 'version': '4.7.2'},
             {'name': 'dummy', 'version': ''},
+            {'name': 'GCC', 'version': '4.7.2'},
+            {'name': 'gompi', 'version': '1.4.10'},
         ])
 
     def test_find_resolved_modules(self):
