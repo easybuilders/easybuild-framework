@@ -36,6 +36,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import glob
 import os
 import re
@@ -289,22 +290,22 @@ def robot_find_minimal_easyconfig_for_dependency(dep):
     """
     Find an easyconfig with minimal toolchain for a dependency
     """
-    orig_dep = dep
+    newdep = copy.deepcopy(dep)
     toolchain_hierarchy = get_toolchain_hierarchy(dep['toolchain'])
 
     res = None
     # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
     for toolchain in reversed(toolchain_hierarchy):
-        dep['toolchain'] = toolchain
-        eb_file = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+        newdep['toolchain'] = toolchain
+        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
         if eb_file is not None:
-            if dep['toolchain'] != orig_dep['toolchain']:
-                _log.info("Minimally resolving dependency %s with easyconfig file %s", orig_dep, eb_file)
-            res = (dep, eb_file)
+            if newdep['toolchain'] != dep['toolchain']:
+                _log.info("Minimally resolving dependency %s using toolchain %s with %s", dep, toolchain, eb_file)
+            res = (newdep, eb_file)
             break
 
     if res is None:
-        _log.debug("Irresolvable minimal dependency found: %s", orig_dep)
+        _log.debug("Irresolvable minimal dependency found: %s", dep)
 
     return res
 
