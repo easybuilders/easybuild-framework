@@ -246,8 +246,8 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
-            'use-any-existing_modules': ("Use any existing module in minimal dependency resolution", None,
-                                         'store_true', False),
+            'use-existing_modules': ("Use existing modules when resolving dependencies with minimal toolchains",
+                                     None, 'store_true', False),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))

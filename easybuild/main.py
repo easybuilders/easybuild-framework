@@ -304,7 +304,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, minimal_toolchains=build_option('minimal_toolchains'),
-                                               use_any_existing_modules=build_option('use_any_existing_modules'))
+                                               use_existing_modules=build_option('use_existing_modules'))
         else:
             ordered_ecs = easyconfigs
     else:
