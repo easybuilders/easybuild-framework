@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,19 +21,26 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
-EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Parastation MPICH).
+Support for Parastation MPI as toolchain MPI library.
 
+@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.iccifort import IccIfort
-from easybuild.toolchains.mpi.psmpi import Psmpi
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Ipsmpi(IccIfort, Psmpi):
-    """
-    Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
-    """
-    NAME = 'ipsmpi'
-    SUBTOOLCHAIN = IccIfort.NAME
+class Psmpi(Mpich):
+    """Parastation MPI class"""
+    MPI_MODULE_NAME = ['psmpi']
+
+    def _set_mpi_compiler_variables(self):
+        """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
+
+        # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
+        self.MPI_COMPILER_MPIF77 = 'mpif77'
+        self.MPI_COMPILER_MPIF90 = 'mpif90'
+        self.MPI_COMPILER_MPIFC = 'mpif90'
+
+        super(Psmpi, self)._set_mpi_compiler_variables()
