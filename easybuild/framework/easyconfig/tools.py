@@ -326,6 +326,8 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
     @param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
     @param use_existing_modules: if a module is available with a particular (sub)toolchain, use it & stop searching
     """
+    _log.experimental("Using minimal toolchains when resolving dependencies")
+
     ordered_ecs = []
     new_easyconfigs = []
     modtool = modules_tool()
