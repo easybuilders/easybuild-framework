@@ -682,7 +682,7 @@ def apply_regex_substitutions(path, regex_subs):
         for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
             for regex, subtxt in regex_subs:
                 line = regex.sub(subtxt, line)
-                sys.stdout.write(line)
+            sys.stdout.write(line)
 
 
 def modify_env(old, new):
