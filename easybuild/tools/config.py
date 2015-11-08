@@ -137,7 +137,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
-        'use_any_existing_modules',
+        'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',

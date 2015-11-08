@@ -36,6 +36,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import glob
 import os
 import re
@@ -189,7 +190,11 @@ def toolchain_hierarchy_cache(func):
 @toolchain_hierarchy_cache
 def get_toolchain_hierarchy(parent_toolchain):
     """
-    Determine list of subtoolchain for specified parent toolchain.
+    Determine list of subtoolchains for specified parent toolchain.
+    Result starts with the most minimal subtoolchains first, ends with specified toolchain.
+
+    The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
+    build option is enabled.
 
     @param parent_toolchain: dictionary with name/version of parent toolchain
     """
@@ -234,10 +239,10 @@ def get_toolchain_hierarchy(parent_toolchain):
             # we're done
             break
 
-        # append to hierarchy and move to next
+        # add to hierarchy and move to next
         current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
         subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
-        toolchain_hierarchy.append({'name': current_tc_name, 'version': current_tc_version})
+        toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
@@ -289,35 +294,40 @@ def robot_find_minimal_easyconfig_for_dependency(dep):
     """
     Find an easyconfig with minimal toolchain for a dependency
     """
-    orig_dep = dep
+    newdep = copy.deepcopy(dep)
     toolchain_hierarchy = get_toolchain_hierarchy(dep['toolchain'])
 
     res = None
     # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
-    for toolchain in reversed(toolchain_hierarchy):
-        dep['toolchain'] = toolchain
-        eb_file = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+    for toolchain in toolchain_hierarchy:
+        newdep['toolchain'] = toolchain
+        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
         if eb_file is not None:
-            if dep['toolchain'] != orig_dep['toolchain']:
-                _log.info("Minimally resolving dependency %s with easyconfig file %s", orig_dep, eb_file)
-            res = (dep, eb_file)
+            if newdep['toolchain'] != dep['toolchain']:
+                _log.info("Minimally resolving dependency %s using toolchain %s with %s", dep, toolchain, eb_file)
+            res = (newdep, eb_file)
             break
 
     if res is None:
-        _log.debug("Irresolvable minimal dependency found: %s", orig_dep)
+        _log.debug("Irresolvable minimal dependency found: %s", dep)
 
     return res
 
 
-def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False, use_any_existing_modules=True):
+def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules,
+                                    retain_all_deps=False, use_existing_modules=True):
     """
     Figure out which modules are resolved already, using minimal subtoolchains for dependencies.
 
     @param_easyconfigs: list of parsed easyconfigs
-    @param avail_modules: list of available modules
+    @param avail_modules: list of available modules (used to check for resolved modules)
+    @param existing_modules: list of existing modules (including non-available ones); used to determine
+                             minimal toolchain to use, only if use_existing_modules is True
     @param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
-    @param use_any_existing_modules: if a module is available with a particular (sub)toolchain, use it & stop searching
+    @param use_existing_modules: if a module is available with a particular (sub)toolchain, use it & stop searching
     """
+    _log.experimental("Using minimal toolchains when resolving dependencies")
+
     ordered_ecs = []
     new_easyconfigs = []
     modtool = modules_tool()
@@ -340,10 +350,7 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
             # since no corresponding easyconfig can be found for them
             if retain_all_deps and dep.get('external_module', False):
                 _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
-
-            #elif retain_all_deps:
-            #    # if all dependencies should be retained, include dep unless it has been already
-            #    dep_resolved = full_mod_name in avail_modules
+                dep_resolved = True
 
             elif dep['toolchain'] != easyconfig['ec']['toolchain']:
                 # in the case where the toolchain of a dependency is different to the parent toolchain we do nothing
@@ -352,15 +359,17 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
                 dep_resolved = module_is_available(full_mod_name, modtool, avail_modules, dep['hidden'])
 
             else:  # parent and dependency use same toolchain
-                if use_any_existing_modules:
+                if use_existing_modules:
                     # check whether a module using one of the (sub)toolchains is available for this dependency
                     # if so, pick the minimal subtoolchain for which a module is available
                     for toolchain in toolchain_hierarchy:
-                        dep['toolchain'] = toolchain
-                        full_mod_name = ActiveMNS().det_full_module_name(dep)
-                        dep_resolved = module_is_available(full_mod_name, modtool, avail_modules, dep['hidden'])
+                        cand_dep = copy.deepcopy(dep)
+                        cand_dep['toolchain'] = toolchain
+                        full_mod_name = ActiveMNS().det_full_module_name(cand_dep)
+                        cand_dep['full_mod_name'] = full_mod_name
+                        dep_resolved = module_is_available(full_mod_name, modtool, existing_modules, cand_dep['hidden'])
                         if dep_resolved:
-                            new_dep = dep
+                            new_dep = cand_dep
                             _log.debug("Module found for dep %s using toolchain %s: %s", dep, toolchain, full_mod_name)
                             break
 
@@ -368,9 +377,9 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
                     # if no module was found for this dependency with any of the (sub)modules,
                     # or if EasyBuild was configured not to take existing modules into account first,
                     # we find the minimal easyconfig and update the dependency
-                    (dep, eb_file) = robot_find_minimal_easyconfig_for_dependency(dep)
-                    if eb_file is not None:
-                        new_dep = dep
+                    res = robot_find_minimal_easyconfig_for_dependency(dep)
+                    if res is not None:
+                        new_dep, _ = res
                         # now check for the existence of the module of the dep
                         full_mod_name = ActiveMNS().det_full_module_name(new_dep)
                         dep_resolved = module_is_available(full_mod_name, modtool, avail_modules, new_dep['hidden'])
@@ -382,8 +391,9 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
                 if new_dep is not None:
                     new_ec = deep_refresh_dependencies(new_ec, new_dep)
                     _log.debug("Updated easyconfig after replacing dep %s with %s: %s", orig_dep, new_dep, new_ec)
+                    dep = new_dep
 
-            if not dep_resolved:
+            if not dep_resolved or (retain_all_deps and dep['full_mod_name'] not in avail_modules):
                 # no module available (yet) => retain dependency as one to be resolved
                 deps.append(dep)
 
@@ -397,6 +407,8 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=
             # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
             avail_modules.append(new_ec['full_mod_name'])
 
+            # dump easyconfig using minimal toolchain for dependencies
+            # FIXME: only dump when something actually changed?
             newspec = '%s-%s.eb' % (new_ec['ec']['name'], det_full_ec_version(new_ec['ec']))
             newspec = os.path.join(minimal_ecs_dir, newspec)
             _log.debug("Attempting dumping minimal easyconfig to %s and adding it to final list", newspec)

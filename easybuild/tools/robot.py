@@ -78,7 +78,7 @@ def dry_run(easyconfigs, short=False):
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_dependencies(easyconfigs,
                                          minimal_toolchains = build_option('minimal_toolchains'),
-                                         use_any_existing_modules = build_option('use_any_existing_modules'),
+                                         use_existing_modules = build_option('use_existing_modules'),
                                          retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
@@ -115,14 +115,14 @@ def dry_run(easyconfigs, short=False):
     return '\n'.join(lines)
 
 
-def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=False, use_any_existing_modules=False):
+def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=False, use_existing_modules=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param easyconfigs: list of easyconfigs
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     @param minimal_toolchains: boolean for whether to try to resolve dependencies with minimum possible toolchain
-    @param use_any_existing_modules: boolean for whether to prioritise the reuse of existing modules (works in
+    @param use_existing_modules: boolean for whether to prioritise the reuse of existing modules (works in
                                      combination with minimal_toolchains)
     """
 
@@ -130,13 +130,14 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 
+    existing_modules = modules_tool().available()
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = modules_tool().available()
+        avail_modules = existing_modules[:]
 
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
@@ -164,8 +165,9 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
             if minimal_toolchains:
-                res = find_minimally_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps,
-                                                      use_any_existing_modules=use_any_existing_modules)
+                res = find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules,
+                                                      retain_all_deps=retain_all_deps,
+                                                      use_existing_modules=use_existing_modules)
             else:
                 res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
             more_ecs, easyconfigs, avail_modules = res
