@@ -38,6 +38,7 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.framework.easyconfig.tools as ectools
+import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, find_minimally_resolved_modules
@@ -105,9 +106,15 @@ class RobotTest(EnhancedTestCase):
         """Set up test."""
         super(RobotTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+        self.orig_experimental = easybuild.framework.easyconfig.tools._log.experimental
 
     def tearDown(self):
         """Test cleanup."""
+        super(RobotTest, self).tearDown()
+
+        # restore log.experimental
+        easybuild.framework.easyconfig.tools._log.experimental = self.orig_experimental
+
         # restore original modules tool, it may have been tampered with
         config.modules_tool = ORIG_MODULES_TOOL
         ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
@@ -323,6 +330,10 @@ class RobotTest(EnhancedTestCase):
 
     def test_resolve_dependencies_minimal(self):
         """Test resolved dependencies with minimal toolchain."""
+
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
+
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         install_mock_module()
 
@@ -625,6 +636,10 @@ class RobotTest(EnhancedTestCase):
 
     def test_robot_find_minimal_easyconfig_for_dependency(self):
         """Test robot_find_minimal_easyconfig_for_dependency."""
+
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
+
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -666,6 +681,10 @@ class RobotTest(EnhancedTestCase):
 
     def test_find_minimally_resolved_modules(self):
         """Test find_minimally_resolved_modules function."""
+
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
+
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -717,6 +736,10 @@ class RobotTest(EnhancedTestCase):
 
     def test_find_minimally_resolved_modules_dummy(self):
         """Test find_minimally_resolved_modules function, also considering dummy toolchain."""
+
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
+
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
