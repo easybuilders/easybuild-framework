@@ -28,8 +28,9 @@ EasyBuild support for a GCC+CUDA compiler toolchain.
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.cuda import Cuda
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class GccCUDA(Gcc, Cuda):
@@ -37,3 +38,4 @@ class GccCUDA(Gcc, Cuda):
     NAME = 'gcccuda'
 
     COMPILER_MODULE_NAME = ['GCC', 'CUDA']
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
