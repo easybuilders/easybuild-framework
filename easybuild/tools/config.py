@@ -130,6 +130,7 @@ BUILD_OPTIONS_CMDLINE = {
         'module_only',
         'package',
         'read_only_installdir',
+        'rebuild',
         'robot',
         'sequential',
         'set_gid_bit',
