@@ -32,11 +32,13 @@ from easybuild.toolchains.compiler.craype import CrayPEIntel
 from easybuild.toolchains.fft.crayfftw import CrayFFTW
 from easybuild.toolchains.linalg.libsci import LibSci
 from easybuild.toolchains.mpi.craympich import CrayMPICH
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class CrayIntel(CrayPEIntel, CrayMPICH, LibSci, CrayFFTW):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
     NAME = 'CrayIntel'
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; marked as experimental."""
