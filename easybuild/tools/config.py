@@ -117,6 +117,7 @@ BUILD_OPTIONS_CMDLINE = {
         'umask',
     ],
     False: [
+        'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
         'dump_autopep8',
@@ -125,6 +126,7 @@ BUILD_OPTIONS_CMDLINE = {
         'force',
         'group_writable_installdir',
         'hidden',
+        'minimal_toolchains',
         'module_only',
         'package',
         'read_only_installdir',
@@ -135,6 +137,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',

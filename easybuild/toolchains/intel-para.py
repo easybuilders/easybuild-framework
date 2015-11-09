@@ -39,4 +39,4 @@ class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'intel-para'
-    
+    SUBTOOLCHAIN = Ipsmpi.NAME 

@@ -27,12 +27,13 @@ EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, i
 
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.iccifort import IccIfort
 from easybuild.toolchains.mpi.psmpi import Psmpi
 
 
-class Ipsmpi(IntelIccIfort, Psmpi):
+class Ipsmpi(IccIfort, Psmpi):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
     """
     NAME = 'ipsmpi'
+    SUBTOOLCHAIN = IccIfort.NAME
