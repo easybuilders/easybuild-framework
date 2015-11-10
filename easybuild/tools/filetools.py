@@ -172,7 +172,7 @@ def remove_file(path):
         if os.path.exists(path):
             os.remove(path)
     except OSError, err:
-          raise EasyBuildError("Failed to remove %s: %s", path, err)
+        raise EasyBuildError("Failed to remove %s: %s", path, err)
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -321,7 +321,7 @@ def find_easyconfigs(path, ignore_dirs=None):
             files.append(spec)
 
         # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return files
 
@@ -361,7 +361,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             # note: we still need to consider e.g., .local !
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+            dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
         hits = sorted(hits)
 
@@ -384,7 +384,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     @param path: Path of file to compute checksum for
     @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
-    if not checksum_type in CHECKSUM_FUNCTIONS:
+    if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
                              checksum_type, CHECKSUM_FUNCTIONS.keys())
 
@@ -976,7 +976,7 @@ def move_logs(src_logfile, target_logfile):
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
     except (IOError, OSError), err:
-        raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s" ,
+        raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
                              src_logfile, target_logfile, err)
 
 
@@ -1077,7 +1077,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
         else:
             errors.extend((src, dst, str(why)))
     if errors:
-        raise Error, errors
+        raise Error(errors)
 
 
 def encode_string(name):
@@ -1135,6 +1135,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
     _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
