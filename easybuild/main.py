@@ -51,9 +51,9 @@ import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
-from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
+from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.config import get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -129,7 +129,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         # dump test report next to log file
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
-        if 'log_file' in ec_res:
+        if 'log_file' in ec_res and ec_res['log_file']:
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
@@ -231,6 +231,10 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
+    # review specified PR
+    if options.review_pr:
+        print review_pr(options.review_pr, colored=options.color)
+
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short
     if query:
@@ -241,6 +245,9 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    # command line options that do not require any easyconfigs to be specified
+    no_ec_opts = [options.aggregate_regtest, options.review_pr, options.search, options.search_short, options.regtest]
+
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
     if paths:
@@ -250,7 +257,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
+        elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                          log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
@@ -276,16 +283,16 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
+        txt = dry_run(easyconfigs, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
+    if any(no_ec_opts + [options.dry_run, options.dry_run_short]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # skip modules that are already installed unless forced
-    if not options.force:
+    if not (options.force or options.rebuild or options.extended_dry_run):
         retained_ecs = skip_available(easyconfigs)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -296,7 +303,8 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+            ordered_ecs = resolve_dependencies(easyconfigs, minimal_toolchains=build_option('minimal_toolchains'),
+                                               use_existing_modules=build_option('use_existing_modules'))
         else:
             ordered_ecs = easyconfigs
     else:

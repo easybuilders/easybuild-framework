@@ -56,7 +56,7 @@ class Repository(object):
         """
         Initialize a repository. self.repo and self.subdir will be set.
         self.wc will be set to None.
-        Then, setupRepo and createWorkingCopy will be called (in that order)
+        Then, setup_repo and create_working_copy will be called (in that order)
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.subdir = subdir

@@ -32,9 +32,10 @@ Creating a new toolchain should be as simple as possible.
 """
 import copy
 import os
+import tempfile
 from vsc.utils import fancylogger
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import dependencies_for
@@ -56,6 +57,7 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+    SUBTOOLCHAIN = None
     TOOLCHAIN_FAMILY = None
 
     # list of class 'constants' that should be restored for every new instance of this class
@@ -77,7 +79,7 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None, class_constants=None):
+    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None):
         """Toolchain constructor."""
 
         self.base_init()
@@ -100,6 +102,11 @@ class Toolchain(object):
         self.vars = None
 
         self._init_class_constants(class_constants)
+
+        self.tcdeps = tcdeps
+
+        # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
+        self.dry_run = build_option('extended_dry_run', default=False)
 
         self.modules_tool = modules_tool()
         self.mns = mns
@@ -263,6 +270,8 @@ class Toolchain(object):
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
             'hidden': False,
+            'full_mod_name': self.mod_full_name,
+            'short_mod_name': self.mod_short_name,
         }
 
     def det_short_module_name(self):
@@ -332,14 +341,24 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
-        deps_exist = self.modules_tool.exist(dep_mod_names)
+
+        # check whether modules exist
+        if self.dry_run:
+            deps_exist = [True] * len(dep_mod_names)
+        else:
+            deps_exist = self.modules_tool.exist(dep_mod_names)
+
+        missing_dep_mods = []
         for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
             self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
-            if not dep_exists:
-                raise EasyBuildError("add_dependencies: no module '%s' found for dependency %s", dep_mod_name, dep)
-            else:
+            if dep_exists:
                 self.dependencies.append(dep)
                 self.log.debug('add_dependencies: added toolchain dependency %s' % str(dep))
+            else:
+                missing_dep_mods.append(dep_mod_name)
+
+        if missing_dep_mods:
+            raise EasyBuildError("Missing modules for one or more dependencies: %s", ', '.join(missing_dep_mods))
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -363,79 +382,144 @@ class Toolchain(object):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
-    def _prepare_dependency_external_module(self, dep):
-        """Set environment variables picked up by utility functions for dependencies specified as external modules."""
-        mod_name = dep['full_mod_name']
-        metadata = dep['external_module_metadata']
-        self.log.debug("Defining $EB* environment variables for external module %s", mod_name)
+    def _simulated_load_dependency_module(self, name, version, metadata, verbose=False):
+        """
+        Set environment variables picked up by utility functions for dependencies specified as external modules.
 
-        names = metadata.get('name', [])
-        versions = metadata.get('version', [None]*len(names))
-        self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
+        @param name: software name
+        @param version: software version
+        @param metadata: dictionary with software metadata ('prefix' for software installation prefix)
+        """
 
-        for name, version in zip(names, versions):
-            self.log.debug("Defining $EB* environment variables for external module %s under name %s", mod_name, name)
+        self.log.debug("Defining $EB* environment variables for software named %s", name)
 
-            # define $EBROOT env var for install prefix, picked up by get_software_root
-            prefix = metadata.get('prefix')
-            if prefix is not None:
-                if prefix in os.environ:
-                    val = os.environ[prefix]
-                    self.log.debug("Using value of $%s as prefix for external module %s: %s", prefix, mod_name, val)
-                else:
-                    val = prefix
-                    self.log.debug("Using specified prefix for external module %s: %s", mod_name, val)
-                setvar(get_software_root_env_var_name(name), val)
+        # define $EBROOT env var for install prefix, picked up by get_software_root
+        prefix = metadata.get('prefix')
+        if prefix is not None:
+            if prefix in os.environ:
+                val = os.environ[prefix]
+                self.log.debug("Using value of $%s as prefix for software named %s: %s", prefix, name, val)
+            else:
+                val = prefix
+                self.log.debug("Using specified prefix for software named %s: %s", name, val)
+            setvar(get_software_root_env_var_name(name), val, verbose=verbose)
 
-            # define $EBVERSION env var for software version, picked up by get_software_version
-            if version is not None:
-                setvar(get_software_version_env_var_name(name), version)
+        # define $EBVERSION env var for software version, picked up by get_software_version
+        if version is not None:
+            setvar(get_software_version_env_var_name(name), version, verbose=verbose)
 
-    def _prepare_dependencies(self):
+    def _load_toolchain_module(self, silent=False):
+        """Load toolchain module."""
+
+        tc_mod = self.det_short_module_name()
+
+        if self.dry_run:
+            dry_run_msg("Loading toolchain module...\n", silent=silent)
+
+            # load toolchain module, or simulate load of toolchain components if it is not available
+            if self.modules_tool.exist([tc_mod])[0]:
+                self.modules_tool.load([tc_mod])
+                dry_run_msg("module load %s" % tc_mod, silent=silent)
+            else:
+                # first simulate loads for toolchain dependencies, if required information is available
+                if self.tcdeps is not None:
+                    for tcdep in self.tcdeps:
+                        modname = tcdep['short_mod_name']
+                        dry_run_msg("module load %s [SIMULATED]" % modname, silent=silent)
+                        # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
+                        deproot = '$%s' % get_software_root_env_var_name(tcdep['name'])
+                        self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': deproot})
+
+                dry_run_msg("module load %s [SIMULATED]" % tc_mod, silent=silent)
+                # use name of $EBROOT* env var as value for $EBROOT* env var (results in sensible dry run output)
+                tcroot = '$%s' % get_software_root_env_var_name(self.name)
+                self._simulated_load_dependency_module(self.name, self.version, {'prefix': tcroot})
+        else:
+            # make sure toolchain is available using short module name by running 'module use' on module path subdir
+            if self.init_modpaths:
+                mod_path_suffix = build_option('suffix_modules_path')
+                for modpath in self.init_modpaths:
+                    self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
+
+            # load modules for all dependencies
+            self.log.debug("Loading module for toolchain: %s" % tc_mod)
+            self.modules_tool.load([tc_mod])
+
+    def _load_dependencies_modules(self, silent=False):
         """Load modules for dependencies, and handle special cases like external modules."""
-        # load modules for all dependencies
-        dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
-        self.log.debug("Loading modules for dependencies: %s" % dep_mods)
-        self.modules_tool.load(dep_mods)
+
+        if self.dry_run:
+            dry_run_msg("\nLoading modules for dependencies...\n", silent=silent)
+
+            mod_names = [dep['short_mod_name'] for dep in self.dependencies]
+            mods_exist = self.modules_tool.exist(mod_names)
+
+            # load available modules for dependencies, simulate load for others
+            for dep, dep_mod_exists in zip(self.dependencies, mods_exist):
+                mod_name = dep['short_mod_name']
+                if dep_mod_exists:
+                    self.modules_tool.load([mod_name])
+                    dry_run_msg("module load %s" % mod_name, silent=silent)
+                else:
+                    dry_run_msg("module load %s [SIMULATED]" % mod_name, silent=silent)
+                    # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
+                    deproot = '$%s' % get_software_root_env_var_name(dep['name'])
+                    self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
+        else:
+            # load modules for all dependencies
+            dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
+            self.log.debug("Loading modules for dependencies: %s" % dep_mods)
+            self.modules_tool.load(dep_mods)
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
         for dep in [d for d in self.dependencies if d['external_module']]:
-            self._prepare_dependency_external_module(dep)
+            mod_name = dep['full_mod_name']
+            metadata = dep['external_module_metadata']
+            self.log.debug("Metadata for external module %s: %s", mod_name, metadata)
 
-    def prepare(self, onlymod=None):
-        """
-        Prepare a set of environment parameters based on name/version of toolchain
-        - load modules for toolchain and dependencies
-        - generate extra variables and set them in the environment
+            names = metadata.get('name', [])
+            versions = metadata.get('version', [None] * len(names))
+            self.log.debug("Defining $EB* environment variables for external module %s using names %s, versions %s",
+                           mod_name, names, versions)
 
-        onlymod: Boolean/string to indicate if the toolchain should only load the environment
-        with module (True) or also set all other variables (False) like compiler CC etc
-        (If string: comma separated list of variables that will be ignored).
-        """
+            for name, version in zip(names, versions):
+                self._simulated_load_dependency_module(name, version, metadata, verbose=True)
+
+    def _load_modules(self, silent=False):
+        """Load modules for toolchain and dependencies."""
         if self.modules_tool is None:
             raise EasyBuildError("No modules tool defined in Toolchain instance.")
 
-        if not self._toolchain_exists():
+        if not self._toolchain_exists() and not self.dry_run:
             raise EasyBuildError("No module found for toolchain: %s", self.mod_short_name)
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
+                if self.dry_run:
+                    dry_run_msg("(no modules are loaded for a dummy-dummy toolchain)", silent=silent)
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self._prepare_dependencies()
-            return
+                self._load_dependencies_modules(silent=silent)
+        else:
+            # load the toolchain and dependencies modules
+            self.log.debug("Loading toolchain module and dependencies...")
+            self._load_toolchain_module(silent=silent)
+            self._load_dependencies_modules(silent=silent)
 
-        # Load the toolchain and dependencies modules
-        self.log.debug("Loading toolchain module and dependencies...")
-        # make sure toolchain is available using short module name by running 'module use' on module path subdir
-        if self.init_modpaths:
-            mod_path_suffix = build_option('suffix_modules_path')
-            for modpath in self.init_modpaths:
-                self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
-        self.modules_tool.load([self.det_short_module_name()])
-        self._prepare_dependencies()
+        # include list of loaded modules in dry run output
+        if self.dry_run:
+            loaded_mods = self.modules_tool.list()
+            dry_run_msg("\nFull list of loaded modules:", silent=silent)
+            if loaded_mods:
+                for i, mod_name in enumerate([m['mod_name'] for m in loaded_mods]):
+                    dry_run_msg("  %d) %s" % (i+1, mod_name), silent=silent)
+            else:
+                dry_run_msg("  (none)", silent=silent)
+            dry_run_msg('', silent=silent)
 
+    def _verify_toolchain(self):
+        """Verify toolchain: check toolchain definition against dependencies of toolchain module."""
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
         self.toolchain_dep_mods = dependencies_for(mod_name, depth=0)
@@ -461,21 +545,38 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(%s vs %s)", self.toolchain_dep_mods, toolchain_definition)
 
-        # Generate the variables to be set
-        self.set_variables()
+    def prepare(self, onlymod=None, silent=False):
+        """
+        Prepare a set of environment parameters based on name/version of toolchain
+        - load modules for toolchain and dependencies
+        - generate extra variables and set them in the environment
 
-        # set the variables
-        # onlymod can be comma-separated string of variables not to be set
-        if onlymod == True:
-            self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
-            self.generate_vars()
-        else:
-            self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
+        onlymod: Boolean/string to indicate if the toolchain should only load the environment
+        with module (True) or also set all other variables (False) like compiler CC etc
+        (If string: comma separated list of variables that will be ignored).
+        """
+        self._load_modules(silent=silent)
 
-            # add LDFLAGS and CPPFLAGS from dependencies to self.vars
-            self._add_dependency_variables()
-            self.generate_vars()
-            self._setenv_variables(onlymod)
+        if self.name != DUMMY_TOOLCHAIN_NAME:
+
+            if not self.dry_run:
+                self._verify_toolchain()
+
+            # Generate the variables to be set
+            self.set_variables()
+
+            # set the variables
+            # onlymod can be comma-separated string of variables not to be set
+            if onlymod == True:
+                self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
+                self.generate_vars()
+            else:
+                self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
+
+                # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+                self._add_dependency_variables()
+                self.generate_vars()
+                self._setenv_variables(onlymod, verbose=not silent)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
@@ -514,9 +615,12 @@ class Toolchain(object):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
-    def _setenv_variables(self, donotset=None):
+    def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
+
         self.log.debug("_setenv_variables: setting variables: donotset=%s" % donotset)
+        if self.dry_run:
+            dry_run_msg("Defining build environment...\n", silent=not verbose)
 
         donotsetlist = []
         if isinstance(donotset, str):
@@ -525,19 +629,19 @@ class Toolchain(object):
         elif isinstance(donotset, list):
             donotsetlist = donotset
 
-        for key, val in self.vars.items():
+        for key, val in sorted(self.vars.items()):
             if key in donotsetlist:
                 self.log.debug("_setenv_variables: not setting environment variable %s (value: %s)." % (key, val))
                 continue
 
             self.log.debug("_setenv_variables: setting environment variable %s to %s" % (key, val))
-            setvar(key, val)
+            setvar(key, val, verbose=verbose)
 
             # also set unique named variables that can be used in Makefiles
             # - so you can have 'CFLAGS = $(EBVARCFLAGS)'
             # -- 'CLFLAGS = $(CFLAGS)' gives  '*** Recursive variable `CFLAGS'
             # references itself (eventually).  Stop' error
-            setvar("EBVAR%s" % key, val)
+            setvar("EBVAR%s" % key, val, verbose=False)
 
     def get_flag(self, name):
         """Get compiler flag for a certain option."""

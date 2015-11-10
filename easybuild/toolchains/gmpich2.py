@@ -28,10 +28,11 @@ EasyBuild support for gmpich2 compiler toolchain (includes GCC and MPICH2).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
-class Gmpich2(Gcc, Mpich2):
+class Gmpich2(GccToolchain, Mpich2):
     """Compiler toolchain with GCC and MPICH2."""
     NAME = 'gmpich2'
+    SUBTOOLCHAIN = GccToolchain.NAME

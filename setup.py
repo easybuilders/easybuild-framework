@@ -30,7 +30,7 @@ or
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 from distutils import log
 
@@ -92,7 +92,7 @@ implement support for installing particular (groups of) software packages.""",
     package_dir={'test.framework': "test/framework"},
     package_data={"test.framework": find_rel_test()},
     scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash"],
-    data_files=[],
+    data_files=[('easybuild/scripts', glob.glob('easybuild/scripts/*'))],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -108,4 +108,7 @@ implement support for installing particular (groups of) software packages.""",
     test_suite="test.framework.suite",
     zip_safe=False,
     install_requires=["vsc-base >= 2.2.4"],
+    extras_require = {
+        'yeb': ["PyYAML >= 3.11"],
+    },
 )

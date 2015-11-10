@@ -1029,6 +1029,17 @@ class ToyBuildTest(EnhancedTestCase):
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
 
+    def test_regtest(self):
+        """Test use of --regtest."""
+        self.test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
+
+        # just check whether module exists
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        msg = "module %s found" % toy_module
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module), msg)
+
 
 def suite():
     """ return all the tests in this file """
