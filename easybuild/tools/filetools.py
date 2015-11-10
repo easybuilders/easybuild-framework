@@ -543,9 +543,9 @@ def extract_cmd(filepath, overwrite=False):
 
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
     """Determine list of patched files from a patch."""
-    # expected format: "+++ path/to/patched/file"
+    # searches for the diff --git lines to determine the filenames
     # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+    patched_regex = re.compile(r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
     if path is not None:
         try:
             f = open(path, 'r')
