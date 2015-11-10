@@ -62,6 +62,7 @@ UNKNOWN = 'UNKNOWN'
 
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
+PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
 VENDORS = {
@@ -104,6 +105,25 @@ def get_avail_core_count():
 def get_core_count():
     """NO LONGER SUPPORTED: use get_avail_core_count() instead"""
     _log.nosupport("get_core_count() is replaced by get_avail_core_count()", '2.0')
+
+def get_total_memory():
+
+    # Return total memory as an integer, a number of megabytes.
+
+    memtotal = 0
+    os_type = get_os_type()
+
+    if os_type == LINUX and os.path.exists(PROC_MEMINFO_FP):
+        with open(PROC_MEMINFO_FP, 'r') as meminfo:
+            for memline in meminfo:
+                memline_sub = re.sub(r'^MemTotal:\s*(\d+)\s*kB$', r'\1', memline)
+                if memline_sub != memline:
+                    memtotal = memline_sub / 1024
+
+    if memtotal = 0:
+        raise SystemToolsException('Can not determine total memory on this system')
+    else:
+        return memtotal
 
 
 def get_cpu_vendor():
