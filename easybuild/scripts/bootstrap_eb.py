@@ -540,7 +540,7 @@ preinstallopts = '%(preinstallopts)s'
 pyshortver = '.'.join(SYS_PYTHON_VERSION.split('.')[:2])
 sanity_check_paths = {
     'files': ['bin/eb'],
-    'dirs': ['lib/python%%s/site-packages' %% pyshortver],
+    'dirs': [('lib/python%%s/site-packages' %% pyshortver, 'lib64/python%%s/site-packages' %% pyshortver)],
 }
 
 moduleclass = 'tools'
