@@ -119,6 +119,8 @@ def package_with_fpm(easyblock):
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
+        '--description', "'",easyblock.cfg["description"], "'",
+        '--url', easyblock.cfg["homepage"],
         depstring,
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
