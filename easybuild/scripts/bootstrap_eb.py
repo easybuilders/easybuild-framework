@@ -49,6 +49,7 @@ import shutil
 import site
 import sys
 import tempfile
+import argparse
 from distutils.version import LooseVersion
 
 PYPI_SOURCE_URL = 'https://pypi.python.org/packages/source'
@@ -437,10 +438,16 @@ def main():
         error("Don't run the EasyBuild bootstrap script as root, "
               "since stage 2 (installing EasyBuild with EasyBuild) will fail.")
 
-    # see if an install dir was specified
-    if not len(sys.argv) == 2:
-        error("Usage: %s <install path>" % sys.argv[0])
-    install_path = os.path.abspath(sys.argv[1])
+    # general option/argument parser
+    bs_argparser = argparse.ArgumentParser()
+    bs_argparser.add_argument(
+      "prefix", help="Installation prefix directory",
+      type=str)
+    bs_args = bs_argparser.parse_args()
+
+    # prefix specification
+    install_path = os.path.abspath(bs_args.prefix)
+    info("Installation prefix %s" % install_path)
 
     sourcepath = EASYBUILD_BOOTSTRAP_SOURCEPATH
     if sourcepath is not None:
