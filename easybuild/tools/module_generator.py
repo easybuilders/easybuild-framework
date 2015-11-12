@@ -250,13 +250,22 @@ class ModuleGeneratorTcl(ModuleGenerator):
         statements = [template % (key, p) for p in abspaths]
         return ''.join(statements)
 
-    def use(self, paths):
+    def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
         """
         use_statements = []
         for path in paths:
-            use_statements.append("module use %s\n" % path)
+            if prefix:
+                full_path = "[file join %s %s]" % (prefix, path)
+            else:
+                full_path = path
+            if guarded:
+                use_statements.append("if {[file isdirectory %s]} {\n" % full_path)
+                use_statements.append("    module use %s\n" % full_path)
+                use_statements.append("}\n")
+            else:
+                use_statements.append("module use %s\n" % full_path)
         return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
@@ -289,6 +298,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
+    def det_home(self):
+        """
+        Return module-syntax specific code to determine the user's home directory.
+        """
+        return 'env(HOME)'
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
@@ -414,12 +428,24 @@ class ModuleGeneratorLua(ModuleGenerator):
         statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in abspaths]
         return ''.join(statements)
 
-    def use(self, paths):
+    def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
         @param paths: list of module path extensions to generate use statements for
         """
-        return ''.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths])
+        use_statements = []
+        for path in paths:
+            if prefix:
+                full_path = "pathJoin(%s, %s)" % (prefix, path)
+            else:
+                full_path = path
+            if guarded:
+                use_statements.append('if (isDir(%s)) then\n' % full_path)
+                use_statements.append('    ' + self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                use_statements.append('end\n')
+            else:
+                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+        return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -446,6 +472,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias("%s", %s)\n' % (key, quote_str(value))
+
+    def det_home(self):
+        """
+        Return module-syntax specific code to determine the user's home directory.
+        """
+        return 'os.getenv("HOME")'
 
 
 def avail_module_generators():
