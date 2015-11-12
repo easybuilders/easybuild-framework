@@ -228,18 +228,37 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_use(self):
         """Test generating module use statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # Test regular 'module use' statements
             expected = ''.join([
                 'module use "/some/path"\n',
                 'module use "/foo/bar/baz"\n',
             ])
             self.assertEqual(self.modgen.use([quote_str(p) for p in "/some/path", "/foo/bar/baz"]), expected)
+
+            # Test guarded 'module use' statements using prefix
+            expected = ''.join([
+                'if {[file isdirectory [file join "/foo" "/some/path"]]} {\n',
+                '    module use [file join "/foo" "/some/path"]\n',
+                '}\n',
+            ])
+            self.assertEqual(self.modgen.use([quote_str("/some/path")], prefix=quote_str("/foo"), guarded=True),
+                             expected)
         else:
+            # Test regular 'module use' statements
             expected = ''.join([
                 'prepend_path("MODULEPATH", "/some/path")\n',
                 'prepend_path("MODULEPATH", "/foo/bar/baz")\n',
             ])
             self.assertEqual(self.modgen.use([quote_str(p) for p in "/some/path", "/foo/bar/baz"]), expected)
 
+            # Test guarded 'module use' statements using prefix
+            expected = ''.join([
+                'if (isDir(pathJoin("/foo", "/some/path"))) then\n',
+                '    prepend_path("MODULEPATH", pathJoin("/foo", "/some/path"))\n',
+                'end\n',
+            ])
+            self.assertEqual(self.modgen.use([quote_str("/some/path")], prefix=quote_str("/foo"), guarded=True),
+                             expected)
 
     def test_env(self):
         """Test setting of environment variables."""
