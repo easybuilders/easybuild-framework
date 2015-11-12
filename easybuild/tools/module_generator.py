@@ -302,7 +302,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Return module-syntax specific code to determine the user's home directory.
         """
-        return 'env(HOME)'
+        return '$env(HOME)'
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
