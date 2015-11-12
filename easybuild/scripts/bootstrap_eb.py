@@ -442,13 +442,10 @@ def main():
     bs_argparser = argparse.ArgumentParser()
     bs_argparser.add_argument(
       "prefix", help="Installation prefix directory",
-      nargs='?', type=str, default='')
+      type=str)
     bs_args = bs_argparser.parse_args()
 
     # prefix specification
-    if bs_args.prefix == '':
-        bs_argparse.print_usage()
-        sys.exit(1)
     install_path = os.path.abspath(bs_args.prefix)
     info("Installation prefix %s" % install_path)
 
