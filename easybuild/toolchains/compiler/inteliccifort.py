@@ -31,6 +31,7 @@ Support for Intel compilers (icc, ifort) as toolchain compilers.
 
 from distutils.version import LooseVersion
 
+from easybuild.tools.config import build_option
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
@@ -68,11 +69,20 @@ class IntelIccIfort(Compiler):
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
     }
+    
+    optarch = build_option('optarch')
+    if optarch == 'GENERIC':
+        # do generic build if optarch flag is GENERIC
+        COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+            systemtools.INTEL : 'xSSE2',
+            systemtools.AMD : 'xSSE2',
+        }
+    else: # do optimized build (default)
+        COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+            systemtools.INTEL : 'xHost',
+            systemtools.AMD : 'xHost',
+        }
 
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHost',
-        systemtools.AMD : 'xHost',
-    }
 
     COMPILER_CC = 'icc'
     COMPILER_CXX = 'icpc'
