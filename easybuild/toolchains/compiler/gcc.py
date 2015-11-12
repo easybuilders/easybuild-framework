@@ -30,6 +30,7 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.config import build_option
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -63,11 +64,21 @@ class Gcc(Compiler):
         'veryloose': ['mrecip=all', 'mno-ieee-fp'],
     }
 
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.AMD : 'march=native',
-        systemtools.INTEL : 'march=native',
-        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
-    }
+    optarch = build_option('optarch')
+    if optarch == 'GENERIC':
+        # do generic build if optarch flag is GENERIC
+        COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+            systemtools.AMD : 'march=x86-64 -mtune=generic',
+            systemtools.INTEL : 'march=x86-64 -mtune=generic',
+            systemtools.POWER: 'mcpu=generic-arch',  # no support for march=native on POWER
+        }
+
+    else: # do optimized build (default)
+        COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+            systemtools.AMD : 'march=native',
+            systemtools.INTEL : 'march=native',
+            systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+        }
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
