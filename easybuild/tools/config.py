@@ -112,6 +112,7 @@ BUILD_OPTIONS_CMDLINE = {
         'regtest_output_dir',
         'skip',
         'stop',
+        'subdir_user_modules',
         'test_report_env_filter',
         'testoutput',
         'umask',
