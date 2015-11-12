@@ -611,7 +611,7 @@ class EasyBlockTest(EnhancedTestCase):
             for imkl_dep in excluded_deps:
                 tup = (imkl_dep, modfile_path, modtxt)
                 failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
-                self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
+                self.assertFalse(re.search('module load "%s"' % imkl_dep, modtxt), failmsg)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)

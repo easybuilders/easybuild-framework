@@ -46,6 +46,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path, init_config
 
 
@@ -228,16 +229,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test generating module use statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = ''.join([
-                "module use /some/path\n",
-                "module use /foo/bar/baz\n",
+                'module use "/some/path"\n',
+                'module use "/foo/bar/baz"\n',
             ])
-            self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
+            self.assertEqual(self.modgen.use([quote_str(p) for p in "/some/path", "/foo/bar/baz"]), expected)
         else:
             expected = ''.join([
                 'prepend_path("MODULEPATH", "/some/path")\n',
                 'prepend_path("MODULEPATH", "/foo/bar/baz")\n',
             ])
-            self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
+            self.assertEqual(self.modgen.use([quote_str(p) for p in "/some/path", "/foo/bar/baz"]), expected)
 
 
     def test_env(self):
