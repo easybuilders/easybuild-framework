@@ -71,8 +71,8 @@ class IntelIccIfort(Compiler):
     }
     
     optarch = build_option('optarch')
-    if optarch == 'GENERIC':
-        # do generic build if optarch flag is GENERIC
+    if optarch == OPTARCH_GENERIC: 
+        # do generic build if --optarch=GENERIC
         COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
             systemtools.INTEL : 'xSSE2',
             systemtools.AMD : 'xSSE2',
