@@ -587,9 +587,15 @@ class ModulesTool(object):
 
         modpath_exts = {}
         for mod_name in mod_names:
-            modtxt = self.read_module_file(mod_name)
-            useregex = re.compile(r"^\s*module\s+use\s+(\S+)", re.M)
-            exts = useregex.findall(modtxt)
+            # Should be module show so as to catch conditional loads.
+            modtxt = self.show(mod_name)
+            useregex = re.compile(r"^\s*module\s+use\s+(\S+)|^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"", re.M)
+            exts = []
+            for i in  useregex.finditer(modtxt):
+                    if i.group(1):
+                        exts.append(i.group(1))
+                    elif i.group(2):
+                        exts.append(i.group(2))
 
             self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
             modpath_exts.update({mod_name: exts})
