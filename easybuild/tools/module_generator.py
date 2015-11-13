@@ -164,7 +164,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         whatis = self.app.cfg['whatis']
         if not whatis:
-            whatis = description
+            whatis = [description]
 
         lines = [
             self.MODULE_HEADER.replace('%', '%%'),
@@ -173,7 +173,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             "    }",
             '}',
             '',
-            "module-whatis {%(whatis)s}",
+            '%(whatis_lines)s',
             '',
             "set root %(installdir)s",
         ]
@@ -194,7 +194,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
-            'whatis': whatis,
+            'whatis_lines': "\n".join(("module-whatis {%s}" % line) for line in whatis),
             'installdir': self.app.installdir,
         }
 
@@ -339,14 +339,12 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         whatis = self.app.cfg['whatis']
         if not whatis:
-            whatis = description
+            whatis = [description]
 
         lines = [
             "help([[%(description)s]])",
-            "whatis([[Name: %(name)s]])",
-            "whatis([[Version: %(version)s]])",
-            "whatis([[Description: %(whatis)s]])",
-            "whatis([[Homepage: %(homepage)s]])",
+            '',
+            "%(whatis_lines)s",
             '',
             'local root = "%(installdir)s"',
         ]
@@ -362,7 +360,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
-            'whatis': whatis,
+            'whatis_lines': "\n".join(("whatis([[%s]])" % line) for line in whatis),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
         }

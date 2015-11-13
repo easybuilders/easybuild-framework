@@ -155,7 +155,7 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
-    'whatis': [{}, "Brief (one line) package description", MODULES],
+    'whatis': [[], "List of brief (one line) package description entries", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
