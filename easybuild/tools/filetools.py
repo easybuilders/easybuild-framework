@@ -35,19 +35,22 @@ Set of file tools.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Sotiris Fragkiskos (NTUA, CERN)
 """
+import fileinput
 import glob
 import hashlib
 import os
 import re
 import shutil
 import stat
+import sys
 import time
 import urllib2
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import EasyBuildError, print_msg  # import build_log must stay, to use of EasyBuildLog
+# import build_log must stay, to use of EasyBuildLog
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 
@@ -146,22 +149,20 @@ def read_file(path, log_error=True):
             return None
 
 
-def write_file(path, txt, append=False):
+def write_file(path, txt, append=False, forced=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
-    f = None
+
+    # early exit in 'dry run' mode
+    if not forced and build_option('extended_dry_run'):
+        dry_run_msg("file written: %s" % path, silent=build_option('silent'))
+        return
+
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        if append:
-            f = open(path, 'a')
-        else:
-            f = open(path, 'w')
-        f.write(txt)
-        f.close()
+        with open(path, 'a' if append else 'w') as handle:
+            handle.write(txt)
     except IOError, err:
-        # make sure file handle is always closed
-        if f is not None:
-            f.close()
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
@@ -179,7 +180,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
     """
-    if not os.path.isfile(fn):
+    if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
 
     mkdir(dest, parents=True)
@@ -244,7 +245,7 @@ def det_common_path_prefix(paths):
         return None
 
 
-def download_file(filename, url, path):
+def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
@@ -269,7 +270,7 @@ def download_file(filename, url, path):
             # urllib2 does the right thing for http proxy setups, urllib does not!
             url_fd = urllib2.urlopen(url, timeout=timeout)
             _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
-            write_file(path, url_fd.read())
+            write_file(path, url_fd.read(), forced=forced)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
@@ -597,33 +598,41 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     - assume unified diff created with "diff -ru old new"
     """
 
-    if not os.path.isfile(patch_file):
+    if build_option('extended_dry_run'):
+        # skip checking of files in dry run mode
+        patch_filename = os.path.basename(patch_file)
+        dry_run_msg("* applying patch file %s" % patch_filename, silent=build_option('silent'))
+
+    elif not os.path.isfile(patch_file):
         raise EasyBuildError("Can't find patch %s: no such file", patch_file)
-        return
 
-    if fn and not os.path.isfile(fn):
+    elif fn and not os.path.isfile(fn):
         raise EasyBuildError("Can't patch file %s: no such file", fn)
-        return
 
-    if not os.path.isdir(dest):
+    elif not os.path.isdir(dest):
         raise EasyBuildError("Can't patch directory %s: no such directory", dest)
-        return
 
     # copy missing files
     if copy:
-        try:
-            shutil.copy2(patch_file, dest)
-            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-            return 'ok'
-        except IOError, err:
-            raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
-            return
+        if build_option('extended_dry_run'):
+            dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
+        else:
+            try:
+                shutil.copy2(patch_file, dest)
+                _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+                # early exit, work is done after copying
+                return True
+            except IOError, err:
+                raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
-    if not level:
+    if level is None and build_option('extended_dry_run'):
+        level = '<derived>'
+
+    elif level is None:
         # guess value for -p (patch level)
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
@@ -634,32 +643,48 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
             raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
             return
 
-        patch_level = guess_patch_level(patched_files, adest)
+        level = guess_patch_level(patched_files, adest)
 
-        if patch_level is None:  # patch_level can also be 0 (zero), so don't use "not patch_level"
+        if level is None:  # level can also be 0 (zero), so don't use "not level"
             # no match
             raise EasyBuildError("Can't determine patch level for patch %s from directory %s", patch_file, adest)
         else:
-            _log.debug("Guessed patch level %d for patch %s" % (patch_level, patch_file))
+            _log.debug("Guessed patch level %d for patch %s" % (level, patch_file))
 
     else:
-        patch_level = level
-        _log.debug("Using specified patch level %d for patch %s" % (patch_level, patch_file))
+        _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
-    try:
-        os.chdir(adest)
-        _log.debug("Changing to directory %s" % adest)
-    except OSError, err:
-        raise EasyBuildError("Can't change to directory %s: %s", adest, err)
-        return
-
-    patch_cmd = "patch -b -p%d -i %s" % (patch_level, apatch)
-    result = run.run_cmd(patch_cmd, simple=True)
+    patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
+    result = run.run_cmd(patch_cmd, simple=True, path=adest)
     if not result:
         raise EasyBuildError("Patching with patch %s failed", patch_file)
-        return
 
     return result
+
+
+def apply_regex_substitutions(path, regex_subs):
+    """
+    Apply specified list of regex substitutions.
+
+    @param path: path to file to patch
+    @param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
+    """
+    # only report when in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("applying regex substitutions to file %s" % path, silent=build_option('silent'))
+        for regex, subtxt in regex_subs:
+            dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
+
+    else:
+        _log.debug("Applying following regex substitutions to %s: %s", path, regex_subs)
+
+        for i, (regex, subtxt) in enumerate(regex_subs):
+            regex_subs[i] = (re.compile(regex), subtxt)
+
+        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+            for regex, subtxt in regex_subs:
+                line = regex.sub(subtxt, line)
+            sys.stdout.write(line)
 
 
 def modify_env(old, new):
@@ -686,7 +711,7 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False):
+                       group_id=None, relative=True, ignore_errors=False, skip_symlinks=True):
     """
     Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
@@ -700,9 +725,17 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         for root, dirs, files in os.walk(name):
             paths = []
             if not onlydirs:
-                paths += files
+                if skip_symlinks:
+                    for path in files:
+                        if os.path.islink(os.path.join(root, path)):
+                            _log.debug("Not adjusting permissions for symlink %s", path)
+                        else:
+                            paths.append(path)
+                else:
+                    paths.extend(files)
             if not onlyfiles:
-                paths += dirs
+                # os.walk skips symlinked dirs by default, i.e., no special handling needed here
+                paths.extend(dirs)
 
             for path in paths:
                 allpaths.append(os.path.join(root, path))
@@ -764,20 +797,25 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
-    txt = read_file(path)
-    origpath = "%s.eb.orig" % path
-    write_file(origpath, txt)
-    _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
+    # only report when in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("Perl script patched: %s" % path, silent=build_option('silent'))
 
-    # force autoflush for Perl print buffer
-    lines = txt.split('\n')
-    newtxt = '\n'.join([
-        lines[0],  # shebang line
-        "\nuse IO::Handle qw();",
-        "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
-    ] + lines[1:])
+    else:
+        txt = read_file(path)
+        origpath = "%s.eb.orig" % path
+        write_file(origpath, txt)
+        _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
 
-    write_file(path, newtxt)
+        # force autoflush for Perl print buffer
+        lines = txt.split('\n')
+        newtxt = '\n'.join([
+            lines[0],  # shebang line
+            "\nuse IO::Handle qw();",
+            "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
+        ] + lines[1:])
+
+        write_file(path, newtxt)
 
 
 def mkdir(path, parents=False, set_gid=None, sticky=None):

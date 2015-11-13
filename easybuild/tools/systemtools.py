@@ -88,7 +88,7 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity().cpus))
     else:
         # BSD-type systems
-        out, _ = run_cmd('sysctl -n hw.ncpu')
+        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True)
         try:
             if int(out) > 0:
                 core_cnt = int(out)
@@ -130,7 +130,7 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd)
+        out, ec = run_cmd(cmd, force_in_dry_run=True)
         out = out.strip()
         if ec == 0 and out in VENDORS:
             vendor = VENDORS[out]
@@ -191,7 +191,7 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        out, ec = run_cmd(cmd)
+        out, ec = run_cmd(cmd, force_in_dry_run=True)
         if ec == 0:
             model = out.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
@@ -236,7 +236,7 @@ def get_cpu_speed():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        out, ec = run_cmd(cmd)
+        out, ec = run_cmd(cmd, force_in_dry_run=True)
         if ec == 0:
             # returns clock frequency in cycles/sec, but we want MHz
             cpu_freq = float(out.strip())/(1000**2)
@@ -336,7 +336,16 @@ def get_os_version():
                 "11": [
                     ('2.6.27', ''),
                     ('2.6.32', '_SP1'),
+                    ('3.0.101-63', '_SP4'),
+                    # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
+                    ('3.0.101', '_SP3'),
+                    # SP2 kernel versions range from 3.0.13 - 3.0.101
                     ('3.0', '_SP2'),
+                ],
+
+                # Once SLES 12 SP1 comes out we'll need to make this stricter
+                "12": [
+                    ('3.12', ''),
                 ],
             }
 
@@ -370,11 +379,11 @@ def check_os_dependency(dep):
     cmd = None
     if which('rpm'):
         cmd = "rpm -q %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
 
     if not found and which('dpkg'):
         cmd = "dpkg -s %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
 
     if cmd is None:
         # fallback for when os-dependency is a binary/library
@@ -383,7 +392,7 @@ def check_os_dependency(dep):
         # try locate if it's available
         if not found and which('locate'):
             cmd = 'locate --regexp "/%s$"' % dep
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
 
     return found
 
@@ -393,7 +402,7 @@ def get_tool_version(tool, version_option='--version'):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False)
+    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True)
     if ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
@@ -484,7 +493,7 @@ def det_parallelism(par=None, maxpar=None):
     else:
         par = get_avail_core_count()
         # check ulimit -u
-        out, ec = run_cmd('ulimit -u')
+        out, ec = run_cmd('ulimit -u', force_in_dry_run=True)
         try:
             if out.startswith("unlimited"):
                 out = 2 ** 32 - 1

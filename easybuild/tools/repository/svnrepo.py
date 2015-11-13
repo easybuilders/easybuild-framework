@@ -79,7 +79,7 @@ class SvnRepository(FileRepository):
     @only_if_module_is_available('pysvn', url='http://pysvn.tigris.org/')
     def __init__(self, *args):
         """
-        Set self.client to None. Real logic is in setupRepo and createWorkingCopy
+        Set self.client to None. Real logic is in setup_repo and create_working_copy
         """
         self.client = None
         FileRepository.__init__(self, *args)
@@ -153,9 +153,9 @@ class SvnRepository(FileRepository):
         """
         Commit working copy to SVN repository
         """
-        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
-                                                                              time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              getpass.getuser(), msg)
+        tup = (socket.gethostname(), time.strftime("%Y-%m-%d_%H-%M-%S"), getpass.getuser(), msg)
+        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % tup
+
         try:
             self.client.checkin(self.wc, completemsg, recurse=True)
         except ClientError, err:

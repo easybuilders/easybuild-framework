@@ -44,12 +44,12 @@ import easybuild.tools.toolchain
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES, get_module_syntax
+from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.options import EasyBuildOptions, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
@@ -68,6 +68,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Set up test."""
         super(CommandLineOptionsTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+
+    def purge_environment(self):
+        """Remove any leftover easybuild variables"""
+        for var in os.environ.keys():
+            if var.startswith('EASYBUILD_'):
+                del os.environ[var]
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -187,16 +193,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # clear log file
         write_file(self.logfile, '')
-
-        # check that --force works
-        args = [
-                eb_file,
-                '--force',
-                '--debug',
-               ]
-        outtxt = self.eb_main(args)
-
-        self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
+        
+        # check that --force and --rebuild work 
+        for arg in ['--force', '--rebuild']:
+            outtxt = self.eb_main([eb_file, '--debug', arg])
+            self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with %s" % arg)
 
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
@@ -416,7 +417,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         logtxt = read_file(self.logfile)
-        self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known compiler toolchains")
+        self.assertTrue(re.search(info_msg, logtxt), "Info message with list of known toolchains found in: %s" % logtxt)
         # toolchain elements should be in alphabetical order
         tcs = {
             'dummy': [],
@@ -1501,7 +1502,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb_file,
             '--robot-paths=%s' % test_ecs_path,
         ]
-        error_regex = 'no module .* found for dependency'
+        error_regex = "Missing modules for one or more dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
         # enable robot, but without passing path required to resolve toy dependency => FAIL
@@ -1897,6 +1898,76 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
+
+    def test_set_tmpdir(self):
+        """Test set_tmpdir config function."""
+        self.purge_environment()
+
+        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
+            parent = tmpdir
+            if parent is None:
+                parent = tempfile.gettempdir()
+
+            mytmpdir = set_tmpdir(tmpdir=tmpdir)
+
+            for var in ['TMPDIR', 'TEMP', 'TMP']:
+                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
+                self.assertEqual(os.environ[var], mytmpdir)
+            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
+            tempfile_tmpdir = tempfile.mkdtemp()
+            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
+            fd, tempfile_tmpfile = tempfile.mkstemp()
+            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
+
+            # tmp_logdir follows tmpdir
+            self.assertEqual(get_build_log_path(), mytmpdir)
+
+            # cleanup
+            os.close(fd)
+            shutil.rmtree(mytmpdir)
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
+    def test_extended_dry_run(self):
+        """Test use of --extended-dry-run/-x."""
+        ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+        ]
+        # *no* output in testing mode (honor 'silent')
+        self.mock_stdout(True)
+        self.eb_main(args + ['--extended-dry-run'], do_build=True, raise_error=True, testing=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(len(stdout), 0)
+
+        msg_regexs = [
+            re.compile(r"the actual build \& install procedure that will be performed may diverge", re.M),
+            re.compile(r"^\*\*\* DRY RUN using 'EB_toy' easyblock", re.M),
+            re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+            re.compile(r"^\(no ignored errors during dry run\)", re.M),
+        ]
+        ignoring_error_regex = re.compile(r"WARNING: ignoring error", re.M)
+        ignored_error_regex = re.compile(r"WARNING: One or more errors were ignored, see warnings above", re.M)
+
+        for opt in ['--extended-dry-run', '-x']:
+            # check for expected patterns in output of --extended-dry-run/-x
+            self.mock_stdout(True)
+            self.eb_main(args + [opt], do_build=True, raise_error=True, testing=False)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+
+            for msg_regex in msg_regexs:
+                self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
+
+            # no ignored errors should occur
+            for notthere_regex in [ignoring_error_regex, ignored_error_regex]:
+                msg = "Pattern '%s' NOT found in: %s" % (notthere_regex.pattern, stdout)
+                self.assertFalse(notthere_regex.search(stdout), msg)
 
 
 def suite():

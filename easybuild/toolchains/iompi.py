@@ -29,12 +29,13 @@ EasyBuild support for iompi compiler toolchain (includes Intel compilers (icc, i
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.iccifort import IccIfort
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Iompi(IntelIccIfort, OpenMPI):
+class Iompi(IccIfort, OpenMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort) and OpenMPI.
     """
     NAME = 'iompi'
+    SUBTOOLCHAIN = IccIfort.NAME

@@ -453,6 +453,109 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
 
+    def test_adjust_permissions(self):
+        """Test adjust_permissions"""
+        # set umask hard to run test reliably
+        orig_umask = os.umask(0022)
+
+        # prep files/dirs/(broken) symlinks is test dir
+
+        # file: rw-r--r--
+        ft.write_file(os.path.join(self.test_prefix, 'foo'), 'foo')
+        foo_perms = os.stat(os.path.join(self.test_prefix, 'foo'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IRGRP, stat.S_IROTH]:
+            self.assertTrue(foo_perms & bit)
+        for bit in [stat.S_IXUSR, stat.S_IWGRP, stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+            self.assertFalse(foo_perms & bit)
+
+        # dir: rwxr-xr-x
+        ft.mkdir(os.path.join(self.test_prefix, 'bar'))
+        bar_perms = os.stat(os.path.join(self.test_prefix, 'bar'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IXGRP, stat.S_IROTH, stat.S_IXOTH]:
+            self.assertTrue(bar_perms & bit)
+        for bit in [stat.S_IWGRP, stat.S_IWOTH]:
+            self.assertFalse(bar_perms & bit)
+
+        # file in dir: rw-r--r--
+        foobar_path = os.path.join(self.test_prefix, 'bar', 'foobar')
+        ft.write_file(foobar_path, 'foobar')
+        foobar_perms = os.stat(foobar_path)[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IRGRP, stat.S_IROTH]:
+            self.assertTrue(foobar_perms & bit)
+        for bit in [stat.S_IXUSR, stat.S_IWGRP, stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+            self.assertFalse(foobar_perms & bit)
+
+        # include symlink
+        os.symlink(foobar_path, os.path.join(self.test_prefix, 'foobar_symlink'))
+
+        # include broken symlink (symlinks are skipped, so this shouldn't cause problems)
+        tmpfile = os.path.join(self.test_prefix, 'thiswontbetherelong')
+        ft.write_file(tmpfile, 'poof!')
+        os.symlink(tmpfile, os.path.join(self.test_prefix, 'broken_symlink'))
+        os.remove(tmpfile)
+
+        # test default behaviour:
+        # recursive, add permissions, relative to existing permissions, both files and dirs, skip symlinks
+        # add user execution, group write permissions
+        ft.adjust_permissions(self.test_prefix, stat.S_IXUSR|stat.S_IWGRP)
+
+        # foo file: rwxrw-r--
+        foo_perms = os.stat(os.path.join(self.test_prefix, 'foo'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IWGRP, stat.S_IROTH]:
+            self.assertTrue(foo_perms & bit)
+        for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+            self.assertFalse(foo_perms & bit)
+
+        # bar dir: rwxrwxr-x
+        bar_perms = os.stat(os.path.join(self.test_prefix, 'bar'))[stat.ST_MODE]
+        for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IWGRP, stat.S_IXGRP,
+                    stat.S_IROTH, stat.S_IXOTH]:
+            self.assertTrue(bar_perms & bit)
+        self.assertFalse(bar_perms & stat.S_IWOTH)
+
+        # foo/foobar file: rwxrw-r--
+        for path in [os.path.join(self.test_prefix, 'bar', 'foobar'), os.path.join(self.test_prefix, 'foobar_symlink')]:
+            perms = os.stat(path)[stat.ST_MODE]
+            for bit in [stat.S_IRUSR, stat.S_IWUSR, stat.S_IXUSR, stat.S_IRGRP, stat.S_IWGRP, stat.S_IROTH]:
+                self.assertTrue(perms & bit)
+            for bit in [stat.S_IXGRP, stat.S_IWOTH, stat.S_IXOTH]:
+                self.assertFalse(perms & bit)
+
+        # broken symlinks are trouble if symlinks are not skipped
+        self.assertErrorRegex(EasyBuildError, "No such file or directory", ft.adjust_permissions, self.test_prefix,
+                              stat.S_IXUSR, skip_symlinks=False)
+
+        # restore original umask
+        os.umask(orig_umask)
+
+    def test_apply_regex_substitutions(self):
+        """Test apply_regex_substitutions function."""
+        testfile = os.path.join(self.test_prefix, 'test.txt')
+        testtxt = '\n'.join([
+            "CC = gcc",
+            "CFLAGS = -O3 -g",
+            "FC = gfortran",
+            "FFLAGS = -O3 -g -ffixed-form",
+        ])
+        ft.write_file(testfile, testtxt)
+
+        regex_subs = [
+            (r"^(CC)\s*=\s*.*$", r"\1 = ${CC}"),
+            (r"^(FC\s*=\s*).*$", r"\1${FC}"),
+            (r"^(.FLAGS)\s*=\s*-O3\s-g(.*)$", r"\1 = -O2\2"),
+        ]
+        ft.apply_regex_substitutions(testfile, regex_subs)
+
+        expected_testtxt = '\n'.join([
+            "CC = ${CC}",
+            "CFLAGS = -O2",
+            "FC = ${FC}",
+            "FFLAGS = -O2 -ffixed-form",
+        ])
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt)
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(FileToolsTest)

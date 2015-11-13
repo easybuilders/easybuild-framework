@@ -331,7 +331,7 @@ def stage1(tmpdir, sourcepath):
     pattern = "This is EasyBuild (?P<version>%(v)s) \(framework: %(v)s, easyblocks: %(v)s\)" % {'v': '[0-9.]*[a-z0-9]*'}
     version_re = re.compile(pattern)
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    eb_version_cmd = 'from easybuild.tools.version import this_is_easybuild; print this_is_easybuild()'
+    eb_version_cmd = 'from easybuild.tools.version import this_is_easybuild; print(this_is_easybuild())'
     cmd = "python -c '%s' > %s 2>&1" % (eb_version_cmd, version_out_file)
     debug("Determining EasyBuild version using command '%s'" % cmd)
     os.system(cmd)
@@ -540,7 +540,7 @@ preinstallopts = '%(preinstallopts)s'
 pyshortver = '.'.join(SYS_PYTHON_VERSION.split('.')[:2])
 sanity_check_paths = {
     'files': ['bin/eb'],
-    'dirs': ['lib/python%%s/site-packages' %% pyshortver],
+    'dirs': [('lib/python%%s/site-packages' %% pyshortver, 'lib64/python%%s/site-packages' %% pyshortver)],
 }
 
 moduleclass = 'tools'

@@ -28,10 +28,11 @@ EasyBuild support for iiqmpi compiler toolchain (includes Intel compilers, QLogi
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.iccifort import IccIfort
 from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Iiqmpi(IntelIccIfort, QLogicMPI):
+class Iiqmpi(IccIfort, QLogicMPI):
     """Compiler toolchain with Intel compilers and QLogic MPI."""
     NAME = 'iiqmpi'
+    SUBTOOLCHAIN = IccIfort.NAME

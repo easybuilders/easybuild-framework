@@ -35,6 +35,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
 from easybuild.framework.easyconfig.types import TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
@@ -52,7 +53,6 @@ REPLACED_PARAMETERS = {
     'premakeopts': 'prebuildopts',
 }
 
-
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
 
 
@@ -64,7 +64,7 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     param_values = []
     for param in params:
-        regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        regex = re.compile(r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*$" % param, re.M)
         res = regex.search(rawtxt)
         if res:
             param_values.append(res.group('param').strip("'\""))
@@ -102,7 +102,7 @@ class EasyConfigParser(object):
         self._formatter = None
         if rawcontent is not None:
             self.rawcontent = rawcontent
-            self._set_formatter()
+            self._set_formatter(filename)
         elif filename is not None:
             self._check_filename(filename)
             self.process()
@@ -114,7 +114,7 @@ class EasyConfigParser(object):
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)
-        self._set_formatter()
+        self._set_formatter(filename)
 
     def check_values_types(self, cfg):
         """
@@ -185,11 +185,14 @@ class EasyConfigParser(object):
             raise EasyBuildError("More than one format class found matching version %s in %s",
                                  self.format_version, found_classes)
 
-    def _set_formatter(self):
+    def _set_formatter(self, filename):
         """Obtain instance of the formatter"""
         if self._formatter is None:
-            klass = self._get_format_version_class()
-            self._formatter = klass()
+            if is_yeb_format(filename, self.rawcontent):
+                self._formatter = FormatYeb()
+            else:
+                klass = self._get_format_version_class()
+                self._formatter = klass()
         self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):
