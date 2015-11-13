@@ -30,6 +30,7 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.toolchain.toolchain import OPTARCH_GENERIC
 from easybuild.tools.config import build_option
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
@@ -65,8 +66,8 @@ class Gcc(Compiler):
     }
 
     optarch = build_option('optarch')
-    if optarch == 'GENERIC':
-        # do generic build if optarch flag is GENERIC
+    if optarch == OPTARCH_GENERIC: 
+        # do generic build if --optarch=GENERIC
         COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
             systemtools.AMD : 'march=x86-64 -mtune=generic',
             systemtools.INTEL : 'march=x86-64 -mtune=generic',
