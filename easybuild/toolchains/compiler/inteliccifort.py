@@ -31,6 +31,7 @@ Support for Intel compilers (icc, ifort) as toolchain compilers.
 
 from distutils.version import LooseVersion
 
+from easybuild.tools.toolchain.toolchain import OPTARCH_GENERIC
 from easybuild.tools.config import build_option
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
