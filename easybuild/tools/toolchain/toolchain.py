@@ -48,6 +48,9 @@ from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
+# This string is used to enable generic compilation instead of optimized compilation (which is the default)
+# by doing eb --optarch=GENERIC
+OPTARCH_GENERIC = 'GENERIC'
 
 class Toolchain(object):
     """General toolchain class"""
