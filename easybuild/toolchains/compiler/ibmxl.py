@@ -24,70 +24,36 @@ class IBMXL(Compiler):
     COMPILER_FAMILY = TC_CONSTANT_IBMCOMP
     COMPILER_UNIQUE_OPTS = {
         'ibm-static': (False, "Link IBM XL provided libraries statically"),
-#        'no-icc': (False, "Don't set Intel specific macros"),
         'error-unknown-option': (False, "Error instead of warning for unknown options"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-#        'i8': '',
-#        'r8': '',
-#        'optarch': ['qtune=auto', 'cpu=Power7'],  # IBM XL - later
-        'optarch': 'qtune=auto',  # IBM XL - later
-#        'optarch': 'mcpu=native',  # IBM XL - later
-        'openmp': 'qsmp=omp',    # IBM XL - later
+        'optarch': 'qtune=auto',
+        'openmp': 'qsmp=omp',
         'strict': ['', ''],
         'precise': [''],
-#        'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
         'defaultprec': ['', '', ''],
         'loose': [''],
         'veryloose': [''],
-        'ibm-static': 'qstaticlink=xllibs',  # IBM XL - later
-#        'no-icc': 'no-icc',
-        'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
-        'pic': 'qpic',  # override?
-        'shared': 'qmkshrobj',  # override?
+        'ibm-static': 'qstaticlink=xllibs',
+        'pic': 'qpic',
+        'shared': 'qmkshrobj',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.IBM: ['qtune=auto', 'qmaxmem=-1'],
-        #systemtools.PPC: 'mcpu=Power7',
-        #systemtools.PPC: '',
     }
 
     COMPILER_CC = 'xlc'
     COMPILER_CXX = 'xlC'
-    #COMPILER_C_UNIQUE_FLAGS = ['ibm-static', 'no-icc']
-    #COMPILER_C_UNIQUE_FLAGS = ['ibm-static']
-    #COMPILER_C_UNIQUE_FLAGS = ['q64']  # controlled by "export OBJECT_MODE=64" for now
 
     COMPILER_FC = 'xlf'
     COMPILER_F77 = 'xlf'
     COMPILER_F90 = 'xlf90'
-    #COMPILER_F_UNIQUE_FLAGS = ['ibm-static']
-    #COMPILER_F_UNIQUE_FLAGS = ['q64']  # controlled by "export OBJECT_MODE=64" for now
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
         'dynamic': '-Bdynamic',
     }
 
-    #LIB_MULTITHREAD = ['xlsmp', 'pthread']  # iomp5 is OpenMP related
     LIB_MULTITHREAD = ['xlsmp']  # iomp5 is OpenMP related
-
-    def _set_compiler_vars(self):
-        """IBM XL compilers-specific adjustments after setting compiler variables."""
-        super(IBMXL, self)._set_compiler_vars()
-
-        if not ('xlc' in self.COMPILER_MODULE_NAME and 'xlf' in self.COMPILER_MODULE_NAME):
-            self.log.raiseException("_set_compiler_vars: missing xlc and/or xlf from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
-
-        #xlc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
-        #xlc_version, xlf_version = self.get_software_version(self.COMPILER_MODULE_NAME)
-
-        libpaths = ['xlsmp/4.1.0', 'xlmass/8.1.0']  # not sure how to get versions
-        if self.options.get('32bit', None):
-            libpaths = ['%s/lib' % x for x in libpaths]
-        else:
-            libpaths = ['%s/lib64' % x for x in libpaths]
-
-        self.variables.append_subdirs("LDFLAGS", '/opt/ibm', subdirs=libpaths)
