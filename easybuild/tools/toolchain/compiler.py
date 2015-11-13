@@ -33,6 +33,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
+from easybuild.tools.toolchain.toolchain import OPTARCH_GENERIC
 
 
 def mk_infix(prefix):
@@ -254,7 +255,7 @@ class Compiler(Toolchain):
             self.arch = systemtools.get_cpu_family()
 
         optarch = None
-        if build_option('optarch') is not None:
+        if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
             optarch = build_option('optarch')
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
