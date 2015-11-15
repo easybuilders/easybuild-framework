@@ -45,10 +45,10 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 MOCKED_FPM = """#!/bin/bash
 
-DEBUG=
+DEBUG=  #put something here if you want to debug 
 debug_echo () {
-    if [ ! -z "$DEBUG"]; then
-        echo "$1" >> /tmp/debug_fpm_mock
+    if [ -n "$DEBUG" ]; then
+        echo "$@" >> /tmp/debug_fpm_mock
     fi
 }
 debug_echo "----start-----"
