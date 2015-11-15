@@ -42,16 +42,18 @@ from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-
+DEBUG = False
+DEBUG_FPM_FILE = "debug_fpm_mock"
 MOCKED_FPM = """#!/bin/bash
 
-DEBUG=  #put something here if you want to debug 
+DEBUG=%(debug)s  #put something here if you want to debug
+
 debug_echo () {
     if [ -n "$DEBUG" ]; then
-        echo "$@" >> /tmp/debug_fpm_mock
+        echo "$@" >> %(debug_fpm_file)s
     fi
 }
-debug_echo "----start-----"
+
 debug_echo "$@"
 # only parse what we need to spit out the expected package file, ignore the rest
 while true
@@ -63,50 +65,41 @@ do
             workdir="$2"
             debug_echo "workdir"
             debug_echo "$workdir"
-            shift 2
             ;;
         "--name")
             name="$2"
-            shift 2
             ;;
         "--version")
             version="$2"
             debug_echo "version"
             debug_echo "$version"
-            shift 2
             ;;
         "--description")
             description="$2"
-            shift 2
             ;;
         "--url")
             url="$2"
-            shift 2
             ;;
         "--iteration")
             iteration="$2"
-            shift 2
             ;;
         "-t")
             target="$2"
-            shift 2
             ;;
         "-s")
             source="$2"
-            shift 2
             ;;
         --*)
             debug_echo "got a unhandled opption"
-            shift 2
             ;;
         *)
             debug_echo "got the rest of the output"
             installdir="$1"
             modulefile="$2"
-            shift 2
             break
             ;;
     esac
+    shift 2
 done
 
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
@@ -123,7 +116,10 @@ def mock_fpm(tmpdir):
     """Put mocked version of fpm command in place in specified tmpdir."""
     # put mocked 'fpm' command in place, just for testing purposes
     fpm = os.path.join(tmpdir, 'fpm')
-    write_file(fpm, MOCKED_FPM)
+    write_file(fpm, MOCKED_FPM % {
+        "debug": ('', 'on')[DEBUG],
+        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)}
+    )
     adjust_permissions(fpm, stat.S_IXUSR, add=True)
 
     # also put mocked rpmbuild in place
@@ -201,6 +197,9 @@ class PackageTest(EnhancedTestCase):
         pkgtxt = read_file(pkgfile)
         pkgtxt_regex = re.compile("Contents of installdir %s" % easyblock.installdir)
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
+
+        if DEBUG:
+            print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
 
 def suite():
     """ returns all the testcases in this module """
