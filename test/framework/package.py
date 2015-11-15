@@ -90,7 +90,7 @@ do
             source="$2"
             ;;
         --*)
-            debug_echo "got a unhandled opption"
+            debug_echo "got a unhandled option"
             ;;
         *)
             debug_echo "got the rest of the output"
