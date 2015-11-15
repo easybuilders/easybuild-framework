@@ -44,16 +44,70 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
 MOCKED_FPM = """#!/bin/bash
-# only parse what we need to spit out the expected package file, ignore the rest
-workdir=`echo $@ | sed 's/--workdir \([^ ]*\).*/\\1/g'`
-name=`echo $@ | sed 's/.* --name \([^ ]*\).*/\\1/g'`
-version=`echo $@ | sed 's/.*--version \([^ ]*\).*/\\1/g'`
-iteration=`echo $@ | sed 's/.*--iteration \([^ ]*\).*/\\1/g'`
-target=`echo $@ | sed 's/.*-t \([^ ]*\).*/\\1/g'`
 
-args=`echo $@ | sed 's/-[^ ]* [^ ]* //g'`
-installdir=`echo $args | cut -d' ' -f1`
-modulefile=`echo $args | cut -d' ' -f2`
+DEBUG=
+debug_echo () {
+    if [ ! -z "$DEBUG"]; then
+        echo "$1" >> /tmp/debug_fpm_mock
+    fi
+}
+debug_echo "----start-----"
+debug_echo "$@"
+# only parse what we need to spit out the expected package file, ignore the rest
+while true
+do
+    debug_echo "arg: $1"
+    debug_echo "rest: $@"
+    case "$1" in
+        "--workdir")
+            workdir="$2"
+            debug_echo "workdir"
+            debug_echo "$workdir"
+            shift 2
+            ;;
+        "--name")
+            name="$2"
+            shift 2
+            ;;
+        "--version")
+            version="$2"
+            debug_echo "version"
+            debug_echo "$version"
+            shift 2
+            ;;
+        "--description")
+            description="$2"
+            shift 2
+            ;;
+        "--url")
+            url="$2"
+            shift 2
+            ;;
+        "--iteration")
+            iteration="$2"
+            shift 2
+            ;;
+        "-t")
+            target="$2"
+            shift 2
+            ;;
+        "-s")
+            source="$2"
+            shift 2
+            ;;
+        --*)
+            debug_echo "got a unhandled opption"
+            shift 2
+            ;;
+        *)
+            debug_echo "got the rest of the output"
+            installdir="$1"
+            modulefile="$2"
+            shift 2
+            break
+            ;;
+    esac
+done
 
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
