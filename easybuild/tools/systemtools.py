@@ -118,9 +118,9 @@ def get_total_memory():
             for memline in meminfo:
                 memline_sub = re.sub(r'^MemTotal:\s*(\d+)\s*kB$', r'\1', memline)
                 if memline_sub != memline:
-                    memtotal = memline_sub / 1024
+                    memtotal = int(memline_sub) / 1024
 
-    if memtotal = 0:
+    if memtotal == 0:
         raise SystemToolsException('Can not determine total memory on this system')
     else:
         return memtotal
