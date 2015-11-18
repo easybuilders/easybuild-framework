@@ -29,7 +29,7 @@ Unit tests for .yeb easyconfig format
 @author: Kenneth Hoste (Ghent University)
 """
 import os
-import yaml
+import sys
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
@@ -38,6 +38,12 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
+
+try:
+    import yaml
+except ImportError:
+    pass
+
 
 class YebTest(EnhancedTestCase):
     """ Testcase for run module """
@@ -55,6 +61,10 @@ class YebTest(EnhancedTestCase):
 
     def test_parse_yeb(self):
         """Test parsing of .yeb easyconfigs."""
+        if 'yaml' not in sys.modules:
+            print "Skipping test_parse_yeb (no PyYAML available)"
+            return
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs')
         test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
@@ -102,6 +112,10 @@ class YebTest(EnhancedTestCase):
 
     def test_join(self):
         """ Test yaml_join function """
+        # skip test if yaml module was not loaded
+        if 'yaml' not in sys.modules:
+            print "Skipping test_join (no PyYAML available)"
+            return
 
         stream = [
             "variables:",

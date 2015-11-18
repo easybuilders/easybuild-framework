@@ -40,3 +40,11 @@ class Toy_Extension(ExtensionEasyBlock):
         EB_toy.configure_step(self.master, name=self.name)
         EB_toy.build_step(self.master, name=self.name)
         EB_toy.install_step(self.master, name=self.name)
+
+    def sanity_check_step(self, *args, **kwargs):
+        """Custom sanity check for toy extensions."""
+        custom_paths = {
+            'files': ['bin/%s' % self.name, 'lib/lib%s.a' % self.name],
+            'dirs': [],
+        }
+        return super(Toy_Extension, self).sanity_check_step(custom_paths=custom_paths)

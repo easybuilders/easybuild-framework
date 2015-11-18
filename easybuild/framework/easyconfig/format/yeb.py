@@ -35,15 +35,9 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
-from easybuild.framework.easyconfig.types import check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
-
-try:
-    import yaml
-except ImportError:
-    pass
 
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
@@ -64,8 +58,13 @@ def yaml_join(loader, node):
     seq = loader.construct_sequence(node)
     return ''.join([str(i) for i in seq])
 
-# register the tag handler
-yaml.add_constructor('!join', yaml_join)
+
+try:
+    import yaml
+    # register the tag handlers
+    yaml.add_constructor('!join', yaml_join)
+except ImportError:
+    pass
 
 
 class FormatYeb(EasyConfigFormat):
@@ -95,11 +94,6 @@ class FormatYeb(EasyConfigFormat):
         """
         txt = self._inject_constants_dict(txt)
         self.parsed_yeb = yaml.load(txt)
-        # toolchain and dependecy param value check, convert to dict if alt format is used
-        check_type_of_param_value('toolchain', self.parsed_yeb['toolchain'], auto_convert=True)
-        for dep in self.parsed_yeb.get('dependencies', ''):
-            check_type_of_param_value('dependencies', dep, auto_convert=True)
-
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
@@ -147,4 +141,3 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
-
