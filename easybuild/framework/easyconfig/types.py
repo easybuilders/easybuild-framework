@@ -111,9 +111,10 @@ def convert_value_type(val, typ):
 
     return res
 
+
 def to_toolchain(tcspec):
     """
-    Convert a toolchain string "foo, v0" to a dictionary {'name':'foo', 'version':'v0'}
+    Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
 
     @param tcspec: a toolchain in the form of a string or a list
     """
@@ -123,12 +124,16 @@ def to_toolchain(tcspec):
 
     if isinstance(tcspec, list):
         if len(tcspec) == 2:
-            return {'name':tcspec[0].strip(), 'version':tcspec[1].strip()}
+            res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
         else:
-            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements")
+            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements", tcspec)
     else:
-        raise EasyBuildError("Conversion of type %s to toolchain dict is not supported" % type(tcspec))
+        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", tcspec, type(tcspec))
 
+    return res
+
+
+# this uses to_toolchain, so it needs to be at the bottom of the module
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
     float: float,
