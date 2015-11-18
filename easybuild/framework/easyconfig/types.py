@@ -130,9 +130,11 @@ def to_toolchain(tcspec, convert_to='dict'):
             else:
                 res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
         else:
-            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements", tcspec)
+            errstr = "Can not convert list %s to name and version %s. Expected 2 elements"
+            raise EasyBuildError(errstr % (tcspec, convert_to))
     else:
-        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", tcspec, type(tcspec))
+        errstr = "Conversion of %s (type %s) to toolchain %s is not supported"
+        raise EasyBuildError(errstr % (tcspec, type(tcspec), convert_to))
 
     return res
 
@@ -144,7 +146,11 @@ def to_dependency(dep):
     """
     tup = ()
     if isinstance(dep, dict):
-        tup += to_toolchain(dep['name'], convert_to='tuple')
+        if 'name' in dep:
+            tup += to_toolchain(dep['name'], convert_to='tuple')
+        else:
+            raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
+
         tup += (dep.get('versionsuffix', ''),)
         if 'toolchain' in dep:
             tcspec = to_toolchain(dep['toolchain'], convert_to='tuple')
@@ -152,6 +158,8 @@ def to_dependency(dep):
         else:
             tup += ('',)
 
+    else:
+        raise EasyBuildError("Can not convert %s (type %s) to dependency tuple", dep, type(dep))
     return tup
 
 

@@ -91,17 +91,35 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_toolchain("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
         self.assertEqual(to_toolchain(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
 
+        # to tuple
+        self.assertEqual(to_toolchain("intel, 2015a", convert_to='tuple'), ('intel', '2015a'))
+        self.assertEqual(to_toolchain(['gcc', '4.7'], convert_to='tuple'), ('gcc', '4.7'))
+
         # wrong type
         self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
             to_toolchain, ('intel', '2015a'))
 
         # wrong number of elements
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
-            to_toolchain, "intel, 2015, a")
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
-            to_toolchain, "intel")
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
-            to_toolchain, ['gcc', '4', '7'])
+        errstr = "Can not convert .* to name and version .*. Expected 2 elements"
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain, "intel, 2015, a")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain, "intel")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain, ['gcc', '4', '7'])
+
+    def to_dependency(self):
+        """ Test dependency dict to tuple conversion """
+        # normal cases
+        self.assertEqual(to_dependency({'name': 'lib, 1.2.8'}), ('lib', '1.2.8'))
+        self.assertEqual(to_dependency({'name': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}),
+            ('lib', '1.2.8', '', ('gcc', '4.8.2')))
+        self.assertEqual(to_dependency({'name': ['lib', '1.2.8'], 'toolchain': ['gcc', '4.8.2']}),
+            ('lib', '1.2.8', '', ('gcc', '4.8.2')))
+        self.assertEqual(to_dependency({'name': 'foo, 1.3', 'versionsuffix': '-bar'}), ('foo', '1.3', '-bar', ()))
+
+        # no name/version
+        self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
+            to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+        self.assertErrorRegex(EasyBuildError, "Can not convert list %s to name and version %s. Expected 2 elements",
+            to_dependency, {'name': 'foo', 'versionsuffix': '-bar'})
 
 
 def suite():
