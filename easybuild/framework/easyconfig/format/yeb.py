@@ -95,9 +95,6 @@ class FormatYeb(EasyConfigFormat):
         """
         txt = self._inject_constants_dict(txt)
         self.parsed_yeb = yaml.load(txt)
-        # toolchain param value check, convert to dict if alt format is used
-        check_type_of_param_value('toolchain', self.parsed_yeb['toolchain'], auto_convert=True)
-
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
