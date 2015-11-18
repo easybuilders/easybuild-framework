@@ -117,16 +117,16 @@ class YebTest(EnhancedTestCase):
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 
-    def test_majmin(self):
+    def test_majorminor(self):
         """ Test yaml_versionmajorminor function """
         stream = [
             "variables:",
             "   - &version 2.7.65",
             "   - &comp_version 1.4.8.7",
             "",
-            "mm1: !majmin [*version]",
-            "mm2: !majmin [*comp_version]",
-            "mm3: !majmin 5.4.17",
+            "mm1: !majorminor [*version]",
+            "mm2: !majorminor [*comp_version]",
+            "mm3: !majorminor 5.4.17",
         ]
 
         # import here for testing yaml_join separately

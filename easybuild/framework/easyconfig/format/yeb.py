@@ -74,15 +74,17 @@ def yaml_versionmajorminor(loader, node):
         pyver = loader.construct_scalar(node)
     elif isinstance(node, yaml.nodes.SequenceNode):
         pyver = loader.construct_sequence(node)
-        pyver = pyver[0]
-        _log.debug("Extracting version from list")
-
+        if len(pyver) == 1:
+            pyver = pyver[0]
+            _log.debug("Extracting version from list")
+        else:
+            raise EasyBuildError("Wrong number of arguments in %s, majorminor function takes one argument", pyver)
     return '.'.join(pyver.split('.')[:2])
 
 
 # register the tag handlers
 yaml.Loader.add_constructor(u'!join', yaml_join)
-yaml.Loader.add_constructor(u'!majmin', yaml_versionmajorminor)
+yaml.Loader.add_constructor(u'!majorminor', yaml_versionmajorminor)
 
 class FormatYeb(EasyConfigFormat):
     """Support for easyconfig YAML format"""
