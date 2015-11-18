@@ -100,6 +100,8 @@ class TypeCheckingTest(EnhancedTestCase):
             to_toolchain, "intel, 2015, a")
         self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
             to_toolchain, "intel")
+        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
+            to_toolchain, ['gcc', '4', '7'])
 
 
 def suite():
