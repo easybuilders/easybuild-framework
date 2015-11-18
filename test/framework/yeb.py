@@ -36,6 +36,7 @@ from unittest import TestLoader, main
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 
 class YebTest(EnhancedTestCase):
@@ -136,7 +137,9 @@ class YebTest(EnhancedTestCase):
         self.assertEqual(loaded.get('mm2'), '1.4')
         self.assertEqual(loaded.get('mm3'), '5.4')
 
-
+        stream = "mm4: !majorminor [5, 2, 1]" #should raise an error
+        self.assertErrorRegex(EasyBuildError, "Wrong number of arguments in .*, majorminor function takes one argument",
+            yaml.load, stream)
 
 def suite():
     """ returns all the testcases in this module """
