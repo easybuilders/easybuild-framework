@@ -34,12 +34,13 @@ from easybuild.tools.build_log import EasyBuildError
 
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, int, dict]
+EASY_TYPES = [basestring, int, dict, tuple]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
     'toolchain': dict,
+    'dependencies': tuple,
 }
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
@@ -112,7 +113,7 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_toolchain(tcspec):
+def to_toolchain(tcspec, convert_to='dict'):
     """
     Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
 
@@ -124,7 +125,10 @@ def to_toolchain(tcspec):
 
     if isinstance(tcspec, list):
         if len(tcspec) == 2:
-            res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
+            if convert_to == 'tuple':
+                res = (tcspec[0].strip(), tcspec[1].strip())
+            else:
+                res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
         else:
             raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements", tcspec)
     else:
@@ -133,11 +137,30 @@ def to_toolchain(tcspec):
     return res
 
 
-# this uses to_toolchain, so it needs to be at the bottom of the module
+def to_dependency(dep):
+    """
+    Convert a dependency dict from the new YAML format {'name': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}
+    to a tuple in the dependency format
+    """
+    tup = ()
+    if isinstance(dep, dict):
+        tup += to_toolchain(dep['name'], convert_to='tuple')
+        tup += (dep.get('versionsuffix', ''),)
+        if 'toolchain' in dep:
+            tcspec = to_toolchain(dep['toolchain'], convert_to='tuple')
+            tup += (tcspec,)
+        else:
+            tup += ('',)
+
+    return tup
+
+
+# this uses functions defined in this module, so it needs to be at the bottom of the module
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
     float: float,
     int: int,
     str: str,
     dict: to_toolchain,
+    tuple: to_dependency,
 }
