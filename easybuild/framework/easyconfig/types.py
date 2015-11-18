@@ -34,19 +34,13 @@ from easybuild.tools.build_log import EasyBuildError
 
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, int]
+EASY_TYPES = [basestring, int, dict]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
+    'toolchain': dict,
 }
-TYPE_CONVERSION_FUNCTIONS = {
-    basestring: str,
-    float: float,
-    int: int,
-    str: str,
-}
-
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -116,3 +110,34 @@ def convert_value_type(val, typ):
         raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
 
     return res
+
+
+def to_toolchain(tcspec):
+    """
+    Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
+
+    @param tcspec: a toolchain in the form of a string or a list
+    """
+    # check if tc is a string or a list of two values; else, it can not be converted
+    if isinstance(tcspec, basestring):
+        tcspec = tcspec.split(',')
+
+    if isinstance(tcspec, list):
+        if len(tcspec) == 2:
+            res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
+        else:
+            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements", tcspec)
+    else:
+        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", tcspec, type(tcspec))
+
+    return res
+
+
+# this uses to_toolchain, so it needs to be at the bottom of the module
+TYPE_CONVERSION_FUNCTIONS = {
+    basestring: str,
+    float: float,
+    int: int,
+    str: str,
+    dict: to_toolchain,
+}

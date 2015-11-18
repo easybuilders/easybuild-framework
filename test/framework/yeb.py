@@ -36,6 +36,7 @@ from unittest import TestLoader, main
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 
 try:
@@ -131,6 +132,15 @@ class YebTest(EnhancedTestCase):
         loaded = yaml.load('\n'.join(stream))
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
+
+
+    def test_bad_toolchain_format(self):
+        """ Test alternate toolchain format name,version """
+        # only test bad cases - the right ones are tested with the test files in test_parse_yeb
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
+        expected = r'Can not convert list .* to toolchain dict. Expected 2 elements'
+        self.assertErrorRegex(EasyBuildError, expected, EasyConfig, os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
 
 
 def suite():

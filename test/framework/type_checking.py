@@ -31,7 +31,7 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type
+from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type, to_toolchain
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -84,6 +84,24 @@ class TypeCheckingTest(EnhancedTestCase):
         class Foo():
             pass
         self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
+
+    def test_to_toolchain(self):
+        """ Test toolchain string to dict conversion """
+        # normal cases
+        self.assertEqual(to_toolchain("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_toolchain(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+
+        # wrong type
+        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
+            to_toolchain, ('intel', '2015a'))
+
+        # wrong number of elements
+        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
+            to_toolchain, "intel, 2015, a")
+        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
+            to_toolchain, "intel")
+        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
+            to_toolchain, ['gcc', '4', '7'])
 
 
 def suite():
