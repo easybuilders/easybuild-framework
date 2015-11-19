@@ -28,19 +28,10 @@ EasyBuild support for GCC compiler toolchain.
 @author: Kenneth Hoste (Ghent University)
 """
 
-<<<<<<< .merge_file_89W4U2
 from easybuild.toolchains.gcccore import GCCcore
-=======
-from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
->>>>>>> .merge_file_tQC9t2
 
 class GccToolchain(GCCcore):
     """Simple toolchain with just the GCC compilers."""
     NAME = 'GCC'
-<<<<<<< .merge_file_89W4U2
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = GCCcore.NAME
-=======
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
->>>>>>> .merge_file_tQC9t2
