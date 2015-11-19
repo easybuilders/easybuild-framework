@@ -57,6 +57,7 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+    SUBTOOLCHAIN = None
     TOOLCHAIN_FAMILY = None
 
     # list of class 'constants' that should be restored for every new instance of this class
@@ -269,6 +270,8 @@ class Toolchain(object):
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
             'hidden': False,
+            'full_mod_name': self.mod_full_name,
+            'short_mod_name': self.mod_short_name,
         }
 
     def det_short_module_name(self):

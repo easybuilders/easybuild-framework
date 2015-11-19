@@ -53,9 +53,14 @@ class Extension(object):
         self.log = self.master.log
         self.cfg = self.master.cfg.copy()
         self.ext = copy.deepcopy(ext)
+        self.dry_run = self.master.dry_run
 
         if not 'name' in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
+
+        # parent sanity check paths/commands are not relevant for extension
+        self.cfg['sanity_check_commands'] = []
+        self.cfg['sanity_check_paths'] = []
 
         # list of source/patch files: we use an empty list as default value like in EasyBlock
         self.src = self.ext.get('src', [])

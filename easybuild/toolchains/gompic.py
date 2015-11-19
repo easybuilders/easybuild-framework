@@ -36,3 +36,4 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 class Gompic(GccCUDA, OpenMPI):
     """Compiler toolchain with GCC+CUDA and OpenMPI."""
     NAME = 'gompic'
+    SUBTOOLCHAIN = GccCUDA.NAME
