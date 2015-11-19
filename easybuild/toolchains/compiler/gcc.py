@@ -65,21 +65,8 @@ class Gcc(Compiler):
         'veryloose': ['mrecip=all', 'mno-ieee-fp'],
     }
 
-    optarch = build_option('optarch')
-    if optarch == OPTARCH_GENERIC: 
-        # do generic build if --optarch=GENERIC
-        COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-            systemtools.AMD : 'march=x86-64 -mtune=generic',
-            systemtools.INTEL : 'march=x86-64 -mtune=generic',
-            systemtools.POWER: 'mcpu=generic-arch',  # no support for march=native on POWER
-        }
-
-    else: # do optimized build (default)
-        COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-            systemtools.AMD : 'march=native',
-            systemtools.INTEL : 'march=native',
-            systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
-        }
+    # defined at runtime, based on --optarch
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
@@ -92,6 +79,25 @@ class Gcc(Compiler):
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
+
+    def __init__(self, *args, **kwargs):
+        """Constructor."""
+        optarch = build_option('optarch', default=None)
+        if optarch == OPTARCH_GENERIC:
+            # do generic build if --optarch=GENERIC
+            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+                systemtools.AMD : 'march=x86-64 -mtune=generic',
+                systemtools.INTEL : 'march=x86-64 -mtune=generic',
+                systemtools.POWER: 'mcpu=generic-arch',  # no support for march=native on POWER
+            }
+
+        else: # do optimized build (default)
+            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+                systemtools.AMD : 'march=native',
+                systemtools.INTEL : 'march=native',
+                systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+            }
+        super(Gcc, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         super(Gcc, self)._set_compiler_vars()

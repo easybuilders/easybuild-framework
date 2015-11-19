@@ -230,7 +230,13 @@ class Compiler(Toolchain):
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
-        optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
+        optarchflags = []
+        if build_option('optarch') == OPTARCH_GENERIC:
+            # don't take 'optarch' toolchain option into account when --optarch=GENERIC is used,
+            # *always* include the flags that correspond to generic compilation (which are listed in 'optarch' option)
+            optarchflags.append(self.options.option('optarch'))
+        elif self.options.get('optarch', False):
+            optarchflags.append(self.options.option('optarch'))
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
