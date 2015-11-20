@@ -57,17 +57,19 @@ class Mpi(Toolchain):
 
     MPI_UNIQUE_OPTION_MAP = None
     MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': 'cc=%(CC_base)s',
-                             '_opt_MPICXX':'cxx=%(CXX_base)s',
-                             '_opt_MPIF77':'fc=%(F77_base)s',
-                             '_opt_MPIF90':'f90=%(F90_base)s',
-                             }
+        '_opt_MPICC': 'cc=%(CC_base)s',
+        '_opt_MPICXX':'cxx=%(CXX_base)s',
+        '_opt_MPIF77':'fc=%(F77_base)s',
+        '_opt_MPIF90':'f90=%(F90_base)s',
+        '_opt_MPIFC':'fc=%(FC_base)s',
+    }
 
     MPI_COMPILER_MPICC = 'mpicc'
     MPI_COMPILER_MPICXX = 'mpicxx'
 
     MPI_COMPILER_MPIF77 = 'mpif77'
     MPI_COMPILER_MPIF90 = 'mpif90'
+    MPI_COMPILER_MPIFC = 'mpifc'
 
     MPI_LINK_INFO_OPTION = None
 

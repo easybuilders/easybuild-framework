@@ -38,6 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.job.backend import JobBackend
+from easybuild.tools.utilities import only_if_module_is_available
 
 
 _log = fancylogger.getLogger('pbs_python', fname=False)
@@ -53,25 +54,9 @@ try:
     from PBSQuery import PBSQuery
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 
-    # `pbs_python` is available, no need guard against import errors
-    def pbs_python_imported(fn):
-        """No-op decorator."""
-        return fn
-
 except ImportError as err:
-    _log.debug("Failed to import pbs from pbs_python."
+    _log.debug("Failed to import pbs/PBSQuery from pbs_python."
                " Silently ignoring, this is a real issue only when pbs_python is used as backend for --job")
-
-    # `pbs_python` not available, turn method in a raised EasyBuildError
-    def pbs_python_imported(_):
-        """Decorator which raises an EasyBuildError because pbs_python is not available."""
-        def fail(*args, **kwargs):
-            """Raise EasyBuildError since `pbs_python` is not available."""
-            errmsg = "Python modules 'PBSQuery' and 'pbs' are not available. "
-            errmsg += "Please make sure `pbs_python` is installed and usable: %s"
-            raise EasyBuildError(errmsg, err)
-
-        return fail
 
 
 class PbsPython(JobBackend):
@@ -82,7 +67,13 @@ class PbsPython(JobBackend):
     # pbs_python 4.1.0 introduces the pbs.version variable we rely on
     REQ_VERSION = '4.1.0'
 
-    @pbs_python_imported
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
+    def __init__(self, *args, **kwargs):
+        """PbsPython constructor."""
+        super(PbsPython, self).__init__(*args, **kwargs)
+
+    # _check_version is called by __init__, so guard it (too) with the decorator
+    @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _check_version(self):
         """Check whether pbs_python version complies with required version."""
         version_regex = re.compile('pbs_python version (?P<version>.*)')
@@ -115,7 +106,6 @@ class PbsPython(JobBackend):
         self.connect_to_server()
         self._submitted = []
 
-    @pbs_python_imported
     def connect_to_server(self):
         """Connect to PBS server, set and return connection."""
         if not self.conn:
@@ -162,13 +152,11 @@ class PbsPython(JobBackend):
 
         self.log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
 
-    @pbs_python_imported
     def disconnect_from_server(self):
         """Disconnect current connection."""
         pbs.pbs_disconnect(self.conn)
         self.conn = None
 
-    @pbs_python_imported
     def _get_ppn(self):
         """Guess PBS' `ppn` value for a full node."""
         # cache this value as it's not likely going to change over the

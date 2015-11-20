@@ -112,6 +112,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test load part in generated module file."""
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # default: guarded module load (which implies no recursive unloading)
             expected = [
                 '',
                 "if { ![ is-loaded mod_name ] } {",
@@ -122,14 +123,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
 
             # with recursive unloading: no if is-loaded guard
-            init_config(build_options={'recursive_mod_unload': True})
             expected = [
                 '',
                 "module load mod_name",
                 '',
             ]
+            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
+
+            init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
         else:
+            # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
                 '',
                 'if not isloaded("mod_name") then',
@@ -139,12 +143,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
-            init_config(build_options={'recursive_mod_unload': True})
+            # with recursive unloading: no if isloaded guard
             expected = '\n'.join([
                 '',
                 'load("mod_name")',
                 '',
             ])
+            self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
+
+            init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
     def test_unload(self):
@@ -277,7 +284,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
-        ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
+        # TODO FIXME: drop this once 2.0/.yeb support works
+        ec_files = [fil for fil in ec_files if not ('v2.0/' in fil or 'yeb/' in fil)]
 
         build_options = {
             'check_osdeps': False,
@@ -291,7 +299,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         def test_mns():
             """Test default module naming scheme."""
             # test default naming scheme
-            for ec_file in ec_files:
+            for ec_file in [f for f in ec_files if not 'broken' in os.path.basename(f)]:
                 ec_path = os.path.abspath(ec_file)
                 ecs = process_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
@@ -369,10 +377,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
             'GCC-4.6.3.eb': 'GCC/9e9ab5a1e978f0843b5aedb63ac4f14c51efb859',
-            'gzip-1.4.eb': 'gzip/8805ec3152d2a4a08b6c06d740c23abe1a4d059f',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/863557cc81811f8c3f4426a4b45aa269fa54130b',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/b63c2b8cc518905473ccda023100b2d3cff52d55',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3d49f0e112708a95f79ed38b91b506366c0299ab',
+            'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/fceb41e04c26b540b7276c4246d1ecdd1e8251c9',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/ae16b3a0a330d4323987b360c0d024f244ac4498',
             'toy-0.0.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
             'toy-0.0-multiple.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
         }
@@ -380,7 +388,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # test determining module name for dependencies (i.e. non-parsed easyconfigs)
         # using a module naming scheme that requires all easyconfig parameters
-        ec2mod_map['gzip-1.5-goolf-1.4.10.eb'] = 'gzip/.b63c2b8cc518905473ccda023100b2d3cff52d55'
+        ec2mod_map['gzip-1.5-goolf-1.4.10.eb'] = 'gzip/.fceb41e04c26b540b7276c4246d1ecdd1e8251c9'
         for dep_ec, dep_spec in [
             ('GCC-4.6.3.eb', {
                 'name': 'GCC',
@@ -409,7 +417,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'), hidden=True)
         self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-goolf-1.4.10.eb'])
-        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/b7515d0efd346970f55e7aa8522e239a70007021')
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/a86eb41d8f9c1d6f2d3d61cdb8f420cc2a21cada')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
@@ -517,7 +525,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                              ['Compiler/GCC/4.7.2/%s' % c for c in moduleclasses]),
             'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2/mpi',
                              ['MPI/GCC/4.7.2/OpenMPI/1.6.4/%s' % c for c in moduleclasses]),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/base',
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/tools',
                              []),
             'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core/toolchain',
                              []),

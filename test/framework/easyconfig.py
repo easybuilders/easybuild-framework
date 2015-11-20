@@ -46,9 +46,11 @@ from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
-from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import deep_refresh_dependencies, dep_graph, find_related_easyconfigs
+from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -302,8 +304,8 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "787393bfc465c85607a5b24486e861c5",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "44893c3ed46a7c7ab2e72fea7d19925d",',  # MD5 checksum for patch (toy-0.0.eb)
+            '           "a5464d79c2c8d4935e383ebd070b305e",',  # MD5 checksum for source (gzip-1.4.eb)
+            '           "fad34da3432ee2fd4d6554b86c8df4bf",',  # MD5 checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
             ']',
@@ -872,18 +874,20 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
-            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
-            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
+            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
+            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
+             {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
         ]:
             ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), validate=False)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), validate=False, build_specs=specs)
 
             ec2_dict = ec2.asdict()
-            # reset mandatory attributes from format2 that are not in format 1
-            for attr in ['docurls', 'software_license', 'software_license_urls']:
+            # reset mandatory attributes from format2 that are not defined in format 1 easyconfigs
+            for attr in ['docurls', 'software_license_urls']:
                 ec2_dict[attr] = None
 
-            self.assertEqual(ec1.asdict(), ec2_dict)
+            self.assertEqual(ec1.asdict(), ec2_dict, "Parsed %s is equivalent with %s" % (eb_file1, eb_file2))
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
@@ -1122,7 +1126,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
-        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', 'foo.patch', 'bar.patch'])
+        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
@@ -1301,7 +1305,8 @@ class EasyConfigTest(EnhancedTestCase):
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
             r"sources = \[SOURCELOWER_TAR_GZ\]",
-            r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
+            # use of templates in *dependencies is disabled for now, since it can cause problems
+            #r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
             r"preconfigopts = '--opt1=%\(name\)s'",
             r"configopts = '--opt2=%\(version\)s'",
             r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
@@ -1490,6 +1495,106 @@ class EasyConfigTest(EnhancedTestCase):
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
+
+    def test_modaltsoftname(self):
+        """Test specifying an alternative name for the software name, to use when determining module name."""
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb')
+        ectxt = read_file(ec_file)
+        modified_ec_file = os.path.join(self.test_prefix, os.path.basename(ec_file))
+        write_file(modified_ec_file, ectxt + "\nmodaltsoftname = 'notreallyatoy'")
+        ec = EasyConfig(modified_ec_file)
+        self.assertEqual(ec.full_mod_name, 'notreallyatoy/0.0-deps')
+        self.assertEqual(ec.short_mod_name, 'notreallyatoy/0.0-deps')
+        self.assertEqual(ec['name'], 'toy')
+
+    def test_software_license(self):
+        """Tests related to software_license easyconfig parameter."""
+        # default: None
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        ec = EasyConfig(ec_file)
+        ec.validate_license()
+        self.assertEqual(ec['software_license'], None)
+        self.assertEqual(ec.software_license, None)
+
+        # specified software license gets handled correctly
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4.eb')
+        ec = EasyConfig(ec_file)
+        ec.validate_license()
+        # constant GPLv3 is resolved as string
+        self.assertEqual(ec['software_license'], 'LicenseGPLv3')
+        # software_license is defined as License subclass
+        self.assertTrue(isinstance(ec.software_license, LicenseGPLv3))
+        self.assertTrue(issubclass(ec.software_license.__class__, License))
+
+        ec['software_license'] = 'LicenseThatDoesNotExist'
+        err_pat = r"Invalid license LicenseThatDoesNotExist \(known licenses:"
+        self.assertErrorRegex(EasyBuildError, err_pat, ec.validate_license)
+
+    def test_param_value_type_checking(self):
+        """Test value tupe checking of easyconfig parameters."""
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-broken.eb')
+        # version parameter has values of wrong type in this broken easyconfig
+        error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
+        self.assertErrorRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
+
+        # test default behaviour: auto-converting of mismatching value types
+        ec = EasyConfig(ec_file)
+        self.assertEqual(ec['version'], '1.4')
+
+    def test_eq_hash(self):
+        """Test comparing two EasyConfig instances."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec1 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+        ec2 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+
+        # different instances, same parsed easyconfig
+        self.assertFalse(ec1 is ec2)
+        self.assertEqual(ec1, ec2)
+        self.assertTrue(ec1 == ec2)
+        self.assertFalse(ec1 != ec2)
+
+        # hashes should also be identical
+        self.assertEqual(hash(ec1), hash(ec2))
+
+        # other parsed easyconfig is not equal
+        ec3 = EasyConfig(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
+        self.assertFalse(ec1 == ec3)
+        self.assertTrue(ec1 != ec3)
+
+    def test_deep_refresh_dependencies(self):
+        """Test deep_refresh_dependencies function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0-deps.eb'))
+
+        dep = copy.deepcopy(toy_ec['dependencies'][0])
+        dep['toolchain']['name'] = 'GCC'
+        dep['toolchain']['version'] = '4.7.2'
+        dep['versionsuffix'] = '-test'
+
+        self.assertEqual(toy_ec['dependencies'][0]['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(toy_ec['dependencies'][0]['versionsuffix'], '')
+        self.assertEqual(toy_ec['dependencies'][0]['dummy'], True)
+        self.assertEqual(toy_ec['dependencies'][0]['short_mod_name'], 'ictce/4.1.13')
+        self.assertEqual(toy_ec['dependencies'][0]['full_mod_name'], 'ictce/4.1.13')
+        self.assertEqual(toy_ec['dependencies'][1]['toolchain'], None)
+        self.assertEqual(toy_ec['dependencies'][1]['versionsuffix'], '')
+        self.assertEqual(toy_ec['dependencies'][1]['dummy'], False)
+        self.assertEqual(toy_ec['dependencies'][1]['short_mod_name'], 'GCC/4.7.2')
+        self.assertEqual(toy_ec['dependencies'][1]['full_mod_name'], 'GCC/4.7.2')
+
+        new_ec = deep_refresh_dependencies(toy_ec, dep)
+
+        self.assertEqual(new_ec['dependencies'][0]['toolchain'], {'name': 'GCC', 'version': '4.7.2'})
+        self.assertEqual(new_ec['dependencies'][0]['versionsuffix'], '-test')
+        self.assertEqual(new_ec['dependencies'][0]['dummy'], False)
+        self.assertEqual(new_ec['dependencies'][0]['short_mod_name'], 'ictce/4.1.13-GCC-4.7.2-test')
+        self.assertEqual(new_ec['dependencies'][0]['full_mod_name'], 'ictce/4.1.13-GCC-4.7.2-test')
+        # 2nd dep is unchanged
+        self.assertEqual(new_ec['dependencies'][1]['toolchain'], None)
+        self.assertEqual(new_ec['dependencies'][1]['versionsuffix'], '')
+        self.assertEqual(new_ec['dependencies'][1]['dummy'], False)
+        self.assertEqual(new_ec['dependencies'][1]['short_mod_name'], 'GCC/4.7.2')
+        self.assertEqual(new_ec['dependencies'][1]['full_mod_name'], 'GCC/4.7.2')
 
 
 def suite():

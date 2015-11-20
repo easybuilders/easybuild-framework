@@ -30,8 +30,9 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 class IccIfort(IntelIccIfort):
     """Compiler toolchain with Intel compilers (icc/ifort)."""
     NAME = 'iccifort'
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
