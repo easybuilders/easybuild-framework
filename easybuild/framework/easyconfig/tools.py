@@ -336,7 +336,7 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
     # Create a (temporary sub-)directory to store minimal easyconfigs
     minimal_ecs_dir = os.path.join(tempfile.tempdir,'minimal-easyconfigs')
     if not os.path.exists(minimal_ecs_dir):
-        os.mkdir(minimal_ecs_dir)
+        mkdir(minimal_ecs_dir, parents=True)
 
     for easyconfig in easyconfigs:
         toolchain_hierarchy = get_toolchain_hierarchy(easyconfig['ec']['toolchain'])
