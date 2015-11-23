@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, which, write_file, mkdir
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
