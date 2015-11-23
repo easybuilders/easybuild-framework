@@ -60,6 +60,7 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.toolchains.gcccore import GCCcore
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -226,7 +227,12 @@ def get_toolchain_hierarchy(parent_toolchain):
             subtoolchain_version = dep_tcs[0]['version']
 
         elif len(unique_dep_tc_versions) == 0:
-            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+            if subtoolchain_name == GCCcore.NAME:
+                _log.info("No version found for %s: Assuming legacy toolchain and skipping %s subtoolchain.",
+                          subtoolchain_name, subtoolchain_name)
+                subtoolchain_name = DUMMY_TOOLCHAIN_NAME
+                subtoolchain_version = ''
+            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
                 subtoolchain_version = ''
             else:
                 raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
@@ -333,8 +339,10 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
     modtool = modules_tool()
     # copy, we don't want to modify the origin list of available modules
     avail_modules = avail_modules[:]
-    minimal_ecs_dir = tempfile.mkdtemp(prefix='minimal-easyconfigs-')
-
+    # Create a (temporary sub-)directory to store minimal easyconfigs
+    minimal_ecs_dir = os.path.join(tempfile.tempdir,'minimal-easyconfigs')
+    if not os.path.exists(minimal_ecs_dir):
+        os.mkdir(minimal_ecs_dir)
     for easyconfig in easyconfigs:
         toolchain_hierarchy = get_toolchain_hierarchy(easyconfig['ec']['toolchain'])
         new_ec = easyconfig.copy()
@@ -422,7 +430,6 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
                     new_ec['ec'].dump(new_ec['spec'])
                     ordered_ecs.append(new_ec)
                     _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
-
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to create easyconfig %s: %s", newspec, err)
 
