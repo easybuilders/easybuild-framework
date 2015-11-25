@@ -543,9 +543,13 @@ def extract_cmd(filepath, overwrite=False):
 
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
     """Determine list of patched files from a patch."""
+    # expected format: "--- path/to/patched/file"
+    # also take into account the 'a/' or 'b/' prefix that may be used
+    patched_regex_old = re.compile(r"^\s*\-{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+
     # expected format: "+++ path/to/patched/file"
     # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+    patched_regex_new = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
     if path is not None:
         try:
             f = open(path, 'r')
@@ -557,7 +561,10 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
     patched_files = []
-    for match in patched_regex.finditer(txt):
+
+    old_matches = list(enumerate(patched_regex_old.finditer(txt)))
+    new_matches = enumerate(patched_regex_new.finditer(txt))
+    for idx, match in new_matches:
         patched_file = match.group('file')
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
@@ -565,7 +572,8 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
         if patched_file in ['/dev/null']:
             _log.debug("Ignoring patched file %s" % patched_file)
         else:
-            patched_files.append(patched_file)
+	    # Add tuple with [old filepath (from ---), and new filepath (from +++)]
+            patched_files.append([old_matches[idx][1].group('file'), patched_file])
 
     return patched_files
 
@@ -573,9 +581,9 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
 def guess_patch_level(patched_files, parent_dir):
     """Guess patch level based on list of patched files and specified directory."""
     patch_level = None
-    for patched_file in patched_files:
+    for patched_file_old, patched_file_new in patched_files:
         # locate file by stripping of directories
-        tf2 = patched_file.split(os.path.sep)
+        tf2 = patched_file_new.split(os.path.sep)
         n_paths = len(tf2)
         path_found = False
         level = None
@@ -583,11 +591,18 @@ def guess_patch_level(patched_files, parent_dir):
             if os.path.isfile(os.path.join(parent_dir, *tf2[level:])):
                 path_found = True
                 break
+	    else:
+		# If the file is missing, we create an empty file,
+		# but only if the old line is /dev/null
+		if patched_file_old in ['/dev/null']:
+		    open(os.path.join(parent_dir, *tf2[level:]), "a+")
+		    path_found = True
+		    break
         if path_found:
             patch_level = level
             break
         else:
-            _log.debug('No match found for %s, trying next patched file...' % patched_file)
+            _log.debug('No match found for %s, trying next patched file...' % patched_file_new)
 
     return patch_level
 
