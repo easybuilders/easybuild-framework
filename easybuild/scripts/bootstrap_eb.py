@@ -52,8 +52,8 @@ import tempfile
 from distutils.version import LooseVersion
 
 # argparse preferrred, optparse deprecated >=2.7
-HAVE_ARGPARSE=False
-try: 
+HAVE_ARGPARSE = False
+try:
     import argparse
     HAVE_ARGPARSE = True
 except ImportError:
@@ -82,6 +82,7 @@ orig_os_environ = copy.deepcopy(os.environ)
 
 easybuild_modules_tool = None
 
+
 #
 # Utility functions
 #
@@ -91,10 +92,12 @@ def debug(msg):
     if print_debug:
         print "[[DEBUG]]", msg
 
+
 def info(msg):
     """Print info message."""
 
     print "[[INFO]]", msg
+
 
 def error(msg, exit=True):
     """Print error message and exit."""
@@ -102,12 +105,14 @@ def error(msg, exit=True):
     print "[[ERROR]]", msg
     sys.exit(1)
 
+
 def det_lib_path(libdir):
     """Determine relative path of Python library dir."""
     if libdir is None:
         libdir = 'lib'
     pyver = '.'.join([str(x) for x in sys.version_info[:2]])
     return os.path.join(libdir, 'python%s' % pyver, 'site-packages')
+
 
 def find_egg_dir_for(path, pkg):
     """Find full path of egg dir for given package."""
@@ -125,6 +130,7 @@ def find_egg_dir_for(path, pkg):
     # no egg dir found
     debug("Failed to determine egg dir path for %s in %s (subdirs: %s)" % (pkg, path, subdirs))
     return None
+
 
 def prep(path):
     """Prepare for installing a Python package in the specified path."""
@@ -153,6 +159,7 @@ def prep(path):
 
     os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
     debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
 
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
@@ -189,10 +196,10 @@ def check_module_command(tmpdir):
 
     return modtool
 
+
 #
 # Stage functions
 #
-
 def stage0(tmpdir):
     """STAGE 0: Prepare and install distribute via included (patched) distribute_setup.py script."""
 
@@ -242,7 +249,7 @@ def stage0(tmpdir):
 
     # make sure we're getting the setuptools we expect
     import setuptools
-    if not tmpdir in setuptools.__file__:
+    if tmpdir not in setuptools.__file__:
         error("Found another setuptools than expected: %s" % setuptools.__file__)
     else:
         debug("Found setuptools in expected path, good!")
@@ -359,19 +366,20 @@ def stage1(tmpdir, sourcepath):
 
     # make sure we're getting the expected EasyBuild packages
     import easybuild.framework
-    if not tmpdir in easybuild.framework.__file__:
+    if tmpdir not in easybuild.framework.__file__:
         error("Found another easybuild-framework than expected: %s" % easybuild.framework.__file__)
     else:
         debug("Found easybuild-framework in expected path, good!")
 
     import easybuild.easyblocks
-    if not tmpdir in easybuild.easyblocks.__file__:
+    if tmpdir not in easybuild.easyblocks.__file__:
         error("Found another easybuild-easyblocks than expected: %s" % easybuild.easyblocks.__file__)
     else:
         debug("Found easybuild-easyblocks in expected path, good!")
 
     debug("templates: %s" % templates)
     return templates
+
 
 def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     """STAGE 2: install EasyBuild to temporary dir with EasyBuild from stage 1."""
@@ -437,6 +445,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     from easybuild.main import main as easybuild_main
     easybuild_main()
 
+
 def main():
     """Main script: bootstrap EasyBuild in stages."""
 
@@ -448,25 +457,24 @@ def main():
     # general option/argument parser
     if HAVE_ARGPARSE:
         bs_argparser = argparse.ArgumentParser()
-        bs_argparser.add_argument(
-          "prefix", help="Installation prefix directory",
-          type=str)
+        bs_argparser.add_argument("prefix", help="Installation prefix directory",
+                                  type=str)
         bs_args = bs_argparser.parse_args()
 
         # prefix specification
         install_path = os.path.abspath(bs_args.prefix)
     else:
         bs_argparser = optparse.OptionParser(usage="usage: %prog [options] prefix")
-        (bs_opts,bs_args) = bs_argparser.parse_args()
+        (bs_opts, bs_args) = bs_argparser.parse_args()
 
         # poor method, but should prefer argparse module for better pos arg support.
         if len(bs_args) < 1:
             error("Too few arguments\n" + bs_argparser.get_usage())
         elif len(bs_args) > 1:
             error("Too many arguments\n" + bs_argparser.get_usage())
-        
-        # prefix specification	
-	install_path = os.path.abspath(str(bs_args[0]))
+
+        # prefix specification
+        install_path = os.path.abspath(str(bs_args[0]))
 
     info("Installation prefix %s" % install_path)
 
@@ -527,10 +535,10 @@ def main():
 
     info('')
     if install_path is not None:
-        info('EasyBuild v%s was installed to %s, so make sure your $MODULEPATH includes %s' % \
+        info('EasyBuild v%s was installed to %s, so make sure your $MODULEPATH includes %s' %
              (templates['version'], install_path, os.path.join(install_path, 'modules', 'all')))
     else:
-        info('EasyBuild v%s was installed to configured install path, make sure your $MODULEPATH is set correctly.' % \
+        info('EasyBuild v%s was installed to configured install path, make sure your $MODULEPATH is set correctly.' %
              templates['version'])
         info('(default config => add "$HOME/.local/easybuild/modules/all" in $MODULEPATH)')
 
