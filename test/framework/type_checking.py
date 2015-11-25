@@ -88,7 +88,7 @@ class TypeCheckingTest(EnhancedTestCase):
 
     def test_to_name_version(self):
         """ Test toolchain string to dict conversion """
-        # normal cases
+        # normal cases, conversion to dict is default
         self.assertEqual(to_name_version("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
         self.assertEqual(to_name_version(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
 
