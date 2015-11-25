@@ -167,7 +167,7 @@ def check_module_command(tmpdir):
     global easybuild_modules_tool
 
     if easybuild_modules_tool is not None:
-        debug("Using modules tools specified by $EASYBUILD_MODULES_TOOL: " % easybuild_modules_tool)
+        debug("Using modules tools specified by $EASYBUILD_MODULES_TOOL: %s" % easybuild_modules_tool)
         return easybuild_modules_tool
 
     # order matters, so we can't use the keys from modules_tools which are unordered
