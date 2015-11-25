@@ -31,7 +31,7 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type, to_name_version
+from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type, to_name_version_dict
 from easybuild.framework.easyconfig.types import to_dependency
 
 
@@ -86,43 +86,54 @@ class TypeCheckingTest(EnhancedTestCase):
             pass
         self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
 
-    def test_to_name_version(self):
+    def test_to_name_version_dict(self):
         """ Test toolchain string to dict conversion """
-        # normal cases, conversion to dict is default
-        self.assertEqual(to_name_version("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
-
-        # to tuple
-        self.assertEqual(to_name_version("intel, 2015a", convert_to='tuple'), ('intel', '2015a'))
-        self.assertEqual(to_name_version(['gcc', '4.7'], convert_to='tuple'), ('gcc', '4.7'))
+        # normal cases
+        self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_name_version_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
 
         # wrong type
         self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to name and version dict is not supported",
-            to_name_version, ('intel', '2015a'))
+            to_name_version_dict, ('intel', '2015a'))
 
         # wrong number of elements
         errstr = "Can not convert .* to name and version .*. Expected 2 elements"
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version, "intel, 2015, a")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version, "intel")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version, ['gcc', '4', '7'])
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, a")
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel")
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', '7'])
 
     def test_to_dependency(self):
         """ Test dependency dict to tuple conversion """
         # normal cases
-        self.assertEqual(to_dependency({'name_version': 'lib, 1.2.8'}), ('lib', '1.2.8'))
-        self.assertEqual(to_dependency({'name_version': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}),
-            ('lib', '1.2.8', '', ('gcc', '4.8.2')))
-        self.assertEqual(to_dependency({'name_version': ['lib', '1.2.8'], 'toolchain': ['gcc', '4.8.2']}),
-            ('lib', '1.2.8', '', ('gcc', '4.8.2')))
-        self.assertEqual(to_dependency({'name_version': 'foo, 1.3', 'versionsuffix': '-bar'}), ('foo', '1.3', '-bar'))
-        self.assertEqual(to_dependency({'name_version': 'foo, 1.3', 'versionsuffix': '-bar', 'toolchain': 'gcc, 4.8.2'}),
-            ('foo', '1.3', '-bar', ('gcc', '4.8.2')))
+        lib_dict = {
+            'name': 'lib',
+            'version': '1.2.8',
+            'toolchain': {'name': 'gcc', 'version': '4.8.2'},
+        }
+
+        self.assertEqual(to_dependency({'lib': '1.2.8'}), {'name': 'lib', 'version': '1.2.8'})
+        self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': 'gcc, 4.8.2'}), lib_dict)
+        self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': ['gcc', '4.8.2']}), lib_dict)
+        self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar'}),
+            {
+                'name': 'foo',
+                'version': '1.3',
+                'versionsuffix': '-bar',
+            })
+        self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar', 'toolchain': 'gcc, 4.8.2'}),
+            {
+                'name': 'foo',
+                'version': '1.3',
+                'versionsuffix': '-bar',
+                'toolchain': {'name':'gcc', 'version':'4.8.2'}
+            })
 
         # no name/version
         self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
             to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to name and version .*. Expected 2 elements",
-            to_dependency, {'name_version': 'foo', 'versionsuffix': '-bar'})
+        # too many values
+        self.assertErrorRegex(EasyBuildError, "Found unexpected key, value pair: .*",
+            to_dependency, {'lib': '1.2.8', 'foo':'1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
 
 
 def suite():

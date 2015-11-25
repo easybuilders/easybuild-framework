@@ -42,9 +42,6 @@ TYPES = {
     'toolchain': dict,
 }
 
-TYPE_DICT = 'dict'
-TYPE_TUPLE = 'tuple'
-
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
 
@@ -115,7 +112,7 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_name_version(tcspec, convert_to=TYPE_DICT):
+def to_name_version_dict(tcspec):
     """
     Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
 
@@ -127,45 +124,41 @@ def to_name_version(tcspec, convert_to=TYPE_DICT):
 
     if isinstance(tcspec, list):
         if len(tcspec) == 2:
-            if convert_to == TYPE_TUPLE:
-                res = (tcspec[0].strip(), tcspec[1].strip())
-            else:
-                res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
+            res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
         else:
-            errstr = "Can not convert list %s to name and version %s. Expected 2 elements"
-            raise EasyBuildError(errstr, tcspec, convert_to)
+            errstr = "Can not convert list %s to name and version dict. Expected 2 elements"
+            raise EasyBuildError(errstr, tcspec)
     else:
-        errstr = "Conversion of %s (type %s) to name and version %s is not supported"
-        raise EasyBuildError(errstr, tcspec, type(tcspec), convert_to)
+        errstr = "Conversion of %s (type %s) to name and version dict is not supported"
+        raise EasyBuildError(errstr, tcspec, type(tcspec))
 
     return res
 
 
 def to_dependency(dep):
     """
-    Convert a dependency dict from the new YAML format {'name_version': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}
-    to a tuple in the dependency format
+    Convert a dependency dict from the new YAML format {'lib': '1.2.8', 'toolchain': 'gcc, 4.8.2'}
+    to a dependency dictionary
     """
-    depspec = []
+    depspec = {}
     if isinstance(dep, dict):
-        if 'name_version' in dep:
-            depspec.extend(to_name_version(dep['name_version'], convert_to=TYPE_TUPLE))
-        else:
+        for key, value in dep.items():
+            if key == 'versionsuffix':
+                depspec['versionsuffix'] = value
+            elif key == 'toolchain':
+                depspec['toolchain'] = to_name_version_dict(value)
+            elif 'name' not in depspec:
+                depspec.update({'name': key, 'version': value})
+            else:
+                raise EasyBuildError("Found unexpected key, value pair: %s, %s", key, value)
+
+        if 'name' not in depspec:
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
-        if 'versionsuffix' in dep:
-            depspec.append(dep['versionsuffix'])
-        elif 'toolchain' in dep:
-            # if toolchain is specified, versionsuffix is empty element
-            depspec.append('')
-
-        if 'toolchain' in dep:
-            tcspec = to_name_version(dep['toolchain'], convert_to=TYPE_TUPLE)
-            depspec.append(tcspec)
     else:
-        raise EasyBuildError("Can not convert %s (type %s) to dependency tuple", dep, type(dep))
+        raise EasyBuildError("Can not convert %s (type %s) to dependency dict", dep, type(dep))
 
-    return tuple(depspec)
+    return depspec
 
 
 def to_dependencies(dep_spec_list):
@@ -181,5 +174,5 @@ TYPE_CONVERSION_FUNCTIONS = {
     float: float,
     int: int,
     str: str,
-    dict: to_name_version,
+    dict: to_name_version_dict,
 }

@@ -29,15 +29,15 @@ toolchain: {name: dummy, version: dummy}
 # we need GCC and OpenMPI as explicit dependencies instead of gompi toolchain
 # because of toolchain preperation functions
 dependencies:
-    - name_version: *comp
-    - name_version: OpenMPI, 1.6.4
+    - *comp_name: *comp_version
+    - OpenMPI: 1.6.4
       toolchain: *comp
-    - name_version: [*blaslib, *blasver]
+    - *blaslib: *blasver
       versionsuffix: *blas_suff
       toolchain: *comp_mpi_tc
-    - name_version: FFTW, 3.3.3
+    - FFTW: 3.3.3
       toolchain: *comp_mpi_tc
-    - name_version: ScaLAPACK, 2.0.2
+    - ScaLAPACK: 2.0.2
       versionsuffix: !join [-, *blas, *blas_suff]
       toolchain: *comp_mpi_tc
 
