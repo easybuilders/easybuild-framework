@@ -236,6 +236,7 @@ def stage0(tmpdir):
     from distribute_setup import main as distribute_setup_main
     orig_sys_argv = sys.argv[:]  # make a copy
     sys.argv.append('--prefix=%s' % tmpdir)
+    # We download a custom version of distribute: it uses a newer version of markerlib to avoid a bug (#1099)
     # url should become: http://raw.githubusercontent.com/hpcugent/easybuild-framework/master/easybuild/scripts/
     sys.argv.append('--download-base=http://users.ugent.be/~wpoelman/')
     distribute_setup_main()
@@ -591,32 +592,32 @@ moduleclass = 'tools'
 
 # distribute_setup.py script (https://pypi.python.org/pypi/distribute)
 #
-# A compressed copy of a patched distribute_setup.py (version 0.6.34), generated like so:
+# A compressed copy of a patched distribute_setup.py (version 0.6.49), generated like so:
 # >>> import base64
 # >>> import zlib
 # >>> base64.b64encode(zlib.compress(open("distribute_setup.py").read()))
 # compressed copy below is for setuptools 0.6c11, after applying patch:
-#$ diff -u distribute_setup.py.orig distribute_setup.py
-#--- distribute_setup.py.orig    2013-02-07 23:27:01.000000000 +0100
-#+++ distribute_setup.py 2013-02-07 23:27:32.000000000 +0100
-#@@ -518,6 +518,8 @@
-#             log.warn("--user requires Python 2.6 or later")
-#             raise SystemExit(1)
-#         install_args.append('--user')
-#+    if options.prefix_install:
-#+        install_args.append('--prefix=%s' % options.prefix_install)
-#     return install_args
+# --- distribute_setup.py.orig	2013-07-05 03:50:13.000000000 +0200
+# +++ distribute_setup.py	2015-11-25 12:15:22.000000000 +0100
+# @@ -528,6 +529,8 @@
+#              log.warn("--user requires Python 2.6 or later")
+#              raise SystemExit(1)
+#          install_args.append('--user')
+# +    if options.prefix_install:
+# +        install_args.append('--prefix=%s' % options.prefix_install)
+#      return install_args
 #
-# def _parse_args():
-#@@ -529,6 +531,8 @@
-#         '--user', dest='user_install', action='store_true', default=False,
-#         help='install in user site package (requires Python 2.6 or later)')
-#     parser.add_option(
-#+        '--prefix', dest='prefix_install', metavar="PATH", help='install in prefix')
-#+    parser.add_option(
-#         '--download-base', dest='download_base', metavar="URL",
-#         default=DEFAULT_URL,
-#         help='alternative URL from where to download the distribute package')
+#  def _parse_args():
+# @@ -539,6 +542,8 @@
+#          '--user', dest='user_install', action='store_true', default=False,
+#          help='install in user site package (requires Python 2.6 or later)')
+#      parser.add_option(
+# +        '--prefix', dest='prefix_install', metavar="PATH", help='install in prefix')
+# +    parser.add_option(
+#          '--download-base', dest='download_base', metavar="URL",
+#          default=DEFAULT_URL,
+#          help='alternative URL from where to download the distribute package')
+#
 DISTRIBUTE_SETUP_PY = """
 eJztPGtz2ziS3/UrcHK5SGVlxs7Mze6lTlOVmTizrs0mqdjZ/ZC4ZIiEJI75Gj6saH/9dTcAAiAh
 2bmZ/XBV592JJaLRaPS7G6BP/qPat9uymEyn05/Ksm3amlcsSeF3uupawdKiaXmW8TYFoMnVmu3L
