@@ -356,7 +356,16 @@ def get_os_version():
                 "11": [
                     ('2.6.27', ''),
                     ('2.6.32', '_SP1'),
+                    ('3.0.101-63', '_SP4'),
+                    # not 100% correct, since early SP3 had 3.0.76 - 3.0.93, but close enough?
+                    ('3.0.101', '_SP3'),
+                    # SP2 kernel versions range from 3.0.13 - 3.0.101
                     ('3.0', '_SP2'),
+                ],
+
+                # Once SLES 12 SP1 comes out we'll need to make this stricter
+                "12": [
+                    ('3.12', ''),
                 ],
             }
 
