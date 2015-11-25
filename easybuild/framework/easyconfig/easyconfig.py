@@ -176,6 +176,7 @@ class EasyConfig(object):
 
         self.validations = {
             'moduleclass': self.valid_module_classes,
+            'moduleclasses': self.valid_module_classes,
             'stop': self.valid_stops,
         }
 
@@ -579,8 +580,13 @@ class EasyConfig(object):
         """
         if values is None:
             values = []
-        if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
+	if isinstance(self[attr], (list, tuple)):
+		for val in self[attr]:
+			if val and val not in values:
+				raise EasyBuildError("%s provided '%s' is not valid: %s", attr, val, values)
+	else:
+		if self[attr] and self[attr] not in values:
+		    raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
     def handle_external_module_metadata(self, dep_name):
         """
