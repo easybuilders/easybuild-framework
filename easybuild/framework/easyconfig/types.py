@@ -34,13 +34,16 @@ from easybuild.tools.build_log import EasyBuildError
 
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, int, dict, tuple, list]
+EASY_TYPES = [basestring, dict, int, list, tuple]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
     'toolchain': dict,
 }
+
+TYPE_DICT = 'dict'
+TYPE_TUPLE = 'tuple'
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -112,7 +115,7 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_nameversion_dict(tcspec, convert_to='dict'):
+def to_name_version(tcspec, convert_to=TYPE_DICT):
     """
     Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
 
@@ -124,40 +127,29 @@ def to_nameversion_dict(tcspec, convert_to='dict'):
 
     if isinstance(tcspec, list):
         if len(tcspec) == 2:
-            if convert_to == 'tuple':
+            if convert_to == TYPE_TUPLE:
                 res = (tcspec[0].strip(), tcspec[1].strip())
             else:
                 res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
         else:
             errstr = "Can not convert list %s to name and version %s. Expected 2 elements"
-            raise EasyBuildError(errstr % (tcspec, convert_to))
+            raise EasyBuildError(errstr, tcspec, convert_to)
     else:
         errstr = "Conversion of %s (type %s) to name and version %s is not supported"
-        raise EasyBuildError(errstr % (tcspec, type(tcspec), convert_to))
+        raise EasyBuildError(errstr, tcspec, type(tcspec), convert_to)
 
     return res
 
 
-def to_dependencies(dep):
-    """
-    Convert a list of dependencies in yeb format to a list of dependency tuples
-    """
-    dep_list = []
-    for el in dep:
-        dep_list.append(to_dependency(el))
-
-    return dep_list
-
-
 def to_dependency(dep):
     """
-    Convert a dependency dict from the new YAML format {'name': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}
+    Convert a dependency dict from the new YAML format {'name_version': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}
     to a tuple in the dependency format
     """
     depspec = []
     if isinstance(dep, dict):
-        if 'name' in dep:
-            depspec.extend(to_nameversion_dict(dep['name'], convert_to='tuple'))
+        if 'name_version' in dep:
+            depspec.extend(to_name_version(dep['name_version'], convert_to=TYPE_TUPLE))
         else:
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
@@ -168,12 +160,19 @@ def to_dependency(dep):
             depspec.append('')
 
         if 'toolchain' in dep:
-            tcspec = to_nameversion_dict(dep['toolchain'], convert_to='tuple')
+            tcspec = to_name_version(dep['toolchain'], convert_to=TYPE_TUPLE)
             depspec.append(tcspec)
-
     else:
         raise EasyBuildError("Can not convert %s (type %s) to dependency tuple", dep, type(dep))
+
     return tuple(depspec)
+
+
+def to_dependencies(dep_spec_list):
+    """
+    Convert a list of dependencies in yeb format to a list of dependency tuples
+    """
+    return [to_dependency(dep_spec) for dep_spec in dep_spec_list]
 
 
 # this uses functions defined in this module, so it needs to be at the bottom of the module
@@ -182,5 +181,5 @@ TYPE_CONVERSION_FUNCTIONS = {
     float: float,
     int: int,
     str: str,
-    dict: to_nameversion_dict,
+    dict: to_name_version,
 }

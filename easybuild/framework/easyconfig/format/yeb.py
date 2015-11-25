@@ -95,7 +95,8 @@ class FormatYeb(EasyConfigFormat):
         """
         txt = self._inject_constants_dict(txt)
         self.parsed_yeb = yaml.load(txt)
-        # parse dependencies upfront; this cant be done with simple type checking
+        # parse dependencies upfront; this can't be done with simple type checking as it is already a list,
+        # but needs to be a list of tuples instead of dicts.
         if 'dependencies' in self.parsed_yeb:
             self.parsed_yeb['dependencies'] = to_dependencies(self.parsed_yeb['dependencies'])
 
