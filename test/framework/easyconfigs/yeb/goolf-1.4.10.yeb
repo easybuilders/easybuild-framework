@@ -3,7 +3,7 @@ _internal_variables_:
 
     - &comp_name GCC
     - &comp_version 4.7.2
-    - &comp [*comp_name, *comp_version]
+    - &comp !join [*comp_name, ', ', *comp_version]
 
     - &blaslib OpenBLAS
     - &blasver 0.2.6
@@ -29,7 +29,7 @@ toolchain: {name: dummy, version: dummy}
 # we need GCC and OpenMPI as explicit dependencies instead of gompi toolchain
 # because of toolchain preperation functions
 dependencies:
-    - name:*comp,
+    - name: *comp
     - name: OpenMPI, 1.6.4
       toolchain: *comp
     - name: [*blaslib, *blasver]
@@ -40,6 +40,5 @@ dependencies:
     - name: ScaLAPACK, 2.0.2
       versionsuffix: !join [-, *blas, *blas_suff]
       toolchain: *comp_mpi_tc
-
 
 moduleclass: toolchain

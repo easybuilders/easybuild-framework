@@ -34,13 +34,12 @@ from easybuild.tools.build_log import EasyBuildError
 
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, int, dict, tuple]
+EASY_TYPES = [basestring, int, dict, tuple, list]
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
     'toolchain': dict,
-    'dependencies': tuple,
 }
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
@@ -113,7 +112,7 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_toolchain(tcspec, convert_to='dict'):
+def to_nameversion_dict(tcspec, convert_to='dict'):
     """
     Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
 
@@ -133,10 +132,21 @@ def to_toolchain(tcspec, convert_to='dict'):
             errstr = "Can not convert list %s to name and version %s. Expected 2 elements"
             raise EasyBuildError(errstr % (tcspec, convert_to))
     else:
-        errstr = "Conversion of %s (type %s) to toolchain %s is not supported"
+        errstr = "Conversion of %s (type %s) to name and version %s is not supported"
         raise EasyBuildError(errstr % (tcspec, type(tcspec), convert_to))
 
     return res
+
+
+def to_dependencies(dep):
+    """
+    Convert a list of dependencies in yeb format to a list of dependency tuples
+    """
+    dep_list = []
+    for el in dep:
+        dep_list.append(to_dependency(el))
+
+    return dep_list
 
 
 def to_dependency(dep):
@@ -144,23 +154,26 @@ def to_dependency(dep):
     Convert a dependency dict from the new YAML format {'name': 'lib, 1.2.8', 'toolchain': 'gcc, 4.8.2'}
     to a tuple in the dependency format
     """
-    tup = ()
+    depspec = []
     if isinstance(dep, dict):
         if 'name' in dep:
-            tup += to_toolchain(dep['name'], convert_to='tuple')
+            depspec.extend(to_nameversion_dict(dep['name'], convert_to='tuple'))
         else:
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
-        tup += (dep.get('versionsuffix', ''),)
+        if 'versionsuffix' in dep:
+            depspec.append(dep['versionsuffix'])
+        elif 'toolchain' in dep:
+            # if toolchain is specified, versionsuffix is empty element
+            depspec.append('')
+
         if 'toolchain' in dep:
-            tcspec = to_toolchain(dep['toolchain'], convert_to='tuple')
-            tup += (tcspec,)
-        else:
-            tup += ('',)
+            tcspec = to_nameversion_dict(dep['toolchain'], convert_to='tuple')
+            depspec.append(tcspec)
 
     else:
         raise EasyBuildError("Can not convert %s (type %s) to dependency tuple", dep, type(dep))
-    return tup
+    return tuple(depspec)
 
 
 # this uses functions defined in this module, so it needs to be at the bottom of the module
@@ -169,6 +182,5 @@ TYPE_CONVERSION_FUNCTIONS = {
     float: float,
     int: int,
     str: str,
-    dict: to_toolchain,
-    tuple: to_dependency,
+    dict: to_nameversion_dict,
 }
