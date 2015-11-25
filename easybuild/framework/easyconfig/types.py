@@ -133,6 +133,18 @@ def to_toolchain(tcspec):
     return res
 
 
+def to_osdependencies(os_dep_specs):
+    os_dep_list = []
+    for os_dep in os_dep_specs:
+        if isinstance(os_dep, basestring):
+            os_dep_list.append(os_dep)
+        elif isinstance(os_dep, list):
+            os_dep_list.append(tuple(os_dep))
+        else:
+            raise EasyBuildError("Expected osdependency to be of type string or list, got %s (%s)", os_dep, type(os_dep))
+
+    return os_dep_list
+
 # this uses to_toolchain, so it needs to be at the bottom of the module
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
