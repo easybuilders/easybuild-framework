@@ -80,7 +80,8 @@ EASYBUILD_BOOTSTRAP_SKIP_STAGE0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
-easybuild_modules_tool = None
+# If the modules tool is specified, use it
+easybuild_modules_tool = os.environ.get('EASYBUILD_MODULES_TOOL', None)
 
 
 #
@@ -163,6 +164,11 @@ def prep(path):
 
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
+    global easybuild_modules_tool
+
+    if easybuild_modules_tool is not None:
+        debug("Using modules tools specified by $EASYBUILD_MODULES_TOOL: " % easybuild_modules_tool)
+        return easybuild_modules_tool
 
     # order matters, so we can't use the keys from modules_tools which are unordered
     known_module_commands = ['modulecmd', 'lmod', 'modulecmd.tcl']
@@ -181,7 +187,6 @@ def check_module_command(tmpdir):
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
             modtool = modules_tools[modcmd]
-            global easybuild_modules_tool
             easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
