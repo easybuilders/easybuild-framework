@@ -163,7 +163,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         whatis = self.app.cfg['whatis']
-        if not whatis:
+        if whatis is None:
+            # default: include single 'whatis' statement with description as contents
             whatis = [description]
 
         lines = [
@@ -194,7 +195,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
-            'whatis_lines': "\n".join(("module-whatis {%s}" % line) for line in whatis),
+            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in whatis]),
             'installdir': self.app.installdir,
         }
 
@@ -338,7 +339,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         whatis = self.app.cfg['whatis']
-        if not whatis:
+        if whatis is None:
+            # default: include single 'whatis' statement with description as contents
             whatis = [description]
 
         lines = [
@@ -360,7 +362,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
-            'whatis_lines': "\n".join(("whatis([[%s]])" % line) for line in whatis),
+            'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in whatis]),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
         }

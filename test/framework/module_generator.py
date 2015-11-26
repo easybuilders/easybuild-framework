@@ -107,7 +107,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(desc, expected)
 
         # Test description with list of 'whatis' strings
-        self.eb.cfg.update('whatis', ['foo', 'bar'])
+        self.eb.cfg['whatis'] = ['foo', 'bar']
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "#%Module",
