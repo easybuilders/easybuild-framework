@@ -29,14 +29,13 @@ EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, i
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
+from easybuild.toolchains.iccifort import IccIfort
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Iimpi(IntelIccIfort, IntelMPI):
+class Iimpi(IccIfort, IntelMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI.
     """
     NAME = 'iimpi'
+    SUBTOOLCHAIN = IccIfort.NAME

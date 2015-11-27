@@ -28,13 +28,13 @@ EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogi
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.iiqmpi import Iiqmpi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Iqacml(IntelIccIfort, QLogicMPI, Acml, ScaLAPACK, Fftw):
+class Iqacml(Iiqmpi, Acml, ScaLAPACK, Fftw):
     """Compiler toolchain with Intel compilers, QLogic MPI, ACML, ScaLAPACK and FFTW."""
     NAME = 'iqacml'
+    SUBTOOLCHAIN = Iiqmpi.NAME
