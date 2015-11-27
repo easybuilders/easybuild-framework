@@ -34,7 +34,7 @@ and then performs a staged install of EasyBuild:
  * stage 3: install EasyBuild with EasyBuild from stage 2 to intended install directory
    (default or $EASYBUILD_INSTALLPATH)
 
-Authors: Kenneth Hoste (UGent), Stijn Deweirdt (UGent)
+Authors: Kenneth Hoste (UGent), Stijn Deweirdt (UGent), Ward Poelmans (UGent)
 License: GPLv2
 
 inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py
@@ -237,9 +237,10 @@ def stage0(tmpdir):
     orig_sys_argv = sys.argv[:]  # make a copy
     sys.argv.append('--prefix=%s' % tmpdir)
     # We download a custom version of distribute: it uses a newer version of markerlib to avoid a bug (#1099)
-    # url should become: http://raw.githubusercontent.com/hpcugent/easybuild-framework/master/easybuild/scripts/
-    sys.argv.append('--download-base=http://users.ugent.be/~wpoelman/')
-    distribute_setup_main()
+    # It's is the source of distribute 0.6.49 with the file _markerlib/markers.py replaced by the 0.6 version of
+    # markerlib which can be found at https://pypi.python.org/pypi/markerlib/0.6.0
+    sys.argv.append('--download-base=http://hpcugent.github.io/easybuild/files/')
+    distribute_setup_main(version="0.6.49-patched1")
     sys.argv = orig_sys_argv
 
     # sanity check
@@ -597,9 +598,10 @@ moduleclass = 'tools'
 # >>> import zlib
 # >>> base64.b64encode(zlib.compress(open("distribute_setup.py").read()))
 # compressed copy below is for setuptools 0.6c11, after applying patch:
+#
 # --- distribute_setup.py.orig	2013-07-05 03:50:13.000000000 +0200
-# +++ distribute_setup.py	2015-11-25 12:15:22.000000000 +0100
-# @@ -528,6 +529,8 @@
+# +++ distribute_setup.py	2015-11-27 12:20:12.040032041 +0100
+# @@ -528,6 +528,8 @@
 #              log.warn("--user requires Python 2.6 or later")
 #              raise SystemExit(1)
 #          install_args.append('--user')
@@ -608,7 +610,7 @@ moduleclass = 'tools'
 #      return install_args
 #
 #  def _parse_args():
-# @@ -539,6 +542,8 @@
+# @@ -539,6 +541,8 @@
 #          '--user', dest='user_install', action='store_true', default=False,
 #          help='install in user site package (requires Python 2.6 or later)')
 #      parser.add_option(
@@ -617,6 +619,15 @@ moduleclass = 'tools'
 #          '--download-base', dest='download_base', metavar="URL",
 #          default=DEFAULT_URL,
 #          help='alternative URL from where to download the distribute package')
+# @@ -549,7 +553,7 @@
+#  def main(version=DEFAULT_VERSION):
+#      """Install or upgrade setuptools and EasyInstall"""
+#      options = _parse_args()
+# -    tarball = download_setuptools(download_base=options.download_base)
+# +    tarball = download_setuptools(version=version, download_base=options.download_base)
+#      return _install(tarball, _build_install_args(options))
+#
+#  if __name__ == '__main__':
 #
 DISTRIBUTE_SETUP_PY = """
 eJztPGtz2ziS3/UrcHK5SGVlxs7Mze6lTlOVmTizrs0mqdjZ/ZC4ZIiEJI75Gj6saH/9dTcAAiAh
@@ -707,8 +718,8 @@ Vfw4nL6FjabvB4P1SnkOBPkBR2S4ludaEMwKYTW1GgecENFFSfU+f/SeoAhNrbyNBIp4kiwlDlNS
 a57g3dmmXQS2POEhp2tDi6BpsbvYgrchyDXvMtUBMNdztyKrFjoDQzdC8qQ/GqBUi4XHpDsLnkKt
 6uBpel22B5gmtfyB14vph1c3f4W0aUSVbgE+YS19z/AMr272SzoXOu0VP318OzXs0FzyXmWWVOk/
 T4E5Gl7wpTxDXdQtzS1Hv52qHSilmOtEVO3IVjCdl5cgC5VC9T6CY1N4U4B0E1tltaqRtuYc/PyB
-i9tGe6+O/V0LCkGXvNkrKK2++u9qLFyTkO2so6/UuffFtRU6Tx0jHL/sfsy5ggNO6dYklp5L6m4u
-l8iH5VL94YU+oSfuwIT/AdLFbzI=
+i9tGe6+O/V0LCkGXvNkrKK2++u9qLFyTkO2sp7xSt/Bfil9os3SeOlY5fvv9mLcFj5zSNUqsRZfU
+7lwukTHLpfpLDH2GT+yCCf8D2cp1xw==
 
 """.decode("base64").decode("zlib")
 
