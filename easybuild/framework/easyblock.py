@@ -102,8 +102,8 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 
 # constants for library checking (TODO: should probably be configurable)
 LIB_DIRS = ['lib', 'lib64']
-LIB_STATIC_SUFFIXES = ['a']
-LIB_SHARED_SUFFIXES = [get_shared_lib_ext()]
+LIB_STATIC_SUFFIX = 'a'
+LIB_SHARED_SUFFIX = get_shared_lib_ext()
 
 
 _log = fancylogger.getLogger('easyblock')
@@ -1693,18 +1693,18 @@ class EasyBlock(object):
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
 
-            def gen_library_paths(name, suffixes):
+            def gen_library_paths(name, suffix):
+                """little helper function to generate tuple of paths of a single library and given suffix"""
                 libpaths = []
                 for dir in LIB_DIRS:
-                    for suffix in suffixes:
-                        libpaths += os.path.join(dir, "%s.%s" % (name, suffix))
+                    libpaths.append(os.path.join(dir, "%s.%s" % (name, suffix)))
                 return tuple(libpaths)
 
             # transform specified libs into simple file paths
             for lib in paths.pop('shared_libs', []):
-                paths['files'].append(gen_library_paths(lib, LIB_SHARED_SUFFIXES))
+                paths['files'].append(gen_library_paths(lib, LIB_SHARED_SUFFIX))
             for lib in paths.pop('static_libs', []):
-                paths['files'].append(gen_library_paths(lib, LIB_STATIC_SUFFIXES))
+                paths['files'].append(gen_library_paths(lib, LIB_STATIC_SUFFIX))
 
         # check sanity check paths
         ks = sorted(paths.keys())
