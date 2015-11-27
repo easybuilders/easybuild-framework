@@ -45,6 +45,7 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.modules import modules_tool
 
 
@@ -646,6 +647,26 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
         self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
         self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
+
+    def test_sanity_check_paths_for_libraries(self):
+        """Test generation of sanity check paths for libraries."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+
+        from easybuild.easyblocks.toy import EB_toy
+        eb = EB_toy(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        eb.configure_step()
+        eb.build_step()
+        eb.install_step()
+
+        libdir = os.path.join(eb.installdir, 'lib')
+        mkdir(libdir)
+        write_file(os.path.join(libdir, 'libtoy.%s' % get_shared_lib_ext()), 'shared lib')
+        write_file(os.path.join(libdir, 'libtoy.a'), 'static lib')
+
+        eb.sanity_check_step()
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""

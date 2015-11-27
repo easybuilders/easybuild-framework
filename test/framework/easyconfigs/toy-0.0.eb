@@ -23,6 +23,8 @@ patches = [
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],
     'dirs': ['bin'],
+    'shared_libs': ['libtoy'],
+    'static_libs': ['libtoy'],
 }
 
 postinstallcmds = ["echo TOY > %(installdir)s/README"]
