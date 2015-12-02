@@ -148,13 +148,13 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # extra keys ruin it
         foo_dict.update({'extra_key': 'bogus'})
-        self.assertErrorRegex(EasyBuildError, "Found unexpected key, value pair: .*", to_dependency, foo_dict)
+        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*", to_dependency, foo_dict)
 
         # no name/version
         self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
             to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
         # too many values
-        self.assertErrorRegex(EasyBuildError, "Found unexpected key, value pair: .*",
+        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*",
             to_dependency, {'lib': '1.2.8', 'foo':'1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
 
     def test_is_value_of_type(self):
@@ -170,7 +170,11 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # toolchain type check
         self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, NAME_VERSION_DICT))
+        # version value should be string, not int
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': 100}, NAME_VERSION_DICT))
+        # missing version key
         self.assertFalse(is_value_of_type({'name': 'intel', 'foo': 'bar'}, NAME_VERSION_DICT))
+        # extra key, shouldn't be there
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, NAME_VERSION_DICT))
 
 

@@ -35,7 +35,7 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
-from easybuild.framework.easyconfig.types import to_dependencies
+from easybuild.framework.easyconfig.types import to_dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
@@ -98,7 +98,7 @@ class FormatYeb(EasyConfigFormat):
         # make sure dependencies are in a format that can be handled by the EasyConfig class
         # detecting that auto-converting the list-of-dicts value that results from parsing a .yeb is needed is tricky
         if 'dependencies' in self.parsed_yeb:
-            self.parsed_yeb['dependencies'] = to_dependencies(self.parsed_yeb['dependencies'])
+            self.parsed_yeb['dependencies'] = [to_dependency(d) for d in self.parsed_yeb['dependencies']]
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""
