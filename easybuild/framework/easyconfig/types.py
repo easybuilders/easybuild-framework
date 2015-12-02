@@ -34,15 +34,60 @@ from easybuild.tools.build_log import EasyBuildError
 
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, int, dict]
+EASY_TYPES = [basestring, dict, int, list, tuple]
+
+# specific type: dict with only name/version as keys, and with string values
+NAME_VERSION_DICT = (dict, (('only_keys', ('name', 'version')), ('value_types', (str,))))
+
+CHECKABLE_TYPES = [NAME_VERSION_DICT]
+
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
-    'toolchain': dict,
+    'toolchain': NAME_VERSION_DICT,
 }
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
+
+
+def is_value_of_type(value, typ_spec):
+    """
+    Check whether specified value matches a particular very specific (non-trivial) type,
+    which is specified by means of a 2-tuple: (parent type, dict with additional type requirements).
+
+    @param value: value to check the type of
+    @param typ_spec: specific type of dict to check for
+    """
+    parent_type = typ_spec[0]
+    extra_reqs = dict(typ_spec[1])
+    # first step: check parent type
+    type_ok = isinstance(value, parent_type)
+    if type_ok:
+        _log.debug("Parent type of value %s matches %s, going in...")
+        # second step: check additional type requirements
+        if parent_type == dict:
+            extra_req_checkers = {
+                # check whether all keys have allowed types
+                'key_types': lambda val: all(type(el) in extra_reqs['key_types'] for el in val.keys()),
+                # check whether only allowed keys are used
+                'only_keys': lambda val: set(val.keys()) == set(extra_reqs['only_keys']),
+                # check whether all values have allowed types
+                'value_types': lambda val: all(type(el) in extra_reqs['value_types'] for el in val.values()),
+            }
+            for erkey in extra_req_checkers:
+                if erkey in extra_reqs:
+                    if extra_req_checkers[erkey](value):
+                        msg = 'passed'
+                    else:
+                        msg, type_ok = 'FAILed', False
+                    _log.debug("Check for %s requirement (%s) %s for %s", erkey, extra_reqs[erkey], msg, value)
+        else:
+            raise EasyBuildError("Don't know how to check value with parent type %s", parent_type)
+    else:
+        _log.debug("Parent type of value %s doesn't match %s", parent_type, value)
+
+    return type_ok
 
 
 def check_type_of_param_value(key, val, auto_convert=False):
@@ -66,10 +111,17 @@ def check_type_of_param_value(key, val, auto_convert=False):
             type_ok, newval = True, val
             _log.debug("Value type checking of easyconfig parameter '%s' passed: expected '%s', got '%s'",
                        key, expected_type.__name__, type(val).__name__)
-
         else:
             _log.warning("Value type checking of easyconfig parameter '%s' FAILED: expected '%s', got '%s'",
                          key, expected_type.__name__, type(val).__name__)
+
+    elif expected_type in CHECKABLE_TYPES:
+        if is_value_of_type(val, expected_type):
+            type_ok, newval = True, val
+            _log.debug("Non-trivial value type checking of easyconfig parameter '%s' passed", key)
+        else:
+            _log.debug("Non-trivial value type checking of easyconfig parameter '%s' FAILED", key)
+
     else:
         raise EasyBuildError("Don't know how to check whether specified value is of type %s", expected_type)
 
@@ -90,8 +142,12 @@ def convert_value_type(val, typ):
     """
     res = None
 
-    if isinstance(val, typ):
+    if typ in EASY_TYPES and isinstance(val, typ):
         _log.debug("Value %s is already of specified target type %s, no conversion needed", val, typ)
+        res = val
+
+    elif typ in CHECKABLE_TYPES and is_value_of_type(val, typ):
+        _log.debug("Value %s is already of specified non-trivial target type %s, no conversion needed", val, typ)
         res = val
 
     elif typ in TYPE_CONVERSION_FUNCTIONS:
@@ -112,23 +168,35 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_toolchain(tcspec):
+def to_name_version_dict(spec):
     """
-    Convert a toolchain string "intel, 2015a" to a dictionary {'name':'intel', 'version':'2015a'}
+    Convert a comma-separated string or 2-element list of strings to a dictionary with name/version keys.
+    If the specified value is a dict already, the keys are checked to be only name/version.
 
-    @param tcspec: a toolchain in the form of a string or a list
+    For example: "intel, 2015a" => {'name': 'intel', 'version': '2015a'}
+
+    @param spec: a comma-separated string with two values, or a 2-element list of strings, or a dict
     """
-    # check if tc is a string or a list of two values; else, it can not be converted
-    if isinstance(tcspec, basestring):
-        tcspec = tcspec.split(',')
+    # check if spec is a string or a list of two values; else, it can not be converted
+    if isinstance(spec, basestring):
+        spec = spec.split(',')
 
-    if isinstance(tcspec, list):
-        if len(tcspec) == 2:
-            res = {'name': tcspec[0].strip(), 'version': tcspec[1].strip()}
+    if isinstance(spec, list):
+        # 2-element list
+        if len(spec) == 2:
+            res = {'name': spec[0].strip(), 'version': spec[1].strip()}
         else:
-            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 elements", tcspec)
+            raise EasyBuildError("Can not convert list %s to name and version dict. Expected 2 elements", spec)
+
+    elif isinstance(spec, dict):
+        # already a dict, check keys
+        if sorted(spec.keys()) == ['name', 'version']:
+            res = spec
+        else:
+            raise EasyBuildError("Incorrect set of keys in provided dictionary, should be only name/version: %s", spec)
+
     else:
-        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", tcspec, type(tcspec))
+        raise EasyBuildError("Conversion of %s (type %s) to name and version dict is not supported", spec, type(spec))
 
     return res
 
@@ -146,10 +214,53 @@ def to_osdependencies(os_dep_specs):
     return os_dep_list
 
 # this uses to_toolchain, so it needs to be at the bottom of the module
+def to_dependency(dep):
+    """
+    Convert a dependency dict obtained from parsing a .yeb easyconfig
+    to a dependency dict with name/version/versionsuffix/toolchain keys
+
+    Example:
+        {'foo': '1.2.3', 'toolchain': 'GCC, 4.8.2'}
+        to
+        {'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.8.2'}}
+    """
+    depspec = {}
+    if isinstance(dep, dict):
+        found_name_version = False
+        for key, value in dep.items():
+            if key in ['name', 'version', 'versionsuffix']:
+                depspec[key] = value
+            elif key == 'toolchain':
+                depspec['toolchain'] = to_name_version_dict(value)
+            elif not found_name_version:
+                depspec.update({'name': key, 'version': value})
+            else:
+                raise EasyBuildError("Found unexpected key, value pair: %s, %s", key, value)
+
+            if 'name' in depspec and 'version' in depspec:
+                found_name_version = True
+
+        if not found_name_version:
+            raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
+
+    else:
+        raise EasyBuildError("Can not convert %s (type %s) to dependency dict", dep, type(dep))
+
+    return depspec
+
+
+def to_dependencies(dep_spec_list):
+    """
+    Convert a list of dependencies in yeb format to a list of dependency tuples
+    """
+    return [to_dependency(dep_spec) for dep_spec in dep_spec_list]
+
+
+# this uses functions defined in this module, so it needs to be at the bottom of the module
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
     float: float,
     int: int,
     str: str,
-    dict: to_toolchain,
+    NAME_VERSION_DICT: to_name_version_dict,
 }
