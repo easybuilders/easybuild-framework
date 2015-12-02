@@ -216,7 +216,7 @@ def get_cpu_speed():
         if os.path.exists(MAX_FREQ_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
             txt = read_file(MAX_FREQ_FP)
-            cpu_freq = float(txt)/1000
+            cpu_freq = float(txt) / 1000
 
         # Linux without cpu scaling
         elif os.path.exists(PROC_CPUINFO_FP):
@@ -239,7 +239,7 @@ def get_cpu_speed():
         out, ec = run_cmd(cmd, force_in_dry_run=True)
         if ec == 0:
             # returns clock frequency in cycles/sec, but we want MHz
-            cpu_freq = float(out.strip())/(1000**2)
+            cpu_freq = float(out.strip()) / (1000 ** 2)
 
     else:
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
@@ -408,6 +408,26 @@ def get_tool_version(tool, version_option='--version'):
         return UNKNOWN
     else:
         return '; '.join(out.split('\n'))
+
+
+def get_gcc_version():
+    """
+    Process `gcc --version` and return the GCC version.
+    """
+    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True)
+    if ec:
+        _log.warning("Failed to determine the version of GCC: %s" % out)
+        return UNKNOWN
+
+    find_version = re.search("^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
+    if find_version:
+        return find_version.group('version')
+    else:
+        # Apple likes to install clang but call it gcc. It's mess, use a proper OS.
+        if get_os_type() == DARWIN:
+            return None
+        else:
+            raise EasyBuildError("Failed to determine the GCC version from: %s" % out)
 
 
 def get_glibc_version():
