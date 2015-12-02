@@ -31,7 +31,8 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type, to_toolchain
+from easybuild.framework.easyconfig.types import NAME_VERSION_DICT, check_type_of_param_value, convert_value_type
+from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependency
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -55,6 +56,20 @@ class TypeCheckingTest(EnhancedTestCase):
         # check use of auto_convert
         self.assertEqual(check_type_of_param_value('version', 1.5), (False, None))
         self.assertEqual(check_type_of_param_value('version', 1.5, auto_convert=True), (True, '1.5'))
+
+        # check type checking of toolchain (non-trivial type: dict with only name/version keys & string values)
+        toolchain = {'name': 'goolf', 'version': '1.4.10'}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        # missing 'version' key
+        self.assertEqual(check_type_of_param_value('toolchain', {'name': 'intel'}), (False, None))
+        # non-string value for 'version'
+        toolchain = {'name': 'goolf', 'version': 100}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (False, None))
+
+        # check auto-converting of toolchain value
+        toolchain = {'name': 'intel', 'version': '2015a'}
+        for tcspec in ["intel, 2015a", ['intel', '2015a'], toolchain]:
+            self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
 
     def test_convert_value_type(self):
         """Test convert_value_type function."""
@@ -85,23 +100,82 @@ class TypeCheckingTest(EnhancedTestCase):
             pass
         self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
 
-    def test_to_toolchain(self):
+    def test_to_name_version_dict(self):
         """ Test toolchain string to dict conversion """
         # normal cases
-        self.assertEqual(to_toolchain("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_toolchain(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+        self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_name_version_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
 
         # wrong type
-        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
-            to_toolchain, ('intel', '2015a'))
+        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to name and version dict is not supported",
+            to_name_version_dict, ('intel', '2015a'))
 
         # wrong number of elements
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
-            to_toolchain, "intel, 2015, a")
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
-            to_toolchain, "intel")
-        self.assertErrorRegex(EasyBuildError, "Can not convert list .* to toolchain dict. Expected 2 elements",
-            to_toolchain, ['gcc', '4', '7'])
+        errstr = "Can not convert .* to name and version .*. Expected 2 elements"
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, a")
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel")
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', '7'])
+
+    def test_to_dependency(self):
+        """ Test dependency dict to tuple conversion """
+        # normal cases
+        lib_dict = {
+            'name': 'lib',
+            'version': '1.2.8',
+            'toolchain': {'name': 'GCC', 'version': '4.8.2'},
+        }
+
+        self.assertEqual(to_dependency({'lib': '1.2.8'}), {'name': 'lib', 'version': '1.2.8'})
+        self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': 'GCC, 4.8.2'}), lib_dict)
+        self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': ['GCC', '4.8.2']}), lib_dict)
+
+        foo_dict = {
+            'name': 'foo',
+            'version': '1.3',
+            'versionsuffix': '-bar',
+        }
+        self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar'}), foo_dict)
+
+        foo_dict.update({'toolchain': {'name': 'GCC', 'version': '4.8.2'}})
+        self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar', 'toolchain': 'GCC, 4.8.2'}), foo_dict)
+
+        # using 'name' and 'version' is dictionary being passed yields the expected result
+        foo_dict = {'name': 'foo', 'version': '1.2.3'}
+        self.assertEqual(to_dependency(foo_dict), foo_dict)
+        foo_dict.update({'toolchain': {'name': 'GCC', 'version': '4.8.2'}})
+        self.assertEqual(to_dependency({'name': 'foo', 'version': '1.2.3', 'toolchain': ['GCC', '4.8.2']}), foo_dict)
+        self.assertEqual(to_dependency(foo_dict), foo_dict)
+
+        # extra keys ruin it
+        foo_dict.update({'extra_key': 'bogus'})
+        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*", to_dependency, foo_dict)
+
+        # no name/version
+        self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
+            to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+        # too many values
+        self.assertErrorRegex(EasyBuildError, "Found unexpected \(key, value\) pair: .*",
+            to_dependency, {'lib': '1.2.8', 'foo':'1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+
+    def test_is_value_of_type(self):
+        """Test is_value_of_type function."""
+        self.assertTrue(is_value_of_type({'one': 1}, (dict, {})))
+        self.assertTrue(is_value_of_type({'one': 1}, (dict, [('only_keys', ['one'])])))
+        self.assertTrue(is_value_of_type({'one': 1}, (dict, [('value_types', [int])])))
+        self.assertTrue(is_value_of_type({'one': 1}, (dict, [('key_types', [str])])))
+
+        self.assertFalse(is_value_of_type({'one': 1}, (dict, [('only_keys', ['one', 'two'])])))
+        self.assertFalse(is_value_of_type({'one': 'two'}, (dict, [('value_types', [int])])))
+        self.assertFalse(is_value_of_type({'one': 1}, (dict, [('key_types', [int])])))
+
+        # toolchain type check
+        self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, NAME_VERSION_DICT))
+        # version value should be string, not int
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': 100}, NAME_VERSION_DICT))
+        # missing version key
+        self.assertFalse(is_value_of_type({'name': 'intel', 'foo': 'bar'}, NAME_VERSION_DICT))
+        # extra key, shouldn't be there
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, NAME_VERSION_DICT))
 
 
 def suite():
