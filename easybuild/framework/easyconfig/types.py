@@ -32,29 +32,16 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 
-
-# easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, dict, int, list, tuple]
-
-# specific type: dict with only name/version as keys, and with string values
-# additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
-NAME_VERSION_DICT = (dict, (('only_keys', ('name', 'version')), ('value_types', (str,))))
-DEPENDENCIES = (list, (('element_types', (tuple,)),))
-
-CHECKABLE_TYPES = [NAME_VERSION_DICT, DEPENDENCIES]
-
-# type checking is skipped for easyconfig parameters names not listed in TYPES
-TYPES = {
-    'name': basestring,
-    'version': basestring,
-    'toolchain': NAME_VERSION_DICT,
-    'dependencies': DEPENDENCIES,
-}
-
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
 
-def is_value_of_type(value, typ_spec):
+def dict2tuple(dict_value):
+    """
+    Helper function, converts dict to (nested) tuples
+    """
+    return tuple((k, v) for k, v in sorted(dict_value.items()))
+
+def is_value_of_type(value, expected_type):
     """
     Check whether specified value matches a particular very specific (non-trivial) type,
     which is specified by means of a 2-tuple: (parent type, tuple with additional type requirements).
@@ -62,32 +49,47 @@ def is_value_of_type(value, typ_spec):
     @param value: value to check the type of
     @param typ_spec: specific type of dict to check for
     """
-    parent_type = typ_spec[0]
-    extra_reqs = dict(typ_spec[1])
-    # first step: check parent type
-    type_ok = isinstance(value, parent_type)
-    if type_ok:
-        _log.debug("Parent type of value %s matches %s, going in...", value, parent_type)
-        # second step: check additional type requirements
-        if parent_type == dict:
-            extra_req_checkers = {
-                # check whether all keys have allowed types
-                'key_types': lambda val: all([type(el) in extra_reqs['key_types'] for el in val.keys()]),
-                # check whether only allowed keys are used
-                'only_keys': lambda val: set(val.keys()) == set(extra_reqs['only_keys']),
-                # check whether all values have allowed types
-                'value_types': lambda val: all([type(el) in extra_reqs['value_types'] for el in val.values()]),
-            }
-        elif parent_type == list:
-            extra_req_checkers = {
-                # check required type
-                'element_types': lambda val: all([type(el) in extra_reqs['element_types'] for el in val]),
-            }
+    type_ok = False
 
-        else:
-            raise EasyBuildError("Don't know how to check value with parent type %s", parent_type)
+    if expected_type in EASY_TYPES:
+        # easy types can be checked using isinstance
+        type_ok = isinstance(val, expected_type)
+        msg = ('FAILED', 'passed')[type_ok]
+        _log.debug("Value type checking of easyconfig parameter '%s' %s: expected '%s', got '%s'",
+                   key, msg, expected_type.__name__, type(val).__name__)
 
-        if extra_req_checkers:
+    elif expected_type in CHECKABLE_TYPES:
+        parent_type = expected_type[0]
+        extra_reqs = dict(expected_type[1])
+        # first step: check parent type
+        type_ok = isinstance(value, parent_type)
+        if type_ok:
+            _log.debug("Parent type of value %s matches %s, going in...", value, parent_type)
+            # second step: check additional type requirements
+            if parent_type == dict:
+                extra_req_checkers = {
+                    # check whether all keys have allowed types
+                    'key_types': lambda val:
+                        all([any(is_value_of_type(el, t) for t in extra_reqs['key_types']) for el in val.keys()]),
+                    # check whether only allowed keys are used
+                    'only_keys': lambda val: set(val.keys()) == set(extra_reqs['only_keys']),
+                    # check whether all values have allowed types
+                    'value_types': lambda val:
+                        all([any(is_value_of_type(el, t) for t in extra_reqs['value_types']) for el in val.values()]),
+                    'required_keys': lambda val: all([k in val.keys() for k in extra_reqs['required_keys']]),
+                    'opt_keys': lambda val:
+                        all([k in [extra_reqs['required_keys'], extra_reqs['opt_keys']] for k in val.keys()])
+                }
+            elif parent_type == list:
+                extra_req_checkers = {
+                    # check required type
+                    'value_types': lambda val:
+                        all([any(is_value_of_type(el, t) for t in extra_reqs['value_types']) for el in val]),
+                }
+
+            else:
+                raise EasyBuildError("Don't know how to check value with parent type %s", parent_type)
+
             for er_key in extra_reqs:
                 if er_key in extra_req_checkers:
                     check_ok = extra_req_checkers[er_key](value)
@@ -95,9 +97,12 @@ def is_value_of_type(value, typ_spec):
                     type_ok &= check_ok
                     _log.debug("Check for %s requirement (%s) %s for %s", er_key, extra_reqs[er_key], msg, value)
                 else:
-                   raise EasyBuildError("Unknown type requirement specified: %s", er_key)
+                    raise EasyBuildError("Unknown type requirement specified: %s", er_key)
+        else:
+            _log.debug("Parent type of value %s doesn't match %s: %s", value, parent_type, type(value))
+
     else:
-        _log.debug("Parent type of value %s doesn't match %s: %s", value, parent_type, type(value))
+        raise EasyBuildError("Don't know how to check whether specified value is of type %s", expected_type)
 
     return type_ok
 
@@ -118,20 +123,8 @@ def check_type_of_param_value(key, val, auto_convert=False):
         _log.debug("No type specified for easyconfig parameter '%s', so skipping type check.", key)
         type_ok = True
 
-    elif expected_type in EASY_TYPES:
-        # easy types can be checked using isinstance
-        type_ok = isinstance(val, expected_type)
-        msg = ('FAILED', 'passed')[type_ok]
-        _log.debug("Value type checking of easyconfig parameter '%s' %s: expected '%s', got '%s'",
-                   key, msg, expected_type.__name__, type(val).__name__)
-
-    elif expected_type in CHECKABLE_TYPES:
-        type_ok = is_value_of_type(val, expected_type)
-        msg = ('FAILED', 'passed')[type_ok]
-        _log.debug("Non-trivial value type checking of easyconfig parameter '%s': %s", key, msg)
-
     else:
-        raise EasyBuildError("Don't know how to check whether specified value is of type %s", expected_type)
+        type_ok = is_value_of_type(val, expected_type)
 
     # determine return value, attempt type conversion if needed/requested
     if type_ok:
@@ -216,8 +209,14 @@ def to_name_version_dict(spec):
 
     return res
 
+
 def to_dependencies(dep_list):
+    """
+    Convert a list of dependencies obtained from parsing a .yeb easyconfig
+    to a list of dependencies in the correct format
+    """
     return [to_dependency(dep) for dep in dep_list]
+
 
 def to_dependency(dep):
     """
@@ -248,13 +247,42 @@ def to_dependency(dep):
         if not found_name_version:
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
+    # also deal with dependencies in the "old" format
+    elif isinstance(dep, tuple):
+        depspec = dep
     else:
         raise EasyBuildError("Can not convert %s (type %s) to dependency dict", dep, type(dep))
 
     return depspec
 
 
-# this uses functions defined in this module, so it needs to be at the bottom of the module
+# these constants use functions defined in this module, so they needs to be at the bottom of the module
+
+# specific type: dict with only name/version as keys, and with string values
+# additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
+NAME_VERSION_DICT = (dict, dict2tuple({
+    'only_keys': ('name', 'version'),
+    'value_types': (str,),
+}))
+DEPENDENCY_DICT = (dict, dict2tuple({
+    'required_keys': ('name','version'),
+    'opt_keys': ('versionsuffix', 'toolchain'),
+}))
+DEPENDENCIES = (list, (('value_types', (DEPENDENCY_DICT,)),))
+
+CHECKABLE_TYPES = [NAME_VERSION_DICT, DEPENDENCIES, DEPENDENCY_DICT]
+
+# easy types, that can be verified with isinstance
+EASY_TYPES = [basestring, dict, int, list, tuple]
+
+# type checking is skipped for easyconfig parameters names not listed in TYPES
+TYPES = {
+    'name': basestring,
+    'version': basestring,
+    'toolchain': NAME_VERSION_DICT,
+    'dependencies': DEPENDENCIES,
+}
+
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
     float: float,
