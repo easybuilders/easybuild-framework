@@ -95,10 +95,6 @@ class FormatYeb(EasyConfigFormat):
         """
         txt = self._inject_constants_dict(txt)
         self.parsed_yeb = yaml.load(txt)
-        # make sure dependencies are in a format that can be handled by the EasyConfig class
-        # detecting that auto-converting the list-of-dicts value that results from parsing a .yeb is needed is tricky
-        if 'dependencies' in self.parsed_yeb:
-            self.parsed_yeb['dependencies'] = [to_dependency(d) for d in self.parsed_yeb['dependencies']]
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""

@@ -39,14 +39,16 @@ EASY_TYPES = [basestring, dict, int, list, tuple]
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, (('only_keys', ('name', 'version')), ('value_types', (str,))))
+DEPENDENCIES = (list, (('element_types', (tuple,)),))
 
-CHECKABLE_TYPES = [NAME_VERSION_DICT]
+CHECKABLE_TYPES = [NAME_VERSION_DICT, DEPENDENCIES]
 
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
     'name': basestring,
     'version': basestring,
     'toolchain': NAME_VERSION_DICT,
+    'dependencies': DEPENDENCIES,
 }
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
@@ -76,6 +78,16 @@ def is_value_of_type(value, typ_spec):
                 # check whether all values have allowed types
                 'value_types': lambda val: all([type(el) in extra_reqs['value_types'] for el in val.values()]),
             }
+        elif parent_type == list:
+            extra_req_checkers = {
+                # check required type
+                'element_types': lambda val: all([type(el) in extra_reqs['element_types'] for el in val]),
+            }
+
+        else:
+            raise EasyBuildError("Don't know how to check value with parent type %s", parent_type)
+
+        if extra_req_checkers:
             for er_key in extra_reqs:
                 if er_key in extra_req_checkers:
                     check_ok = extra_req_checkers[er_key](value)
@@ -83,9 +95,7 @@ def is_value_of_type(value, typ_spec):
                     type_ok &= check_ok
                     _log.debug("Check for %s requirement (%s) %s for %s", er_key, extra_reqs[er_key], msg, value)
                 else:
-                    raise EasyBuildError("Unknown type requirement specified: %s", er_key)
-        else:
-            raise EasyBuildError("Don't know how to check value with parent type %s", parent_type)
+                   raise EasyBuildError("Unknown type requirement specified: %s", er_key)
     else:
         _log.debug("Parent type of value %s doesn't match %s: %s", value, parent_type, type(value))
 
@@ -206,6 +216,8 @@ def to_name_version_dict(spec):
 
     return res
 
+def to_dependencies(dep_list):
+    return [to_dependency(dep) for dep in dep_list]
 
 def to_dependency(dep):
     """
@@ -248,5 +260,6 @@ TYPE_CONVERSION_FUNCTIONS = {
     float: float,
     int: int,
     str: str,
+    DEPENDENCIES: to_dependencies,
     NAME_VERSION_DICT: to_name_version_dict,
 }
