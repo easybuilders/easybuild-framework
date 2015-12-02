@@ -393,6 +393,12 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_gcc_version(), '5.1.1')
 
+    def test_gcc_version_darwin(self):
+        """Test getting gcc version (mocked for Darwin)."""
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = lambda *args, **kwargs: ("Apple LLVM version 7.0.0 (clang-700.1.76)", 0)
+        self.assertEqual(get_gcc_version(), None)
+
     def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
