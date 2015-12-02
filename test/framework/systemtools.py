@@ -26,6 +26,7 @@
 Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import re
 from os.path import exists as orig_os_path_exists
@@ -39,7 +40,7 @@ from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, L
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import get_system_info, get_gcc_version
 
 
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
@@ -159,6 +160,7 @@ def mocked_run_cmd(cmd, **kwargs):
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
+        "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
     }
     if cmd in known_cmds:
         if 'simple' in kwargs and kwargs['simple']:
@@ -379,6 +381,17 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting OS version."""
         os_version = get_os_version()
         self.assertTrue(isinstance(os_version, basestring) or os_version == UNKNOWN)
+
+    def test_gcc_version_native(self):
+        """Test getting gcc version."""
+        gcc_version = get_gcc_version()
+        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == UNKNOWN)
+
+    def test_gcc_version_linux(self):
+        """Test getting gcc version (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_gcc_version(), '5.1.1')
 
     def test_glibc_version_native(self):
         """Test getting glibc version."""
