@@ -414,20 +414,25 @@ def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True)
+    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False)
+    res = None
     if ec:
         _log.warning("Failed to determine the version of GCC: %s" % out)
-        return UNKNOWN
+        res = UNKNOWN
 
     find_version = re.search("^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
     if find_version:
-        return find_version.group('version')
+        res = find_version.group('version')
+        _log.debug("Found GCC version: %s from %s" % (res, out))
     else:
-        # Apple likes to install clang but call it gcc. It's mess, use a proper OS.
+        # Apple likes to install clang but call it gcc. <insert rant about Apple>
         if get_os_type() == DARWIN:
-            return None
+            _log.warning("On recent version of Mac OS, gcc is actually clang")
+            res = None
         else:
             raise EasyBuildError("Failed to determine the GCC version from: %s" % out)
+
+    return res
 
 
 def get_glibc_version():
