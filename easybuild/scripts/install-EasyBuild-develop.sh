@@ -124,11 +124,12 @@ github_clone_branch "easybuild-wiki" "master"
 
 # Create the module file
 EB_DEVEL_MODULE_NAME="EasyBuild-develop"
-EB_DEVEL_MODULE="${INSTALL_DIR}/${EB_DEVEL_MODULE_NAME}"
+MODULES_INSTALL_DIR=${INSTALL_DIR}/modules
+EB_DEVEL_MODULE="${MODULES_INSTALL_DIR}/${EB_DEVEL_MODULE_NAME}"
 print_devel_module > "${EB_DEVEL_MODULE}"
 echo 
-echo "=== Run 'module use ${INSTALL_DIR}' and 'module load ${EB_DEVEL_MODULE_NAME}' to use your development version of EasyBuild."
-echo "=== (you can append ${INSTALL_DIR} to your MODULEPATH to make this module always available for loading)"
+echo "=== Run 'module use ${MODULES_INSTALL_DIR}' and 'module load ${EB_DEVEL_MODULE_NAME}' to use your development version of EasyBuild."
+echo "=== (you can append ${MODULES_INSTALL_DIR} to your MODULEPATH to make this module always available for loading)"
 echo
 echo "=== To update each repository, run 'git pull origin' in each subdirectory of ${INSTALL_DIR}"
 echo

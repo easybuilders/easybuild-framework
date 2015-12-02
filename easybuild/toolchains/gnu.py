@@ -29,8 +29,10 @@ EasyBuild support for GCC compiler toolchain.
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 class GNU(Gcc):
     """Compiler-only toolchain, including only GCC and binutils."""
     NAME = 'GNU'
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
