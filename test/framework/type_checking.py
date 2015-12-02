@@ -31,8 +31,9 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.framework.easyconfig.types import NAME_VERSION_DICT, check_type_of_param_value, convert_value_type
-from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependency
+from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
+from easybuild.framework.easyconfig.types import check_type_of_param_value, convert_value_type
+from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -94,6 +95,11 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type(100, int), 100)
         self.assertEqual(convert_value_type(1.6, float), 1.6)
+
+        # complex types
+        dep = [{'GCC':'1.2.3', 'versionsuffix':'foo'}]
+        converted_dep = [{'name':'GCC', 'version':'1.2.3', 'versionsuffix':'foo'}]
+        self.assertEqual(convert_value_type(dep, DEPENDENCIES), converted_dep)
 
         # no conversion function available for specific type
         class Foo():
@@ -159,14 +165,15 @@ class TypeCheckingTest(EnhancedTestCase):
 
     def test_is_value_of_type(self):
         """Test is_value_of_type function."""
-        self.assertTrue(is_value_of_type({'one': 1}, (dict, {})))
-        self.assertTrue(is_value_of_type({'one': 1}, (dict, [('only_keys', ['one'])])))
-        self.assertTrue(is_value_of_type({'one': 1}, (dict, [('value_types', [int])])))
-        self.assertTrue(is_value_of_type({'one': 1}, (dict, [('key_types', [str])])))
+        self.assertTrue(is_value_of_type({'one': 1}, dict))
+        self.assertTrue(is_value_of_type(1, int))
+        self.assertTrue(is_value_of_type("foo", str))
+        self.assertTrue(is_value_of_type(['a', 'b'], list))
+        self.assertTrue(is_value_of_type(('a', 'b'), tuple))
 
-        self.assertFalse(is_value_of_type({'one': 1}, (dict, [('only_keys', ['one', 'two'])])))
-        self.assertFalse(is_value_of_type({'one': 'two'}, (dict, [('value_types', [int])])))
-        self.assertFalse(is_value_of_type({'one': 1}, (dict, [('key_types', [int])])))
+        self.assertFalse(is_value_of_type({'one': 1}, list))
+        self.assertFalse(is_value_of_type(1, str))
+        self.assertFalse(is_value_of_type("foo", int))
 
         # toolchain type check
         self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, NAME_VERSION_DICT))
@@ -177,6 +184,34 @@ class TypeCheckingTest(EnhancedTestCase):
         # extra key, shouldn't be there
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, NAME_VERSION_DICT))
 
+        # dependency type check
+        self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, DEPENDENCY_DICT))
+        self.assertTrue(is_value_of_type({
+            'name': 'intel',
+            'version': '2015a',
+            'toolchain': 'intel, 2015a',
+            'versionsuffix': 'foo',
+        }, DEPENDENCY_DICT))
+        # no version key
+        self.assertFalse(is_value_of_type({'name': 'intel'}, NAME_VERSION_DICT))
+        # too many keys
+        self.assertFalse(is_value_of_type({
+            'name': 'intel',
+            'version': '2015a',
+            'toolchain': 'intel, 2015a',
+            'versionsuffix': 'foo',
+            'extra': 'bar',
+        }, DEPENDENCY_DICT))
+
+        # list of dependencies type check
+        dependencies = [
+            {'name':'intel', 'version':'2015a'},
+            {'name':'gcc', 'version':'4.1.3'},
+            {'name':'dummy', 'version':'dummy', 'versionsuffix':'foo', 'toolchain':'intel,2015'},
+        ]
+        self.assertTrue(is_value_of_type(dependencies, DEPENDENCIES))
+        self.assertFalse(is_value_of_type([{'a':'b', 'c':'d'}], DEPENDENCIES))
+        self.assertFalse(is_value_of_type({'name':'intel', 'version':'2015a'}, DEPENDENCIES))
 
 def suite():
     """ returns all the testcases in this module """

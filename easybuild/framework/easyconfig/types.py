@@ -73,7 +73,7 @@ def is_value_of_type(value, expected_type):
                     'key_types': lambda val:
                         all([any(is_value_of_type(el, t) for t in extra_reqs['key_types']) for el in val.keys()]),
                     'opt_keys': lambda val:
-                        all([k in [extra_reqs['required_keys'], extra_reqs['opt_keys']] for k in val.keys()])
+                        all([k in extra_reqs['required_keys']+extra_reqs['opt_keys'] for k in val.keys()]),
                     'required_keys': lambda val: all([k in val.keys() for k in extra_reqs['required_keys']]),
                     # check whether all values have allowed types
                     'value_types': lambda val:
@@ -98,7 +98,7 @@ def is_value_of_type(value, expected_type):
                 else:
                     raise EasyBuildError("Unknown type requirement specified: %s", er_key)
             msg = ('FAILED', 'passed')[type_ok]
-            _log.debug("Non-trivial value type checking of easyconfig parameter '%s': %s", key, msg)
+            _log.debug("Non-trivial value type checking of easyconfig value '%s': %s", value, msg)
 
         else:
             _log.debug("Parent type of value %s doesn't match %s: %s", value, parent_type, type(value))
@@ -242,11 +242,11 @@ def to_dependency(dep):
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     # also deal with dependencies in the "old" format
-    if isinstance(dep, (tuple, list)):
+    elif isinstance(dep, (tuple, list)):
         if len(dep) >= 2:
             depspec.update({
                 'name': dep[0],
-                'version': dep[0],
+                'version': dep[1],
             })
         if len(dep) >= 3:
             depspec.update({'versionsuffix': dep[2]})
@@ -271,7 +271,8 @@ def to_dependencies(dep_list):
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, dict2tuple({
-    'only_keys': ['name', 'version'],
+    'required_keys': ['name', 'version'],
+    'opt_keys': [],
     'value_types': [str],
 }))
 
