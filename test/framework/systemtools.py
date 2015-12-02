@@ -147,20 +147,22 @@ def mocked_read_file(fp):
     else:
         return read_file(fp)
 
+
 def mocked_os_path_exists(mocked_fp, fp):
     """Mocked version of os.path.exists, returns True for a particular specified filepath."""
     return fp == mocked_fp
 
+
 def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
-        "ldd --version" : "ldd (GNU libc) 2.12",
+        "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
+        "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
-        "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
     }
     if cmd in known_cmds:
         if 'simple' in kwargs and kwargs['simple']:
