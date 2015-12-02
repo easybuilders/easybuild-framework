@@ -36,10 +36,14 @@ _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
 
 def dict2tuple(dict_value):
-    """
-    Helper function, converts dict to (nested) tuples
-    """
-    return tuple((k, v) for k, v in sorted(dict_value.items()))
+    """Help function, convert dict value to hashable equivalent via tuples."""
+    res = []
+    for key, val in sorted(dict_value.items()):
+        if isinstance(val, list):
+            val = tuple(val)
+        res.append((key, val))
+    return tuple(res)
+
 
 def is_value_of_type(value, expected_type):
     """
@@ -53,10 +57,7 @@ def is_value_of_type(value, expected_type):
 
     if expected_type in EASY_TYPES:
         # easy types can be checked using isinstance
-        type_ok = isinstance(val, expected_type)
-        msg = ('FAILED', 'passed')[type_ok]
-        _log.debug("Value type checking of easyconfig parameter '%s' %s: expected '%s', got '%s'",
-                   key, msg, expected_type.__name__, type(val).__name__)
+        type_ok = isinstance(value, expected_type)
 
     elif expected_type in CHECKABLE_TYPES:
         parent_type = expected_type[0]
@@ -71,14 +72,12 @@ def is_value_of_type(value, expected_type):
                     # check whether all keys have allowed types
                     'key_types': lambda val:
                         all([any(is_value_of_type(el, t) for t in extra_reqs['key_types']) for el in val.keys()]),
-                    # check whether only allowed keys are used
-                    'only_keys': lambda val: set(val.keys()) == set(extra_reqs['only_keys']),
+                    'opt_keys': lambda val:
+                        all([k in [extra_reqs['required_keys'], extra_reqs['opt_keys']] for k in val.keys()])
+                    'required_keys': lambda val: all([k in val.keys() for k in extra_reqs['required_keys']]),
                     # check whether all values have allowed types
                     'value_types': lambda val:
                         all([any(is_value_of_type(el, t) for t in extra_reqs['value_types']) for el in val.values()]),
-                    'required_keys': lambda val: all([k in val.keys() for k in extra_reqs['required_keys']]),
-                    'opt_keys': lambda val:
-                        all([k in [extra_reqs['required_keys'], extra_reqs['opt_keys']] for k in val.keys()])
                 }
             elif parent_type == list:
                 extra_req_checkers = {
@@ -98,6 +97,9 @@ def is_value_of_type(value, expected_type):
                     _log.debug("Check for %s requirement (%s) %s for %s", er_key, extra_reqs[er_key], msg, value)
                 else:
                     raise EasyBuildError("Unknown type requirement specified: %s", er_key)
+            msg = ('FAILED', 'passed')[type_ok]
+            _log.debug("Non-trivial value type checking of easyconfig parameter '%s': %s", key, msg)
+
         else:
             _log.debug("Parent type of value %s doesn't match %s: %s", value, parent_type, type(value))
 
@@ -210,14 +212,6 @@ def to_name_version_dict(spec):
     return res
 
 
-def to_dependencies(dep_list):
-    """
-    Convert a list of dependencies obtained from parsing a .yeb easyconfig
-    to a list of dependencies in the correct format
-    """
-    return [to_dependency(dep) for dep in dep_list]
-
-
 def to_dependency(dep):
     """
     Convert a dependency dict obtained from parsing a .yeb easyconfig
@@ -248,12 +242,28 @@ def to_dependency(dep):
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     # also deal with dependencies in the "old" format
-    elif isinstance(dep, tuple):
-        depspec = dep
+    if isinstance(dep, (tuple, list)):
+        if len(dep) >= 2:
+            depspec.update({
+                'name': dep[0],
+                'version': dep[0],
+            })
+        if len(dep) >= 3:
+            depspec.update({'versionsuffix': dep[2]})
+        if len(dep) >= 4:
+            depspec.update({'toolchain': dep[3]})
     else:
         raise EasyBuildError("Can not convert %s (type %s) to dependency dict", dep, type(dep))
 
     return depspec
+
+
+def to_dependencies(dep_list):
+    """
+    Convert a list of dependencies obtained from parsing a .yeb easyconfig
+    to a list of dependencies in the correct format
+    """
+    return [to_dependency(dep) for dep in dep_list]
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
@@ -261,26 +271,27 @@ def to_dependency(dep):
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, dict2tuple({
-    'only_keys': ('name', 'version'),
-    'value_types': (str,),
+    'only_keys': ['name', 'version'],
+    'value_types': [str],
 }))
+
 DEPENDENCY_DICT = (dict, dict2tuple({
-    'required_keys': ('name','version'),
     'opt_keys': ('versionsuffix', 'toolchain'),
+    'required_keys': ('name','version'),
 }))
 DEPENDENCIES = (list, (('value_types', (DEPENDENCY_DICT,)),))
 
 CHECKABLE_TYPES = [NAME_VERSION_DICT, DEPENDENCIES, DEPENDENCY_DICT]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, dict, int, list, tuple]
+EASY_TYPES = [basestring, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in TYPES
 TYPES = {
-    'name': basestring,
-    'version': basestring,
-    'toolchain': NAME_VERSION_DICT,
     'dependencies': DEPENDENCIES,
+    'name': basestring,
+    'toolchain': NAME_VERSION_DICT,
+    'version': basestring,
 }
 
 TYPE_CONVERSION_FUNCTIONS = {
