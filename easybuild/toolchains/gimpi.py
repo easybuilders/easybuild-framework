@@ -29,10 +29,11 @@ EasyBuild support for gimpi compiler toolchain (includes GCC and Intel MPI).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 
-class Gimpi(Gcc, IntelMPI):
+class Gimpi(GccToolchain, IntelMPI):
     """Compiler toolchain with GCC and Intel MPI."""
     NAME = 'gimpi'
+    SUBTOOLCHAIN = GccToolchain.NAME

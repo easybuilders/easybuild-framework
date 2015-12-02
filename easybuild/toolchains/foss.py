@@ -28,13 +28,13 @@ EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, OpenBLAS, 
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.openmpi import OpenMPI
 
-
-class Foss(Gcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
+class Foss(Gompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'foss'
+    SUBTOOLCHAIN = Gompi.NAME
+

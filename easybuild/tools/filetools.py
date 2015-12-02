@@ -676,13 +676,15 @@ def apply_regex_substitutions(path, regex_subs):
             dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
 
     else:
+        _log.debug("Applying following regex substitutions to %s: %s", path, regex_subs)
+
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
         for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
             for regex, subtxt in regex_subs:
                 line = regex.sub(subtxt, line)
-                sys.stdout.write(line)
+            sys.stdout.write(line)
 
 
 def modify_env(old, new):

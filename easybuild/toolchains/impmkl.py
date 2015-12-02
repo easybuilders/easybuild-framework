@@ -39,3 +39,4 @@ class Impmkl(Impich, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'impmkl'
+    SUBTOOLCHAIN = Impich.NAME
