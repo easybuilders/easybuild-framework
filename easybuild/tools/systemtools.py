@@ -417,20 +417,22 @@ def get_gcc_version():
     out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False)
     res = None
     if ec:
-        _log.warning("Failed to determine the version of GCC: %s" % out)
+        _log.warning("Failed to determine the version of GCC: %s", out)
         res = UNKNOWN
 
+    # Fedora: gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)
+    # Debian: gcc (Debian 4.9.2-10) 4.9.2
     find_version = re.search("^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
     if find_version:
         res = find_version.group('version')
-        _log.debug("Found GCC version: %s from %s" % (res, out))
+        _log.debug("Found GCC version: %s from %s", res, out)
     else:
         # Apple likes to install clang but call it gcc. <insert rant about Apple>
         if get_os_type() == DARWIN:
-            _log.warning("On recent version of Mac OS, gcc is actually clang")
+            _log.warning("On recent version of Mac OS, gcc is actually clang, returning None as GCC version")
             res = None
         else:
-            raise EasyBuildError("Failed to determine the GCC version from: %s" % out)
+            raise EasyBuildError("Failed to determine the GCC version from: %s", out)
 
     return res
 
