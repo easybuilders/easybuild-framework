@@ -544,25 +544,21 @@ def extract_cmd(filepath, overwrite=False):
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
     """
     Determine list of patched files from a patch.
-    It search for "+++ path/to/patched/file" lines to determine
+    It searches for "+++ path/to/patched/file" lines to determine
     the patched files.
-    @param path the path to the diff
-    @param txt the contents of the diff (either path or txt should be give)
-    @param omit_ab_prefix ignore the a/ or b/ prefix of the files
-    @param github use diff --git as search criteria
+    @param path: the path to the diff
+    @param txt: the contents of the diff (either path or txt should be give)
+    @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
+    @param github: only consider lines that start with 'diff --git' to determine list of patched files
     """
     if github:
-        patched_regex = re.compile(r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+        patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
     else:
-        patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+        patched_regex = r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+    patched_regex = re.compile(patched_regex, re.M)
 
     if path is not None:
-        try:
-            f = open(path, 'r')
-            txt = f.read()
-            f.close()
-        except IOError, err:
-            raise EasyBuildError("Failed to read patch %s: %s", path, err)
+        txt = read_file(path)
     elif txt is None:
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
