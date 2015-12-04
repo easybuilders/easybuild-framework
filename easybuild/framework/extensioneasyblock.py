@@ -80,6 +80,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
             self.is_extension = True
             self.unpack_options = None
+
+            # make sure that extra custom easyconfig parameters are known
+            extra_params = self.__class__.extra_options()
+            self.cfg.extend_params(extra_params, overwrite=False)
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
