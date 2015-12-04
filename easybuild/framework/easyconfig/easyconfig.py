@@ -161,15 +161,10 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        # deep copy to make sure self.extra_options remains unchanged
-        self._config.update(copy.deepcopy(self.extra_options))
-
         self.mandatory = MANDATORY_PARAMS[:]
 
-        # extend mandatory keys
-        for key, value in self.extra_options.items():
-            if value[2] == MANDATORY:
-                self.mandatory.append(key)
+        # deep copy to make sure self.extra_options remains unchanged
+        self.extend_params(copy.deepcopy(self.extra_options))
 
         # set valid stops
         self.valid_stops = build_option('valid_stops')
@@ -219,6 +214,27 @@ class EasyConfig(object):
         self.mod_subdir = mns.det_module_subdir(self)
 
         self.software_license = None
+
+    def extend_params(self, extra, overwrite=True):
+        """Extend list of known parameters via provided list of extra easyconfig parameters."""
+
+        self.log.debug("Extending list of known easyconfig parameters with: %s", ' '.join(extra.keys()))
+
+        if overwrite:
+            self._config.update(extra)
+        else:
+            for key in extra:
+                if key not in self._config:
+                    self._config[key] = extra[key]
+                    self.log.debug("Added new easyconfig parameter: %s", key)
+                else:
+                    self.log.debug("Easyconfig parameter %s already known, not overwriting", key)
+
+        # extend mandatory keys
+        for key, value in extra.items():
+            if value[2] == MANDATORY:
+                self.mandatory.append(key)
+        self.log.debug("Updated list of mandatory easyconfig parameters: %s", self.mandatory)
 
     def copy(self):
         """
