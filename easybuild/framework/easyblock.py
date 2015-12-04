@@ -1775,7 +1775,8 @@ class EasyBlock(object):
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         fake_mod_data = None
-        if not extension:
+        # only load fake module for non-extensions, and not during dry run
+        if not (extension or self.dry_run):
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
