@@ -207,6 +207,16 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
+        # check for behavior when a string value is used as dict value by make_module_req_guesses
+        eb.make_module_req_guess = lambda: {'PATH': 'bin'}
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
