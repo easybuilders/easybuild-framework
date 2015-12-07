@@ -1039,7 +1039,11 @@ class EasyBlock(object):
 
             lines.append('\n')
             for key in sorted(requirements):
-                for path in requirements[key]:
+                reqs = requirements[key]
+                if isinstance(reqs, basestring):
+                    reqs = [reqs]
+
+                for path in reqs:
                     paths = sorted(glob.glob(path))
                     if paths:
                         lines.append(self.module_generator.prepend_paths(key, paths))
