@@ -1041,6 +1041,7 @@ class EasyBlock(object):
             for key in sorted(requirements):
                 reqs = requirements[key]
                 if isinstance(reqs, basestring):
+                    self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
                     reqs = [reqs]
 
                 for path in reqs:
