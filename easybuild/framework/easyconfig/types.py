@@ -312,10 +312,10 @@ def to_dependency(dep):
             if sorted(dep.keys()) == expected_keys:
                 depspec.update({
                     'external_module': True,
-                    'name': None,
-                    'version': None,
                     'full_mod_name': dep['name'],
-                    'short_mod_name': dep['name']
+                    'name': None,
+                    'short_mod_name': dep['name'],
+                    'version': None,
                 })
             else:
                 raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
