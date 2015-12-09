@@ -98,12 +98,12 @@ class IntelIccIfort(Compiler):
         optarch = build_option('optarch', default=None)
         if optarch == OPTARCH_GENERIC:
             # do generic build if --optarch=GENERIC
-            COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
                 systemtools.INTEL : 'xSSE2',
                 systemtools.AMD : 'xSSE2',
             }
         else: # do optimized build (default)
-            COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
                 systemtools.INTEL : 'xHost',
                 systemtools.AMD : 'xHost',
             }
