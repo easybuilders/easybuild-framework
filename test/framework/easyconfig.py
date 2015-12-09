@@ -586,8 +586,9 @@ class EasyConfigTest(EnhancedTestCase):
         new_patches = ['two.patch', 'three.patch']
         specs.update({
             'patches': new_patches[:],
+            'builddependencies': [('testbuildonly', '4.5.6')],
             'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
-            'hiddendependencies': [('test', '3.2.1')],
+            'hiddendependencies': [('test', '3.2.1'), ('testbuildonly', '4.5.6')],
         })
         parsed_deps = [
             {
@@ -598,6 +599,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'build_only': False,
                 'hidden': False,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -610,6 +612,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'build_only': False,
                 'hidden': False,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -622,6 +625,20 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
+                'build_only': False,
+                'hidden': True,
+                'external_module': False,
+                'external_module_metadata': {},
+            },
+            {
+                'name': 'testbuildonly',
+                'version': '4.5.6',
+                'versionsuffix': '',
+                'toolchain': ec['toolchain'],
+                'dummy': False,
+                'short_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
+                'full_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
+                'build_only': True,
                 'hidden': True,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -631,7 +648,7 @@ class EasyConfigTest(EnhancedTestCase):
         # hidden dependencies must be included in list of dependencies
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
-        error_pattern = "Hidden dependencies with visible module names .* not in list of dependencies: .*"
+        error_pattern = "Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
 
         specs['dependencies'].append(('test', '3.2.1'))
@@ -642,9 +659,11 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec.dependencies(), parsed_deps)
 
-        # hidden dependencies are filtered from list of dependencies
+        # hidden dependencies are filtered from list of (build)dependencies
         self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
         self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('testbuildonly/4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertTrue('testbuildonly/.4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # hidden dependencies are also filtered from list of dependencies when validation is skipped
@@ -652,6 +671,8 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(res[1], validate=False)
         self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
         self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('testbuildonly/4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertTrue('testbuildonly/.4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # verify append functionality for lists
@@ -1187,7 +1208,10 @@ class EasyConfigTest(EnhancedTestCase):
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
             ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
+            ecdict = ec.asdict()
             ec.dump(test_ec)
+            # dict representation of EasyConfig instance should not change after dump
+            self.assertEqual(ecdict, ec.asdict())
             ectxt = read_file(test_ec)
 
             patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
