@@ -31,10 +31,11 @@ Support for checking types of easyconfig parameter values.
 import copy
 from vsc.utils import fancylogger
 
+from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.tools.build_log import EasyBuildError
 
-
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
+
 
 
 def as_hashable(dict_value):
@@ -308,23 +309,27 @@ def to_dependency(dep):
     #   (name, version[, versionsuffix[, toolchain]])
 
     if isinstance(dep, dict):
-        depspec = {}
-        found_name_version = False
-        for key, value in dep.items():
-            if key in ['name', 'version', 'versionsuffix']:
-                depspec[key] = value
-            elif key == 'toolchain':
-                depspec['toolchain'] = to_name_version_dict(value)
-            elif not found_name_version:
-                depspec.update({'name': key, 'version': value})
-            else:
-                raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
+        if EXTERNAL_MODULE_MARKER in dep:
+            depspec = (dep[EXTERNAL_MODULE_MARKER], EXTERNAL_MODULE_MARKER)
 
-            if 'name' in depspec and 'version' in depspec:
-                found_name_version = True
+        else:
+            depspec = {}
+            found_name_version = False
+            for key, value in dep.items():
+                if key in ['name', 'version', 'versionsuffix']:
+                    depspec[key] = value
+                elif key == 'toolchain':
+                    depspec['toolchain'] = to_name_version_dict(value)
+                elif not found_name_version:
+                    depspec.update({'name': key, 'version': value})
+                else:
+                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
 
-        if not found_name_version:
-            raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
+                if 'name' in depspec and 'version' in depspec:
+                    found_name_version = True
+
+            if not found_name_version:
+                raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:
         _log.warning("to_dependency failed to recognise type; passing value down as is")

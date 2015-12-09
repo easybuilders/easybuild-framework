@@ -77,6 +77,7 @@ class YebTest(EnhancedTestCase):
             'ictce-4.1.13',
             'SQLite-3.8.10.2-goolf-1.4.10',
             'Python-2.7.10-ictce-4.1.13',
+            'CrayCCE-5.1.29',
         ]
 
         for filename in test_files:
