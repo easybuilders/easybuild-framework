@@ -36,7 +36,6 @@ from easybuild.tools.build_log import EasyBuildError
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
 
-
 def as_hashable(dict_value):
     """Helper function, convert dict value to hashable equivalent via tuples."""
     res = []
@@ -296,20 +295,32 @@ def to_dependency(dep):
         {'foo': '1.2.3', 'toolchain': 'GCC, 4.8.2'}
         to
         {'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.8.2'}}
+
+    or
+        {'name': 'fftw/3.3.4.1', 'external_module': True}
+        to
+        {'name': 'fftw/3.3.4.1', 'external_module': True, 'version': None}
     """
     # deal with dependencies coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
 
     if isinstance(dep, dict):
-        if 'external' in dep and dep['external']:
-            if len(dep) == 2 and 'name' in dep:
-                depspec = dep
-                depspec.update({'version': None}) # required key
+        depspec = {}
+
+        if dep.get('external_module', False):
+            expected_keys = ['external_module', 'name']
+            if sorted(dep.keys()) == expected_keys:
+                depspec.update({
+                    'external_module': True,
+                    'name': None,
+                    'version': None,
+                    'full_mod_name': dep['name'],
+                    'short_mod_name': dep['name']
+                })
             else:
-                raise EasyBuildError("Can not parse external module: %s", dep)
+                raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
 
         else:
-            depspec = {}
             found_name_version = False
             for key, value in dep.items():
                 if key in ['name', 'version', 'versionsuffix']:
@@ -356,14 +367,15 @@ NAME_VERSION_DICT = (dict, as_hashable({
     'elem_types': [str],
 }))
 DEPENDENCY_DICT = (dict, as_hashable({
-    'opt_keys': ['external', 'toolchain', 'versionsuffix'],
+    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
     'req_keys': ['name', 'version'],
     'elem_types': {
+        'full_mod_name': [str],
         'name': [str],
+        'short_mod_name': [str],
         'toolchain': [NAME_VERSION_DICT],
         'version': [str],
         'versionsuffix': [str],
-        'external': [bool],
     },
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
