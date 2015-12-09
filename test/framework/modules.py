@@ -46,7 +46,7 @@ from easybuild.tools.modules import Lmod, get_software_root, get_software_versio
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 63
+TEST_MODULES_COUNT = 64
 
 
 class ModulesTest(EnhancedTestCase):
