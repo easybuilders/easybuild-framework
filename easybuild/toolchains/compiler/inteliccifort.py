@@ -31,8 +31,6 @@ Support for Intel compilers (icc, ifort) as toolchain compilers.
 
 from distutils.version import LooseVersion
 
-from easybuild.tools.toolchain.toolchain import OPTARCH_GENERIC
-from easybuild.tools.config import build_option
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
@@ -70,9 +68,17 @@ class IntelIccIfort(Compiler):
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
     }
-    
-    # defined at runtime, based on --optarch
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
+
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+        systemtools.INTEL : 'xHost',
+        systemtools.AMD : 'xHost',
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.INTEL : 'xSSE2',
+        systemtools.AMD : 'xSSE2',
+    }
 
     COMPILER_CC = 'icc'
     COMPILER_CXX = 'icpc'
@@ -94,19 +100,6 @@ class IntelIccIfort(Compiler):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.append('LIB_MULTITHREAD')
-
-        optarch = build_option('optarch', default=None)
-        if optarch == OPTARCH_GENERIC:
-            # do generic build if --optarch=GENERIC
-            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                systemtools.INTEL : 'xSSE2',
-                systemtools.AMD : 'xSSE2',
-            }
-        else: # do optimized build (default)
-            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                systemtools.INTEL : 'xHost',
-                systemtools.AMD : 'xHost',
-            }
 
         super(IntelIccIfort, self).__init__(*args, **kwargs)
 
