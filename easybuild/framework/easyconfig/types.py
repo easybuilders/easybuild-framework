@@ -31,7 +31,6 @@ Support for checking types of easyconfig parameter values.
 import copy
 from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
@@ -309,8 +308,12 @@ def to_dependency(dep):
     #   (name, version[, versionsuffix[, toolchain]])
 
     if isinstance(dep, dict):
-        if EXTERNAL_MODULE_MARKER in dep:
-            depspec = (dep[EXTERNAL_MODULE_MARKER], EXTERNAL_MODULE_MARKER)
+        if 'external' in dep and dep['external']:
+            if len(dep) == 2 and 'name' in dep:
+                depspec = dep
+                depspec.update({'version': None}) # required key
+            else:
+                raise EasyBuildError("Can not parse external module: %s", dep)
 
         else:
             depspec = {}
@@ -356,20 +359,21 @@ NAME_VERSION_DICT = (dict, as_hashable({
     'elem_types': [str],
 }))
 DEPENDENCY_DICT = (dict, as_hashable({
-    'opt_keys': ['toolchain', 'versionsuffix'],
+    'opt_keys': ['external', 'toolchain', 'versionsuffix'],
     'req_keys': ['name', 'version'],
     'elem_types': {
         'name': [str],
         'toolchain': [NAME_VERSION_DICT],
         'version': [str],
         'versionsuffix': [str],
+        'external': [bool],
     },
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
 CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, dict, int, list, str, tuple]
+EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {

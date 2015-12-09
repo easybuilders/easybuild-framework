@@ -9,8 +9,10 @@ description: Toolchain using Cray compiler wrapper, using PrgEnv-cray module.
 toolchain: dummy, dummy
 
 dependencies:
-    - EXTERNAL_MODULE: PrgEnv-cray/5.1.29  # also loads cray-libsci
-    - EXTERNAL_MODULE: fftw/3.3.4.0
+    - name: PrgEnv-cray/5.1.29  # also loads cray-libsci
+      external: true
+    - name: fftw/3.3.4.0
+      external: true
 
 
 moduleclass: toolchain

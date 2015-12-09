@@ -589,10 +589,19 @@ class EasyConfig(object):
             'external_module_metadata': {},
         }
         if isinstance(dep, dict):
-            dependency.update(dep)
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+            if 'external' in dep and dep['external']:
+                dependency['external_module'] = True
+                dependency['short_mod_name'] = dep['name']
+                dependency['full_mod_name'] = dep['name']
+                if dep['name'] in self.external_modules_metadata:
+                        dependency['external_module_metadata'].update(self.external_modules_metadata[dep['name']])
+                        self.log.info("Updated dependency info with available metadata for external module %s: %s",
+                                      dep['name'], dependency['external_module_metadata'])
+            else:
+                dependency.update(dep)
 
         elif isinstance(dep, Dependency):
             dependency['name'] = dep.name()
