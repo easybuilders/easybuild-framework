@@ -30,8 +30,6 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.toolchain.toolchain import OPTARCH_GENERIC
-from easybuild.tools.config import build_option
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -65,8 +63,18 @@ class Gcc(Compiler):
         'veryloose': ['mrecip=all', 'mno-ieee-fp'],
     }
 
-    # defined at runtime, based on --optarch
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+        systemtools.AMD : 'march=native',
+        systemtools.INTEL : 'march=native',
+        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.AMD : 'march=x86-64 -mtune=generic',
+        systemtools.INTEL : 'march=x86-64 -mtune=generic',
+        systemtools.POWER: 'mcpu=generic-arch',  # no support for -march on POWER
+    }
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
@@ -79,25 +87,6 @@ class Gcc(Compiler):
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
-
-    def __init__(self, *args, **kwargs):
-        """Constructor."""
-        optarch = build_option('optarch', default=None)
-        if optarch == OPTARCH_GENERIC:
-            # do generic build if --optarch=GENERIC
-            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                systemtools.AMD : 'march=x86-64 -mtune=generic',
-                systemtools.INTEL : 'march=x86-64 -mtune=generic',
-                systemtools.POWER: 'mcpu=generic-arch',  # no support for march=native on POWER
-            }
-
-        else: # do optimized build (default)
-            self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                systemtools.AMD : 'march=native',
-                systemtools.INTEL : 'march=native',
-                systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
-            }
-        super(Gcc, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         super(Gcc, self)._set_compiler_vars()

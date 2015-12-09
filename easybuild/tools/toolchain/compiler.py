@@ -33,7 +33,11 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
-from easybuild.tools.toolchain.toolchain import OPTARCH_GENERIC
+
+
+# 'GENERIC' can  beused to enable generic compilation instead of optimized compilation (which is the default)
+# by doing eb --optarch=GENERIC
+OPTARCH_GENERIC = 'GENERIC'
 
 
 def mk_infix(prefix):
@@ -97,6 +101,7 @@ class Compiler(Toolchain):
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
+    COMPILER_GENERIC_OPTION = None
 
     COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt']  # optimisation args, ordered !
@@ -261,8 +266,14 @@ class Compiler(Toolchain):
             self.arch = systemtools.get_cpu_family()
 
         optarch = None
+        # --optarch is specified with flags to use
         if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
             optarch = build_option('optarch')
+        # --optarch=GENERIC
+        elif build_option('optarch') == OPTARCH_GENERIC:
+            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+        # no --optarch specified
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 
