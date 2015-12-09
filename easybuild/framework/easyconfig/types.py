@@ -306,26 +306,9 @@ def to_dependency(dep):
     """
     # deal with dependencies coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
-    if isinstance(dep, (tuple, list)):
-        origdep = copy.deepcopy(dep)
-        dep = {}
-        if len(origdep) <= 4:
-            if len(origdep) >= 2:
-                dep.update({
-                    'name': origdep[0],
-                    'version': origdep[1],
-                })
-            if len(origdep) >= 3:
-                dep.update({'versionsuffix': origdep[2]})
-            if len(origdep) == 4:
-                dep.update({'toolchain': to_name_version_dict(origdep[3])})
-        else:
-            raise EasyBuildError("Unexpected tuple length for dependency specification %s", origdep)
 
-        _log.debug("Converted dependency in %s format to dict: from %s to %s", type(origdep), origdep, dep)
-
-    depspec = {}
     if isinstance(dep, dict):
+        depspec = {}
         found_name_version = False
         for key, value in dep.items():
             if key in ['name', 'version', 'versionsuffix']:
@@ -344,7 +327,8 @@ def to_dependency(dep):
             raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:
-        raise EasyBuildError("Can not convert %s (type %s) to dependency dict", dep, type(dep))
+        _log.warning("to_dependency failed to recognise type; passing value down as is")
+        depspec = dep
 
     return depspec
 

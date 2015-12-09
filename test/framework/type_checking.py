@@ -31,9 +31,9 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
+from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
 from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
 
 
@@ -139,11 +139,12 @@ class TypeCheckingTest(EnhancedTestCase):
         }
 
         self.assertEqual(to_dependency({'lib': '1.2.8'}), {'name': 'lib', 'version': '1.2.8'})
-        self.assertEqual(to_dependency(('lib', '1.2.8')), {'name': 'lib', 'version': '1.2.8'})
         self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': 'GCC, 4.8.2'}), lib_dict)
         self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': ['GCC', '4.8.2']}), lib_dict)
         lib_dict.update({'versionsuffix': ''})
-        self.assertEqual(to_dependency(('lib', '1.2.8', '', ('GCC', '4.8.2'))), lib_dict)
+
+        self.assertEqual(to_dependency(('foo', '1.3')), ('foo','1.3'))
+        self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), ('foo', '1.3', '-suff', ('GCC','4.8.2')))
 
         foo_dict = {
             'name': 'foo',
@@ -151,11 +152,9 @@ class TypeCheckingTest(EnhancedTestCase):
             'versionsuffix': '-bar',
         }
         self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar'}), foo_dict)
-        self.assertEqual(to_dependency(('foo', '1.3', '-bar')), foo_dict)
 
         foo_dict.update({'toolchain': {'name': 'GCC', 'version': '4.8.2'}})
         self.assertEqual(to_dependency({'foo': '1.3', 'versionsuffix': '-bar', 'toolchain': 'GCC, 4.8.2'}), foo_dict)
-        self.assertEqual(to_dependency(('foo', '1.3', '-bar', ('GCC', '4.8.2'))), foo_dict)
 
         # using 'name' and 'version' in dictionary being passed yields the expected result
         foo_dict = {'name': 'foo', 'version': '1.2.3'}
@@ -190,10 +189,9 @@ class TypeCheckingTest(EnhancedTestCase):
              'toolchain': {'name': 'gompi', 'version': '2015a'}},
         ]
         self.assertEqual(to_dependencies(deps), [
-            {'name': 'foo', 'version': '1.2.3'},
-            {'name': 'bar', 'version': '4.5.6', 'versionsuffix': '-test'},
-            {'name': 'foobar', 'version': '1.3.5', 'versionsuffix': '',
-             'toolchain': {'name': 'GCC', 'version': '4.7.2'}},
+            ('foo', '1.2.3'),
+            ('bar', '4.5.6', '-test'),
+            ('foobar', '1.3.5', '', ('GCC','4.7.2')),
             {'name': 'toy', 'version': '0.0'},
             {'name': 'toy', 'version': '0.0', 'versionsuffix': '-bleh'},
             {'name': 'toy', 'version': '0.0', 'toolchain': {'name': 'gompi', 'version': '2015a'}},
@@ -247,7 +245,7 @@ class TypeCheckingTest(EnhancedTestCase):
         dependencies = [
             {'name': 'intel', 'version': '2015a'},
             {'name': 'gcc', 'version': '4.1.3'},
-            {'name': 'dummy', 'version': 'dummy', 'versionsuffix': 'foo',  
+            {'name': 'dummy', 'version': 'dummy', 'versionsuffix': 'foo',
              'toolchain': {'name': 'intel', 'version': '2015a'}},
         ]
         self.assertTrue(is_value_of_type(dependencies, DEPENDENCIES))
