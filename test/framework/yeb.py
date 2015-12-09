@@ -136,6 +136,10 @@ class YebTest(EnhancedTestCase):
 
     def test_bad_toolchain_format(self):
         """ Test alternate toolchain format name,version """
+        if 'yaml' not in sys.modules:
+            print "Skipping test_parse_yeb (no PyYAML available)"
+            return
+
         # only test bad cases - the right ones are tested with the test files in test_parse_yeb
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')

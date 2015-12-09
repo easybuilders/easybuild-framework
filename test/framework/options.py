@@ -193,16 +193,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # clear log file
         write_file(self.logfile, '')
-
-        # check that --force works
-        args = [
-                eb_file,
-                '--force',
-                '--debug',
-               ]
-        outtxt = self.eb_main(args)
-
-        self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
+        
+        # check that --force and --rebuild work 
+        for arg in ['--force', '--rebuild']:
+            outtxt = self.eb_main([eb_file, '--debug', arg])
+            self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with %s" % arg)
 
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""

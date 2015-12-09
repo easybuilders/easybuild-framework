@@ -34,6 +34,7 @@ EasyBuild support for Clang + GCC compiler toolchain.  Clang uses libstdc++.  GF
 import os
 from easybuild.toolchains.compiler.clang import Clang
 from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 TC_CONSTANT_CLANGGCC = "ClangGCC"
@@ -44,3 +45,4 @@ class ClangGcc(Clang, Gcc):
     NAME = 'ClangGCC'
     COMPILER_MODULE_NAME = ['Clang', 'GCC']
     COMPILER_FAMILY = TC_CONSTANT_CLANGGCC
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME

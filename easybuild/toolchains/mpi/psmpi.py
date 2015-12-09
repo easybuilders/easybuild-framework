@@ -1,8 +1,5 @@
-##
-# Copyright 2013-2015 Ghent University
-#
-# This file is triple-licensed under GPLv2 (see below), MIT, and
-# BSD three-clause licenses.
+# #
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,20 +21,26 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
-EasyBuild support for gmvolf compiler toolchain (includes GCC, MVAPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+Support for Parastation MPI as toolchain MPI library.
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.gmvapich2 import Gmvapich2
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.openblas import OpenBLAS
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gmvolf(Gmvapich2, OpenBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'gmvolf'
-    SUBTOOLCHAIN = Gmvapich2.NAME
+class Psmpi(Mpich):
+    """Parastation MPI class"""
+    MPI_MODULE_NAME = ['psmpi']
+
+    def _set_mpi_compiler_variables(self):
+        """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
+
+        # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
+        self.MPI_COMPILER_MPIF77 = 'mpif77'
+        self.MPI_COMPILER_MPIF90 = 'mpif90'
+        self.MPI_COMPILER_MPIFC = 'mpif90'
+
+        super(Psmpi, self)._set_mpi_compiler_variables()
