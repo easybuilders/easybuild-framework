@@ -143,8 +143,10 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_dependency({'lib': '1.2.8', 'toolchain': ['GCC', '4.8.2']}), lib_dict)
         lib_dict.update({'versionsuffix': ''})
 
+        # to_dependency doesn't touch values of non-dict type
         self.assertEqual(to_dependency(('foo', '1.3')), ('foo','1.3'))
         self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), ('foo', '1.3', '-suff', ('GCC','4.8.2')))
+        self.assertEqual(to_dependency('foo/1.3'), 'foo/1.3')
 
         self.assertEqual(to_dependency({'name':'fftw/3.3.4.2', 'external': True}),
             {'name':'fftw/3.3.4.2', 'external': True, 'version': None})
@@ -181,6 +183,7 @@ class TypeCheckingTest(EnhancedTestCase):
         """Test to_dependencies function."""
         self.assertEqual(to_dependencies([]), [])
         deps = [
+            'foo/1.2.3',
             ('foo', '1.2.3'),
             ('bar', '4.5.6', '-test'),
             ('foobar', '1.3.5', '', ('GCC', '4.7.2')),
@@ -192,6 +195,7 @@ class TypeCheckingTest(EnhancedTestCase):
              'toolchain': {'name': 'gompi', 'version': '2015a'}},
         ]
         self.assertEqual(to_dependencies(deps), [
+            'foo/1.2.3',
             ('foo', '1.2.3'),
             ('bar', '4.5.6', '-test'),
             ('foobar', '1.3.5', '', ('GCC','4.7.2')),

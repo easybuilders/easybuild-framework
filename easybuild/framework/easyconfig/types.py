@@ -296,13 +296,6 @@ def to_dependency(dep):
         {'foo': '1.2.3', 'toolchain': 'GCC, 4.8.2'}
         to
         {'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.8.2'}}
-
-        or
-
-        ('foo', '1.2.3', '-test', ('GCC', '4.8.2'))
-        to
-        {'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.8.2'}, 'versionsuffix': '-test'}
-
     """
     # deal with dependencies coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
@@ -335,8 +328,12 @@ def to_dependency(dep):
                 raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:
-        _log.warning("to_dependency failed to recognise type; passing value down as is")
+        # pass down value untouched, let EasyConfig._parse_dependency handle it
         depspec = dep
+        if isinstance(dep, (tuple, list)):
+            _log.debug("Passing down dependency value of type %s without touching it: %s", type(dep), dep)
+        else:
+            _log.warning("Unknown type of value in to_dependency %s; passing value down as is: %s", type(dep), dep)
 
     return depspec
 
