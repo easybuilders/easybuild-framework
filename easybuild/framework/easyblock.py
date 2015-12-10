@@ -1061,12 +1061,12 @@ class EasyBlock(object):
         """
         return {
             'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
-            'LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
+            'LD_LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
+            'LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
             'CPATH': ['include'],
-            'MANPATH': ['man', 'share/man'],
-            'PKG_CONFIG_PATH': ['%s/pkgconfig' % x for x in ['lib', 'lib64', 'lib32', 'share']],
-            'ACLOCAL_PATH': ['share/aclocal'],
+            'MANPATH': ['man', os.path.join('share', 'man')],
+            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in ['lib', 'lib32', 'lib64', 'share']],
+            'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
             'CLASSPATH': ['*.jar'],
         }
 
