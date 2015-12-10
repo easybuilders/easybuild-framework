@@ -161,15 +161,10 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        # deep copy to make sure self.extra_options remains unchanged
-        self._config.update(copy.deepcopy(self.extra_options))
-
         self.mandatory = MANDATORY_PARAMS[:]
 
-        # extend mandatory keys
-        for key, value in self.extra_options.items():
-            if value[2] == MANDATORY:
-                self.mandatory.append(key)
+        # deep copy to make sure self.extra_options remains unchanged
+        self.extend_params(copy.deepcopy(self.extra_options))
 
         # set valid stops
         self.valid_stops = build_option('valid_stops')
@@ -219,6 +214,27 @@ class EasyConfig(object):
         self.mod_subdir = mns.det_module_subdir(self)
 
         self.software_license = None
+
+    def extend_params(self, extra, overwrite=True):
+        """Extend list of known parameters via provided list of extra easyconfig parameters."""
+
+        self.log.debug("Extending list of known easyconfig parameters with: %s", ' '.join(extra.keys()))
+
+        if overwrite:
+            self._config.update(extra)
+        else:
+            for key in extra:
+                if key not in self._config:
+                    self._config[key] = extra[key]
+                    self.log.debug("Added new easyconfig parameter: %s", key)
+                else:
+                    self.log.debug("Easyconfig parameter %s already known, not overwriting", key)
+
+        # extend mandatory keys
+        for key, value in extra.items():
+            if value[2] == MANDATORY:
+                self.mandatory.append(key)
+        self.log.debug("Updated list of mandatory easyconfig parameters: %s", self.mandatory)
 
     def copy(self):
         """
@@ -283,8 +299,10 @@ class EasyConfig(object):
             # validations are skipped, just set in the config
             # do not store variables we don't need
             if key in self._config.keys():
-                if key in ['builddependencies', 'dependencies']:
+                if key in ['dependencies']:
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
+                elif key in ['builddependencies']:
+                    self[key] = [self._parse_dependency(dep, build_only=True) for dep in local_vars[key]]
                 elif key in ['hiddendependencies']:
                     self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
                 else:
@@ -409,30 +427,44 @@ class EasyConfig(object):
 
     def filter_hidden_deps(self):
         """
-        Filter hidden dependencies from list of dependencies.
+        Filter hidden dependencies from list of (build) dependencies.
         """
-        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
+        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
+        build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
 
         faulty_deps = []
-        for hidden_dep in self['hiddendependencies']:
-            # check whether hidden dep is a listed dep using *visible* module name, not hidden one
+        for i, hidden_dep in enumerate(self['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
+
+            # track whether this hidden dep is listed as a build dep
+            if visible_mod_name in build_dep_mod_names or hidden_mod_name in build_dep_mod_names:
+                # templating must be temporarily disabled when updating a value in a dict;
+                # see comments in resolve_template
+                enable_templating = self.enable_templating
+                self.enable_templating = False
+                self['hiddendependencies'][i]['build_only'] = True
+                self.enable_templating = enable_templating
+
+            # filter hidden dep from list of (build)dependencies
             if visible_mod_name in dep_mod_names:
-                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != visible_mod_name]
-                self.log.debug("Removed dependency matching hidden dependency %s" % hidden_dep)
+                for key in ['builddependencies', 'dependencies']:
+                    self[key] = [d for d in self[key] if d['full_mod_name'] != visible_mod_name]
+                self.log.debug("Removed (build)dependency matching hidden dependency %s", hidden_dep)
             elif hidden_mod_name in dep_mod_names:
-                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != hidden_mod_name]
-                self.log.debug("Hidden dependency %s is already marked to be installed as hidden module", hidden_dep)
+                for key in ['builddependencies', 'dependencies']:
+                    self[key] = [d for d in self[key] if d['full_mod_name'] != hidden_mod_name]
+                self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
+                               hidden_dep)
             else:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
-                self.log.warning("Hidden dependency %s not in list of dependencies" % visible_mod_name)
+                self.log.warning("Hidden dependency %s not in list of (build)dependencies", visible_mod_name)
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
-            raise EasyBuildError("Hidden dependencies with visible module names %s not in list of dependencies: %s",
+            raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
     def dependencies(self):
@@ -550,7 +582,7 @@ class EasyConfig(object):
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
     # private method
-    def _parse_dependency(self, dep, hidden=False):
+    def _parse_dependency(self, dep, hidden=False, build_only=False):
         """
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
@@ -563,6 +595,7 @@ class EasyConfig(object):
          'external_module']
 
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        @param build_only: indicate whether this is a build-only dependency
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -582,6 +615,8 @@ class EasyConfig(object):
             'dummy': False,
             # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
+            # boolean indicating whether this this a build-only dependency
+            'build_only': build_only,
             # boolean indicating whether this dependency should be resolved via an external module
             'external_module': False,
             # metadata in case this is an external module;
