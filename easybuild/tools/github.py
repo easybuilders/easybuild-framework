@@ -116,7 +116,7 @@ class Githubfs(object):
     @staticmethod
     def isdir(githubobj):
         """Check if this path points to a directory"""
-        if isinstance(githubobj,(list, tuple)):
+        if isinstance(githubobj, (list, tuple)):
             return True
         else:
             try:
@@ -147,7 +147,7 @@ class Githubfs(object):
         """
         Walk the github repo in an os.walk like fashion.
         """
-        isdir, listdir =  self.isdir, self.listdir
+        isdir, listdir = self.isdir, self.listdir
 
         # If this fails we blow up, since permissions on a github repo are recursive anyway.j
         githubobjs = listdir(top)
@@ -183,7 +183,7 @@ class Githubfs(object):
             obj = self.get_path(path).get(ref=self.branchname)[1]
             if not self.isfile(obj):
                 raise GithubError("Error: not a valid file: %s" % str(obj))
-            return  base64.b64decode(obj['content'])
+            return base64.b64decode(obj['content'])
 
 
 class GithubError(Exception):
@@ -324,7 +324,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = read_file(diff_filepath)
     os.remove(diff_filepath)
 
-    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
+    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True)
     _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
@@ -349,7 +349,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     if not sorted(tmp_files) == sorted(all_files):
         raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
 
-    ec_files = [os.path.join(path, fn) for fn in tmp_files]
+    ec_files = [os.path.join(path, filename) for filename in tmp_files]
 
     return ec_files
 
@@ -426,6 +426,7 @@ class GithubToken(object):
         else:
             # success
             _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
+
 
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""

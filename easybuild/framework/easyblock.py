@@ -1039,7 +1039,12 @@ class EasyBlock(object):
 
             lines.append('\n')
             for key in sorted(requirements):
-                for path in requirements[key]:
+                reqs = requirements[key]
+                if isinstance(reqs, basestring):
+                    self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
+                    reqs = [reqs]
+
+                for path in reqs:
                     paths = sorted(glob.glob(path))
                     if paths:
                         lines.append(self.module_generator.prepend_paths(key, paths))
@@ -1056,12 +1061,12 @@ class EasyBlock(object):
         """
         return {
             'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
-            'LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
+            'LD_LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
+            'LIBRARY_PATH': ['lib', 'lib32', 'lib64'],
             'CPATH': ['include'],
-            'MANPATH': ['man', 'share/man'],
-            'PKG_CONFIG_PATH': ['lib/pkgconfig', 'share/pkgconfig'],
-            'ACLOCAL_PATH': ['share/aclocal'],
+            'MANPATH': ['man', os.path.join('share', 'man')],
+            'PKG_CONFIG_PATH': [os.path.join(x, 'pkgconfig') for x in ['lib', 'lib32', 'lib64', 'share']],
+            'ACLOCAL_PATH': [os.path.join('share', 'aclocal')],
             'CLASSPATH': ['*.jar'],
         }
 
@@ -1775,7 +1780,8 @@ class EasyBlock(object):
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         fake_mod_data = None
-        if not extension:
+        # only load fake module for non-extensions, and not during dry run
+        if not (extension or self.dry_run):
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies

@@ -63,10 +63,17 @@ class Gcc(Compiler):
         'veryloose': ['mrecip=all', 'mno-ieee-fp'],
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.AMD : 'march=native',
         systemtools.INTEL : 'march=native',
         systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.AMD : 'march=x86-64 -mtune=generic',
+        systemtools.INTEL : 'march=x86-64 -mtune=generic',
+        systemtools.POWER: 'mcpu=generic-arch',  # no support for -march on POWER
     }
 
     COMPILER_CC = 'gcc'
