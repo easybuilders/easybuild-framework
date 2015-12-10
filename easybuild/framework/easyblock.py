@@ -1065,7 +1065,7 @@ class EasyBlock(object):
             'LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
             'CPATH': ['include'],
             'MANPATH': ['man', 'share/man'],
-            'PKG_CONFIG_PATH': ['lib/pkgconfig', 'share/pkgconfig'],
+            'PKG_CONFIG_PATH': ['%s/pkgconfig' % x for x in ['lib', 'lib64', 'lib32', 'share']],
             'ACLOCAL_PATH': ['share/aclocal'],
             'CLASSPATH': ['*.jar'],
         }
