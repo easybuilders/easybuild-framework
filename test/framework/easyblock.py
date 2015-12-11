@@ -280,30 +280,28 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.make_module_dep().strip(), expected)
 
         # provide swap info for FFTW to trigger an extra 'unload FFTW'
-        swap_info = {
+        unload_info = {
             'FFTW/3.3.1-gompi-1.1.0-no-OFED': 'FFTW',
         }
 
         if get_module_syntax() == 'Tcl':
             fftw_load = '\n'.join([
-                "# 'safe' swap: unload FFTW when loaded, then load FFTW/3.3.1-gompi-1.1.0-no-OFED",
-                "module unload FFTW",
                 "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "    module unload FFTW",
                 "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
                 "}",
             ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
-                "-- 'safe' swap: unload FFTW when loaded, then load FFTW/3.3.1-gompi-1.1.0-no-OFED",
-                'unload("FFTW")',
                 'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                '    unload("FFTW")',
                 '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
                 'end',
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
-        self.assertEqual(eb.make_module_dep(swap_info=swap_info).strip(), expected)
+        self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
 
     def test_extensions_step(self):
         """Test the extensions_step"""

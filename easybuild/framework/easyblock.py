@@ -865,7 +865,7 @@ class EasyBlock(object):
         # cleanup: unload fake module, remove fake module dir
         self.clean_up_fake_module(fake_mod_data)
 
-    def make_module_dep(self, swap_info=None):
+    def make_module_dep(self, unload_info=None):
         """
         Make the dependencies for the module file.
 
@@ -873,7 +873,7 @@ class EasyBlock(object):
         """
         deps = []
         mns = ActiveMNS()
-        swap_info = swap_info or {}
+        unload_info = unload_info or {}
 
         # include load statements for toolchain, either directly or for toolchain dependencies
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
@@ -911,10 +911,11 @@ class EasyBlock(object):
 
         loads = []
         for dep in deps:
-            if dep in swap_info:
-                loads.append(self.module_generator.swap_module((swap_info[dep], dep), recursive_unload=recursive_unload))
-            else:
-                loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload))
+            unload_modules = []
+            if dep in unload_info:
+                unload_modules.append(unload_info[dep])
+            loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload,
+                                                           unload_modules=unload_modules))
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
