@@ -256,9 +256,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         @param mod_name: name of module to generate unload statement for
         """
-        # unloads are guarded so they don't get reversed to a 'load' when the module is unloaded
-        cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
-        return '\n'.join(['', cond_unload])
+        return '\n'.join(['', "module unload %s" % mod_name])
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -431,9 +429,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         @param mod_name: name of module to generate unload statement for
         """
-        # unloads are guarded so they don't get reversed to a 'load' when the module is unloaded
-        cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
-        return '\n'.join(['', cond_unload])
+        return '\n'.join(['', 'unload("%s")' % mod_name])
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """

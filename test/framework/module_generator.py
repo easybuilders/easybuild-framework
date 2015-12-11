@@ -193,9 +193,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 "# 'safe' swap: unload %(0)s when loaded, then load %(1)s",
-                "if { [ is-loaded %(0)s ] } {",
-                "    module unload %(0)s",
-                "}",
+                "module unload %(0)s",
                 "if { ![ is-loaded %(1)s ] } {",
                 "    module load %(1)s",
                 "}",
@@ -205,9 +203,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 '',
                 "-- 'safe' swap: unload %(0)s when loaded, then load %(1)s",
-                'if isloaded("%(0)s") then',
-                '    unload("%(0)s")',
-                'end',
+                'unload("%(0)s")',
                 'if not isloaded("%(1)s") then',
                 '    load("%(1)s")',
                 'end',
@@ -223,19 +219,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
-                "if { [ is-loaded mod_name ] } {",
-                "    module unload mod_name",
-                "}",
-                '',
+                "module unload mod_name",
             ])
             self.assertEqual(expected, self.modgen.unload_module("mod_name"))
         else:
             expected = '\n'.join([
                 '',
-                'if isloaded("mod_name") then',
-                '    unload("mod_name")',
-                "end",
-                '',
+                'unload("mod_name")',
             ])
             self.assertEqual(expected, self.modgen.unload_module("mod_name"))
 

@@ -287,19 +287,15 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             fftw_load = '\n'.join([
                 "# 'safe' swap: unload FFTW when loaded, then load FFTW/3.3.1-gompi-1.1.0-no-OFED",
-                "if { [ is-loaded FFTW ] } {",
-                "    module unload FFTW",
-                "}",
+                "module unload FFTW",
                 "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
                 "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
                 "}",
             ])
-        if get_module_syntax() == 'Lua':
+        elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
                 "-- 'safe' swap: unload FFTW when loaded, then load FFTW/3.3.1-gompi-1.1.0-no-OFED",
-                'if isloaded("FFTW") then',
-                '    unload("FFTW")',
-                'end',
+                'unload("FFTW")',
                 'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
                 '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
                 'end',
