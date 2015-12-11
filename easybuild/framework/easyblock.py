@@ -868,6 +868,8 @@ class EasyBlock(object):
     def make_module_dep(self, swap_info=None):
         """
         Make the dependencies for the module file.
+
+        @param swap_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
         deps = []
         mns = ActiveMNS()
