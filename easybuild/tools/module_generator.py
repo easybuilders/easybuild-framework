@@ -128,6 +128,25 @@ class ModuleGenerator(object):
         """Return formatted conditional statement, with given condition and body."""
         raise NotImplementedError
 
+    def load_module(self, mod_name, recursive_unload=False):
+        """Generate load statement for specified module."""
+        raise NotImplementedError
+
+    def unload_module(self, mod_name, conditional=True):
+        """Generate unload statement for specified module."""
+        raise NotImplementedError
+
+    def swap_module(self, mod_names, recursive_unload=False):
+        """Generate swap statement for specified modules."""
+        # swap via unload/load
+        # 'swap' command is not used, because:
+        # i) it would fail if the module being swapped out is not loaded
+        # ii) it would do weird stuff when the module in which it is used in gets unloaded (?)
+        comment = self.comment("'safe' swap: unload %s when loaded, then load %s" % mod_names).strip()
+        unload = self.unload_module(mod_names[0]).strip()
+        load = self.load_module(mod_names[1], recursive_unload=recursive_unload).lstrip()
+        return '\n'.join(['', comment, unload, load])
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -203,7 +222,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def load_module(self, mod_name, recursive_unload=False):
         """
-        Generate load statements for module.
+        Generate load statement for specified module.
         """
         if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
@@ -216,8 +235,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def unload_module(self, mod_name):
         """
-        Generate unload statements for module.
+        Generate unload statement for specified module.
         """
+        # unloads are guarded so they don't get reversed to a 'load' when the module is unloaded
         cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
         return '\n'.join(['', cond_unload])
 
@@ -371,7 +391,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def load_module(self, mod_name, recursive_unload=False):
         """
-        Generate load statements for module.
+        Generate load statement for specified module.
         """
         if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
@@ -385,8 +405,9 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def unload_module(self, mod_name):
         """
-        Generate unload statements for module.
+        Generate unload statement for specified module.
         """
+        # unloads are guarded so they don't get reversed to a 'load' when the module is unloaded
         cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
         return '\n'.join(['', cond_unload])
 
