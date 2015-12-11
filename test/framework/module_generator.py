@@ -187,6 +187,36 @@ class ModuleGeneratorTest(EnhancedTestCase):
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
+    def test_swap(self):
+        """Test (mimiced) swap part in generated module file."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "# 'safe' swap: unload %(0)s when loaded, then load %(1)s",
+                "if { [ is-loaded %(0)s ] } {",
+                "    module unload %(0)s",
+                "}",
+                "if { ![ is-loaded %(1)s ] } {",
+                "    module load %(1)s",
+                "}",
+                '',
+            ])
+        else:
+            expected = '\n'.join([
+                '',
+                "-- 'safe' swap: unload %(0)s when loaded, then load %(1)s",
+                'if isloaded("%(0)s") then',
+                '    unload("%(0)s")',
+                'end',
+                'if not isloaded("%(1)s") then',
+                '    load("%(1)s")',
+                'end',
+                '',
+            ])
+
+        for mod0, mod1 in [('fftw', 'fftw/3.3.4.1'), ('boost/intel64', 'boost/intel64/1.59.0')]:
+            self.assertEqual(expected % {'0': mod0, '1': mod1}, self.modgen.swap_module((mod0, mod1)))
+
     def test_unload(self):
         """Test unload part in generated module file."""
 
