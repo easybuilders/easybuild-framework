@@ -322,7 +322,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "if { [ module-info mode load ] } {",
                 "    puts stderr \"test \\$test \\$test",
-                "test \\$foo \\$bar\"",
+                "    test \\$foo \\$bar\"",
                 "}",
                 '',
             ])
