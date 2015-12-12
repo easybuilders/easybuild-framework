@@ -227,11 +227,13 @@ def get_toolchain_hierarchy(parent_toolchain):
             subtoolchain_version = dep_tcs[0]['version']
 
         elif len(unique_dep_tc_versions) == 0:
+            # only retain GCCcore as subtoolchain if version was found
             if subtoolchain_name == GCCcore.NAME:
-                _log.info("No version found for %s: Assuming legacy toolchain and skipping %s subtoolchain.",
-                          subtoolchain_name, subtoolchain_name)
-                subtoolchain_name = DUMMY_TOOLCHAIN_NAME
+                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
+                          subtoolchain_name)
+                subtoolchain_name = GCCcore.SUBTOOLCHAIN
                 subtoolchain_version = ''
+            # dummy toolchain: end of the line
             elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
                 subtoolchain_version = ''
             else:

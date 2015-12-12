@@ -35,5 +35,5 @@ class GCCcore(Gcc):
     """Compiler-only toolchain, including only GCC and binutils."""
     NAME = 'GCCcore'
     # Replace the default compiler module name with our own
-    COMPILER_MODULE_NAME = ['GCCcore']    
+    COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
