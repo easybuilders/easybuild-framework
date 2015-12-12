@@ -386,6 +386,8 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([bar], minimal_toolchains=True)
         self.assertEqual(len(res), 10)
         self.assertEqual([x['full_mod_name'] for x in res], all_mods_ordered)
+        # cleanup
+        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         MockModule.avail_modules = [
             'GCC/4.7.2',
@@ -402,6 +404,8 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([bar], minimal_toolchains=True)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], bar['ec'].full_mod_name)
+        # cleanup
+        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         # test retaining all dependencies, regardless of whether modules are available or not
         res = resolve_dependencies([bar], minimal_toolchains=True, retain_all_deps=True)
@@ -409,6 +413,8 @@ class RobotTest(EnhancedTestCase):
         mods = [x['full_mod_name'] for x in res]
         self.assertEqual(mods, all_mods_ordered)
         self.assertTrue('SQLite/3.8.10.2-GCC-4.7.2' in mods)
+        # cleanup
+        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         # test taking into account existing modules
         # with an SQLite module with goolf/1.4.10 in place, this toolchain should be used rather than GCC/4.7.2
