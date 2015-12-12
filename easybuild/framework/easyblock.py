@@ -869,7 +869,7 @@ class EasyBlock(object):
         """
         Make the dependencies for the module file.
 
-        @param swap_info: dictionary with full module names as keys and module name to unload first as corr. value
+        @param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
         deps = []
         mns = ActiveMNS()

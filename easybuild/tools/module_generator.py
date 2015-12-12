@@ -146,22 +146,6 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def swap_module(self, mod_names, recursive_unload=False):
-        """
-        Generate swap statement for specified modules.
-
-        @param mod_names: 2-element tuple with module name to unload, and module name to load (in that order)
-        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        """
-        # swap via unload/load
-        # 'swap' command is not used, because:
-        # i) it would fail if the module being swapped out is not loaded
-        # ii) it would do weird stuff when the module in which it is used in gets unloaded (?)
-        comment = self.comment("'safe' swap: unload %s when loaded, then load %s" % mod_names).strip()
-        unload = self.unload_module(mod_names[0]).strip()
-        load = self.load_module(mod_names[1], recursive_unload=recursive_unload).lstrip()
-        return '\n'.join(['', comment, unload, load])
-
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
