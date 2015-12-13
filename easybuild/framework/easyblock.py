@@ -932,7 +932,10 @@ class EasyBlock(object):
 
     def make_module_extra(self, altroot=None, altversion=None):
         """
-        Sets optional variables (EBROOT, MPI tuning variables).
+        Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
+
+        @param altroot: path to use to define $EBROOT*
+        @param altversion: version to use to define $EBVERSION*
         """
         lines = ['']
 
