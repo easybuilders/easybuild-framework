@@ -930,18 +930,30 @@ class EasyBlock(object):
         """
         return self.module_generator.get_description()
 
-    def make_module_extra(self):
+    def make_module_extra(self, altroot=None, altversion=None):
         """
-        Sets optional variables (EBROOT, MPI tuning variables).
+        Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
+
+        @param altroot: path to use to define $EBROOT*
+        @param altversion: version to use to define $EBVERSION*
         """
         lines = ['']
 
-        # EBROOT + EBVERSION + EBDEVEL
         env_name = convert_name(self.name, upper=True)
 
-        lines.append(self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + env_name, '', relpath=True))
-        lines.append(self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + env_name, self.version))
+        # $EBROOT<NAME>
+        root_envvar = ROOT_ENV_VAR_NAME_PREFIX + env_name
+        if altroot:
+            set_root_envvar = self.module_generator.set_environment(root_envvar, altroot)
+        else:
+            set_root_envvar = self.module_generator.set_environment(root_envvar, '', relpath=True)
+        lines.append(set_root_envvar)
 
+        # $EBVERSION<NAME>
+        version_envvar = VERSION_ENV_VAR_NAME_PREFIX + env_name
+        lines.append(self.module_generator.set_environment(version_envvar, altversion or self.version))
+
+        # $EBDEVEL<NAME>
         devel_path = os.path.join(log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         devel_path_envvar = DEVEL_ENV_VAR_NAME_PREFIX + env_name
         lines.append(self.module_generator.set_environment(devel_path_envvar, devel_path, relpath=True))
