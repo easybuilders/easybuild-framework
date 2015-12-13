@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, mkdir, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -341,7 +341,9 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
     modtool = modules_tool()
     # copy, we don't want to modify the origin list of available modules
     avail_modules = avail_modules[:]
-    minimal_ecs_dir = tempfile.mkdtemp(prefix='minimal-easyconfigs-')
+    # Create a (temporary sub-)directory to store minimal easyconfigs
+    minimal_ecs_dir = os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs')
+    mkdir(minimal_ecs_dir, parents=True)
 
     for easyconfig in easyconfigs:
         toolchain_hierarchy = get_toolchain_hierarchy(easyconfig['ec']['toolchain'])
