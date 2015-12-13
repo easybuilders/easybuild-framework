@@ -221,6 +221,88 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_dep(self):
+        """Test for make_module_dep"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            'dependencies = [',
+            "   ('FFTW', '3.3.1'),",
+            "   ('LAPACK', '3.4.0'),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
+
+        if get_module_syntax() == 'Tcl':
+            tc_load = '\n'.join([
+                "if { ![ is-loaded gompi/1.1.0-no-OFED ] } {",
+                "    module load gompi/1.1.0-no-OFED",
+                "}",
+            ])
+            fftw_load = '\n'.join([
+                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "}",
+            ])
+            lapack_load = '\n'.join([
+                "if { ![ is-loaded LAPACK/3.4.0-gompi-1.1.0-no-OFED ] } {",
+                "    module load LAPACK/3.4.0-gompi-1.1.0-no-OFED",
+                "}",
+            ])
+        elif get_module_syntax() == 'Lua':
+            tc_load = '\n'.join([
+                'if not isloaded("gompi/1.1.0-no-OFED") then',
+                '    load("gompi/1.1.0-no-OFED")',
+                'end',
+            ])
+            fftw_load = '\n'.join([
+                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                'end',
+            ])
+            lapack_load = '\n'.join([
+                'if not isloaded("LAPACK/3.4.0-gompi-1.1.0-no-OFED") then',
+                '    load("LAPACK/3.4.0-gompi-1.1.0-no-OFED")',
+                'end',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
+        self.assertEqual(eb.make_module_dep().strip(), expected)
+
+        # provide swap info for FFTW to trigger an extra 'unload FFTW'
+        unload_info = {
+            'FFTW/3.3.1-gompi-1.1.0-no-OFED': 'FFTW',
+        }
+
+        if get_module_syntax() == 'Tcl':
+            fftw_load = '\n'.join([
+                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "    module unload FFTW",
+                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "}",
+            ])
+        elif get_module_syntax() == 'Lua':
+            fftw_load = '\n'.join([
+                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                '    unload("FFTW")',
+                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                'end',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+        expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
+        self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
