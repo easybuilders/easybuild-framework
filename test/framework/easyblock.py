@@ -272,9 +272,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
 
-        error_pat = "Alternative root must be an absolute path"
-        self.assertErrorRegex(EasyBuildError, error_pat, eb.make_module_extra, altroot='pi/3.14.15')
-
     def test_make_module_dep(self):
         """Test for make_module_dep"""
         self.contents = '\n'.join([

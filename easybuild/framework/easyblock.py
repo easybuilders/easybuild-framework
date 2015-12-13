@@ -941,8 +941,6 @@ class EasyBlock(object):
         # $EBROOT<NAME>
         root_envvar = ROOT_ENV_VAR_NAME_PREFIX + env_name
         if altroot:
-            if not os.path.isabs(altroot):
-                raise EasyBuildError("Alternative root must be an absolute path: %s", altroot)
             set_root_envvar = self.module_generator.set_environment(root_envvar, altroot)
         else:
             set_root_envvar = self.module_generator.set_environment(root_envvar, '', relpath=True)
