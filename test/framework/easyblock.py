@@ -221,6 +221,60 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_extra(self):
+        """Test for make_module_extra."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            'dependencies = [',
+            "   ('FFTW', '3.3.1'),",
+            "   ('LAPACK', '3.4.0'),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+
+        if get_module_syntax() == 'Tcl':
+            expected_default = re.compile(r'\n'.join([
+                r'setenv\s+EBROOTPI\s+\"\$root"',
+                r'setenv\s+EBVERSIONPI\s+"3.14"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+            ]))
+            expected_alt = re.compile(r'\n'.join([
+                r'setenv\s+EBROOTPI\s+"/opt/software/tau/6.28"',
+                r'setenv\s+EBVERSIONPI\s+"6.28"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+            ]))
+        elif get_module_syntax() == 'Lua':
+            expected_default = re.compile(r'\n'.join([
+                r'setenv\("EBROOTPI", root\)',
+                r'setenv\("EBVERSIONPI", "3.14"\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+            ]))
+            expected_alt = re.compile(r'\n'.join([
+                r'setenv\("EBROOTPI", "/opt/software/tau/6.28"\)',
+                r'setenv\("EBVERSIONPI", "6.28"\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+            ]))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        defaulttxt = eb.make_module_extra().strip()
+        self.assertTrue(expected_default.match(defaulttxt),
+                        "Pattern %s found in %s" % (expected_default.pattern, defaulttxt))
+
+        alttxt = eb.make_module_extra(altroot='/opt/software/tau/6.28', altversion='6.28').strip()
+        self.assertTrue(expected_alt.match(alttxt),
+                        "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
+
+        error_pat = "Alternative root must be an absolute path"
+        self.assertErrorRegex(EasyBuildError, error_pat, eb.make_module_extra, altroot='pi/3.14.15')
+
     def test_make_module_dep(self):
         """Test for make_module_dep"""
         self.contents = '\n'.join([
