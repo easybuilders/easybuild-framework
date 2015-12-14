@@ -24,6 +24,7 @@ feature + bugfix release
     - add support to make_module_dep to specify module to unload before loading a dependency module (#1506)
     - add support to make_module_extra to specify alternative root/version for $EBROOT/$EBVERSION (#1508)
     - packaging support is no longer considered experimental (#1510)
+    - add missing import for EasyBuildError in easybuild/toolchains/linalg/libsci.py (#1512)
 - various bug fixes, including:
     - also consider lib64 in sanity check performed during EasyBuild bootstrap (#1464)
     - also add description/homepage to packages created with FPM (#1469)
