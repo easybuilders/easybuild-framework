@@ -865,12 +865,15 @@ class EasyBlock(object):
         # cleanup: unload fake module, remove fake module dir
         self.clean_up_fake_module(fake_mod_data)
 
-    def make_module_dep(self):
+    def make_module_dep(self, unload_info=None):
         """
         Make the dependencies for the module file.
+
+        @param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
         deps = []
         mns = ActiveMNS()
+        unload_info = unload_info or {}
 
         # include load statements for toolchain, either directly or for toolchain dependencies
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
@@ -905,11 +908,18 @@ class EasyBlock(object):
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)
         recursive_unload = self.cfg['recursive_module_unload']
-        loads = [self.module_generator.load_module(d, recursive_unload=recursive_unload) for d in deps]
-        unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
+
+        loads = []
+        for dep in deps:
+            unload_modules = []
+            if dep in unload_info:
+                unload_modules.append(unload_info[dep])
+            loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload,
+                                                           unload_modules=unload_modules))
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
+            unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
             return ''.join(unloads) + ''.join(loads)
         else:
             return ''.join(loads)
@@ -920,18 +930,30 @@ class EasyBlock(object):
         """
         return self.module_generator.get_description()
 
-    def make_module_extra(self):
+    def make_module_extra(self, altroot=None, altversion=None):
         """
-        Sets optional variables (EBROOT, MPI tuning variables).
+        Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
+
+        @param altroot: path to use to define $EBROOT*
+        @param altversion: version to use to define $EBVERSION*
         """
         lines = ['']
 
-        # EBROOT + EBVERSION + EBDEVEL
         env_name = convert_name(self.name, upper=True)
 
-        lines.append(self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + env_name, '', relpath=True))
-        lines.append(self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + env_name, self.version))
+        # $EBROOT<NAME>
+        root_envvar = ROOT_ENV_VAR_NAME_PREFIX + env_name
+        if altroot:
+            set_root_envvar = self.module_generator.set_environment(root_envvar, altroot)
+        else:
+            set_root_envvar = self.module_generator.set_environment(root_envvar, '', relpath=True)
+        lines.append(set_root_envvar)
 
+        # $EBVERSION<NAME>
+        version_envvar = VERSION_ENV_VAR_NAME_PREFIX + env_name
+        lines.append(self.module_generator.set_environment(version_envvar, altversion or self.version))
+
+        # $EBDEVEL<NAME>
         devel_path = os.path.join(log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         devel_path_envvar = DEVEL_ENV_VAR_NAME_PREFIX + env_name
         lines.append(self.module_generator.set_environment(devel_path_envvar, devel_path, relpath=True))

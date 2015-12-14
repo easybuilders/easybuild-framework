@@ -128,6 +128,24 @@ class ModuleGenerator(object):
         """Return formatted conditional statement, with given condition and body."""
         raise NotImplementedError
 
+    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+        """
+        Generate load statement for specified module.
+
+        @param mod_name: name of module to generate load statement for
+        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        @param unload_modules: name(s) of module to unload first
+        """
+        raise NotImplementedError
+
+    def unload_module(self, mod_name):
+        """
+        Generate unload statement for specified module.
+
+        @param mod_name: name of module to generate unload statement for
+        """
+        raise NotImplementedError
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -152,7 +170,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         else:
             lines = ["if { [ %s ] } {" % condition]
 
-        lines.append('    ' + body)
+        for line in body.split('\n'):
+            lines.append('    ' + line)
         lines.extend(['}', ''])
         return '\n'.join(lines)
 
@@ -201,25 +220,36 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name, recursive_unload=False):
+    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
         """
-        Generate load statements for module.
+        Generate load statement for specified module.
+
+        @param mod_name: name of module to generate load statement for
+        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        @param unload_module: name(s) of module to unload first
         """
+        body = []
+        if unload_modules:
+            body.extend([self.unload_module(m).strip() for m in unload_modules])
+        body.append(self.LOAD_TEMPLATE)
+
         if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
-            load_statement = [self.LOAD_TEMPLATE, '']
+            load_statement = body + ['']
         else:
-            load_statement = [self.conditional_statement("is-loaded %(mod_name)s", self.LOAD_TEMPLATE, negative=True)]
+            load_statement = [self.conditional_statement("is-loaded %(mod_name)s", '\n'.join(body), negative=True)]
+
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """
-        Generate unload statements for module.
+        Generate unload statement for specified module.
+
+        @param mod_name: name of module to generate unload statement for
         """
-        cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
-        return '\n'.join(['', cond_unload])
+        return '\n'.join(['', "module unload %s" % mod_name])
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -369,26 +399,36 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
-    def load_module(self, mod_name, recursive_unload=False):
+    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
         """
-        Generate load statements for module.
+        Generate load statement for specified module.
+
+        @param mod_name: name of module to generate load statement for
+        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        @param unload_modules: name(s) of module to unload first
         """
+        body = []
+        if unload_modules:
+            body.extend([self.unload_module(m).strip() for m in unload_modules])
+        body.append(self.LOAD_TEMPLATE)
+
         if build_option('recursive_mod_unload') or recursive_unload:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
-            load_statement = [self.LOAD_TEMPLATE, '']
+            load_statement = body + ['']
         else:
-            load_statement = [self.conditional_statement('isloaded("%(mod_name)s")', self.LOAD_TEMPLATE, negative=True)]
+            load_statement = [self.conditional_statement('isloaded("%(mod_name)s")', '\n'.join(body), negative=True)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """
-        Generate unload statements for module.
+        Generate unload statement for specified module.
+
+        @param mod_name: name of module to generate unload statement for
         """
-        cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
-        return '\n'.join(['', cond_unload])
+        return '\n'.join(['', 'unload("%s")' % mod_name])
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """

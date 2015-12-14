@@ -30,9 +30,12 @@ EasyBuild support for Intel compilers toolchain (icc, ifort)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+# Need to import the GCCcore class so I can get the name from there
+from easybuild.toolchains.gcccore import GCCcore
 
 class IccIfort(IntelIccIfort):
     """Compiler toolchain with Intel compilers (icc/ifort)."""
     NAME = 'iccifort'
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
+    # in particular in a hierarchical module naming scheme
+    SUBTOOLCHAIN = GCCcore.NAME

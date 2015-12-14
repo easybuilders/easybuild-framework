@@ -31,6 +31,7 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.modules import get_software_root
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -102,5 +103,10 @@ class Gcc(Compiler):
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
         # Note: hardcode 'GCC' here; we can not reuse COMPILER_MODULE_NAME because
         # it can be redefined by combining GCC with other compilers (e.g., Clang).
-        gcc_root = self.get_software_root('GCC')[0]
+        gcc_root = get_software_root('GCCcore')
+        if gcc_root is None:
+            gcc_root = get_software_root('GCC')
+            if gcc_root is None:
+                raise EasyBuildError("Failed to determine software root for GCC")
+
         self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64", "lib"])
