@@ -33,6 +33,7 @@ feature + bugfix release
     - only keep polling if exit code is None in run_cmd_qa, to correctly deal with negative exit codes (#1486)
     - fix bootstrap script for missing sys_platform by using newer distribute 0.6.49 in stage 0 (#1490)
     - make sure that extra custom easyconfig parameters are known for extensions (#1498)
+    - isolate tests from possible system-wide configuration files (#1513)
 
 v2.4.0 (November 10th 2015)
 ---------------------------
