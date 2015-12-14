@@ -35,6 +35,11 @@ from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
+# 'GENERIC' can  beused to enable generic compilation instead of optimized compilation (which is the default)
+# by doing eb --optarch=GENERIC
+OPTARCH_GENERIC = 'GENERIC'
+
+
 def mk_infix(prefix):
     """Create an infix based on the given prefix."""
     infix = ''
@@ -96,6 +101,7 @@ class Compiler(Toolchain):
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
+    COMPILER_GENERIC_OPTION = None
 
     COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt']  # optimisation args, ordered !
@@ -229,7 +235,13 @@ class Compiler(Toolchain):
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
-        optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
+        optarchflags = []
+        if build_option('optarch') == OPTARCH_GENERIC:
+            # don't take 'optarch' toolchain option into account when --optarch=GENERIC is used,
+            # *always* include the flags that correspond to generic compilation (which are listed in 'optarch' option)
+            optarchflags.append(self.options.option('optarch'))
+        elif self.options.get('optarch', False):
+            optarchflags.append(self.options.option('optarch'))
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
@@ -254,8 +266,14 @@ class Compiler(Toolchain):
             self.arch = systemtools.get_cpu_family()
 
         optarch = None
-        if build_option('optarch') is not None:
+        # --optarch is specified with flags to use
+        if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
             optarch = build_option('optarch')
+        # --optarch=GENERIC
+        elif build_option('optarch') == OPTARCH_GENERIC:
+            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+        # no --optarch specified
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 

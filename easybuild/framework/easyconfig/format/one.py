@@ -30,7 +30,7 @@ This is the original pure python code, to be exec'ed rather then parsed
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import re
 import tempfile
@@ -223,11 +223,12 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                # the value for 'dependencies' may have been modified after parsing via filter_hidden_deps
+                val = copy.deepcopy(ecfg[key])
+                # include hidden deps back in list of (build)dependencies, they were filtered out via filter_hidden_deps
                 if key == 'dependencies':
-                    val = ecfg[key] + ecfg['hiddendependencies']
-                else:
-                    val = ecfg[key]
+                    val.extend([d for d in ecfg['hiddendependencies'] if not d['build_only']])
+                elif key == 'builddependencies':
+                    val.extend([d for d in ecfg['hiddendependencies'] if d['build_only']])
 
                 if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
