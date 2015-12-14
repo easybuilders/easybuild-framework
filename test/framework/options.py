@@ -72,7 +72,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
         for var in os.environ.keys():
-            if var.startswith('EASYBUILD_'):
+            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
                 del os.environ[var]
 
     def test_help_short(self, txt=None):
