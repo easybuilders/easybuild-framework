@@ -28,10 +28,12 @@ EasyBuild support for GCC compiler toolchain.
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.gcccore import GCCcore
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
-class GccToolchain(GCCcore):
-    """Simple toolchain with just the GCC compilers."""
-    NAME = 'GCC'
+class GCCcore(Gcc):
+    """Compiler-only toolchain, including only GCC and binutils."""
+    NAME = 'GCCcore'
+    # Replace the default compiler module name with our own
     COMPILER_MODULE_NAME = [NAME]
-    SUBTOOLCHAIN = GCCcore.NAME
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
