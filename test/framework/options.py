@@ -1671,14 +1671,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_generate_cmd_line(self):
         """Test for generate_cmd_line."""
-        ebopts = EasyBuildOptions()
-        self.assertEqual(ebopts.generate_cmd_line(), [])
+        self.purge_environment()
 
-        ebopts = EasyBuildOptions(go_args=['--force'])
-        self.assertEqual(ebopts.generate_cmd_line(), ['--force'])
+        def generate_cmd_line(ebopts):
+            """Helper function to filter generated command line (to ignore $EASYBUILD_IGNORECONFIGFILES)."""
+            return [x for x in ebopts.generate_cmd_line() if not x.startswith('--ignoreconfigfiles=')]
 
-        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'])
-        self.assertEqual(ebopts.generate_cmd_line(), ['--search=foobar'])
+        ebopts = EasyBuildOptions(envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), [])
+
+        ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--force'])
+
+        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--search=foobar'])
+
+        os.environ['EASYBUILD_DEBUG'] = '1'
+        ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
