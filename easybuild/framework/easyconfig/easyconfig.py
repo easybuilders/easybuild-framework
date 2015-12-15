@@ -581,6 +581,21 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
+    def handle_external_module_metadata(self, dep_name):
+        """
+        helper function for _parse_dependency
+        handles metadata for external module dependencies
+        """
+        dependency = {}
+        if dep_name in self.external_modules_metadata:
+            dependency['external_module_metadata'] = self.external_modules_metadata[dep_name]
+            self.log.info("Updated dependency info with available metadata for external module %s: %s",
+                          dep_name, dependency['external_module_metadata'])
+        else:
+            self.log.info("No metadata available for external module %s", dep_name)
+
+        return dependency
+
     # private method
     def _parse_dependency(self, dep, hidden=False, build_only=False):
         """
@@ -625,9 +640,13 @@ class EasyConfig(object):
         }
         if isinstance(dep, dict):
             dependency.update(dep)
+
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+
+            if dep.get('external_module', False):
+                dependency.update(self.handle_external_module_metadata(dep['full_mod_name']))
 
         elif isinstance(dep, Dependency):
             dependency['name'] = dep.name()
@@ -645,12 +664,7 @@ class EasyConfig(object):
                     dependency['external_module'] = True
                     dependency['short_mod_name'] = dep[0]
                     dependency['full_mod_name'] = dep[0]
-                    if dep[0] in self.external_modules_metadata:
-                        dependency['external_module_metadata'].update(self.external_modules_metadata[dep[0]])
-                        self.log.info("Updated dependency info with available metadata for external module %s: %s",
-                                      dep[0], dependency['external_module_metadata'])
-                    else:
-                        self.log.info("No metadata available for external module %s", dep[0])
+                    dependency.update(self.handle_external_module_metadata(dep[0]))
                 else:
                     raise EasyBuildError("Incorrect external dependency specification: %s", dep)
             else:
