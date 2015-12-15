@@ -82,11 +82,11 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(21 "
+        regex = r"Supported Packages \(22 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
             'B': '1',  # bzip2
-            'C': '1',  # CUDA
+            'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
             'G': '4',  # GCC, gompi, goolf, gzip
             'H': '1',  # hwloc
