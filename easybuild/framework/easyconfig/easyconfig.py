@@ -639,11 +639,12 @@ class EasyConfig(object):
             'external_module_metadata': {},
         }
         if isinstance(dep, dict):
+            dependency.update(dep)
+
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
 
-            dependency.update(dep)
             if dep.get('external_module', False):
                 dependency.update(self.handle_external_module_metadata(dep['full_mod_name']))
 
