@@ -295,6 +295,29 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
                 modules.modules_tool().purge()
 
+    def test_optarch_generic(self):
+        """Test whether --optarch=GENERIC works as intended."""
+        for generic in [False, True]:
+            if generic:
+                build_options = {'optarch': 'GENERIC'}
+                init_config(build_options=build_options)
+            flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
+            tcs = {
+                'gompi': ('1.3.12', "-march=x86-64 -mtune=generic"),
+                'iccifort': ('2011.13.367', "-xSSE2 -ftz -fp-speculation=safe -fp-model source"),
+            }
+            for tcopt_optarch in [False, True]:
+                for tcname in tcs:
+                    tcversion, generic_flags = tcs[tcname]
+                    tc = self.get_toolchain(tcname, version=tcversion)
+                    tc.set_options({'optarch': tcopt_optarch})
+                    tc.prepare()
+                    for var in flag_vars:
+                        if generic:
+                            self.assertTrue(generic_flags in tc.get_variable(var))
+                        else:
+                            self.assertFalse(generic_flags in tc.get_variable(var))
+
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 

@@ -193,19 +193,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
-                "if { [ is-loaded mod_name ] } {",
-                "    module unload mod_name",
-                "}",
-                '',
+                "module unload mod_name",
             ])
             self.assertEqual(expected, self.modgen.unload_module("mod_name"))
         else:
             expected = '\n'.join([
                 '',
-                'if isloaded("mod_name") then',
-                '    unload("mod_name")',
-                "end",
-                '',
+                'unload("mod_name")',
             ])
             self.assertEqual(expected, self.modgen.unload_module("mod_name"))
 
@@ -302,7 +296,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "if { [ module-info mode load ] } {",
                 "    puts stderr \"test \\$test \\$test",
-                "test \\$foo \\$bar\"",
+                "    test \\$foo \\$bar\"",
                 "}",
                 '',
             ])

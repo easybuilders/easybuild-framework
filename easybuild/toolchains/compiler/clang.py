@@ -82,10 +82,16 @@ class Clang(Compiler):
         'veryloose': ['ffast-math'],
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.INTEL : 'march=native',
         systemtools.AMD : 'march=native',
         systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.AMD : 'march=x86-64 -mtune=generic',
+        systemtools.INTEL : 'march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'clang'
@@ -96,6 +102,7 @@ class Clang(Compiler):
     LIB_MATH = ['m']
 
     def _set_compiler_vars(self):
+        """Set compiler variables."""
         super(Clang, self)._set_compiler_vars()
 
         if self.options.get('32bit', None):

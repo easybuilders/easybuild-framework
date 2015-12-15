@@ -141,9 +141,6 @@ def package_with_fpm(easyblock):
 
 def check_pkg_support():
     """Check whether packaging is supported, i.e. whether the required dependencies are available."""
-    # packaging support is considered experimental for now (requires using --experimental)
-    _log.experimental("Support for packaging installed software.")
-
     pkgtool = build_option('package_tool')
     pkgtool_path = which(pkgtool)
     if pkgtool_path:
