@@ -1084,6 +1084,7 @@ class EasyBlock(object):
                         paths = [path]
 
                     lines.append(self.module_generator.prepend_paths(key, paths))
+            self.dry_run_msg('')
             try:
                 os.chdir(self.orig_workdir)
             except OSError, err:
