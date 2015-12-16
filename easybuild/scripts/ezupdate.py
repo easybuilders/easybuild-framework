@@ -52,8 +52,10 @@ def write3(f,indent,params,current):
 def get_temp():
    return "/tmp/temp."+str(os.getpid())
 
-def parse_ez_r(ez_file):
-   params_re="([^', \(\)]+)"
+def update_updated(f):
+   f.write('# package versions updated '+time.strftime("%b %d %Y")+'\n')
+
+def parse_ez(ez_file,parse_func):
    not_exts_list=True
    changes=0
 
@@ -74,13 +76,9 @@ def parse_ez_r(ez_file):
                      indent=len(line)-len(cleaned)
                      cleaned=cleaned.rstrip()
 
-                     params=re.findall(params_re,cleaned)
-                     if len(params)==3:
-                        current=cran_version(params[0])
-                        if current!="" and params[1]!=current:
-                           write3(f_out,indent,params,current)
-                           changes=changes+1
-                           continue
+                     changes,ret=parse_func(cleaned,indent,changes,f_out)
+                     if ret:
+                        continue
                else:
                   not_exts_list=True
 
@@ -90,6 +88,20 @@ def parse_ez_r(ez_file):
       shutil.move(temp,ez_file)
    else:
       os.remove(temp)
+
+def parse_r(cleaned,indent,changes,f_out):
+   params_re="([^', \(\)]+)"
+   cont=0
+
+   params=re.findall(params_re,cleaned)
+   if len(params)==3:
+      current=cran_version(params[0])
+      if current!="" and params[1]!=current:
+         write3(f_out,indent,params,current)
+         changes=changes+1
+         cont=1
+
+   return changes,cont
 
 # stupidly write group to temp file
 def dump_py_group(f,group):
@@ -117,46 +129,20 @@ def parse_py_group(f,group):
 
    return change
 
-def update_updated(f):
-   f.write('# package versions updated '+time.strftime("%b %d %Y")+'\n')
+py_group=[]
 
-def parse_ez_py(ez_file):
-   not_exts_list=True
-   changes=0
-   group=[]
+def parse_py(cleaned,indent,changes,f_out):
+   global py_group
+   cont=0
 
-   temp=get_temp()
-   with open(temp,"w") as f_out:
-      with open(ez_file,"r") as f_in:
-         for line in f_in:
-            if not_exts_list:
-               if line.startswith("# package versions updated"):
-                  update_updated(f_out)
-                  continue
-               elif line.startswith("exts_list"):
-                  not_exts_list=False
-            else:
-               if not line.startswith("]"):
-                  cleaned=line.lstrip()
-                  if not cleaned.startswith("#"):
-                     indent=len(line)-len(cleaned)
-                     cleaned=cleaned.rstrip()
-
-                     if cleaned=="}),":
-                        changes=changes+parse_py_group(f_out,group)
-                        group=[]
-                     else:
-                        group.append([indent,cleaned])
-                        continue
-               else:
-                  not_exts_list=True
-
-            f_out.write(line)
-
-   if changes>0:
-      shutil.move(temp,ez_file)
+   if cleaned=="}),":
+      changes=changes+parse_py_group(f_out,py_group)
+      py_group=[]
    else:
-      os.remove(temp)
+      py_group.append([indent,cleaned])
+      cont=1
+
+   return changes,cont
 
 def main(args):
    if len(args)==0:
@@ -164,9 +150,9 @@ def main(args):
    else:
       for arg in args:
          if arg.startswith("R-"):
-            parse_ez_r(arg)
+            parse_ez(arg,parse_r)
          elif arg.startswith("Python-"):
-            parse_ez_py(arg)
+            parse_ez(arg,parse_py)
          else:
             print("Error: only R & Python files supported, skipping",arg)
 
