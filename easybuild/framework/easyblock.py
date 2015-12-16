@@ -1067,9 +1067,13 @@ class EasyBlock(object):
                     reqs = [reqs]
 
                 for path in reqs:
-                    paths = sorted(glob.glob(path))
-                    if paths:
-                        lines.append(self.module_generator.prepend_paths(key, paths))
+                    # only use glob if the string is non-empty
+                    if path:
+                        paths = sorted(glob.glob(path))
+                    else:
+                        # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
+                        paths = [path]
+                    lines.append(self.module_generator.prepend_paths(key, paths))
             try:
                 os.chdir(self.orig_workdir)
             except OSError, err:
