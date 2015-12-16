@@ -31,8 +31,7 @@ dependencies: [
 #    nice to have an up to date openssl for security reasons
 ]
 
-# zlib is not an actual osdependencies value, this is just for testing string values
-osdependencies: [zlib, [openssl-devel, libssl-dev, libopenssl-devel]]
+osdependencies: [[openssl-devel, libssl-dev, libopenssl-devel]]
 
 # order is important!
 # package versions updated May 28th 2015

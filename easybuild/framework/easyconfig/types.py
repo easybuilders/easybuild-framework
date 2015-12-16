@@ -287,17 +287,38 @@ def to_name_version_dict(spec):
     return res
 
 
-def to_list_of_strings_and_tuples(os_dep_specs):
-    os_dep_list = []
-    for os_dep in os_dep_specs:
-        if isinstance(os_dep, basestring):
-            os_dep_list.append(os_dep)
-        elif isinstance(os_dep, list):
-            os_dep_list.append(tuple(os_dep))
+def to_list_of_strings_and_tuples(list_string_spec):
+    """
+    Convert a list of lists and strings to a list of tuples and strings
+    """
+    str_tup_list = []
+    for elem in list_string_spec:
+        if isinstance(elem, basestring):
+            str_tup_list.append(elem)
+        elif isinstance(elem, list):
+            str_tup_list.append(tuple(elem))
+        elif isinstance(elem, tuple):
+            str_tup_list.append(elem)
         else:
-            raise EasyBuildError("Expected osdependency to be of type string or list, got %s (%s)", os_dep, type(os_dep))
+            raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
 
-    return os_dep_list
+    return str_tup_list
+
+
+def to_sanity_check_dict(sanity_check_spec):
+    """
+    Convert a sanity_check_paths dict as received by yaml (a dict with list values that contain either lists or strings)
+
+    Example:
+        {'files': ['file1', ['file2a', 'file2b]], 'dirs': ['foo/bar']}
+        to
+        {'files':['file1', ('file2a', 'file2b')], 'dirs':['foo/bar']}
+    """
+    sanity_check_dict = {}
+    for key in sanity_check_specs:
+        sanity_check_dict[key] = to_list_of_strings_and_tuples(key)
+    return sanity_check_dict
+
 
 # this uses to_toolchain, so it needs to be at the bottom of the module
 def to_dependency(dep):
@@ -392,7 +413,15 @@ DEPENDENCY_DICT = (dict, as_hashable({
     },
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
-CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT]
+STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, tuple]}))
+SANITY_CHECK_DICT = (dict, as_hashable({
+    'req_keys': ['files', 'dirs'],
+    'elem_types': {
+        'files': STRING_OR_TUPLE_LIST,
+        'dirs': STRING_OR_TUPLE_LIST,
+    }
+}))
+CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_DICT, STRING_OR_TUPLE_LIST]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
@@ -401,6 +430,8 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 PARAMETER_TYPES = {
     'dependencies': DEPENDENCIES,
     'name': basestring,
+    'osdependencies': STRING_OR_TUPLE_LIST,
+    'sanity_check_paths': SANITY_CHECK_DICT,
     'toolchain': NAME_VERSION_DICT,
     'version': basestring,
 }
@@ -412,5 +443,6 @@ TYPE_CONVERSION_FUNCTIONS = {
     str: str,
     DEPENDENCIES: to_dependencies,
     NAME_VERSION_DICT: to_name_version_dict,
-    STRING_AND_LISTS: to_list_of_strings_and_tuples,
+    SANITY_CHECK_DICT: to_sanity_check_dict,
+    STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
 }
