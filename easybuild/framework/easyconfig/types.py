@@ -57,7 +57,7 @@ def check_element_types(elems, allowed_types):
     """
     # combine elements with their list of allowed types
     elems_and_allowed_types = None
-    if isinstance(elems, list):
+    if isinstance(elems, (list, tuple)):
         if isinstance(allowed_types, (list, tuple)):
             elems_and_allowed_types = [(elem, allowed_types) for elem in elems]
         else:
@@ -293,12 +293,10 @@ def to_list_of_strings_and_tuples(list_string_spec):
     """
     str_tup_list = []
     for elem in list_string_spec:
-        if isinstance(elem, basestring):
+        if isinstance(elem, (basestring, tuple)):
             str_tup_list.append(elem)
         elif isinstance(elem, list):
             str_tup_list.append(tuple(elem))
-        elif isinstance(elem, tuple):
-            str_tup_list.append(elem)
         else:
             raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
 
@@ -315,7 +313,7 @@ def to_sanity_check_dict(sanity_check_spec):
         {'files':['file1', ('file2a', 'file2b')], 'dirs':['foo/bar']}
     """
     sanity_check_dict = {}
-    for key in sanity_check_specs:
+    for key in sanity_check_spec:
         sanity_check_dict[key] = to_list_of_strings_and_tuples(key)
     return sanity_check_dict
 
@@ -413,15 +411,16 @@ DEPENDENCY_DICT = (dict, as_hashable({
     },
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
-STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, tuple]}))
+TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types':[str]}))
+STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
 SANITY_CHECK_DICT = (dict, as_hashable({
     'req_keys': ['files', 'dirs'],
     'elem_types': {
-        'files': STRING_OR_TUPLE_LIST,
-        'dirs': STRING_OR_TUPLE_LIST,
+        'files': [STRING_OR_TUPLE_LIST],
+        'dirs': [STRING_OR_TUPLE_LIST],
     }
 }))
-CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_DICT, STRING_OR_TUPLE_LIST]
+CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_DICT, STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]

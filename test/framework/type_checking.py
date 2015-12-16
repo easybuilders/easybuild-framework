@@ -34,6 +34,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
+from easybuild.framework.easyconfig.types import SANITY_CHECK_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
 
 
@@ -275,6 +276,21 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # no extra keys allowed, only name/version/versionsuffix/toolchain
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, DEPENDENCIES))
+
+        # list of strings and tuples test
+        self.assertTrue(is_value_of_type(['foo', ('bar', 'bat')], STRING_OR_TUPLE_LIST))
+        self.assertTrue(is_value_of_type(['foo', 'bar'], STRING_OR_TUPLE_LIST))
+        self.assertTrue(is_value_of_type([('foo', 'fob'), ('bar', 'bat')], STRING_OR_TUPLE_LIST))
+
+        self.assertFalse(is_value_of_type(['foo', ['bar', 'bat']], STRING_OR_TUPLE_LIST))
+        self.assertFalse(is_value_of_type(['foo', 1], STRING_OR_TUPLE_LIST))
+  
+        self.assertTrue(is_value_of_type({'files':['file1', 'file2'], 'dirs':['dir1', 'dir2']}, SANITY_CHECK_DICT))
+        self.assertTrue(is_value_of_type({'files':['file1', ('file2a', 'file2b')], 'dirs':[]}, SANITY_CHECK_DICT))
+
+        self.assertFalse(is_value_of_type({'files':['file1', ['file2a', 'file2b']], 'dirs':[]}, SANITY_CHECK_DICT))
+        self.assertFalse(is_value_of_type({'files':['file1', 'file2']}, SANITY_CHECK_DICT))
+        self.assertFalse(is_value_of_type({'files': (1, 2), 'dirs':[]}, SANITY_CHECK_DICT))
 
     def test_as_hashable(self):
         """Test as_hashable function."""
