@@ -36,6 +36,8 @@ feature + bugfix release
     - make sure that extra custom easyconfig parameters are known for extensions (#1498)
     - add missing import for EasyBuildError in easybuild/toolchains/linalg/libsci.py (#1512)
     - isolate tests from possible system-wide configuration files (#1513)
+    - only use glob in make_module_req on non-empty strings (#1519)
+        - this fixes the problem where $CUDA_HOME and $CUDA_PATH are not defined in module files for CUDA
 
 v2.4.0 (November 10th 2015)
 ---------------------------
