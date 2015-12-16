@@ -42,8 +42,8 @@ from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, 
 class TypeCheckingTest(EnhancedTestCase):
     """Tests for value type checking of easyconfig parameters."""
 
-    def test_check_type_of_param_value(self):
-        """Test check_type_of_param_value function."""
+    def test_check_type_of_param_value_name_version(self):
+        """Test check_type_of_param_value function for name/version."""
         # check selected values that should be strings
         for key in ['name', 'version']:
             self.assertEqual(check_type_of_param_value(key, 'foo'), (True, 'foo'))
@@ -61,6 +61,9 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(check_type_of_param_value('version', 1.5), (False, None))
         self.assertEqual(check_type_of_param_value('version', 1.5, auto_convert=True), (True, '1.5'))
 
+    def test_check_type_of_param_value_toolchain(self):
+        """Test check_type_of_param_value function for toolchain."""
+
         # check type checking of toolchain (non-trivial type: dict with only name/version keys & string values)
         toolchain = {'name': 'goolf', 'version': '1.4.10'}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
@@ -74,6 +77,87 @@ class TypeCheckingTest(EnhancedTestCase):
         toolchain = {'name': 'intel', 'version': '2015a'}
         for tcspec in ["intel, 2015a", ['intel', '2015a'], toolchain]:
             self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
+
+    def test_check_type_of_param_value_deps(self):
+        """Test check_type_of_param_value function for *dependencies."""
+
+        # dependencies (type check)
+        inputs = [
+            [],
+            [{'name': 'foo', 'version': '1.2.3'}],
+            [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': ''}],
+            [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': '', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
+            [{'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
+            [{'name': 'foo', 'version': '1.2.3'}, {'name': 'bar', 'version': '3.4.5'}],
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('dependencies', inp), (True, inp))
+
+        inputs = [
+            ['foo'],
+            [{'name': 'foo'}],
+            ['foo,1.2.3'],
+            [{'foo': '1.2.3'}],
+            [('foo', '1.2.3')],
+            [{'name': 'foo', 'version': '1.2.3'}, ('bar', '3.4.5')],
+            [{'name': 'foo', 'version': '1.2.3', 'somekey': 'wrong'}],
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('dependencies', inp), (False, None))
+
+        # dependencies (auto-convert)
+        self.assertEqual(check_type_of_param_value('dependencies', [{'foo': '1.2.3'}], auto_convert=True),
+                         (True, [{'name': 'foo', 'version': '1.2.3'}]))
+        # tuple values pass through untouched (are handled later by EasyConfig._parse_dependency)
+        inp = [('foo', '1.2.3')]
+        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), (True, [('foo', '1.2.3')]))
+        inp = [('foo', '1.2.3'), {'bar': '3.4.5'}, ('baz', '9.8.7')]
+        out = (True, [('foo', '1.2.3'), {'name': 'bar', 'version': '3.4.5'}, ('baz', '9.8.7')])
+        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), out)
+
+        # osdependencies (type check)
+        inputs = [
+            ['zlib'],
+            [('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
+            ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('osdependencies', inp), (True, inp))
+
+        inp = ['zlib', ['openssl-devel', 'libssl-dev', 'libopenssl-devel']]
+        self.assertEqual(check_type_of_param_value('osdependencies', inp), (False, None))
+
+        # osdependencies (auto-convert)
+        out = ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
+        self.assertEqual(check_type_of_param_value('osdependencies', inp, auto_convert=True), (True, out))
+
+    def test_check_type_of_param_value_sanity_check_paths(self):
+        """Test check_type_of_param_value function for sanity_check_paths."""
+
+        # sanity_check_paths (type check)
+        inputs = [
+            {'files': [], 'dirs': []},
+            {'files': ['bin/foo'], 'dirs': [('lib', 'lib64')]},
+            {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': []},
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (True, inp))
+
+        inputs = [
+            {},
+            {'files': []},
+            {'files': [], 'dirs': [], 'somethingelse': []},
+            {'files': [['bin/foo']], 'dirs': []},
+            {'files': [], 'dirs': [1]},
+            {'files': ['foo'], 'dirs': [(1, 2)]},
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (False, None))
+
+        # sanity_check_paths (auto-convert)
+        inp = {'files': ['bin/foo', ['bin/bar', 'bin/baz']], 'dirs': [['lib', 'lib64', 'lib32']]}
+        out = {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': [('lib', 'lib64', 'lib32')]}
+        self.assertEqual(check_type_of_param_value('sanity_check_paths', inp, auto_convert=True), (True, out))
 
     def test_convert_value_type(self):
         """Test convert_value_type function."""
