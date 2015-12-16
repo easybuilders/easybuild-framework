@@ -298,6 +298,10 @@ def to_list_of_strings_and_tuples(spec):
         ['foo', ('bar', 'baz')]
     """
     str_tup_list = []
+
+    if not isinstance(spec, (list, tuple)):
+        raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
+
     for elem in spec:
         if isinstance(elem, (basestring, tuple)):
             str_tup_list.append(elem)
@@ -318,9 +322,12 @@ def to_sanity_check_paths_dict(spec):
         to
         {'files': ['file1', ('file2a', 'file2b')], 'dirs': ['foo/bar']}
     """
+    if not isinstance(spec, dict):
+        raise EasyBuildError("Expected value to be a dict, found %s (%s)", spec, type(spec))
+
     sanity_check_dict = {}
     for key in spec:
-        sanity_check_dict[key] = to_list_of_strings_and_tuples(key)
+        sanity_check_dict[key] = to_list_of_strings_and_tuples(spec[key])
     return sanity_check_dict
 
 

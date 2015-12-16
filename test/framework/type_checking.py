@@ -36,6 +36,7 @@ from easybuild.framework.easyconfig.types import check_required_keys, check_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
 from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
+from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_sanity_check_paths_dict
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -357,11 +358,15 @@ class TypeCheckingTest(EnhancedTestCase):
 
     def test_check_element_types(self):
         """Test check_element_types function."""
-        # checking types of list elements
+        # checking types of list/tuple elements
         self.assertTrue(check_element_types(['one', 'two'], [str]))
+        self.assertTrue(check_element_types(('one', 'two'), [str]))
         self.assertTrue(check_element_types(['one', 'two'], [int, str]))
+        self.assertTrue(check_element_types(('one', 'two'), [int, str]))
         self.assertTrue(check_element_types(['one', 2], [int, str]))
+        self.assertTrue(check_element_types(('one', 2), [int, str]))
         self.assertFalse(check_element_types(['one', 2], [int]))
+        self.assertFalse(check_element_types(('one', 2), [int]))
 
         # checking types of dict values (simple list of allowed types)
         self.assertTrue(check_element_types({'one': 1, 2: 'two'}, [int, str]))
@@ -382,6 +387,58 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # errors
         self.assertErrorRegex(EasyBuildError, "Don't know how to check element types .*", check_element_types, 1, [])
+
+    def test_to_list_of_strings_and_tuples(self):
+        """Test to_list_of_strings_and_tuples function."""
+        # no conversion, already right type
+        self.assertEqual(to_list_of_strings_and_tuples([]), [])
+        self.assertEqual(to_list_of_strings_and_tuples([()]), [()])
+        self.assertEqual(to_list_of_strings_and_tuples(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings_and_tuples([('foo', 'bar')]), [('foo', 'bar')])
+        self.assertEqual(to_list_of_strings_and_tuples([('foo', 'bar'), 'baz']), [('foo', 'bar'), 'baz'])
+
+        # actual conversion
+        self.assertEqual(to_list_of_strings_and_tuples(()), [])
+        self.assertEqual(to_list_of_strings_and_tuples(('foo',)), ['foo'])
+        self.assertEqual(to_list_of_strings_and_tuples([['bar', 'baz']]), [('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples((['bar', 'baz'],)), [('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples(['foo', ['bar', 'baz']]), ['foo', ('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples(('foo', ['bar', 'baz'])), ['foo', ('bar', 'baz')])
+
+        # conversion failures
+        self.assertErrorRegex(EasyBuildError, "Expected value to be a list", to_list_of_strings_and_tuples, 'foo')
+        error_msg = "Expected elements to be of type string, tuple or list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, ['foo', 1])
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, (1,))
+
+    def test_to_sanity_check_paths_dict(self):
+        """Test to_sanity_check_paths_dict function."""
+        # no conversion, already right type
+        inputs = [
+            {'files': [], 'dirs': []},
+            {'files': ['foo', 'bar'], 'dirs': []},
+            {'files': [], 'dirs': ['baz']},
+            {'files': ['foo', ('bar', 'baz')], 'dirs': [('one', '2', 'three')]},
+        ]
+        for inp in inputs:
+            self.assertEqual(to_sanity_check_paths_dict(inp), inp)
+
+        # actual conversion
+        inputs = [
+            ({'files': ['foo'], 'dirs': [['bar', 'baz']]}, {'files': ['foo'], 'dirs': [('bar', 'baz')]}),
+            ({'files': ['foo', ['bar', 'baz']], 'dirs': []}, {'files': ['foo', ('bar', 'baz')], 'dirs': []}),
+            ({'files': (), 'dirs': [('f1', 'f2'), ['1', '2', '3'], 'x']},
+             {'files': [], 'dirs': [('f1', 'f2'), ('1', '2', '3'), 'x']}),
+        ]
+        for inp, out in inputs:
+            self.assertEqual(to_sanity_check_paths_dict(inp), out)
+
+        # conversion failures
+        self.assertErrorRegex(EasyBuildError, "Expected value to be a dict", to_sanity_check_paths_dict, [])
+        error_msg = "Expected value to be a list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': 'foo', 'dirs': []})
+        error_msg = "Expected elements to be of type string, tuple or list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': [], 'dirs': [1]})
 
 
 def suite():
