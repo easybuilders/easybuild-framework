@@ -1066,7 +1066,7 @@ class EasyBlock(object):
                 lines.append(self.module_generator.comment("note: glob patterns are not expanded and existence checks for paths is skipped for the statements below"))
 
             for key in sorted(requirements):
-                self.dry_run_msg("\t'%s': %s" % (key, requirements[key] ))
+                self.dry_run_msg("\t'%s': %s" % (key, requirements[key]))
                 reqs = requirements[key]
                 if isinstance(reqs, basestring):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
@@ -1076,7 +1076,7 @@ class EasyBlock(object):
                     # only use glob if the string is non-empty
                     if path:
                         if self.dry_run:
-                            paths=path
+                            paths = path
                         else:
                             paths = sorted(glob.glob(path))
                     else:
