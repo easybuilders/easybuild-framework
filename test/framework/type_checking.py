@@ -148,6 +148,15 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_dependency(('foo', '1.3', '-suff', ('GCC', '4.8.2'))), ('foo', '1.3', '-suff', ('GCC','4.8.2')))
         self.assertEqual(to_dependency('foo/1.3'), 'foo/1.3')
 
+        self.assertEqual(to_dependency({'name':'fftw/3.3.4.2', 'external_module': True}),
+            {
+                'external_module': True,
+                'full_mod_name': 'fftw/3.3.4.2',
+                'name': None,
+                'short_mod_name': 'fftw/3.3.4.2',
+                'version': None,
+            })
+
         foo_dict = {
             'name': 'foo',
             'version': '1.3',

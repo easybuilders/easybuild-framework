@@ -33,6 +33,9 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 
+_log = fancylogger.getLogger('easyconfig.types', fname=False)
+
+
 def as_hashable(dict_value):
     """Helper function, convert dict value to hashable equivalent via tuples."""
     res = []
@@ -305,28 +308,48 @@ def to_dependency(dep):
         {'foo': '1.2.3', 'toolchain': 'GCC, 4.8.2'}
         to
         {'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.8.2'}}
+
+    or
+        {'name': 'fftw/3.3.4.1', 'external_module': True}
+        to
+        {'name': 'fftw/3.3.4.1', 'external_module': True, 'version': None}
     """
     # deal with dependencies coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
 
     if isinstance(dep, dict):
         depspec = {}
-        found_name_version = False
-        for key, value in dep.items():
-            if key in ['name', 'version', 'versionsuffix']:
-                depspec[key] = value
-            elif key == 'toolchain':
-                depspec['toolchain'] = to_name_version_dict(value)
-            elif not found_name_version:
-                depspec.update({'name': key, 'version': value})
+
+        if dep.get('external_module', False):
+            expected_keys = ['external_module', 'name']
+            if sorted(dep.keys()) == expected_keys:
+                depspec.update({
+                    'external_module': True,
+                    'full_mod_name': dep['name'],
+                    'name': None,
+                    'short_mod_name': dep['name'],
+                    'version': None,
+                })
             else:
-                raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
+                raise EasyBuildError("Unexpected format for dependency marked as external module: %s", dep)
 
-            if 'name' in depspec and 'version' in depspec:
-                found_name_version = True
+        else:
+            found_name_version = False
+            for key, value in dep.items():
+                if key in ['name', 'version', 'versionsuffix']:
+                    depspec[key] = value
+                elif key == 'toolchain':
+                    depspec['toolchain'] = to_name_version_dict(value)
+                elif not found_name_version:
+                    depspec.update({'name': key, 'version': value})
+                else:
+                    raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
 
-        if not found_name_version:
-            raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
+                if 'name' in depspec and 'version' in depspec:
+                    found_name_version = True
+
+            if not found_name_version:
+                raise EasyBuildError("Can not parse dependency without name and version: %s", dep)
 
     else:
         # pass down value untouched, let EasyConfig._parse_dependency handle it
@@ -357,10 +380,12 @@ NAME_VERSION_DICT = (dict, as_hashable({
     'elem_types': [str],
 }))
 DEPENDENCY_DICT = (dict, as_hashable({
-    'opt_keys': ['toolchain', 'versionsuffix'],
+    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
     'req_keys': ['name', 'version'],
     'elem_types': {
+        'full_mod_name': [str],
         'name': [str],
+        'short_mod_name': [str],
         'toolchain': [NAME_VERSION_DICT],
         'version': [str],
         'versionsuffix': [str],
@@ -370,7 +395,7 @@ DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
 CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT]
 
 # easy types, that can be verified with isinstance
-EASY_TYPES = [basestring, dict, int, list, str, tuple]
+EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {

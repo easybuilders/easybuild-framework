@@ -35,8 +35,6 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES, EasyConfigFormat
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_variables_dict
-from easybuild.framework.easyconfig.types import to_dependencies, to_osdependencies
-from easybuild.framework.easyconfig.types import to_dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
