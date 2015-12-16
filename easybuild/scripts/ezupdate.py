@@ -149,9 +149,10 @@ def main(args):
       print("Usage: ezupdate <R- or Python- .eb file(s)>")
    else:
       for arg in args:
-         if arg.startswith("R-"):
+         base=os.path.basename(arg)
+         if base.startswith("R-"):
             parse_ez(arg,parse_r)
-         elif arg.startswith("Python-"):
+         elif base.startswith("Python-"):
             parse_ez(arg,parse_py)
          else:
             print("Error: only R & Python files supported, skipping",arg)
