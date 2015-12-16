@@ -34,7 +34,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
-from easybuild.framework.easyconfig.types import SANITY_CHECK_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
 
 
@@ -281,16 +281,32 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertTrue(is_value_of_type(['foo', ('bar', 'bat')], STRING_OR_TUPLE_LIST))
         self.assertTrue(is_value_of_type(['foo', 'bar'], STRING_OR_TUPLE_LIST))
         self.assertTrue(is_value_of_type([('foo', 'fob'), ('bar', 'bat')], STRING_OR_TUPLE_LIST))
+        self.assertTrue(is_value_of_type([], STRING_OR_TUPLE_LIST))
 
+        # list element, not allowed (should be tuple or string)
         self.assertFalse(is_value_of_type(['foo', ['bar', 'bat']], STRING_OR_TUPLE_LIST))
+        # int element, not allowed (should be tuple or string)
         self.assertFalse(is_value_of_type(['foo', 1], STRING_OR_TUPLE_LIST))
-  
-        self.assertTrue(is_value_of_type({'files':['file1', 'file2'], 'dirs':['dir1', 'dir2']}, SANITY_CHECK_DICT))
-        self.assertTrue(is_value_of_type({'files':['file1', ('file2a', 'file2b')], 'dirs':[]}, SANITY_CHECK_DICT))
 
-        self.assertFalse(is_value_of_type({'files':['file1', ['file2a', 'file2b']], 'dirs':[]}, SANITY_CHECK_DICT))
-        self.assertFalse(is_value_of_type({'files':['file1', 'file2']}, SANITY_CHECK_DICT))
-        self.assertFalse(is_value_of_type({'files': (1, 2), 'dirs':[]}, SANITY_CHECK_DICT))
+        # sanity_check_paths test
+        self.assertTrue(is_value_of_type({'files': ['one', 'two'], 'dirs': ['dirA', 'dirB']}, SANITY_CHECK_PATHS_DICT))
+        self.assertTrue(is_value_of_type({'files': ['f1', ('f2a', 'f2b')], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        self.assertTrue(is_value_of_type({'files': [], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+
+        # list element for 'files', should be string or tuple
+        self.assertFalse(is_value_of_type({'files': ['f1', ['f2a', 'f2b']], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # missing 'dirs' key
+        self.assertFalse(is_value_of_type({'files': ['f1', 'f2']}, SANITY_CHECK_PATHS_DICT))
+        # tuple rather than list
+        self.assertFalse(is_value_of_type({'files': (1, 2), 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # int elements rather than strings/tuples-of-strings
+        self.assertFalse(is_value_of_type({'files': [1, 2], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # one int element is not allowed either
+        self.assertFalse(is_value_of_type({'files': ['foo', 2], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # extra key is not allowed
+        self.assertFalse(is_value_of_type({'files': [], 'dirs': [], 'foo': []}, SANITY_CHECK_PATHS_DICT))
+        # no keys at all
+        self.assertFalse(is_value_of_type({}, SANITY_CHECK_PATHS_DICT))
 
     def test_as_hashable(self):
         """Test as_hashable function."""
