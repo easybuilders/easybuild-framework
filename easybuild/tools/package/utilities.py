@@ -46,7 +46,7 @@ from easybuild.tools.filetools import which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.utilities import import_available_modules, quote_str
 
 
 _log = fancylogger.getLogger('tools.package')
@@ -119,6 +119,8 @@ def package_with_fpm(easyblock):
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
+        '--description', quote_str(easyblock.cfg["description"]),
+        '--url', easyblock.cfg["homepage"],
         depstring,
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
@@ -139,9 +141,6 @@ def package_with_fpm(easyblock):
 
 def check_pkg_support():
     """Check whether packaging is supported, i.e. whether the required dependencies are available."""
-    # packaging support is considered experimental for now (requires using --experimental)
-    _log.experimental("Support for packaging installed software.")
-
     pkgtool = build_option('package_tool')
     pkgtool_path = which(pkgtool)
     if pkgtool_path:
