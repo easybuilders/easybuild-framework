@@ -66,6 +66,14 @@ class YebTest(EnhancedTestCase):
             print "Skipping test_parse_yeb (no PyYAML available)"
             return
 
+        build_options = {
+            'check_osdeps': False,
+            'external_modules_metadata': {},
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs')
         test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')

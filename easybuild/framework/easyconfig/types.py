@@ -26,12 +26,13 @@
 """
 Support for checking types of easyconfig parameter values.
 
+@author: Caroline De Brouwer (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import copy
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -57,7 +58,7 @@ def check_element_types(elems, allowed_types):
     """
     # combine elements with their list of allowed types
     elems_and_allowed_types = None
-    if isinstance(elems, list):
+    if isinstance(elems, (list, tuple)):
         if isinstance(allowed_types, (list, tuple)):
             elems_and_allowed_types = [(elem, allowed_types) for elem in elems]
         else:
@@ -287,6 +288,50 @@ def to_name_version_dict(spec):
     return res
 
 
+def to_list_of_strings_and_tuples(spec):
+    """
+    Convert a 'list of lists and strings' to a 'list of tuples and strings'
+
+    Example:
+        ['foo', ['bar', 'baz']]
+        to
+        ['foo', ('bar', 'baz')]
+    """
+    str_tup_list = []
+
+    if not isinstance(spec, (list, tuple)):
+        raise EasyBuildError("Expected value to be a list, found %s (%s)", spec, type(spec))
+
+    for elem in spec:
+        if isinstance(elem, (basestring, tuple)):
+            str_tup_list.append(elem)
+        elif isinstance(elem, list):
+            str_tup_list.append(tuple(elem))
+        else:
+            raise EasyBuildError("Expected elements to be of type string, tuple or list, got %s (%s)", elem, type(elem))
+
+    return str_tup_list
+
+
+def to_sanity_check_paths_dict(spec):
+    """
+    Convert a sanity_check_paths dict as received by yaml (a dict with list values that contain either lists or strings)
+
+    Example:
+        {'files': ['file1', ['file2a', 'file2b]], 'dirs': ['foo/bar']}
+        to
+        {'files': ['file1', ('file2a', 'file2b')], 'dirs': ['foo/bar']}
+    """
+    if not isinstance(spec, dict):
+        raise EasyBuildError("Expected value to be a dict, found %s (%s)", spec, type(spec))
+
+    sanity_check_dict = {}
+    for key in spec:
+        sanity_check_dict[key] = to_list_of_strings_and_tuples(spec[key])
+    return sanity_check_dict
+
+
+# this uses to_toolchain, so it needs to be at the bottom of the module
 def to_dependency(dep):
     """
     Convert a dependency specification to a dependency dict with name/version/versionsuffix/toolchain keys.
@@ -362,13 +407,11 @@ def to_dependencies(dep_list):
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, as_hashable({
+    'elem_types': [str],
     'opt_keys': [],
     'req_keys': ['name', 'version'],
-    'elem_types': [str],
 }))
 DEPENDENCY_DICT = (dict, as_hashable({
-    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
-    'req_keys': ['name', 'version'],
     'elem_types': {
         'full_mod_name': [str],
         'name': [str],
@@ -377,9 +420,22 @@ DEPENDENCY_DICT = (dict, as_hashable({
         'version': [str],
         'versionsuffix': [str],
     },
+    'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
+    'req_keys': ['name', 'version'],
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
-CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT]
+TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
+STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
+SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
+    'elem_types': {
+        'files': [STRING_OR_TUPLE_LIST],
+        'dirs': [STRING_OR_TUPLE_LIST],
+    },
+    'opt_keys': [],
+    'req_keys': ['files', 'dirs'],
+}))
+CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST,
+                   TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
@@ -388,6 +444,8 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 PARAMETER_TYPES = {
     'dependencies': DEPENDENCIES,
     'name': basestring,
+    'osdependencies': STRING_OR_TUPLE_LIST,
+    'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': NAME_VERSION_DICT,
     'version': basestring,
 }
@@ -399,4 +457,6 @@ TYPE_CONVERSION_FUNCTIONS = {
     str: str,
     DEPENDENCIES: to_dependencies,
     NAME_VERSION_DICT: to_name_version_dict,
+    SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
+    STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
 }
