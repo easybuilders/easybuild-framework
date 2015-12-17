@@ -8,6 +8,7 @@ r_dict={}
 
 # return empty string if no package match
 def cran_version(package):
+   global r_dict
    cran_url="http://crandb.r-pkg.org/"
 
    if package in r_dict:
@@ -26,6 +27,7 @@ def cran_version(package):
 py_dict={}
 
 def pypi_version(package):
+   global py_dict
    pypi_url="http://pypi.python.org/pypi/"
 
    if package in py_dict:
@@ -89,6 +91,8 @@ def parse_ez(ez_file,parse_func):
    else:
       os.remove(temp)
 
+   print("%s: updated %d package%s" % (ez_file,changes,"" if changes==1 else "s"))
+
 def parse_r(cleaned,indent,changes,f_out):
    params_re="([^', \(\)]+)"
    cont=0
@@ -113,7 +117,6 @@ def dump_py_group(f,group):
 # get package version, etc
 def parse_py_group(f,group):
    params_re="([^', \(\)]+)"
-   change=0
 
    if len(group)!=2 or "pypi.python.org" not in group[1][1]:
       dump_py_group(f,group)
@@ -125,9 +128,9 @@ def parse_py_group(f,group):
       else:
          f.write(' '*group[0][0]+'('+q(params[0])+", "+q(current)+", {\n")
          dump_py_group(f,group[1:])
-         change=1
+         return 1
 
-   return change
+   return 0
 
 py_group=[]
 
