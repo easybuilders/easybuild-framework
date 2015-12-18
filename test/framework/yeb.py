@@ -150,6 +150,10 @@ class YebTest(EnhancedTestCase):
 
     def test_external_module_toolchain(self):
         """Test specifying external (build) dependencies."""
+        if 'yaml' not in sys.modules:
+            print "Skipping test_parse_yeb (no PyYAML available)"
+            return
+
         ecpath = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'yeb', 'CrayCCE-5.1.29.yeb')
         metadata = {
             'name': ['foo', 'bar'],
