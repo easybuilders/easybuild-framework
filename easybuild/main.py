@@ -55,6 +55,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.github import new_pr, update_pr
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -231,9 +232,17 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
-    # review specified PR
+    # GitHub integration
+    target_account = options.github_target_account
+    target_repo = options.github_target_repo
     if options.review_pr:
         print review_pr(options.review_pr, colored=options.color)
+
+    elif options.new_pr:
+        new_pr(orig_paths)
+
+    elif options.update_pr:
+        update_pr(options.update_pr, orig_paths)
 
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short
@@ -246,7 +255,8 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.review_pr, options.search, options.search_short, options.regtest]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search, options.search_short,
+                  options.regtest, options.update_pr]
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
