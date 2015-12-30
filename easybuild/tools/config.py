@@ -97,6 +97,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hide_deps',
         'from_pr',
         'github_target_account',
+        'github_target_branch',
         'github_target_repo',
         'github_user',
         'group',

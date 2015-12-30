@@ -458,7 +458,7 @@ def _copy_easyconfigs_to_repo(paths, target_dir):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, start_branch='develop', pr_branch=None, target_account=None):
+def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None):
     """
     Common code for new_pr and update_pr functions
 
@@ -493,6 +493,8 @@ def _easyconfigs_pr_common(paths, start_branch='develop', pr_branch=None, target
         raise EasyBuildError("%s does not exist?", github_url)
 
     # git fetch
+    if start_branch is None:
+        start_branch = build_option('github_target_branch')
     _log.debug("Fetching branch %s for remote %s", start_branch, origin)
     origin.fetch(start_branch, depth=1)
 
@@ -584,7 +586,7 @@ def new_pr(paths):
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     pulls_url = g.repos[github_target_account][github_target_repo].pulls
     body = {
-        'base': 'develop',
+        'base': build_option('github_target_branch'),
         'head': '%s:%s' % (github_user, pr_branch_name),
         'title': "{%s}[%s] %s (REVIEW)" % (class_label, toolchain_label, main_title),
         'body': "(created using `eb --new-pr`)",
