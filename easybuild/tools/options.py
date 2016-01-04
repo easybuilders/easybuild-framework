@@ -379,6 +379,9 @@ class EasyBuildOptions(GeneralOption):
             'github-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
             'github-target-branch': ("Target branch for new PRs", str, 'store', GITHUB_EB_MAIN),
             'github-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
+            'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
+            'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
+            'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
         })

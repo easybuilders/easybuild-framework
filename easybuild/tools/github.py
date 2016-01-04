@@ -458,7 +458,7 @@ def _copy_easyconfigs_to_repo(paths, target_dir):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None):
+def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
     Common code for new_pr and update_pr functions
 
@@ -522,11 +522,17 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     for path, new in zip(file_info['paths_in_repo'], file_info['new']):
         _log.debug("Staging and committing easyconfig %s (new: %s)", path, new)
         git_repo.index.add([path])
-        if new:
-            action = 'add'
-        else:
-            action = 'modify'
-        git_repo.index.commit("%s easyconfig %s" % (action, os.path.basename(path)))
+        # if no commit message is specified, commit changed files one-by-one
+        if commit_msg is None:
+            if new:
+                action = 'add'
+            else:
+                action = 'modify'
+            git_repo.index.commit("%s easyconfig %s" % (action, os.path.basename(path)))
+
+    # commit all staged in one go if a commit message is specified
+    if commit_msg is not None:
+        git_repo.index.commit(commit_msg)
 
     # push to GitHub
     github_user = build_option('github_user')
@@ -539,7 +545,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr(paths):
+def new_pr(paths, title=None, descr=None, commit_msg=None):
     """Open new pull request using specified files."""
     _log.info("Opening new pull request for  with %s", paths)
 
@@ -563,14 +569,8 @@ def new_pr(paths):
     pr_branch_name = '%s_new_pr' % time.strftime("%Y%m%d%H%M%S")
 
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name, target_account=github_target_account)
-
-    # mention software name/version in PR title (only first 3)
-    names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-    if len(names_and_versions) <= 3:
-        main_title = ', '.join(names_and_versions)
-    else:
-        main_title = ', '.join(names_and_versions[:3] + ['...'])
+    file_info, git_repo = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name, target_account=github_target_account,
+                                                 commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
@@ -582,14 +582,27 @@ def new_pr(paths):
     classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
+    if title is None:
+        # mention software name/version in PR title (only first 3)
+        names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+        if len(names_and_versions) <= 3:
+            main_title = ', '.join(names_and_versions)
+        else:
+            main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+        title = "{%s}[%s] %s (REVIEW)" % (class_label, toolchain_label, main_title)
+
+    if descr is None:
+        descr = "(created using `eb --new-pr`)"
+
     # create PR
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     pulls_url = g.repos[github_target_account][github_target_repo].pulls
     body = {
         'base': build_option('github_target_branch'),
         'head': '%s:%s' % (github_user, pr_branch_name),
-        'title': "{%s}[%s] %s (REVIEW)" % (class_label, toolchain_label, main_title),
-        'body': "(created using `eb --new-pr`)",
+        'title': title,
+        'body': descr,
     }
     status, data = pulls_url.post(body=body)
     if not status == HTTP_STATUS_CREATED:
@@ -599,7 +612,7 @@ def new_pr(paths):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def update_pr(pr, paths):
+def update_pr(pr, paths, commit_msg=None):
     """Update specified pull request using specified files."""
     _log.info("Updating pull request #%s with %s", pr, paths)
 
@@ -617,7 +630,8 @@ def update_pr(pr, paths):
     pr_branch = ':'.join(pr_data['head']['label'].split(':')[1:])
     _log.info("Determined branch name corresponding to PR #%s: %s", pr, pr_branch)
 
-    file_info, git_repo = _easyconfigs_pr_common(paths, start_branch=pr_branch, target_account=github_user)
+    file_info, git_repo = _easyconfigs_pr_common(paths, start_branch=pr_branch, target_account=github_user,
+                                                 commit_msg=commit_msg)
 
     print_msg("Updated pull request #%s by pushing to branch %s/%s" % (pr, github_user, pr_branch))
 
