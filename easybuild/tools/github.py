@@ -33,6 +33,7 @@ import base64
 import os
 import socket
 import shutil
+import string
 import tempfile
 import time
 from vsc.utils import fancylogger
@@ -485,18 +486,27 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # add remote to pull from
     github_target_repo = build_option('github_target_repo')
-    github_url = 'git@github.com:%s/%s.git' % (target_account, github_target_repo)
+    github_url = 'https://github.com/%s/%s.git' % (target_account, github_target_repo)
     _log.debug("Cloning from %s", github_url)
 
     origin = git_repo.create_remote('origin', github_url)
     if not origin.exists():
         raise EasyBuildError("%s does not exist?", github_url)
 
-    # git fetch
     if start_branch is None:
         start_branch = build_option('github_target_branch')
-    _log.debug("Fetching branch %s for remote %s", start_branch, origin)
-    origin.fetch(start_branch, depth=1)
+
+    # git fetch
+    # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
+    print_msg("Fetching branch '%s' from remote %s (%s)" % (start_branch, origin, github_url), log=_log, prefix=False)
+    res = origin.fetch(start_branch)
+    if res:
+        if res[0].flags & res[0].ERROR:
+            raise EasyBuildError("Fetching branch '%s' from remote %s failed: %s", start_branch, origin, res[0].note)
+        else:
+            _log.debug("Fetched branch '%s' from remote %s (note: %s)", start_branch, origin, res[0].note)
+    else:
+        raise EasyBuildError("Fetching branch '%s' from remote %s failed: empty result", start_branch, origin)
 
     # git checkout -b <branch>; git pull
     if hasattr(origin.refs, start_branch):
@@ -511,12 +521,13 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # copy files to right place
     file_info = _copy_easyconfigs_to_repo(paths, git_working_dir)
 
-    # create target branch, if it was specified
-    if pr_branch:
-        git_repo.create_head(pr_branch).checkout()
-        _log.info("New branch '%s' created to commit files to", pr_branch)
-    else:
-        pr_branch = start_branch
+    # checkout target branch
+    if pr_branch is None:
+        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+        pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
+
+    git_repo.create_head(pr_branch).checkout()
+    _log.info("New branch '%s' created to commit files to", pr_branch)
 
     # stage & commit files
     for path, new in zip(file_info['paths_in_repo'], file_info['new']):
@@ -538,10 +549,18 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     github_user = build_option('github_user')
     github_url = 'git@github.com:%s/%s.git' % (github_user, github_target_repo)
     my_remote = git_repo.create_remote(github_user, github_url)
-    _log.info("Pushing branch %s to remote %s", pr_branch, my_remote)
-    my_remote.push(pr_branch)
+    res = my_remote.push(pr_branch)
+    if res:
+        if res[0].ERROR & res[0].flags:
+            raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
+                                 pr_branch, my_remote, github_url, res[0].summary)
+        else:
+            _log.debug("Pushed branch %s to remote %s (%s): %s", pr_branch, my_remote, github_url, res[0].summary)
+    else:
+        raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
+                             pr_branch, my_remote, github_url)
 
-    return file_info, git_repo
+    return file_info, git_repo, pr_branch
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -565,12 +584,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     if github_token is None:
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
-    # construct target branch name
-    pr_branch_name = '%s_new_pr' % time.strftime("%Y%m%d%H%M%S")
-
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name, target_account=github_target_account,
-                                                 commit_msg=commit_msg)
+    file_info, git_repo, branch = _easyconfigs_pr_common(paths, target_account=github_target_account,
+                                                         commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
@@ -600,15 +616,15 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     pulls_url = g.repos[github_target_account][github_target_repo].pulls
     body = {
         'base': build_option('github_target_branch'),
-        'head': '%s:%s' % (github_user, pr_branch_name),
+        'head': '%s:%s' % (github_user, branch),
         'title': title,
         'body': descr,
     }
     status, data = pulls_url.post(body=body)
     if not status == HTTP_STATUS_CREATED:
-        raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", pr_branch_name, status, data)
+        raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch, status, data)
 
-    print_msg("Opened pull request with title '%s': %s" % (body['title'], data['html_url']), log=_log)
+    print_msg("Opened pull request with title '%s': %s" % (body['title'], data['html_url']), log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -627,13 +643,13 @@ def update_pr(pr, paths, commit_msg=None):
                              pr, github_target_account, github_target_repo, status, pr_data)
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
-    pr_branch = ':'.join(pr_data['head']['label'].split(':')[1:])
-    _log.info("Determined branch name corresponding to PR #%s: %s", pr, pr_branch)
+    branch = ':'.join(pr_data['head']['label'].split(':')[1:])
+    _log.info("Determined branch name corresponding to PR #%s: %s", pr, branch)
 
-    file_info, git_repo = _easyconfigs_pr_common(paths, start_branch=pr_branch, target_account=github_user,
-                                                 commit_msg=commit_msg)
+    _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch, target_account=github_user,
+                           commit_msg=commit_msg)
 
-    print_msg("Updated pull request #%s by pushing to branch %s/%s" % (pr, github_user, pr_branch))
+    print_msg("Updated pull request #%s by pushing to branch %s/%s" % (pr, github_user, branch), log=_log, prefix=False)
 
 
 class GithubToken(object):
