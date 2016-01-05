@@ -126,6 +126,7 @@ github_clone_branch "easybuild-wiki" "master"
 EB_DEVEL_MODULE_NAME="EasyBuild-develop"
 MODULES_INSTALL_DIR=${INSTALL_DIR}/modules
 EB_DEVEL_MODULE="${MODULES_INSTALL_DIR}/${EB_DEVEL_MODULE_NAME}"
+mkdir -p ${MODULES_INSTALL_DIR}
 print_devel_module > "${EB_DEVEL_MODULE}"
 echo 
 echo "=== Run 'module use ${MODULES_INSTALL_DIR}' and 'module load ${EB_DEVEL_MODULE_NAME}' to use your development version of EasyBuild."

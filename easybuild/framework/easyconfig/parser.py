@@ -36,7 +36,7 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
 from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
-from easybuild.framework.easyconfig.types import TYPES, check_type_of_param_value
+from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
@@ -126,7 +126,7 @@ class EasyConfigParser(object):
         for key in cfg:
             type_ok, newval = check_type_of_param_value(key, cfg[key], self.auto_convert)
             if not type_ok:
-                wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, TYPES[key].__name__))
+                wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, PARAMETER_TYPES[key].__name__))
             elif newval != cfg[key]:
                 self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
                                  key, cfg[key], type(cfg[key]), newval, type(newval))

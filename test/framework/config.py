@@ -80,7 +80,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
         for var in os.environ.keys():
-            if var.startswith('EASYBUILD_'):
+            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
                 del os.environ[var]
 
     def tearDown(self):
@@ -425,7 +426,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         mkdir(os.path.join(dir3, 'easybuild.d'), parents=True)
         write_file(os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'), cfg_template % '/foobarbaz')
 
-        # only $XDG_CONFIG_HOME set
+        # set $XDG_CONFIG_DIRS to non-existing dir to isolate ourselves from possible system-wide config files
+        os.environ['XDG_CONFIG_DIRS'] = '/there/should/be/no/such/directory/we/hope'
+
+        # only $XDG_CONFIG_HOME set (to existing path)
         os.environ['XDG_CONFIG_HOME'] = homedir
         cfg_files = [os.path.join(homedir, 'easybuild', 'config.cfg')]
         reload(eboptions)
