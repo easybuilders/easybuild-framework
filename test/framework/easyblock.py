@@ -217,6 +217,19 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
+        # check for correct behaviour if empty string is specified as one of the values
+        # prepend-path statements should be included for both the 'bin' subdir and the install root
+        eb.make_module_req_guess = lambda: {'PATH': ['bin', '']}
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root/bin\n", txt, re.M))
+            self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root\n", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n', txt, re.M))
+            self.assertTrue(re.search(r'\nprepend_path\("PATH", root\)\n', txt, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
