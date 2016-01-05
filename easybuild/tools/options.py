@@ -371,19 +371,19 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
-            'github-user': ("GitHub username", None, 'store', None),
-            'new-pr': ("Open a new pull request", None, 'store_true', False),
-            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
-            'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
-            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
             'github-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
             'github-target-branch': ("Target branch for new PRs", str, 'store', 'develop'),
             'github-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
+            'github-user': ("GitHub username", None, 'store', None),
+            'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
+            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
+            'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
         })
 
         self.log.debug("github_options: descr %s opts %s" % (descr, opts))

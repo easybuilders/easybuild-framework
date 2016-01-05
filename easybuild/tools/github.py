@@ -67,7 +67,6 @@ except ImportError, err:
 
 try:
     import git
-    from git import GitCommandError
 except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
@@ -436,7 +435,7 @@ def _copy_easyconfigs_to_repo(paths, target_dir):
                 if letter not in a_to_z:
                     raise EasyBuildError("Don't know which letter subdir to use for %s", name)
 
-                target_path = os.path.join(subdir, name.lower()[0], name, ec_filename)
+                target_path = os.path.join(subdir, letter, name, ec_filename)
                 _log.debug("Target path for %s: %s", path, target_path)
 
                 full_target_path = os.path.join(target_dir, target_path)
@@ -461,11 +460,19 @@ def _copy_easyconfigs_to_repo(paths, target_dir):
 @only_if_module_is_available('git', pkgname='GitPython')
 def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
-    Common code for new_pr and update_pr functions
+    Common code for new_pr and update_pr functions:
+    * check whether all supplied paths point to existing files
+    * create temporary clone of target git repository
+    * fetch/checkout specified starting branch
+    * copy files to right location
+    * stage/commit all files in PR branch
+    * push PR branch to GitHub (to account specified by --github-user)
 
     @paths: list of paths that will be used to create/update PR
     @start_branch: name of branch to start from
     @pr_branch: name of branch to push to GitHub
+    @target_account: name of target GitHub account for PR
+    @commit_msg: commit message to use
     """
     # we need files to create the PR with
     if paths:
@@ -484,8 +491,11 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     git_repo = git.Repo.init(git_working_dir)
     _log.debug("git working directory initialized at %s", git_working_dir)
 
-    # add remote to pull from
     github_target_repo = build_option('github_target_repo')
+    if github_target_repo != GITHUB_EASYCONFIGS_REPO:
+        raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", github_target_repo)
+
+    # add remote to pull from
     github_url = 'https://github.com/%s/%s.git' % (target_account, github_target_repo)
     _log.debug("Cloning from %s", github_url)
 
@@ -516,7 +526,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("Checking out branch %s from remote %s", start_branch, github_url)
     git_repo.create_head(start_branch, origin_branch).checkout()
-    origin.pull(start_branch)
 
     # copy files to right place
     file_info = _copy_easyconfigs_to_repo(paths, git_working_dir)
@@ -570,8 +579,6 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
 
     github_target_account = build_option('github_target_account')
     github_target_repo = build_option('github_target_repo')
-    if github_target_repo != GITHUB_EASYCONFIGS_REPO:
-        raise EasyBuildError("Don't know how to open a pull request to the %s repository yet", github_target_repo)
 
     # collect GitHub info we'll need
     # * GitHub username to push branch to repo
