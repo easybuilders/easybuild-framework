@@ -377,7 +377,7 @@ class EasyBuildOptions(GeneralOption):
             'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
             'github-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
-            'github-target-branch': ("Target branch for new PRs", str, 'store', GITHUB_EB_MAIN),
+            'github-target-branch': ("Target branch for new PRs", str, 'store', 'develop'),
             'github-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
