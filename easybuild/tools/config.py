@@ -96,6 +96,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'hide_deps',
         'from_pr',
+        'git_working_dirs_path',
         'github_target_account',
         'github_target_branch',
         'github_target_repo',

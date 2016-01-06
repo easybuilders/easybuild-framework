@@ -486,12 +486,28 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     else:
         raise EasyBuildError("No paths specified")
 
-    # create working directory
-    git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
-    git_repo = git.Repo.init(git_working_dir)
-    _log.debug("git working directory initialized at %s", git_working_dir)
+    tmp_git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
+    os.rmdir(tmp_git_working_dir)
 
+    # copy or init git working directory
     github_target_repo = build_option('github_target_repo')
+    git_working_dirs_path = build_option('git_working_dirs_path')
+    if build_option('git_working_dirs_path'):
+        git_working_dir = os.path.join(git_working_dirs_path, github_target_repo)
+        if os.path.exists(git_working_dir):
+            print_msg("Copying git working dir %s..." % git_working_dir, log=_log, prefix=False)
+            try:
+                shutil.copytree(git_working_dir, tmp_git_working_dir)
+            except OSError as err:
+                raise EasyBuildError("Failed to copy git working dir %s to %s: %s",
+                                     git_working_dir, tmp_git_working_dir, err)
+
+    if not os.path.exists(tmp_git_working_dir):
+        mkdir(tmp_git_working_dir, parents=True)
+
+    git_repo = git.Repo.init(tmp_git_working_dir)
+    _log.debug("temporary git working directory initialized at %s", tmp_git_working_dir)
+
     if github_target_repo != GITHUB_EASYCONFIGS_REPO:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", github_target_repo)
 
@@ -499,7 +515,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     github_url = 'https://github.com/%s/%s.git' % (target_account, github_target_repo)
     _log.debug("Cloning from %s", github_url)
 
-    origin = git_repo.create_remote('origin', github_url)
+    origin = git_repo.create_remote('pr_target_account_%s' % target_account, github_url)
     if not origin.exists():
         raise EasyBuildError("%s does not exist?", github_url)
 
@@ -528,7 +544,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     git_repo.create_head(start_branch, origin_branch).checkout()
 
     # copy files to right place
-    file_info = _copy_easyconfigs_to_repo(paths, git_working_dir)
+    file_info = _copy_easyconfigs_to_repo(paths, tmp_git_working_dir)
 
     # checkout target branch
     if pr_branch is None:

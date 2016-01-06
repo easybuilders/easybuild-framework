@@ -371,6 +371,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
             'github-target-branch': ("Target branch for new PRs", str, 'store', 'develop'),
             'github-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
