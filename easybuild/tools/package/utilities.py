@@ -108,7 +108,7 @@ def package_with_fpm(easyblock):
     for dep in deps:
         _log.debug("The dep added looks like %s ", dep)
         dep_pkgname = package_naming_scheme.name(dep)
-        depstring += " --depends '%s'" % quote_str(dep_pkgname)
+        depstring += " --depends %s" % quote_str(dep_pkgname)
 
     cmdlist = [
         PKG_TOOL_FPM,
