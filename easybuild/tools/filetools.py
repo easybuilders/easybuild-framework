@@ -132,21 +132,15 @@ class ZlibChecksum(object):
 
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
-    f = None
-    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    txt = None
     try:
-        f = open(path, 'r')
-        txt = f.read()
-        f.close()
-        return txt
+        with open(path, 'r') as handle:
+            txt = handle.read()
     except IOError, err:
-        # make sure file handle is always closed
-        if f is not None:
-            f.close()
         if log_error:
             raise EasyBuildError("Failed to read %s: %s", path, err)
-        else:
-            return None
+
+    return txt
 
 
 def write_file(path, txt, append=False, forced=False):
