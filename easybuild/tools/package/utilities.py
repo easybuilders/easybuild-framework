@@ -113,7 +113,7 @@ def package_with_fpm(easyblock):
     cmdlist = [
         PKG_TOOL_FPM,
         '--workdir', workdir,
-        '--name', pkgname,
+        '--name', quote_str(pkgname),
         '--provides', pkgname,
         '-t', pkgtype,  # target
         '-s', 'dir',  # source
