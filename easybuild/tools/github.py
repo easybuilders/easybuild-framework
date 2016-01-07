@@ -603,7 +603,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         else:
             main_title = ', '.join(names_and_versions[:3] + ['...'])
 
-        title = "{%s}[%s] %s (REVIEW)" % (class_label, toolchain_label, main_title)
+        title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
 
     if descr is None:
         descr = "(created using `eb --new-pr`)"
