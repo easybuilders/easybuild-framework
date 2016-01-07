@@ -235,14 +235,18 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # GitHub integration
     target_account = options.github_target_account
     target_repo = options.github_target_repo
-    if options.review_pr:
-        print review_pr(options.review_pr, colored=options.color)
+    if options.review_pr or options.new_pr or options.update_pr:
+        if options.review_pr:
+            print review_pr(options.review_pr, colored=options.color)
 
-    elif options.new_pr:
-        new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+        elif options.new_pr:
+            new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
 
-    elif options.update_pr:
-        update_pr(options.update_pr, orig_paths, commit_msg=options.pr_commit_msg)
+        elif options.update_pr:
+            update_pr(options.update_pr, orig_paths, commit_msg=options.pr_commit_msg)
+
+        cleanup(logfile, eb_tmpdir, testing)
+        sys.exit(0)
 
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short

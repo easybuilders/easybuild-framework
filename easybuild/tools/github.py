@@ -31,6 +31,7 @@ Utility module for working with github
 """
 import base64
 import os
+import random
 import socket
 import shutil
 import string
@@ -67,6 +68,7 @@ except ImportError, err:
 
 try:
     import git
+    from git import GitCommandError
 except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
@@ -474,6 +476,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     @target_account: name of target GitHub account for PR
     @commit_msg: commit message to use
     """
+    # salt to use names of remotes/branches that are created
+    salt = ''.join(random.choice(string.letters) for _ in range(5))
+
     # we need files to create the PR with
     if paths:
         non_existing_paths = []
@@ -493,14 +498,13 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     github_target_repo = build_option('github_target_repo')
     git_working_dirs_path = build_option('git_working_dirs_path')
     if build_option('git_working_dirs_path'):
-        git_working_dir = os.path.join(git_working_dirs_path, github_target_repo)
-        if os.path.exists(git_working_dir):
-            print_msg("Copying git working dir %s..." % git_working_dir, log=_log, prefix=False)
+        workdir = os.path.join(git_working_dirs_path, github_target_repo)
+        if os.path.exists(workdir):
+            print_msg("$ cp -a %s %s" % (workdir, tmp_git_working_dir), log=_log, prefix=False)
             try:
-                shutil.copytree(git_working_dir, tmp_git_working_dir)
+                shutil.copytree(workdir, tmp_git_working_dir)
             except OSError as err:
-                raise EasyBuildError("Failed to copy git working dir %s to %s: %s",
-                                     git_working_dir, tmp_git_working_dir, err)
+                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, tmp_git_working_dir, err)
 
     if not os.path.exists(tmp_git_working_dir):
         mkdir(tmp_git_working_dir, parents=True)
@@ -515,7 +519,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     github_url = 'https://github.com/%s/%s.git' % (target_account, github_target_repo)
     _log.debug("Cloning from %s", github_url)
 
-    origin = git_repo.create_remote('pr_target_account_%s' % target_account, github_url)
+    origin = git_repo.create_remote('pr_target_account_%s_%s' % (target_account, salt), github_url)
     if not origin.exists():
         raise EasyBuildError("%s does not exist?", github_url)
 
@@ -524,7 +528,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # git fetch
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
-    print_msg("Fetching branch '%s' from remote %s (%s)" % (start_branch, origin, github_url), log=_log, prefix=False)
+    print_msg("$ git fetch origin %s" % start_branch, log=_log, prefix=False)
     res = origin.fetch(start_branch)
     if res:
         if res[0].flags & res[0].ERROR:
@@ -536,12 +540,20 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # git checkout -b <branch>; git pull
     if hasattr(origin.refs, start_branch):
-        origin_branch = getattr(origin.refs, start_branch)
+        origin_start_branch = getattr(origin.refs, start_branch)
     else:
         raise EasyBuildError("Branch '%s' not found at %s", start_branch, github_url)
 
-    _log.debug("Checking out branch %s from remote %s", start_branch, github_url)
-    git_repo.create_head(start_branch, origin_branch).checkout()
+    _log.debug("Checking out branch '%s' from remote %s", start_branch, github_url)
+    try:
+        origin_start_branch.checkout(b=start_branch)
+        print_msg("$ git checkout -b %s %s" % (start_branch, origin_start_branch), log=_log, prefix=False)
+    except GitCommandError as err:
+        alt_branch = 'pr_start_branch_%s_%s' % (start_branch, salt)
+        _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
+        origin_start_branch.checkout(b=alt_branch)
+        print_msg("$ git checkout -b %s %s" % (alt_branch, origin_start_branch), log=_log, prefix=False)
+    _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
     file_info = _copy_easyconfigs_to_repo(paths, tmp_git_working_dir)
@@ -553,37 +565,57 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     git_repo.create_head(pr_branch).checkout()
     _log.info("New branch '%s' created to commit files to", pr_branch)
+    print_msg("$ git checkout -b %s" % pr_branch, log=_log, prefix=False)
 
-    # stage & commit files
-    for path, new in zip(file_info['paths_in_repo'], file_info['new']):
-        _log.debug("Staging and committing easyconfig %s (new: %s)", path, new)
-        git_repo.index.add([path])
-        # if no commit message is specified, commit changed files one-by-one
-        if commit_msg is None:
-            if new:
-                action = 'add'
-            else:
-                action = 'modify'
-            git_repo.index.commit("%s easyconfig %s" % (action, os.path.basename(path)))
+    # stage
+    _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
+    print_msg("$ git add %s" % ' '.join(file_info['paths_in_repo']), log=_log, prefix=False)
+    git_repo.index.add(file_info['paths_in_repo'])
 
-    # commit all staged in one go if a commit message is specified
-    if commit_msg is not None:
+    # overview of modifications
+    if build_option('extended_dry_run'):
+        print_msg("\n$ git diff --cached\n", log=_log, prefix=False)
+        print_msg(git_repo.git.diff(cached=True) + '\n', log=_log, prefix=False)
+
+    print_msg("\n$ git diff --cached --stat\n", log=_log, prefix=False)
+    print_msg(git_repo.git.diff(cached=True, stat=True) + '\n', log=_log, prefix=False)
+
+    # commit
+    if commit_msg:
+        _log.debug("Committing all %d new/modified easyconfigs at once", len(file_info['paths_in_repo']))
+        print_msg("$ git commit -m \"%s\"" % commit_msg, log=_log, prefix=False)
+        git_repo.index.commit(commit_msg)
+    else:
+        commit_msg_parts = []
+        for path, new in zip(file_info['paths_in_repo'], file_info['new']):
+            commit_msg_parts.append("%s easyconfig %s" % (('modify', 'add')[new], os.path.basename(path)))
+        commit_msg = ', '.join(commit_msg_parts)
+        print_msg("$ git commit -m \"%s\"" % commit_msg, log=_log, prefix=False)
         git_repo.index.commit(commit_msg)
 
     # push to GitHub
     github_user = build_option('github_user')
     github_url = 'git@github.com:%s/%s.git' % (github_user, github_target_repo)
-    my_remote = git_repo.create_remote(github_user, github_url)
-    res = my_remote.push(pr_branch)
-    if res:
-        if res[0].ERROR & res[0].flags:
-            raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
-                                 pr_branch, my_remote, github_url, res[0].summary)
-        else:
-            _log.debug("Pushed branch %s to remote %s (%s): %s", pr_branch, my_remote, github_url, res[0].summary)
+    remote_name = 'github_%s_%s' % (github_user, salt)
+
+    dry_run = build_option('dry_run') or build_option('dry_run_short') or build_option('extended_dry_run')
+
+    msg = "$ git push %s %s" % (remote_name, pr_branch)
+    if dry_run:
+        print_msg(msg + " [DRY RUN]", log=_log, prefix=False)
     else:
-        raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
-                             pr_branch, my_remote, github_url)
+        print_msg(msg, log=_log, prefix=False)
+        my_remote = git_repo.create_remote(remote_name, github_url)
+        res = my_remote.push(pr_branch)
+        if res:
+            if res[0].ERROR & res[0].flags:
+                raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
+                                     pr_branch, my_remote, github_url, res[0].summary)
+            else:
+                _log.debug("Pushed branch %s to remote %s (%s): %s", pr_branch, my_remote, github_url, res[0].summary)
+        else:
+            raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
+                                 pr_branch, my_remote, github_url)
 
     return file_info, git_repo, pr_branch
 
@@ -635,19 +667,30 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         descr = "(created using `eb --new-pr`)"
 
     # create PR
-    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-    pulls_url = g.repos[github_target_account][github_target_repo].pulls
-    body = {
-        'base': build_option('github_target_branch'),
-        'head': '%s:%s' % (github_user, branch),
-        'title': title,
-        'body': descr,
-    }
-    status, data = pulls_url.post(body=body)
-    if not status == HTTP_STATUS_CREATED:
-        raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch, status, data)
+    github_target_branch = build_option('github_target_branch')
+    dry_run = build_option('dry_run') or build_option('dry_run_short') or build_option('extended_dry_run')
 
-    print_msg("Opened pull request with title '%s': %s" % (body['title'], data['html_url']), log=_log, prefix=False)
+    from_to = "%s:%s to %s:%s" % (github_user, branch, github_target_account, github_target_branch)
+    msg = "Opening pull request at %s repo for %s" % (github_target_repo, from_to)
+    if dry_run:
+        print_msg(msg + " [DRY RUN]", log=_log, prefix=False)
+    else:
+        print_msg(msg, log=_log, prefix=False)
+        g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+        pulls_url = g.repos[github_target_account][github_target_repo].pulls
+        body = {
+            'base': github_target_branch,
+            'head': '%s:%s' % (github_user, branch),
+            'title': title,
+            'body': descr,
+        }
+        status, data = pulls_url.post(body=body)
+        if not status == HTTP_STATUS_CREATED:
+            raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch, status, data)
+
+        full_repo = '%s/%s' % (github_target_account, github_target_repo)
+        msg = "Opened %s pull request with title '%s': %s" % (full_repo, body['title'], data['html_url'])
+        print_msg(msg, log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -672,7 +715,11 @@ def update_pr(pr, paths, commit_msg=None):
     _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch, target_account=github_user,
                            commit_msg=commit_msg)
 
-    print_msg("Updated pull request #%s by pushing to branch %s/%s" % (pr, github_user, branch), log=_log, prefix=False)
+    dry_run = build_option('dry_run') or build_option('dry_run_short') or build_option('extended_dry_run')
+    if not dry_run:
+        full_repo = '%s/%s' % (github_target_account, github_target_repo)
+        msg = "Updated %s pull request #%s by pushing to branch %s/%s" % (full_repo, pr, github_user, branch)
+        print_msg(msg, log=_log, prefix=False)
 
 
 class GithubToken(object):
