@@ -41,11 +41,10 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 from vsc.utils.patterns import Singleton
 
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file, write_file
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.utilities import only_if_module_is_available
 
 
@@ -409,56 +408,6 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
-def _copy_easyconfigs_to_repo(paths, target_dir):
-    """
-    Copy files to git working directory to stage/commit & create PR
-
-    @paths: list of paths to copy to git working dir
-    @target_dir: target directory
-    """
-    file_info = {
-        'ecs': [],
-        'paths_in_repo': [],
-        'new': [],
-    }
-
-    a_to_z = [chr(i) for i in range(ord('a'), ord('z') + 1)]
-    subdir = os.path.join('easybuild', 'easyconfigs')
-
-    if os.path.exists(os.path.join(target_dir, subdir)):
-        for path in paths:
-            ecs = process_easyconfig(path)
-            if len(ecs) == 1:
-                file_info['ecs'].append(ecs[0]['ec'])
-                name = file_info['ecs'][-1].name
-                ec_filename = '%s-%s.eb' % (name, det_full_ec_version(file_info['ecs'][-1]))
-
-                letter = name.lower()[0]
-                if letter not in a_to_z:
-                    raise EasyBuildError("Don't know which letter subdir to use for %s", name)
-
-                target_path = os.path.join(subdir, letter, name, ec_filename)
-                _log.debug("Target path for %s: %s", path, target_path)
-
-                full_target_path = os.path.join(target_dir, target_path)
-                try:
-                    file_info['new'].append(not os.path.exists(full_target_path))
-
-                    mkdir(os.path.dirname(full_target_path), parents=True)
-                    shutil.copy2(path, full_target_path)
-                    _log.info("%s copied to %s", path, full_target_path)
-                except OSError as err:
-                    raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
-
-                file_info['paths_in_repo'].append(target_path)
-            else:
-                raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
-    else:
-        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
-
-    return file_info
-
-
 @only_if_module_is_available('git', pkgname='GitPython')
 def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
@@ -558,7 +507,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
-    file_info = _copy_easyconfigs_to_repo(paths, tmp_git_working_dir)
+    file_info = copy_easyconfigs(paths, tmp_git_working_dir)
 
     # checkout target branch
     if pr_branch is None:
@@ -595,7 +544,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     github_url = 'git@github.com:%s/%s.git' % (github_user, github_target_repo)
     remote_name = 'github_%s_%s' % (github_user, salt)
 
-    dry_run = build_option('dry_run') or build_option('dry_run_short') or build_option('extended_dry_run')
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if not dry_run:
         my_remote = git_repo.create_remote(remote_name, github_url)
@@ -661,7 +610,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
 
     # create PR
     github_target_branch = build_option('github_target_branch')
-    dry_run = build_option('dry_run') or build_option('dry_run_short') or build_option('extended_dry_run')
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     msg = '\n'.join([
         '',
@@ -721,7 +670,7 @@ def update_pr(pr, paths, commit_msg=None):
 
     full_repo = '%s/%s' % (github_target_account, github_target_repo)
     msg = "Updated %s pull request #%s by pushing to branch %s/%s" % (full_repo, pr, github_user, branch)
-    if build_option('dry_run') or build_option('dry_run_short') or build_option('extended_dry_run'):
+    if build_option('dry_run') or build_option('extended_dry_run'):
         msg += " [DRY RUN]"
     print_msg(msg, log=_log, prefix=False)
 

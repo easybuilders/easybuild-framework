@@ -125,8 +125,6 @@ BUILD_OPTIONS_CMDLINE = {
         'allow_modules_tool_mismatch',
         'debug',
         'dump_autopep8',
-        'dry_run',
-        'dry_run_short',
         'extended_dry_run',
         'experimental',
         'force',
