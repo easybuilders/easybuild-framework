@@ -108,19 +108,19 @@ def package_with_fpm(easyblock):
     for dep in deps:
         _log.debug("The dep added looks like %s ", dep)
         dep_pkgname = package_naming_scheme.name(dep)
-        depstring += " --depends '%s'" % dep_pkgname
+        depstring += " --depends %s" % quote_str(dep_pkgname)
 
     cmdlist = [
         PKG_TOOL_FPM,
         '--workdir', workdir,
-        '--name', pkgname,
-        '--provides', pkgname,
+        '--name', quote_str(pkgname),
+        '--provides', quote_str(pkgname),
         '-t', pkgtype,  # target
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
         '--description', quote_str(easyblock.cfg["description"]),
-        '--url', easyblock.cfg["homepage"],
+        '--url', quote_str(easyblock.cfg["homepage"]),
         depstring,
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
