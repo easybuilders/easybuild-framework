@@ -699,7 +699,8 @@ def convert_name(name, upper=False):
     # no regexps
     charmap = {
         '+': 'plus',
-        '-': 'min'
+        '-': 'min',
+        '.': '',
     }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
