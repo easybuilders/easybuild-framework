@@ -40,6 +40,7 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
+from easybuild.toolchains.compiler.pgi import TC_CONSTANT_PGI, Pgi
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
@@ -145,6 +146,18 @@ class CrayPEIntel(CrayPECompiler):
         super(CrayPEIntel, self).__init__(*args, **kwargs)
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
+
+
+class CrayPEPGI(CrayPECompiler):
+    """Support for using the Cray PGI compiler wrappers."""
+    PRGENV_MODULE_NAME_SUFFIX = 'pgi'  # PrgEnv-pgi
+    COMPILER_FAMILY = TC_CONSTANT_PGI
+
+    def __init__(self, *args, **kwargs):
+        """CrayPEPGI constructor."""
+        super(CrayPEPGI, self).__init__(*args, **kwargs)
+        for precflag in self.COMPILER_PREC_FLAGS:
+            self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Pgi.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
 class CrayPECray(CrayPECompiler):
