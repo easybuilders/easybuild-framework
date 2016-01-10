@@ -96,7 +96,7 @@ def package_with_fpm(easyblock):
     pkgver = package_naming_scheme.version(easyblock.cfg)
     pkgrel = package_naming_scheme.release(easyblock.cfg)
 
-    _LOG.debug("Got the PNS values for (name, version, release): (%s, %s, %s)", pkgname, pkgver, pkgrel)
+    _LOG.debug("Got the PNS values name: %s version: %s release: %s", pkgname, pkgver, pkgrel)
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -142,7 +142,7 @@ def package_with_fpm(easyblock):
 
 
 def check_pkg_support():
-    """Check whether packaging is supported, i.e. whether the required dependencies are available."""
+    """Check whether packaging is possible, if required dependencies are available."""
     pkgtool = build_option('package_tool')
     pkgtool_path = which(pkgtool)
     if pkgtool_path:
@@ -154,7 +154,8 @@ def check_pkg_support():
             if rpmbuild_path:
                 _LOG.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
             else:
-                raise EasyBuildError("rpmbuild is required when generating RPM packages with FPM, but was not found")
+                raise EasyBuildError("rpmbuild is required when generating RPM "
+                                     "packages but was not found")
 
     else:
         raise EasyBuildError("Selected packaging tool '%s' not found", pkgtool)
@@ -175,8 +176,8 @@ class ActivePNS(object):
         if sel_pns in avail_pns:
             self.pns = avail_pns[sel_pns]()
         else:
-            raise EasyBuildError("Selected package naming scheme %s could not be found in %s",
-                                 sel_pns, avail_pns.keys())
+            raise EasyBuildError("Selected package naming scheme %s could not "
+                                 "be found in %s", sel_pns, avail_pns.keys())
 
     def name(self, easyconfig):
         """Determine package name"""
@@ -188,7 +189,7 @@ class ActivePNS(object):
         version = self.pns.version(easyconfig)
         return version
 
-    def release(self, easyconfig):
+    def release(self, easyconfig):  # pylint: disable=W0613
         """Determine package release"""
         release = self.pns.release()
         return release
