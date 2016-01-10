@@ -28,7 +28,7 @@ Various utilities related to packaging support.
 
 @author: Marc Litherland (Novartis)
 @author: Gianluca Santarossa (Novartis)
-@author: Robert Schmidt (Ottawa Hospital Research Institute)
+@author: Robert Schmidt (The Ottawa Hospital, Research Institute)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Kenneth Hoste (Ghent University)
 """
@@ -40,7 +40,8 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme
+from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, \
+    get_package_naming_scheme
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
@@ -49,12 +50,13 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
-_log = fancylogger.getLogger('tools.package')
+_LOG = fancylogger.getLogger('tools.package')
 
 
 def avail_package_naming_schemes():
     """
-    Returns the list of valed naming schemes that are in the easybuild.package.package_naming_scheme namespace
+    Returns the list of valed naming schemes
+    They are loaded from the easybuild.package.package_naming_scheme namespace
     """
     import_available_modules('easybuild.tools.package.package_naming_scheme')
     class_dict = dict([(x.__name__, x) for x in get_subclasses(PackageNamingScheme)])
@@ -80,7 +82,7 @@ def package_with_fpm(easyblock):
     """
     workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
     pkgtype = build_option('package_type')
-    _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
+    _LOG.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
     try:
         origdir = os.getcwd()
@@ -94,7 +96,7 @@ def package_with_fpm(easyblock):
     pkgver = package_naming_scheme.version(easyblock.cfg)
     pkgrel = package_naming_scheme.release(easyblock.cfg)
 
-    _log.debug("Got the PNS values for (name, version, release): (%s, %s, %s)", pkgname, pkgver, pkgrel)
+    _LOG.debug("Got the PNS values for (name, version, release): (%s, %s, %s)", pkgname, pkgver, pkgrel)
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -102,11 +104,11 @@ def package_with_fpm(easyblock):
 
     deps.extend(easyblock.cfg.dependencies())
 
-    _log.debug("The dependencies to be added to the package are: %s",
+    _LOG.debug("The dependencies to be added to the package are: %s",
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
     depstring = ''
     for dep in deps:
-        _log.debug("The dep added looks like %s ", dep)
+        _LOG.debug("The dep added looks like %s ", dep)
         dep_pkgname = package_naming_scheme.name(dep)
         depstring += " --depends %s" % quote_str(dep_pkgname)
 
@@ -126,10 +128,10 @@ def package_with_fpm(easyblock):
         easyblock.module_generator.get_module_filepath(),
     ]
     cmd = ' '.join(cmdlist)
-    _log.debug("The flattened cmdlist looks like: %s", cmd)
+    _LOG.debug("The flattened cmdlist looks like: %s", cmd)
     run_cmd(cmd, log_all=True, simple=True)
 
-    _log.info("Created %s package(s) in %s", pkgtype, workdir)
+    _LOG.info("Created %s package(s) in %s", pkgtype, workdir)
 
     try:
         os.chdir(origdir)
@@ -144,13 +146,13 @@ def check_pkg_support():
     pkgtool = build_option('package_tool')
     pkgtool_path = which(pkgtool)
     if pkgtool_path:
-        _log.info("Selected packaging tool '%s' found at %s", pkgtool, pkgtool_path)
+        _LOG.info("Selected packaging tool '%s' found at %s", pkgtool, pkgtool_path)
 
         # rpmbuild is required for generating RPMs with FPM
         if pkgtool == PKG_TOOL_FPM and build_option('package_type') == PKG_TYPE_RPM:
             rpmbuild_path = which('rpmbuild')
             if rpmbuild_path:
-                _log.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
+                _LOG.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
             else:
                 raise EasyBuildError("rpmbuild is required when generating RPM packages with FPM, but was not found")
 
@@ -176,17 +178,17 @@ class ActivePNS(object):
             raise EasyBuildError("Selected package naming scheme %s could not be found in %s",
                                  sel_pns, avail_pns.keys())
 
-    def name(self, ec):
+    def name(self, easyconfig):
         """Determine package name"""
-        name = self.pns.name(ec)
+        name = self.pns.name(easyconfig)
         return name
 
-    def version(self, ec):
+    def version(self, easyconfig):
         """Determine package version"""
-        version = self.pns.version(ec)
+        version = self.pns.version(easyconfig)
         return version
 
-    def release(self, ec):
+    def release(self, easyconfig):
         """Determine package release"""
         release = self.pns.release()
         return release
