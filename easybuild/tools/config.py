@@ -34,6 +34,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Ward Poelmans (Ghent University)
 """
 import copy
+import glob
 import os
 import random
 import string
@@ -43,7 +44,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 
 
@@ -487,18 +488,20 @@ def get_build_log_path():
     return res
 
 
-def get_log_filename(name, version, add_salt=False):
+def get_log_filename(name, version, date=None, timestamp=None, add_salt=False):
     """
     Generate a filename to be used for logging
     """
-    date = time.strftime("%Y%m%d")
-    timeStamp = time.strftime("%H%M%S")
+    if date is None:
+        date = time.strftime("%Y%m%d")
+    if timestamp is None:
+        timestamp = time.strftime("%H%M%S")
 
     filename = log_file_format() % {
         'name': name,
         'version': version,
         'date': date,
-        'time': timeStamp,
+        'time': timestamp,
     }
 
     if add_salt:
@@ -515,6 +518,32 @@ def get_log_filename(name, version, add_salt=False):
         filepath = "%s.%d" % (filepath, counter)
 
     return filepath
+
+
+def find_last_log(curlog):
+    """Find location to last log file that is still available."""
+    variables = ConfigurationVariables()
+    log_dir = get_build_log_path()
+    if variables['tmp_logdir'] is None:
+        # take info account that last part of default temporary logdir is random, if --tmp-logdir is not specified
+        log_dir = os.path.join(os.path.dirname(log_dir), '*')
+
+    glob_pattern = os.path.join(log_dir, 'easybuild*.log')  # see init_logging
+    _log.info("Looking for log files that match filename pattern '%s'...", glob_pattern)
+
+    try:
+        # sorted by modification time, most recent last
+        sorted_paths = sorted(glob.glob(glob_pattern), key=lambda f: os.stat(f).st_mtime)
+    except OSError as err:
+        raise EasyBuildError("Failed to locate log files matching '%s': %s", glob_pattern, err)
+
+    # log of current session is typically listed last, should be taken into account
+    res = sorted_paths[-1]
+    if os.path.samefile(res, curlog):
+        res = sorted_paths[-2]
+
+    _log.debug("Picked %s as last log file (current: %s) from %s", res, curlog, sorted_paths)
+    return res
 
 
 def module_classes():

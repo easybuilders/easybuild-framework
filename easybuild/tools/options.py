@@ -348,6 +348,7 @@ class EasyBuildOptions(GeneralOption):
                                            None, 'store_true', False),
             'dep-graph': ("Create dependency graph",
                           None, "store", None, {'metavar': 'depgraph.<ext>'}),
+            'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",

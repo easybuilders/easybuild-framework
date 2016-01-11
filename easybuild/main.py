@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath, build_option
+from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -217,6 +217,12 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
+
+    if options.last_log:
+        # print location to last log file, and exit
+        print_msg(find_last_log(logfile), log=_log, prefix=False)
+        cleanup(logfile, eb_tmpdir, testing)
+        sys.exit(0)
 
     # check whether packaging is supported when it's being used
     if options.package:

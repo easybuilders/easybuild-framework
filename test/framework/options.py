@@ -1980,6 +1980,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 msg = "Pattern '%s' NOT found in: %s" % (notthere_regex.pattern, stdout)
                 self.assertFalse(notthere_regex.search(stdout), msg)
 
+    def test_last_log(self):
+        """Test --last-log."""
+        last_log_path = os.path.join(tempfile.gettempdir(), 'eb-tmpdir0', 'easybuild-last.log')
+        mkdir(os.path.dirname(last_log_path))
+
+        # run something that fails first, we need a log file to find
+        self.eb_main(['thisisaneasyconfigthatdoesnotexist.eb'], logfile=last_log_path, raise_error=False)
+
+        self.mock_stdout(True)
+        tmplogfile = os.path.join(tempfile.gettempdir(), 'eb-tmpdir1', 'easybuild-current.log')
+        mkdir(os.path.dirname(tmplogfile))
+        self.eb_main(['--last-log'], logfile=tmplogfile, raise_error=True)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.samefile(last_log_path, txt), "%s != %s" % (last_log_path, txt))
+
 
 def suite():
     """ returns all the testcases in this module """
