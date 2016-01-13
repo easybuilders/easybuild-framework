@@ -112,6 +112,7 @@ def package_with_fpm(easyblock):
         dep_pkgname = package_naming_scheme.name(dep)
         depstring += " --depends %s" % quote_str(dep_pkgname)
 
+    # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_glob = [
         os.path.join(log_path(), "*.log"),
         os.path.join(log_path(), "*.md"),
