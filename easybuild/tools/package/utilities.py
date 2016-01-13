@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, \
-    get_package_naming_scheme
+    get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
@@ -112,6 +112,12 @@ def package_with_fpm(easyblock):
         dep_pkgname = package_naming_scheme.name(dep)
         depstring += " --depends %s" % quote_str(dep_pkgname)
 
+    exclude_files_glob = [
+        os.path.join(log_path(), "*.log"),
+        os.path.join(log_path(), "*.md"),
+    ]
+    exclude_files_glob = [os.path.join(easyblock.installdir[1:], x) for x in exclude_files_glob]
+    _LOG.debug("exclude_glob: %s", exclude_files_glob)
     cmdlist = [
         PKG_TOOL_FPM,
         '--workdir', workdir,
@@ -123,10 +129,21 @@ def package_with_fpm(easyblock):
         '--iteration', pkgrel,
         '--description', quote_str(easyblock.cfg["description"]),
         '--url', quote_str(easyblock.cfg["homepage"]),
+    ]
+    excludes = ['--exclude %s' % quote_str(x) for x in exclude_files_glob]
+    _LOG.debug("excludes list: %s", excludes)
+    cmdlist.extend(excludes)
+
+    if build_option('debug'):
+        cmdlist.extend([
+            '--debug',
+        ])
+
+    cmdlist.extend([
         depstring,
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
-    ]
+    ])
     cmd = ' '.join(cmdlist)
     _LOG.debug("The flattened cmdlist looks like: %s", cmd)
     run_cmd(cmd, log_all=True, simple=True)
