@@ -50,7 +50,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
-_LOG = fancylogger.getLogger('tools.package')
+_log = fancylogger.getLogger('tools.package')
 
 
 def avail_package_naming_schemes():
@@ -82,7 +82,7 @@ def package_with_fpm(easyblock):
     """
     workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
     pkgtype = build_option('package_type')
-    _LOG.info("Will be creating %s package(s) in %s", pkgtype, workdir)
+    _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
     try:
         origdir = os.getcwd()
@@ -96,7 +96,7 @@ def package_with_fpm(easyblock):
     pkgver = package_naming_scheme.version(easyblock.cfg)
     pkgrel = package_naming_scheme.release(easyblock.cfg)
 
-    _LOG.debug("Got the PNS values name: %s version: %s release: %s", pkgname, pkgver, pkgrel)
+    _log.debug("Got the PNS values name: %s version: %s release: %s", pkgname, pkgver, pkgrel)
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -104,11 +104,11 @@ def package_with_fpm(easyblock):
 
     deps.extend(easyblock.cfg.dependencies())
 
-    _LOG.debug("The dependencies to be added to the package are: %s",
+    _log.debug("The dependencies to be added to the package are: %s",
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
     depstring = ''
     for dep in deps:
-        _LOG.debug("The dep added looks like %s ", dep)
+        _log.debug("The dep added looks like %s ", dep)
         dep_pkgname = package_naming_scheme.name(dep)
         depstring += " --depends %s" % quote_str(dep_pkgname)
 
@@ -116,8 +116,9 @@ def package_with_fpm(easyblock):
         os.path.join(log_path(), "*.log"),
         os.path.join(log_path(), "*.md"),
     ]
+    # stripping off leading / to match expected glob in fpm
     exclude_files_glob = [os.path.join(easyblock.installdir[1:], x) for x in exclude_files_glob]
-    _LOG.debug("exclude_glob: %s", exclude_files_glob)
+    _log.debug("exclude_glob: %s", exclude_files_glob)
     cmdlist = [
         PKG_TOOL_FPM,
         '--workdir', workdir,
@@ -131,7 +132,7 @@ def package_with_fpm(easyblock):
         '--url', quote_str(easyblock.cfg["homepage"]),
     ]
     excludes = ['--exclude %s' % quote_str(x) for x in exclude_files_glob]
-    _LOG.debug("excludes list: %s", excludes)
+    _log.debug("excludes list: %s", excludes)
     cmdlist.extend(excludes)
 
     if build_option('debug'):
@@ -145,10 +146,10 @@ def package_with_fpm(easyblock):
         easyblock.module_generator.get_module_filepath(),
     ])
     cmd = ' '.join(cmdlist)
-    _LOG.debug("The flattened cmdlist looks like: %s", cmd)
+    _log.debug("The flattened cmdlist looks like: %s", cmd)
     run_cmd(cmd, log_all=True, simple=True)
 
-    _LOG.info("Created %s package(s) in %s", pkgtype, workdir)
+    _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
     try:
         os.chdir(origdir)
@@ -163,13 +164,13 @@ def check_pkg_support():
     pkgtool = build_option('package_tool')
     pkgtool_path = which(pkgtool)
     if pkgtool_path:
-        _LOG.info("Selected packaging tool '%s' found at %s", pkgtool, pkgtool_path)
+        _log.info("Selected packaging tool '%s' found at %s", pkgtool, pkgtool_path)
 
         # rpmbuild is required for generating RPMs with FPM
         if pkgtool == PKG_TOOL_FPM and build_option('package_type') == PKG_TYPE_RPM:
             rpmbuild_path = which('rpmbuild')
             if rpmbuild_path:
-                _LOG.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
+                _log.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
             else:
                 raise EasyBuildError("rpmbuild is required when generating RPM "
                                      "packages but was not found")
