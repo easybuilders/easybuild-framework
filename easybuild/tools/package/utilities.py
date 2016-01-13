@@ -198,8 +198,8 @@ class ActivePNS(object):
         if sel_pns in avail_pns:
             self.pns = avail_pns[sel_pns]()
         else:
-            raise EasyBuildError("Selected package naming scheme %s could not "
-                                 "be found in %s", sel_pns, avail_pns.keys())
+            raise EasyBuildError("Selected package naming scheme %s could not be found in %s",
+                                 sel_pns, avail_pns.keys())
 
     def name(self, easyconfig):
         """Determine package name"""
