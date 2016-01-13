@@ -176,8 +176,7 @@ def check_pkg_support():
             if rpmbuild_path:
                 _log.info("Required tool 'rpmbuild' found at %s", rpmbuild_path)
             else:
-                raise EasyBuildError("rpmbuild is required when generating RPM "
-                                     "packages but was not found")
+                raise EasyBuildError("rpmbuild is required when generating RPM packages but was not found")
 
     else:
         raise EasyBuildError("Selected packaging tool '%s' not found", pkgtool)
@@ -211,7 +210,7 @@ class ActivePNS(object):
         version = self.pns.version(easyconfig)
         return version
 
-    def release(self, easyconfig):  # ignore unused easyconfig pylint: disable=W0613
+    def release(self, easyconfig):
         """Determine package release"""
         release = self.pns.release()
         return release
