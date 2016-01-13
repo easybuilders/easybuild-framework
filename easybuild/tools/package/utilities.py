@@ -118,7 +118,11 @@ def package_with_fpm(easyblock):
         os.path.join(log_path(), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
-    exclude_files_glob = [os.path.join(easyblock.installdir[1:], x) for x in exclude_files_glob]
+    exclude_files_glob = [
+        '--exclude %s' % quote_str(os.path.join(easyblock.installdir[1:], x))
+        for x
+        in exclude_files_glob
+    ]
     _log.debug("exclude_glob: %s", exclude_files_glob)
     cmdlist = [
         PKG_TOOL_FPM,
@@ -132,9 +136,8 @@ def package_with_fpm(easyblock):
         '--description', quote_str(easyblock.cfg["description"]),
         '--url', quote_str(easyblock.cfg["homepage"]),
     ]
-    excludes = ['--exclude %s' % quote_str(x) for x in exclude_files_glob]
-    _log.debug("excludes list: %s", excludes)
-    cmdlist.extend(excludes)
+    _log.debug("excludes list: %s", exclude_files_glob)
+    cmdlist.extend(exclude_files_glob)
 
     if build_option('debug'):
         cmdlist.extend([
@@ -208,7 +211,7 @@ class ActivePNS(object):
         version = self.pns.version(easyconfig)
         return version
 
-    def release(self, easyconfig):  # pylint: disable=W0613
+    def release(self, easyconfig):  # ignore unused easyconfig pylint: disable=W0613
         """Determine package release"""
         release = self.pns.release()
         return release
