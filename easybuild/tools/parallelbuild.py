@@ -137,7 +137,6 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
 
     command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
-    job_info_lines = []
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
