@@ -114,10 +114,8 @@ pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
 echo $@ >> $pkgfile
 echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
-or_flag=""
 for exclude in ${excludes[*]}; do
     exclude_str+=" -not -path /${exclude} "
-    or_flag="-and"
 done
 find_cmd="find $installdir  $exclude_str "
 debug_echo "trying: $find_cmd"
@@ -222,7 +220,7 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
         no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
-        #self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
         if DEBUG:
             print "The FPM script debug output"
