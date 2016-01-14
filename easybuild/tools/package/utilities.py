@@ -118,9 +118,8 @@ def package_with_fpm(easyblock):
     ]
     # stripping off leading / to match expected glob in fpm
     exclude_files_glob = [
-        '--exclude %s' % quote_str(os.path.join(easyblock.installdir[1:], x))
-        for x
-        in exclude_files_glob
+        '--exclude %s' % quote_str(os.path.join(easyblock.installdir.lstrip(os.sep), x))
+        for x in exclude_files_glob
     ]
     _log.debug("exclude_glob: %s", exclude_files_glob)
     cmdlist = [
@@ -139,9 +138,7 @@ def package_with_fpm(easyblock):
     cmdlist.extend(exclude_files_glob)
 
     if build_option('debug'):
-        cmdlist.extend([
-            '--debug',
-        ])
+        cmdlist.append('--debug')
 
     cmdlist.extend([
         depstring,
@@ -211,5 +208,5 @@ class ActivePNS(object):
 
     def release(self, easyconfig):
         """Determine package release"""
-        release = self.pns.release()
+        release = self.pns.release(easyconfig)
         return release
