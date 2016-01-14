@@ -35,6 +35,11 @@ from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
+# 'GENERIC' can  beused to enable generic compilation instead of optimized compilation (which is the default)
+# by doing eb --optarch=GENERIC
+OPTARCH_GENERIC = 'GENERIC'
+
+
 def mk_infix(prefix):
     """Create an infix based on the given prefix."""
     infix = ''
@@ -96,6 +101,7 @@ class Compiler(Toolchain):
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
+    COMPILER_GENERIC_OPTION = None
 
     COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt']  # optimisation args, ordered !
@@ -108,6 +114,7 @@ class Compiler(Toolchain):
 
     COMPILER_F77 = None
     COMPILER_F90 = None
+    COMPILER_FC = None
     COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
@@ -155,10 +162,8 @@ class Compiler(Toolchain):
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
             )
-            #print "added options for prefix %s" % prefix
 
-        # redefine optarch
-        self._get_optimal_architecture()
+        self._set_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -230,7 +235,13 @@ class Compiler(Toolchain):
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
-        optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
+        optarchflags = []
+        if build_option('optarch') == OPTARCH_GENERIC:
+            # don't take 'optarch' toolchain option into account when --optarch=GENERIC is used,
+            # *always* include the flags that correspond to generic compilation (which are listed in 'optarch' option)
+            optarchflags.append(self.options.option('optarch'))
+        elif self.options.get('optarch', False):
+            optarchflags.append(self.options.option('optarch'))
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
@@ -239,39 +250,39 @@ class Compiler(Toolchain):
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
-        self.variables.nappend('CFLAGS', flags)
-        self.variables.nappend('CFLAGS', cflags)
-        self.variables.join('CFLAGS', 'OPTFLAGS', 'PRECFLAGS')
+        for var in ['CFLAGS', 'CXXFLAGS']:
+            self.variables.nappend(var, flags)
+            self.variables.nappend(var, cflags)
+            self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
-        self.variables.nappend('CXXFLAGS', flags)
-        self.variables.nappend('CXXFLAGS', cflags)
-        self.variables.join('CXXFLAGS', 'OPTFLAGS', 'PRECFLAGS')
+        for var in ['FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+            self.variables.nappend(var, flags)
+            self.variables.nappend(var, fflags)
+            self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
-        self.variables.nappend('FFLAGS', flags)
-        self.variables.nappend('FFLAGS', fflags)
-        self.variables.join('FFLAGS', 'OPTFLAGS', 'PRECFLAGS')
-
-        self.variables.nappend('F90FLAGS', flags)
-        self.variables.nappend('F90FLAGS', fflags)
-        self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
-
-    def _get_optimal_architecture(self):
+    def _set_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
             self.arch = systemtools.get_cpu_family()
 
         optarch = None
-        if build_option('optarch') is not None:
+        # --optarch is specified with flags to use
+        if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
             optarch = build_option('optarch')
+        # --optarch=GENERIC
+        elif build_option('optarch') == OPTARCH_GENERIC:
+            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+        # no --optarch specified
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 
         if optarch is not None:
-            self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
+            self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 
         if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
-            raise EasyBuildError("_get_optimal_architecture: don't know how to set optarch for %s", self.arch)
+            raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s", self.arch)
 
     def comp_family(self, prefix=None):
         """

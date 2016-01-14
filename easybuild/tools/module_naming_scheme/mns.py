@@ -84,6 +84,18 @@ class ModuleNamingScheme(object):
         # by default: full module name doesn't include a $MODULEPATH subdir
         return self.det_full_module_name(ec)
 
+    def det_install_subdir(self, ec):
+        """
+        Determine name of software installation subdirectory of install path.
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+
+        @return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
+        """
+        # by default: use full module name as name for install subdir
+        return self.det_full_module_name(ec)
+
     def det_module_subdir(self, ec):
         """
         Determine subdirectory for module file in $MODULEPATH.

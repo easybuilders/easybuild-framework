@@ -36,6 +36,7 @@ import stat
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
+from test.framework.package import mock_fpm
 from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -44,8 +45,9 @@ import easybuild.tools.module_naming_scheme  # required to dynamically load test
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -480,6 +482,31 @@ class ToyBuildTest(EnhancedTestCase):
         # restore original umask
         os.umask(orig_umask)
 
+    def test_toy_permissions_installdir(self):
+        """Test --read-only-installdir and --group-write-installdir."""
+        # set umask hard to verify default reliably
+        orig_umask = os.umask(0022)
+
+        self.test_toy_build()
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        shutil.rmtree(self.test_installpath)
+
+        self.test_toy_build(extra_args=['--read-only-installdir'])
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
+        adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
+        shutil.rmtree(self.test_installpath)
+
+        self.test_toy_build(extra_args=['--group-writable-installdir'])
+        installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
+        self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
+
+        # restore original umask
+        os.umask(orig_umask)
+
     def test_toy_gid_sticky_bits(self):
         """Test setting gid and sticky bits."""
         subdirs = [
@@ -693,8 +720,8 @@ class ToyBuildTest(EnhancedTestCase):
         """Test toy build with extensions and non-dummy toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
-        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
-        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
     def test_toy_hidden(self):
         """Test installing a hidden module."""
@@ -769,11 +796,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
-                r'help = \[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]',
-                r'whatis\(\[\[Name: toy\]\]\)',
-                r'whatis\(\[\[Version: 0.0\]\]\)',
-                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
-                r'whatis\(\[\[Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'',
+                r'whatis\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -805,7 +830,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
@@ -835,6 +860,184 @@ class ToyBuildTest(EnhancedTestCase):
         mod_txt_regex = re.compile(mod_txt_regex_pattern)
         msg = "Pattern '%s' matches with: %s" % (mod_txt_regex.pattern, toy_mod_txt)
         self.assertTrue(mod_txt_regex.match(toy_mod_txt), msg)
+
+    def test_external_dependencies(self):
+        """Test specifying external (build) dependencies."""
+        ectxt = read_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb'))
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
+
+        # just specify some of the test modules we ship, doesn't matter where they come from
+        extraectxt = "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        extraectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        extraectxt += "\nversionsuffix = '-external-deps'"
+        write_file(toy_ec, ectxt + extraectxt)
+
+        # install dummy modules
+        modulepath = os.path.join(self.test_prefix, 'modules')
+        for mod in ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']:
+            mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
+            write_file(os.path.join(modulepath, mod), "#%Module")
+
+        self.reset_modulepath([modulepath])
+        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True)
+
+        modules_tool().load(['toy/0.0-external-deps'])
+        # note build dependency is not loaded
+        mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
+        self.assertEqual([x['mod_name'] for x in modules_tool().list()], mods)
+
+        # check behaviour when a non-existing external (build) dependency is included
+        err_msg = "Missing modules for one or more dependencies marked as external modules:"
+
+        extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
+        extraectxt += "\nversionsuffix = '-external-deps-broken1'"
+        write_file(toy_ec, ectxt + extraectxt)
+        self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
+                              raise_error=True, verbose=False)
+
+        extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
+        extraectxt += "\nversionsuffix = '-external-deps-broken2'"
+        write_file(toy_ec, ectxt + extraectxt)
+        self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
+                              raise_error=True, verbose=False)
+
+        # --dry-run still works when external modules are missing; external modules are treated as if they were there
+        outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
+        self.assertTrue(re.search(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", outtxt, re.M))
+
+    def test_module_only(self):
+        """Test use of --module-only."""
+        ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec_file = os.path.join(ec_files_path, 'toy-0.0-deps.eb')
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+
+        # only consider provided test modules
+        self.reset_modulepath([os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')])
+
+        # sanity check fails without --force if software is not installed yet
+        common_args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--robot=%s' % ec_files_path,
+            '--module-syntax=Tcl',
+        ]
+        args = common_args + ['--module-only']
+        err_msg = "Sanity check failed"
+        self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertFalse(os.path.exists(toy_mod))
+
+        self.eb_main(args + ['--force'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+
+        # make sure load statements for dependencies are included in additional module file generated with --module-only
+        modtxt = read_file(toy_mod)
+        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
+
+        os.remove(toy_mod)
+
+        # installing another module under a different naming scheme and using Lua module syntax works fine
+
+        # first actually build and install toy software + module
+        prefix = os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps')
+        self.eb_main(common_args + ['--force'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        self.assertTrue(os.path.exists(os.path.join(self.test_installpath, 'software', 'toy', '0.0-deps', 'bin')))
+        modtxt = read_file(toy_mod)
+        self.assertTrue(re.search("set root %s" % prefix, modtxt))
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        # install (only) additional module under a hierarchical MNS
+        args = common_args + [
+            '--module-only',
+            '--module-naming-scheme=MigrateFromEBToHMNS',
+        ]
+        toy_core_mod = os.path.join(self.test_installpath, 'modules', 'all', 'Core', 'toy', '0.0-deps')
+        self.assertFalse(os.path.exists(toy_core_mod))
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_core_mod))
+        # existing install is reused
+        modtxt2 = read_file(toy_core_mod)
+        self.assertTrue(re.search("set root %s" % prefix, modtxt2))
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+        self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        # make sure load statements for dependencies are included
+        modtxt = read_file(toy_core_mod)
+        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+
+        os.remove(toy_mod)
+        os.remove(toy_core_mod)
+
+        # test installing (only) additional module in Lua syntax (if Lmod is available)
+        lmod_abspath = which('lmod')
+        if lmod_abspath is not None:
+            args = common_args[:-1] + [
+                '--module-only',
+                '--module-syntax=Lua',
+                '--modules-tool=Lmod',
+            ]
+            self.assertFalse(os.path.exists(toy_mod + '.lua'))
+            self.eb_main(args, do_build=True, raise_error=True)
+            self.assertTrue(os.path.exists(toy_mod + '.lua'))
+            # existing install is reused
+            modtxt3 = read_file(toy_mod + '.lua')
+            self.assertTrue(re.search('local root = "%s"' % prefix, modtxt3))
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 2)
+            self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+            # make sure load statements for dependencies are included
+            modtxt = read_file(toy_mod + '.lua')
+            self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+
+    def test_package(self):
+        """Test use of --package and accompanying package configuration settings."""
+        mock_fpm(self.test_prefix)
+        pkgpath = os.path.join(self.test_prefix, 'pkgs')
+
+        extra_args = [
+            '--experimental',
+            '--package',
+            '--package-release=321',
+            '--package-tool=fpm',
+            '--package-type=foo',
+            '--packagepath=%s' % pkgpath,
+        ]
+
+        self.test_toy_build(extra_args=extra_args)
+
+        toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.321.foo' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+
+    def test_package_skip(self):
+        """Test use of --package with --skip."""
+        mock_fpm(self.test_prefix)
+        pkgpath = os.path.join(self.test_prefix, 'packages')  # default path
+
+        self.test_toy_build(['--packagepath=%s' % pkgpath])
+        self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
+
+        self.test_toy_build(extra_args=['--experimental', '--package', '--skip'], verify=False)
+
+        toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+
+    def test_regtest(self):
+        """Test use of --regtest."""
+        self.test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
+
+        # just check whether module exists
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        msg = "module %s found" % toy_module
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module), msg)
+
 
 def suite():
     """ return all the tests in this file """

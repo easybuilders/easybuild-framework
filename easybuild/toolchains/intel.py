@@ -30,15 +30,15 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.iimpi import Iimpi
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Intel(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
+class Intel(Iimpi, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'intel'
+    SUBTOOLCHAIN = Iimpi.NAME

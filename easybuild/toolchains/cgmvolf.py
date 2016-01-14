@@ -40,3 +40,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Cgmvolf(Cgmvapich2, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgmvolf'
+    SUBTOOLCHAIN = Cgmvapich2.NAME

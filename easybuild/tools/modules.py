@@ -42,7 +42,6 @@ from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
-from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
@@ -122,7 +121,8 @@ class ModulesTool(object):
     TERSE_OPTION = (0, '--terse')
     # module command to use
     COMMAND = None
-    # environment variable to determine the module command (instead of COMMAND)
+    # environment variable to determine path to module command;
+    # used as fallback in case command is not available in $PATH
     COMMAND_ENVIRONMENT = None
     # run module command explicitly using this shell
     COMMAND_SHELL = None
@@ -134,8 +134,6 @@ class ModulesTool(object):
     VERSION_REGEXP = None
     # modules tool user cache directory
     USER_CACHE_DIR = None
-
-    __metaclass__ = Singleton
 
     def __init__(self, mod_paths=None, testing=False):
         """
@@ -156,10 +154,19 @@ class ModulesTool(object):
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = self.COMMAND
-        if self.COMMAND_ENVIRONMENT is not None and self.COMMAND_ENVIRONMENT in os.environ:
-            self.log.debug('Set command via environment variable %s' % self.COMMAND_ENVIRONMENT)
-            self.cmd = os.environ[self.COMMAND_ENVIRONMENT]
+        env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
 
+        # only use command path in environment variable if command in not available in $PATH
+        if which(self.cmd) is None and env_cmd_path is not None:
+            self.log.debug('Set command via environment variable %s: %s', self.COMMAND_ENVIRONMENT, self.cmd)
+            self.cmd = env_cmd_path
+
+        # check whether paths obtained via $PATH and $LMOD_CMD are different
+        elif which(self.cmd) != env_cmd_path:
+            self.log.debug("Different paths found for module command '%s' via which/$PATH and $%s: %s vs %s",
+                           self.COMMAND, self.COMMAND_ENVIRONMENT, self.cmd, env_cmd_path)
+
+        # make sure the module command was found
         if self.cmd is None:
             raise EasyBuildError("No command set.")
         else:
@@ -238,7 +245,7 @@ class ModulesTool(object):
             else:
                 out, ec = None, 1
         else:
-            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False, force_in_dry_run=True)
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
@@ -347,7 +354,7 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
-    def exist(self, mod_names):
+    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s:\s*$'):
         """
         Check if modules with specified names exists.
         """
@@ -364,8 +371,8 @@ class ModulesTool(object):
                 modtype = ('hidden', 'visible (not hidden)')[visible]
                 self.log.debug("checking whether %s module %s exists via 'show'..." % (modtype, mod_name))
                 txt = self.show(mod_name)
-                mods_exist_re = re.compile('^\s*\S*/%s:\s*$' % re.escape(mod_name), re.M)
-                mods_exist.append(bool(mods_exist_re.search(txt)))
+                mod_exists_regex = re.compile(mod_exists_regex_template % re.escape(mod_name), re.M)
+                mods_exist.append(bool(mod_exists_regex.search(txt)))
 
         return mods_exist
 
@@ -844,11 +851,18 @@ class Lmod(ModulesTool):
         self.use(path)
         self.set_mod_paths()
 
+    def exist(self, mod_names):
+        """Check if modules with specified names exists."""
+        # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
+        # the current configuration for matters little, since the module may have been installed with a different cfg;
+        # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
+        return super(Lmod, self).exist(mod_names, r'^\s*\S*/%s(.lua)?:\s*$')
+
 
 def get_software_root_env_var_name(name):
     """Return name of environment variable for software root."""
     newname = convert_name(name, upper=True)
-    return ''.join([ROOT_ENV_VAR_NAME_PREFIX, newname])
+    return ROOT_ENV_VAR_NAME_PREFIX + newname
 
 
 def get_software_root(name, with_env_var=False):
@@ -910,7 +924,7 @@ def get_software_libdir(name, only_one=True, fs=None):
 def get_software_version_env_var_name(name):
     """Return name of environment variable for software root."""
     newname = convert_name(name, upper=True)
-    return ''.join([VERSION_ENV_VAR_NAME_PREFIX, newname])
+    return VERSION_ENV_VAR_NAME_PREFIX + newname
 
 
 def get_software_version(name):

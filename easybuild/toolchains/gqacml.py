@@ -28,13 +28,14 @@ EasyBuild support for gqacml compiler toolchain (includes GCC, QLogicMPI, ACML, 
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Gqacml(Gcc, QLogicMPI, Acml, ScaLAPACK, Fftw):
+class Gqacml(GccToolchain, QLogicMPI, Acml, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, QLogic MPI, ACML, ScaLAPACK and FFTW."""
     NAME = 'gqacml'
+    SUBTOOLCHAIN = GccToolchain.NAME

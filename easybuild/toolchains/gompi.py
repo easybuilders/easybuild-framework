@@ -28,10 +28,11 @@ EasyBuild support for gompi compiler toolchain (includes GCC and OpenMPI).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Gompi(Gcc, OpenMPI):
+class Gompi(GccToolchain, OpenMPI):
     """Compiler toolchain with GCC and OpenMPI."""
     NAME = 'gompi'
+    SUBTOOLCHAIN = GccToolchain.NAME

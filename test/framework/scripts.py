@@ -30,10 +30,14 @@ Unit tests for scripts
 import os
 import re
 import shutil
+import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+import vsc
+
+import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.run import run_cmd
@@ -41,6 +45,16 @@ from easybuild.tools.run import run_cmd
 
 class ScriptsTest(EnhancedTestCase):
     """ Testcase for run module """
+
+    def setUp(self):
+        """Test setup."""
+        super(ScriptsTest, self).setUp()
+
+        # make sure both vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
+        vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+        framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
+        pythonpath = os.environ.get('PYTHONPATH', '')
+        os.environ['PYTHONPATH'] = os.pathsep.join([vsc_loc, framework_loc, pythonpath])
 
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""
@@ -61,23 +75,25 @@ class ScriptsTest(EnhancedTestCase):
         for root, subfolders, files in os.walk(easyconfigs_dir):
             if 'v2.0' in subfolders:
                 subfolders.remove('v2.0')
-            for ec_file in files:
+            for ec_file in [f for f in files if 'broken' not in os.path.basename(f)]:
                 shutil.copy2(os.path.join(root, ec_file), tmpdir)
 
-        cmd = "python %s --local --quiet --path %s" % (script, tmpdir)
+        cmd = "%s %s --local --quiet --path %s" % (sys.executable, script, tmpdir)
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(18 "
+        regex = r"Supported Packages \(22 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
-            'C': '1',  # CUDA
+            'B': '1',  # bzip2
+            'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
             'G': '4',  # GCC, gompi, goolf, gzip
             'H': '1',  # hwloc
             'I': '7',  # icc, iccifort, ictce, ifort, iimpi, imkl, impi
             'O': '2',  # OpenMPI, OpenBLAS
-            'S': '1',  # ScaLAPACK
+            'P': '1',  # Python
+            'S': '2',  # ScaLAPACK, SQLite
             'T': '1',  # toy
         }
         self.assertTrue(' - '.join(["[%(l)s](#%(l)s)" % {'l': l} for l in sorted(per_letter.keys())]))
@@ -108,7 +124,7 @@ class ScriptsTest(EnhancedTestCase):
             "description = 'foo'",
             "homepage = 'http://example.com'",
             '',
-            "toolchain = {'name': 'bar', 'version': '3.2.1'}",
+            "toolchain = {'name': 'GCC', 'version': '4.8.2'}",
             '',
             "premakeopts = 'FOO=libfoo.%%s' %% shared_lib_ext",
             "makeopts = 'CC=gcc'",
@@ -123,7 +139,7 @@ class ScriptsTest(EnhancedTestCase):
             "description = 'foo'",
             "homepage = 'http://example.com'",
             '',
-            "toolchain = {'name': 'bar', 'version': '3.2.1'}",
+            "toolchain = {'name': 'GCC', 'version': '4.8.2'}",
             '',
             "prebuildopts = 'FOO=libfoo.%%s' %% SHLIB_EXT",
             "buildopts = 'CC=gcc'",

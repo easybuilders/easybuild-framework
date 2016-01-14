@@ -32,6 +32,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 @author: Jens Timmerman (Ghent University)
 """
 import os
+import re
 import sys
 import tempfile
 from copy import copy
@@ -52,11 +53,18 @@ EXPERIMENTAL = False
 
 DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
 
+DRY_RUN_BUILD_DIR = None
+DRY_RUN_SOFTWARE_INSTALL_DIR = None
+DRY_RUN_MODULES_INSTALL_DIR = None
+
 
 class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
     """
+    LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
+    LOC_INFO_LEVEL = 1
+
     # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
     # only required because 'error' log method raises (should no longer be needed in EB v3.x)
     LOGGING_METHOD_NAME = '_error_no_raise'
@@ -71,6 +79,11 @@ class EasyBuildError(LoggedException):
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
         return repr(self.msg)
+
+
+def raise_easybuilderror(msg, *args):
+    """Raise EasyBuildError with given message, formatted by provided string arguments."""
+    raise EasyBuildError(msg, *args)
 
 
 class EasyBuildLog(fancylogger.FancyLogger):
@@ -134,7 +147,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         orig_raise_error = self.raiseError
         self.raiseError = False
 
-        self.error(msg)
+        fancylogger.FancyLogger.error(self, msg)
 
         # reinstate previous raiseError setting
         self.raiseError = orig_raise_error
@@ -193,7 +206,8 @@ def stop_logging(logfile, logtostdout=False):
     """Stop logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
-    fancylogger.logToFile(logfile, enable=False)
+    if logfile is not None:
+        fancylogger.logToFile(logfile, enable=False)
 
 
 def get_log(name=None):
@@ -214,6 +228,42 @@ def print_msg(msg, log=None, silent=False, prefix=True):
             print "%s %s" % (EB_MSG_PREFIX, msg)
         else:
             print msg
+
+
+def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
+    """
+    Initialize for printing dry run messages.
+
+    Define DRY_RUN_*DIR constants, so they can be used in dry_run_msg to replace fake build/install dirs.
+
+    @param prefix: prefix of fake build/install dirs, that can be stripped off when printing
+    @param builddir: fake build dir
+    @param software_installdir: fake software install directory
+    @param module_installdir: fake module install directory
+    """
+    global DRY_RUN_BUILD_DIR
+    DRY_RUN_BUILD_DIR = (re.compile(builddir), builddir[len(prefix):])
+
+    global DRY_RUN_MODULES_INSTALL_DIR
+    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(module_installdir), module_installdir[len(prefix):])
+
+    global DRY_RUN_SOFTWARE_INSTALL_DIR
+    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(software_installdir), software_installdir[len(prefix):])
+
+
+def dry_run_msg(msg, silent=False):
+    """Print dry run message."""
+    # replace fake build/install dir in dry run message with original value
+    for dry_run_var in [DRY_RUN_BUILD_DIR, DRY_RUN_MODULES_INSTALL_DIR, DRY_RUN_SOFTWARE_INSTALL_DIR]:
+        if dry_run_var is not None:
+            msg = dry_run_var[0].sub(dry_run_var[1], msg)
+
+    print_msg(msg, silent=silent, prefix=False)
+
+
+def dry_run_warning(msg, silent=False):
+    """Print dry run message."""
+    dry_run_msg("\n!!!\n!!! WARNING: %s\n!!!\n" % msg, silent=silent)
 
 
 def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):

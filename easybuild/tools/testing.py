@@ -117,31 +117,15 @@ def regtest(easyconfig_paths, build_specs=None):
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        resolved = resolve_dependencies(easyconfigs)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
+        build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
 
-        print "List of submitted jobs:"
-        for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
-        print "(%d jobs submitted)" % len(jobs)
-
-        # determine leaf nodes in dependency graph, and report them
-        all_deps = set()
-        for job in jobs:
-            all_deps = all_deps.union(job.deps)
-
-        leaf_nodes = []
-        for job in jobs:
-            if job.jobid not in all_deps:
-                leaf_nodes.append(str(job.jobid).split('.')[0])
-
-        _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success

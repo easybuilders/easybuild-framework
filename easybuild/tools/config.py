@@ -43,14 +43,18 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-import easybuild.tools.environment as env
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.run import run_cmd
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 
 
 _log = fancylogger.getLogger('config', fname=False)
 
 
+PKG_TOOL_FPM = 'fpm'
+PKG_TYPE_RPM = 'rpm'
+
+
+DEFAULT_JOB_BACKEND = 'PbsPython'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Tcl'
@@ -58,11 +62,16 @@ DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
+    'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
     'subdir_software': 'software',
 }
+DEFAULT_PKG_RELEASE = '1'
+DEFAULT_PKG_TOOL = PKG_TOOL_FPM
+DEFAULT_PKG_TYPE = PKG_TYPE_RPM
+DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
@@ -83,31 +92,47 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'external_modules_metadata',
         'filter_deps',
         'hide_deps',
         'from_pr',
         'github_user',
         'group',
         'ignore_dirs',
+        'job_backend_config',
+        'job_cores',
+        'job_max_walltime',
+        'job_output_dir',
+        'job_polling_interval',
+        'job_target_resource',
         'module_families',
         'modules_footer',
         'module_properties',
         'only_blocks',
         'optarch',
+        'parallel',
         'regtest_output_dir',
         'skip',
         'stop',
-        'suffix_modules_path',
         'test_report_env_filter',
         'testoutput',
         'umask',
     ],
     False: [
+        'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
+        'dump_autopep8',
+        'extended_dry_run',
         'experimental',
         'force',
+        'group_writable_installdir',
         'hidden',
+        'minimal_toolchains',
+        'module_only',
+        'package',
+        'read_only_installdir',
+        'rebuild',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -115,9 +140,27 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_tmpdir',
+        'extended_dry_run_ignore_errors',
+    ],
+    'warn': [
+        'strict',
+    ],
+    DEFAULT_PKG_RELEASE: [
+        'package_release',
+    ],
+    DEFAULT_PKG_TOOL: [
+        'package_tool',
+    ],
+    DEFAULT_PKG_TYPE: [
+        'package_type',
+    ],
+    GENERAL_CLASS: [
+        'suffix_modules_path',
     ],
 }
 # build option that do not have a perfectly matching command line option
@@ -183,11 +226,16 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'buildpath',
         'config',
         'installpath',
+        'installpath_modules',
+        'installpath_software',
+        'job_backend',
         'logfile_format',
         'moduleclasses',
         'module_naming_scheme',
         'module_syntax',
         'modules_tool',
+        'packagepath',
+        'package_naming_scheme',
         'prefix',
         'repository',
         'repositorypath',
@@ -203,7 +251,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         For all known/required keys, check if exists and return all key/value pairs.
             no_missing: boolean, when True, will throw error message for missing values
         """
-        missing = [x for x in self.KNOWN_KEYS if not x in self]
+        missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
             raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
 
@@ -259,7 +307,9 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        if cmdline_options.dep_graph or cmdline_options.dry_run or cmdline_options.dry_run_short:
+        auto_ignore_osdeps_options = [cmdline_options.dep_graph, cmdline_options.dry_run, cmdline_options.dry_run_short,
+                                      cmdline_options.extended_dry_run]
+        if any(auto_ignore_osdeps_options):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
             cmdline_options.ignore_osdeps = True
 
@@ -289,9 +339,15 @@ def init_build_options(build_options=None, cmdline_options=None):
     return BuildOptions(bo)
 
 
-def build_option(key):
+def build_option(key, **kwargs):
     """Obtain value specified build option."""
-    return BuildOptions()[key]
+    build_options = BuildOptions()
+    if key in build_options:
+        return build_options[key]
+    elif 'default' in kwargs:
+        return kwargs['default']
+    else:
+        raise EasyBuildError("Undefined build option: %s", key)
 
 
 def build_path():
@@ -324,9 +380,22 @@ def install_path(typ=None):
     elif typ == 'mod':
         typ = 'modules'
 
+    known_types = ['modules', 'software']
+    if typ not in known_types:
+        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+
     variables = ConfigurationVariables()
-    suffix = variables['subdir_%s' % typ]
-    return os.path.join(variables['installpath'], suffix)
+
+    key = 'installpath_%s' % typ
+    res = variables[key]
+    if res is None:
+        key = 'subdir_%s' % typ
+        res = os.path.join(variables['installpath'], variables[key])
+        _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
+    else:
+        _log.debug("%s install path as specified by '%s': %s", typ, key, res)
+
+    return res
 
 
 def get_repository():
@@ -343,6 +412,20 @@ def get_repositorypath():
     return ConfigurationVariables()['repositorypath']
 
 
+def get_package_naming_scheme():
+    """
+    Return the package naming scheme
+    """
+    return ConfigurationVariables()['package_naming_scheme']
+
+
+def package_path():
+    """
+    Return the path where built packages are copied to
+    """
+    return ConfigurationVariables()['packagepath']
+
+
 def get_modules_tool():
     """
     Return modules tool (EnvironmentModulesC, Lmod, ...)
@@ -356,6 +439,14 @@ def get_module_naming_scheme():
     Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
+
+
+def get_job_backend():
+    """
+    Return job execution backend (PBS, GC3Pie, ...)
+    """
+    # 'job_backend' key will only be present after EasyBuild config is initialized
+    return ConfigurationVariables().get('job_backend', None)
 
 
 def get_module_syntax():
@@ -428,16 +519,6 @@ def get_log_filename(name, version, add_salt=False):
     return filepath
 
 
-def read_only_installdir():
-    """
-    Return whether installation dir should be fully read-only after installation.
-    """
-    # FIXME (see issue #123): add a config option to set this, should be True by default (?)
-    # this also needs to be checked when --force is used;
-    # install dir will have to (temporarily) be made writeable again for owner in that case
-    return False
-
-
 def module_classes():
     """
     Return list of module classes specified in config file.
@@ -448,46 +529,3 @@ def module_classes():
 def read_environment(env_vars, strict=False):
     """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
     _log.nosupport("read_environment has moved to easybuild.tools.environment", '2.0')
-
-
-def set_tmpdir(tmpdir=None, raise_error=False):
-    """Set temporary directory to be used by tempfile and others."""
-    try:
-        if tmpdir is not None:
-            if not os.path.exists(tmpdir):
-                os.makedirs(tmpdir)
-            current_tmpdir = tempfile.mkdtemp(prefix='eb-', dir=tmpdir)
-        else:
-            # use tempfile default parent dir
-            current_tmpdir = tempfile.mkdtemp(prefix='eb-')
-    except OSError, err:
-        raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
-
-    _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
-
-    for var in ['TMPDIR', 'TEMP', 'TMP']:
-        env.setvar(var, current_tmpdir)
-
-    # reset to make sure tempfile picks up new temporary directory to use
-    tempfile.tempdir = None
-
-    # test if temporary directory allows to execute files, warn if it doesn't
-    try:
-        fd, tmptest_file = tempfile.mkstemp()
-        os.close(fd)
-        os.chmod(tmptest_file, 0700)
-        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
-            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
-            msg += "This can cause problems in the build process, consider using --tmpdir."
-            if raise_error:
-                raise EasyBuildError(msg)
-            else:
-                _log.warning(msg)
-        else:
-            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
-        os.remove(tmptest_file)
-
-    except OSError, err:
-        raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
-
-    return current_tmpdir

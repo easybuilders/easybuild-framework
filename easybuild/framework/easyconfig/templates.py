@@ -30,7 +30,7 @@ be used within an Easyconfig file.
 @author: Stijn De Weirdt (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-
+import re
 from vsc.utils import fancylogger
 from distutils.version import LooseVersion
 
@@ -88,9 +88,9 @@ TEMPLATE_CONSTANTS = [
      'googlecode.com source url'),
     ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
      'launchpad.net source url'),
-    ('PYPI_SOURCE', 'http://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
+    ('PYPI_SOURCE', 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
      'pypi source url'),  # e.g., Cython, Sphinx
-    ('PYPI_LOWER_SOURCE', 'http://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
+    ('PYPI_LOWER_SOURCE', 'https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
      'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
     ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
      'cran.r-project.org (base) source url'),
@@ -114,7 +114,7 @@ TEMPLATE_CONSTANTS = [
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
 ]
 
-extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz']
+extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
 for ext in extensions:
     suffix = ext.replace('.', '_').upper()
     TEMPLATE_CONSTANTS += [
@@ -124,6 +124,7 @@ for ext in extensions:
 
 # TODO derived config templates
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
+
 
 def template_constant_dict(config, ignore=None, skip_lower=True):
     """Create a dict for templating the values in the easyconfigs.
@@ -195,12 +196,35 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if t_v is None:
                 continue
             try:
-                template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name':name}] = t_v.lower()
+                template_values[TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}] = t_v.lower()
             except:
                 _log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)" %
                            (name, t_v, type(t_v)))
 
     return template_values
+
+
+def to_template_str(value, templ_const, templ_val):
+    """
+    Insert template values where possible
+        - value is a string
+        - templ_const is a dictionary of template strings (constants)
+        - templ_val is an ordered dictionary of template strings specific for this easyconfig file
+    """
+    old_value = None
+    while value != old_value:
+        old_value = value
+        # check for constant values
+        for tval, tname in templ_const.items():
+            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
+
+        for tval, tname in templ_val.items():
+            # only replace full words with templates: word to replace should be at the beginning of a line
+            # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
+            # by another non-alphanumeric.
+            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+
+    return value
 
 
 def template_documentation():
