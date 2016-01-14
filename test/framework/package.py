@@ -114,11 +114,14 @@ pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
 echo $@ >> $pkgfile
 echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
-for exclude in ${excludes[*]}]; do
+or_flag=""
+for exclude in ${excludes[*]}; do
     exclude_str+=" -not -path /${exclude} "
+    or_flag="-and"
 done
-debug_echo "trying: find $installdir $exclude_str"
-find $installdir $exclude_str >> $pkgfile
+find_cmd="find $installdir  $exclude_str "
+debug_echo "trying: $find_cmd"
+$find_cmd >> $pkgfile
 echo "ENDCONTENTS" >> $pkgfile
 echo "Contents of module file $modulefile:" >> $pkgfile
 cat $modulefile >> $pkgfile
@@ -202,9 +205,11 @@ class PackageTest(EnhancedTestCase):
         # build & install first
         easyblock.run_all_steps(False)
 
-        # copy in some old log files to make sure they don't get packaged
+        # write a dummy log and report file to make sure they don't get packaged
         logfile = os.path.join(easyblock.installdir, log_path(), "logfile.log")
         write_file(logfile, "I'm a logfile")
+        reportfile = os.path.join(easyblock.installdir, log_path(), "report.md")
+        write_file(reportfile, "I'm a reportfile")
 
         # package using default packaging configuration (FPM to build RPM packages)
         pkgdir = package(easyblock)
@@ -216,8 +221,8 @@ class PackageTest(EnhancedTestCase):
         pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
-        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.log.*ENDCONTENTS')
-        self.assertFalse(no_logfiles_regex.search(pkgtxt, re.DOTALL), "Pattern '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
+        #self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
         if DEBUG:
             print "The FPM script debug output"
