@@ -67,11 +67,6 @@ class PbsPython(JobBackend):
     # pbs_python 4.1.0 introduces the pbs.version variable we rely on
     REQ_VERSION = '4.1.0'
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
-    def __init__(self, *args, **kwargs):
-        """PbsPython constructor."""
-        super(PbsPython, self).__init__(*args, **kwargs)
-
     # _check_version is called by __init__, so guard it (too) with the decorator
     @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _check_version(self):
