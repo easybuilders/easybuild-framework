@@ -67,11 +67,6 @@ class PbsPython(JobBackend):
     # pbs_python 4.1.0 introduces the pbs.version variable we rely on
     REQ_VERSION = '4.1.0'
 
-    @only_if_module_is_available('pbs', pkgname='pbs_python')
-    def __init__(self, *args, **kwargs):
-        """PbsPython constructor."""
-        super(PbsPython, self).__init__(*args, **kwargs)
-
     # _check_version is called by __init__, so guard it (too) with the decorator
     @only_if_module_is_available('pbs', pkgname='pbs_python')
     def _check_version(self):
@@ -182,7 +177,7 @@ class PbsPython(JobBackend):
 
     def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """Create and return a `PbsJob` object with the given parameters."""
-        return PbsJob(self, script, name, env_vars, hours, cores, conn=self.conn, ppn=self.ppn)
+        return PbsJob(self, script, name, env_vars=env_vars, hours=hours, cores=cores, conn=self.conn, ppn=self.ppn)
 
 
 class PbsJob(object):
@@ -396,8 +391,8 @@ class PbsJob(object):
         """
         state = self.info(types=['job_state', 'exec_host'])
 
-        if state == None:
-            if self.jobid == None:
+        if state is None:
+            if self.jobid is None:
                 return 'not submitted'
             else:
                 return 'finished'
@@ -465,7 +460,7 @@ class PbsJob(object):
         # only expect to have a list with one element
         j = jobs[0]
         # convert attribs into useable dict
-        job_details = dict([ (attrib.name, attrib.value) for attrib in j.attribs ])
+        job_details = dict([(attrib.name, attrib.value) for attrib in j.attribs])
         # manually set 'id' attribute
         job_details['id'] = j.name
         self.log.debug("Found jobinfo %s" % job_details)
