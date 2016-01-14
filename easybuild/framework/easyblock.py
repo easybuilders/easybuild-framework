@@ -223,7 +223,7 @@ class EasyBlock(object):
         # module families
         unknown_families = [fam for fam in self.cfg['modfamilies'] if fam not in build_option('module_families')]
         if unknown_families:
-        self.module_properties = None
+            self.module_properties = None
         if build_option('module_properties') is not None:
             self.module_properties = []
             for prop_spec in build_option('module_properties'):
