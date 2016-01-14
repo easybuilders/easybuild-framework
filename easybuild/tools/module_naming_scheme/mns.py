@@ -29,14 +29,10 @@ Module naming scheme API.
 @author: Kenneth Hoste (Ghent University)
 """
 import re
-import os
-
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 
 class ModuleNamingScheme(object):
@@ -98,10 +94,7 @@ class ModuleNamingScheme(object):
         @return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         # by default: use full module name as name for install subdir
-        if build_option('fixed_installdir_naming_scheme'):
-            return os.path.join(ec['name'], det_full_ec_version(ec))
-        else:
-            return self.det_full_module_name(ec)
+        return self.det_full_module_name(ec)
 
     def det_module_subdir(self, ec):
         """

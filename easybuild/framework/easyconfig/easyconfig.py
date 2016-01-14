@@ -1234,7 +1234,11 @@ class ActiveMNS(object):
     def det_install_subdir(self, ec):
         """Determine name of software installation subdirectory."""
         self.log.debug("Determining software installation subdir for %s", ec)
-        subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
+        if build_option('fixed_installdir_naming_scheme'):
+            self.log.debug("Using fixed naming software installation subdir for %s", ec)
+            subdir = os.path.join(ec['name'], det_full_ec_version(ec))
+        else:
+            subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
         self.log.debug("Obtained subdir %s", subdir)
         return subdir
 
