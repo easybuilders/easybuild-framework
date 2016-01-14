@@ -220,7 +220,7 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
         no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
-        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
         if DEBUG:
             print "The FPM script debug output"

@@ -121,7 +121,7 @@ def package_with_fpm(easyblock):
         '--exclude %s' % quote_str(os.path.join(easyblock.installdir.lstrip(os.sep), x))
         for x in exclude_files_glob
     ]
-    _log.debug("exclude_glob: %s", exclude_files_glob)
+    _log.debug("The list of excluded files passed to fpm: %s", exclude_files_glob)
     cmdlist = [
         PKG_TOOL_FPM,
         '--workdir', workdir,
@@ -134,7 +134,6 @@ def package_with_fpm(easyblock):
         '--description', quote_str(easyblock.cfg["description"]),
         '--url', quote_str(easyblock.cfg["homepage"]),
     ]
-    _log.debug("excludes list: %s", exclude_files_glob)
     cmdlist.extend(exclude_files_glob)
 
     if build_option('debug'):
