@@ -468,6 +468,10 @@ def dep_graph(filename, specs):
         all_nodes.add(spec['module'])
         spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
+        
+        # Get the build dependencies for each spec so we can distinguish them later
+        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
+        all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
     dgr = digraph()
@@ -475,6 +479,8 @@ def dep_graph(filename, specs):
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
+            if dep in spec['ec'].build_dependencies:
+                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
 
     _dep_graph_dump(dgr, filename)
 
