@@ -1047,6 +1047,7 @@ class EasyBlock(object):
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
+                user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
                                                  guarded=True)
