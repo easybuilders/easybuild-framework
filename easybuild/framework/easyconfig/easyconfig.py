@@ -1281,9 +1281,9 @@ class ActiveMNS(object):
 
     def det_user_modpath_extensions(self, ec):
         """Determine user-specific modulepath extensions according to module naming scheme."""
-        self.log.debug("Determining user modulepath extensions for %s" % ec)
+        self.log.debug("Determining user modulepath extensions for %s", ec)
         modpath_extensions = self.mns.det_user_modpath_extensions(self.check_ec_type(ec))
-        self.log.debug("Obtained user modulepath extensions: %s" % modpath_extensions)
+        self.log.debug("Obtained user modulepath extensions: %s", modpath_extensions)
         return modpath_extensions
 
     def det_init_modulepaths(self, ec):
