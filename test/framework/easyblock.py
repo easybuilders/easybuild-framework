@@ -197,7 +197,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         txt = eb.make_module_extend_modpath()
         if get_module_syntax() == 'Tcl':
-            regexs = [r'^module use ".*/modules/all/Compiler/pi/3.14/%s"$' % c for c in moduleclasses]
+            regexs = [r'^module use ".*/modules/all/Compiler/pi/3.14/%s"$' % c for c in modclasses]
             regexs.extend([
                 # extension for user modules is guarded
                 r'if {\[file isdirectory \[file join \$env\(HOME\) "%s/Compiler/pi/3.14"\]\]} {$' % subdir_user_modules,
