@@ -73,6 +73,7 @@ class MockPbsJob(object):
         self.jobid = None
         self.clean_conn = None
         self.script = args[1]
+        self.cores = kwargs['cores']
 
     def add_dependencies(self, jobs):
         self.deps.extend(jobs)
@@ -112,6 +113,7 @@ class ParallelBuildTest(EnhancedTestCase):
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             'valid_module_classes': config.module_classes(),
             'validate': False,
+            'job_cores': 3,
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
@@ -134,6 +136,9 @@ class ParallelBuildTest(EnhancedTestCase):
             else:
                 regex = re.compile("eb %s" % ec['spec'])
             self.assertTrue(regex.search(jobs[i].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[i].script))
+
+        for job in jobs:
+            self.assertEqual(job.cores, build_options['job_cores'])
 
         # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
         self.assertEqual(len(jobs[0].deps), 0)

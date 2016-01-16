@@ -1,0 +1,18 @@
+easyblock: Toolchain
+
+name: CrayCCE
+version: 5.1.29
+
+homepage: (none)
+description: Toolchain using Cray compiler wrapper, using PrgEnv-cray module.
+
+toolchain: dummy, dummy
+
+dependencies:
+    # also loads cray-libsci
+    - name: PrgEnv-cray/5.1.29
+      external_module: true
+    - name: fftw/3.3.4.0
+      external_module: true
+
+moduleclass: toolchain

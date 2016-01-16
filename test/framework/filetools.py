@@ -85,10 +85,10 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_convert_name(self):
         """Test convert_name function."""
-        name = ft.convert_name("test+test-test")
-        self.assertEqual(name, "testplustestmintest")
-        name = ft.convert_name("test+test-test", True)
-        self.assertEqual(name, "TESTPLUSTESTMINTEST")
+        name = ft.convert_name("test+test-test.mpi")
+        self.assertEqual(name, "testplustestmintestmpi")
+        name = ft.convert_name("test+test-test.mpi", True)
+        self.assertEqual(name, "TESTPLUSTESTMINTESTMPI")
 
     def test_cwd(self):
         """tests should be run from the base easybuild directory"""
