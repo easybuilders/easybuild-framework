@@ -41,10 +41,12 @@ from urllib2 import URLError
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax
+from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -72,7 +74,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
         for var in os.environ.keys():
-            if var.startswith('EASYBUILD_'):
+            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
                 del os.environ[var]
 
     def test_help_short(self, txt=None):
@@ -1670,14 +1673,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_generate_cmd_line(self):
         """Test for generate_cmd_line."""
-        ebopts = EasyBuildOptions()
-        self.assertEqual(ebopts.generate_cmd_line(), [])
+        self.purge_environment()
 
-        ebopts = EasyBuildOptions(go_args=['--force'])
-        self.assertEqual(ebopts.generate_cmd_line(), ['--force'])
+        def generate_cmd_line(ebopts):
+            """Helper function to filter generated command line (to ignore $EASYBUILD_IGNORECONFIGFILES)."""
+            return [x for x in ebopts.generate_cmd_line() if not x.startswith('--ignoreconfigfiles=')]
 
-        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'])
-        self.assertEqual(ebopts.generate_cmd_line(), ['--search=foobar'])
+        ebopts = EasyBuildOptions(envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), [])
+
+        ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--force'])
+
+        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--search=foobar'])
+
+        os.environ['EASYBUILD_DEBUG'] = '1'
+        ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
@@ -1968,6 +1981,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for notthere_regex in [ignoring_error_regex, ignored_error_regex]:
                 msg = "Pattern '%s' NOT found in: %s" % (notthere_regex.pattern, stdout)
                 self.assertFalse(notthere_regex.search(stdout), msg)
+
+    def test_fixed_installdir_naming_scheme(self):
+        """Test use of --fixed-installdir-naming-scheme."""
+        # by default, name of install dir match module naming scheme used
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'])
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+
+        # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
+        build_options = {
+            'fixed_installdir_naming_scheme': True,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
 
 def suite():

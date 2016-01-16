@@ -69,9 +69,15 @@ class IntelIccIfort(Compiler):
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.INTEL : 'xHost',
         systemtools.AMD : 'xHost',
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.INTEL : 'xSSE2',
+        systemtools.AMD : 'xSSE2',
     }
 
     COMPILER_CC = 'icc'
@@ -94,6 +100,7 @@ class IntelIccIfort(Compiler):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.append('LIB_MULTITHREAD')
+
         super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):

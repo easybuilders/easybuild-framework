@@ -84,7 +84,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "    }",
                 "}",
                 '',
-                "module-whatis {Description: %s}" % gzip_txt,
+                "module-whatis {%s}" % gzip_txt,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -95,10 +95,43 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             expected = '\n'.join([
                 'help([[%s]])' % gzip_txt,
-                "whatis([[Name: gzip]])" ,
-                "whatis([[Version: 1.4]])" ,
-                "whatis([[Description: %s]])" % gzip_txt,
-                "whatis([[Homepage: http://www.gzip.org/]])",
+                '',
+                "whatis([[%s]])" % gzip_txt,
+                '',
+                'local root = "%s"' % self.modgen.app.installdir,
+                '',
+                'conflict("gzip")',
+                '',
+            ])
+
+        desc = self.modgen.get_description()
+        self.assertEqual(desc, expected)
+
+        # Test description with list of 'whatis' strings
+        self.eb.cfg['whatis'] = ['foo', 'bar']
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                "#%Module",
+                "proc ModulesHelp { } {",
+                "    puts stderr { %s" % gzip_txt,
+                "    }",
+                "}",
+                '',
+                "module-whatis {foo}",
+                "module-whatis {bar}",
+                '',
+                "set root %s" % self.modgen.app.installdir,
+                '',
+                "conflict gzip",
+                '',
+            ])
+
+        else:
+            expected = '\n'.join([
+                'help([[%s]])' % gzip_txt,
+                '',
+                "whatis([[foo]])",
+                "whatis([[bar]])",
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -161,19 +194,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
-                "if { [ is-loaded mod_name ] } {",
-                "    module unload mod_name",
-                "}",
-                '',
+                "module unload mod_name",
             ])
             self.assertEqual(expected, self.modgen.unload_module("mod_name"))
         else:
             expected = '\n'.join([
                 '',
-                'if isloaded("mod_name") then',
-                '    unload("mod_name")',
-                "end",
-                '',
+                'unload("mod_name")',
             ])
             self.assertEqual(expected, self.modgen.unload_module("mod_name"))
 
@@ -298,7 +325,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "if { [ module-info mode load ] } {",
                 "    puts stderr \"test \\$test \\$test",
-                "test \\$foo \\$bar\"",
+                "    test \\$foo \\$bar\"",
                 "}",
                 '',
             ])

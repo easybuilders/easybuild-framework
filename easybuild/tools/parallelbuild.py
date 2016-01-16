@@ -36,11 +36,10 @@ import math
 import os
 import subprocess
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.config import build_option, get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.backend import job_backend
 from easybuild.tools.repository.repository import init_repository
@@ -49,9 +48,11 @@ from vsc.utils import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
+
 def _to_key(dep):
     """Determine key for specified dependency."""
     return ActiveMNS().det_full_module_name(dep)
+
 
 def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', prepare_first=True):
     """
@@ -136,7 +137,6 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
 
     command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
-    job_info_lines = []
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
@@ -189,6 +189,9 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     if buildstats:
         previous_time = buildstats[-1]['build_time']
         extra['hours'] = int(math.ceil(previous_time * 2 / 60))
+
+    if build_option('job_cores'):
+        extra['cores'] = build_option('job_cores')
 
     job = job_backend.make_job(command, name, easybuild_vars, **extra)
     job.module = easyconfig['ec'].full_mod_name

@@ -30,13 +30,15 @@ Unit tests for .yeb easyconfig format
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
-from easybuild.tools.filetools import read_file
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
+from easybuild.tools.filetools import read_file, write_file
 
 try:
     import yaml
@@ -76,6 +78,7 @@ class YebTest(EnhancedTestCase):
             'ictce-4.1.13',
             'SQLite-3.8.10.2-goolf-1.4.10',
             'Python-2.7.10-ictce-4.1.13',
+            'CrayCCE-5.1.29',
         ]
 
         for filename in test_files:
@@ -132,6 +135,42 @@ class YebTest(EnhancedTestCase):
         for key in ['fb1', 'fb2', 'fb3']:
             self.assertEqual(loaded.get(key), 'foobar')
 
+
+    def test_bad_toolchain_format(self):
+        """ Test alternate toolchain format name,version """
+        if 'yaml' not in sys.modules:
+            print "Skipping test_parse_yeb (no PyYAML available)"
+            return
+
+        # only test bad cases - the right ones are tested with the test files in test_parse_yeb
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
+        expected = r'Can not convert list .* to name and version dict. Expected 2 elements'
+        self.assertErrorRegex(EasyBuildError, expected, EasyConfig, os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
+
+    def test_external_module_toolchain(self):
+        """Test specifying external (build) dependencies in yaml format."""
+        if 'yaml' not in sys.modules:
+            print "Skipping test_external_module_toolchain (no PyYAML available)"
+            return
+
+        ecpath = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'yeb', 'CrayCCE-5.1.29.yeb')
+        metadata = {
+            'name': ['foo', 'bar'],
+            'version': ['1.2.3', '3.2.1'],
+            'prefix': '/foo/bar',
+        }
+        build_options = {
+            'external_modules_metadata': {'fftw/3.3.4.0': metadata},
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
+        ec = EasyConfig(ecpath)
+
+        self.assertEqual(ec.dependencies()[1]['full_mod_name'], 'fftw/3.3.4.0')
+        self.assertEqual(ec.dependencies()[1]['external_module_metadata'], metadata)
 
 def suite():
     """ returns all the testcases in this module """
