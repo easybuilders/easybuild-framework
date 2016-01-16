@@ -37,6 +37,7 @@ from unittest import main as unittestmain
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
@@ -55,11 +56,13 @@ debug_echo () {
 }
 
 debug_echo "$@"
+
+#an array of excludes (probably more than one)
+excludes=()
 # only parse what we need to spit out the expected package file, ignore the rest
 while true
 do
     debug_echo "arg: $1"
-    debug_echo "rest: $@"
     case "$1" in
         "--workdir")
             workdir="$2"
@@ -89,6 +92,11 @@ do
         "-s")
             source="$2"
             ;;
+        "--exclude")
+            # pushing this onto an array
+            debug_echo "an exclude being pushed" $2
+            excludes+=("$2")
+            ;;
         --*)
             debug_echo "got a unhandled option"
             ;;
@@ -105,10 +113,17 @@ done
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
 echo $@ >> $pkgfile
-echo "Contents of installdir $installdir:" >> $pkgfile
-ls $installdir >> $pkgfile
+echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
+for exclude in ${excludes[*]}; do
+    exclude_str+=" -not -path /${exclude} "
+done
+find_cmd="find $installdir  $exclude_str "
+debug_echo "trying: $find_cmd"
+$find_cmd >> $pkgfile
+echo "ENDCONTENTS" >> $pkgfile
 echo "Contents of module file $modulefile:" >> $pkgfile
 cat $modulefile >> $pkgfile
+echo "I found excludes "${excludes[*]} >> $pkgfile
 """
 
 
@@ -188,6 +203,12 @@ class PackageTest(EnhancedTestCase):
         # build & install first
         easyblock.run_all_steps(False)
 
+        # write a dummy log and report file to make sure they don't get packaged
+        logfile = os.path.join(easyblock.installdir, log_path(), "logfile.log")
+        write_file(logfile, "I'm a logfile")
+        reportfile = os.path.join(easyblock.installdir, log_path(), "report.md")
+        write_file(reportfile, "I'm a reportfile")
+
         # package using default packaging configuration (FPM to build RPM packages)
         pkgdir = package(easyblock)
 
@@ -195,11 +216,18 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
         pkgtxt = read_file(pkgfile)
-        pkgtxt_regex = re.compile("Contents of installdir %s" % easyblock.installdir)
+        pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
+        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
+        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+
         if DEBUG:
+            print "The FPM script debug output"
             print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
+            print "The Package File"
+            print read_file(pkgfile)
+
 
 def suite():
     """ returns all the testcases in this module """
