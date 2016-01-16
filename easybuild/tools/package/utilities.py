@@ -107,9 +107,12 @@ def package_with_fpm(easyblock):
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
     depstring = ''
     for dep in deps:
-        _log.debug("The dep added looks like %s ", dep)
-        dep_pkgname = package_naming_scheme.name(dep)
-        depstring += " --depends %s" % quote_str(dep_pkgname)
+        if dep.get('external_module', False):
+            _log.debug("Skipping dep marked as external module: %s", dep['name'])
+        else:
+            _log.debug("The dep added looks like %s ", dep)
+            dep_pkgname = package_naming_scheme.name(dep)
+            depstring += " --depends %s" % quote_str(dep_pkgname)
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_glob = [
