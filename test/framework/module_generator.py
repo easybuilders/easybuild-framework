@@ -264,8 +264,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             # Test guarded 'module use' statements using prefix
             expected = ''.join([
-                'if {[file isdirectory [file join "/foo" "/some/path"]]} {\n',
-                '    module use [file join "/foo" "/some/path"]\n',
+                'if { [ file isdirectory [ file join "/foo" "/some/path" ] ] } {\n',
+                '    module use [ file join "/foo" "/some/path" ]\n',
                 '}\n',
             ])
             self.assertEqual(self.modgen.use([quote_str("/some/path")], prefix=quote_str("/foo"), guarded=True),
@@ -280,7 +280,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             # Test guarded 'module use' statements using prefix
             expected = ''.join([
-                'if (isDir(pathJoin("/foo", "/some/path"))) then\n',
+                'if isDir(pathJoin("/foo", "/some/path")) then\n',
                 '    prepend_path("MODULEPATH", pathJoin("/foo", "/some/path"))\n',
                 'end\n',
             ])

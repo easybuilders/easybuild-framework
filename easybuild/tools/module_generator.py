@@ -299,13 +299,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
         use_statements = []
         for path in paths:
             if prefix:
-                full_path = "[file join %s %s]" % (prefix, path)
+                full_path = '[ file join %s %s ]' % (prefix, path)
             else:
                 full_path = path
             if guarded:
-                use_statements.append("if {[file isdirectory %s]} {\n" % full_path)
-                use_statements.append("    module use %s\n" % full_path)
-                use_statements.append("}\n")
+                cond_statement = self.conditional_statement('file isdirectory %s' % full_path,
+                                                            'module use %s' % full_path)
+                use_statements.append(cond_statement)
             else:
                 use_statements.append("module use %s\n" % full_path)
         return ''.join(use_statements)
@@ -360,7 +360,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
-    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)\n'
+    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -483,7 +483,8 @@ class ModuleGeneratorLua(ModuleGenerator):
                     abspaths.append('root')
 
         statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in abspaths]
-        return ''.join(statements)
+        statements.append('')
+        return '\n'.join(statements)
 
     def use(self, paths, prefix=None, guarded=False):
         """
@@ -493,15 +494,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         use_statements = []
         for path in paths:
             if prefix:
-                full_path = "pathJoin(%s, %s)" % (prefix, path)
+                full_path = 'pathJoin(%s, %s)' % (prefix, path)
             else:
                 full_path = path
             if guarded:
-                use_statements.append('if (isDir(%s)) then\n' % full_path)
-                use_statements.append('    ' + self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
-                use_statements.append('end\n')
+                cond_statement = self.conditional_statement('isDir(%s)' % full_path,
+                                                            self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                use_statements.append(cond_statement)
             else:
-                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
         return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
