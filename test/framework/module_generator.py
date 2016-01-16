@@ -271,6 +271,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             self.assertEqual('setenv("key", "value")\n', self.modgen.set_environment("key", "value"))
 
+    def test_get_env(self):
+        """Test getting value of environment variable."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual('$env(HOSTNAME)', self.modgen.get_env('HOSTNAME'))
+            self.assertEqual('$env(HOME)', self.modgen.det_home())
+        else:
+            self.assertEqual('os.getenv("HOSTNAME")', self.modgen.get_env('HOSTNAME'))
+            self.assertEqual('os.getenv("HOME")', self.modgen.det_home())
+
     def test_alias(self):
         """Test setting of alias in modulefiles."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:

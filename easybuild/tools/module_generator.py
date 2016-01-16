@@ -128,6 +128,18 @@ class ModuleGenerator(object):
         """Return formatted conditional statement, with given condition and body."""
         raise NotImplementedError
 
+    def get_env(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        raise NotImplementedError
+
+    def det_home(self):
+        """
+        Return module-syntax specific code to determine the user's home directory.
+        """
+        return self.get_env('HOME')
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -298,11 +310,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
-    def det_home(self):
+    def get_env(self, envvar):
         """
-        Return module-syntax specific code to determine the user's home directory.
+        Return module-syntax specific code to get value of specific environment variable.
         """
-        return '$env(HOME)'
+        return '$env(%s)' % envvar
+
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
@@ -473,11 +486,11 @@ class ModuleGeneratorLua(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias("%s", %s)\n' % (key, quote_str(value))
 
-    def det_home(self):
+    def get_env(self, envvar):
         """
-        Return module-syntax specific code to determine the user's home directory.
+        Return module-syntax specific code to get value of specific environment variable.
         """
-        return 'os.getenv("HOME")'
+        return 'os.getenv("%s")' % envvar
 
 
 def avail_module_generators():
