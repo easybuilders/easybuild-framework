@@ -77,7 +77,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
-from easybuild.tools.utilities import remove_unwanted_chars, quote_str
+from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
@@ -1041,17 +1041,15 @@ class EasyBlock(object):
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
-            quoted_modpath_exts = [quote_str(ext) for ext in full_path_modpath_extensions]
-            txt = self.module_generator.use(quoted_modpath_exts)
+            txt = self.module_generator.use(full_path_modpath_extensions)
 
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
-                quoted_user_modpath_exts = [quote_str(os.path.join(user_modpath, ext)) for ext in user_modpath_exts]
-                txt += self.module_generator.use(quoted_user_modpath_exts,
-                                                 prefix=self.module_generator.getenv_cmd('HOME'), guarded=True)
+                txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
+                                                 guarded=True)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt

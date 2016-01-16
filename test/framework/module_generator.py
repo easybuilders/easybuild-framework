@@ -260,7 +260,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'module use "/some/path"\n',
                 'module use "/foo/bar/baz"\n',
             ])
-            self.assertEqual(self.modgen.use([quote_str(p) for p in "/some/path", "/foo/bar/baz"]), expected)
+            self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
 
             # Test guarded 'module use' statements using prefix
             expected = ''.join([
@@ -268,15 +268,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '    module use [ file join "/foo" "/some/path" ]\n',
                 '}\n',
             ])
-            self.assertEqual(self.modgen.use([quote_str("/some/path")], prefix=quote_str("/foo"), guarded=True),
-                             expected)
+            self.assertEqual(self.modgen.use(["/some/path"], prefix=quote_str("/foo"), guarded=True), expected)
         else:
             # Test regular 'module use' statements
             expected = ''.join([
                 'prepend_path("MODULEPATH", "/some/path")\n',
                 'prepend_path("MODULEPATH", "/foo/bar/baz")\n',
             ])
-            self.assertEqual(self.modgen.use([quote_str(p) for p in "/some/path", "/foo/bar/baz"]), expected)
+            self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
 
             # Test guarded 'module use' statements using prefix
             expected = ''.join([
@@ -284,8 +283,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '    prepend_path("MODULEPATH", pathJoin("/foo", "/some/path"))\n',
                 'end\n',
             ])
-            self.assertEqual(self.modgen.use([quote_str("/some/path")], prefix=quote_str("/foo"), guarded=True),
-                             expected)
+            self.assertEqual(self.modgen.use(["/some/path"], prefix=quote_str("/foo"), guarded=True), expected)
 
     def test_env(self):
         """Test setting of environment variables."""

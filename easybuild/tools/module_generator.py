@@ -298,10 +298,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         use_statements = []
         for path in paths:
+            quoted_path = quote_str(path)
             if prefix:
-                full_path = '[ file join %s %s ]' % (prefix, path)
+                full_path = '[ file join %s %s ]' % (prefix, quoted_path)
             else:
-                full_path = path
+                full_path = quoted_path
             if guarded:
                 cond_statement = self.conditional_statement('file isdirectory %s' % full_path,
                                                             'module use %s' % full_path)
@@ -493,10 +494,11 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         use_statements = []
         for path in paths:
+            quoted_path = quote_str(path)
             if prefix:
-                full_path = 'pathJoin(%s, %s)' % (prefix, path)
+                full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
             else:
-                full_path = path
+                full_path = quoted_path
             if guarded:
                 cond_statement = self.conditional_statement('isDir(%s)' % full_path,
                                                             self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
