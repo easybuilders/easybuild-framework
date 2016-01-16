@@ -61,6 +61,9 @@ class ModuleGenerator(object):
     MODULE_FILE_EXTENSION = None
     MODULE_HEADER = None
 
+    # a single level of indentation
+    INDENTATION = ' ' * 4
+
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
@@ -124,8 +127,40 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def conditional_statement(self, condition, body, negative=False):
+    def conditional_statement(self, condition, body, negative=False, indent_body=True):
         """Return formatted conditional statement, with given condition and body."""
+        raise NotImplementedError
+
+    def get_description(self, conflict=True):
+        """Generate a description."""
+        raise NotImplementedError
+
+    def prepend_paths(self, key, paths, allow_abs=False):
+        """Generate prepend-path statements for the given list of paths."""
+        raise NotImplementedError
+
+    def use(self, paths):
+        """Generate module use statements for given list of module paths."""
+        raise NotImplementedError
+
+    def set_environment(self, key, value, relpath=False):
+        """Generate setenv statement for the given key/value pair."""
+        raise NotImplementedError
+
+    def msg_on_load(self, msg):
+        """Add a message that should be printed when loading the module."""
+        raise NotImplementedError
+
+    def set_alias(self, key, value):
+        """Generate set-alias statement in modulefile for the given key/value pair."""
+        raise NotImplementedError
+
+    def family(self, family):
+        """Generate family statement."""
+        raise NotImplementedError
+
+    def properties(self, properties):
+        """Generate property statements."""
         raise NotImplementedError
 
     def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
@@ -163,15 +198,17 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False):
+    def conditional_statement(self, condition, body, negative=False, indent_body=True):
         """Return formatted conditional statement, with given condition and body."""
         if negative:
             lines = ["if { ![ %s ] } {" % condition]
         else:
             lines = ["if { [ %s ] } {" % condition]
 
-        for line in body.split('\n'):
-            lines.append('    ' + line)
+        if indent_body:
+            for line in body.split('\n'):
+                lines.append(self.INDENTATION + line)
+
         lines.extend(['}', ''])
         return '\n'.join(lines)
 
@@ -189,8 +226,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         lines = [
             self.MODULE_HEADER.replace('%', '%%'),
             "proc ModulesHelp { } {",
-            "    puts stderr { %(description)s",
-            "    }",
+            self.INDENTATION + "puts stderr { %(description)s",
+            self.INDENTATION + '}',
             '}',
             '',
             '%(whatis_lines)s',
@@ -325,6 +362,21 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
+    def lmod_only(self, statements):
+        """Put provided statements under Lmod-only condition."""
+        # $_ contains full path to program being used to parse module file
+        # when using Lmod, this should always be the tcl2lua.tcl script
+        return self.conditional_statement('string match "*tcl2lua.tcl" $env(_)', statements, indent_body=False)
+
+    def family(self, family):
+        """Generate family statement."""
+        return self.lmod_only(self.INDENTATION + 'family "%s"' % family)
+
+    def properties(self, properties):
+        """Generate property statements."""
+        property_statements = '\n'.join([self.INDENTATION + 'add-property "%s" "%s"' % prop for prop in properties])
+        return self.lmod_only(property_statements)
+
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
@@ -349,15 +401,17 @@ class ModuleGeneratorLua(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "-- %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False):
+    def conditional_statement(self, condition, body, negative=False, indent_body=True):
         """Return formatted conditional statement, with given condition and body."""
         if negative:
             lines = ["if not %s then" % condition]
         else:
             lines = ["if %s then" % condition]
 
-        for line in body.split('\n'):
-            lines.append('    ' + line)
+        if indent_body:
+            body = self.INDENTATION + body
+        lines.append(body)
+
         lines.extend(['end', ''])
         return '\n'.join(lines)
 
@@ -496,6 +550,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias("%s", %s)\n' % (key, quote_str(value))
+
+    def family(self, family):
+        """Generate family statement."""
+        return 'family("%s")\n' % family
+
+    def properties(self, properties):
+        """Generate property statements."""
+        property_statements = '\n'.join(['add_property("%s", "%s")' % prop for prop in properties] + [''])
+        return property_statements
 
 
 def avail_module_generators():

@@ -159,6 +159,7 @@ DEFAULT_CONFIG = {
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
+    'modfamilies': [[], "List of module families to which software is a part of", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
     'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],

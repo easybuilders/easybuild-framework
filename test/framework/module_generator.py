@@ -304,6 +304,43 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             pass
 
+    def test_family(self):
+        """Test generating family statement."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            expected = ''.join([
+                'family("compiler")\n',
+            ])
+        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = ''.join([
+                'if { [ string match "*tcl2lua.tcl" $env(_) ] } {\n',
+                '    family "compiler"\n',
+                '}\n',
+            ])
+        else:
+            self.assertTrue(False, "Uknown module generator class %s" % self.MODULE_GENERATOR_CLASS)
+
+        self.assertEqual(self.modgen.family('compiler'), expected)
+
+    def test_properties(self):
+        """Test generating property statements."""
+        properties = [('state', 'testing'), ('arch', 'offload:mic')]
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            expected = ''.join([
+                'add_property("state", "testing")\n',
+                'add_property("arch", "offload:mic")\n',
+            ])
+        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = ''.join([
+                'if { [ string match "*tcl2lua.tcl" $env(_) ] } {\n',
+                '    add-property "state" "testing"\n',
+                '    add-property "arch" "offload:mic"\n',
+                '}\n',
+            ])
+        else:
+            self.assertTrue(False, "Uknown module generator class %s" % self.MODULE_GENERATOR_CLASS)
+
+        self.assertEqual(self.modgen.properties(properties), expected)
+
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -586,6 +623,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
+
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""
