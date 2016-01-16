@@ -295,6 +295,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
     def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
+        @param paths: list of module path extensions to generate use statements for; paths will be quoted
+        @param prefix: optional path prefix; not quoted, i.e., can be a statement
+        @param guarded: use statements will be guarded to only apply if path exists
         """
         use_statements = []
         for path in paths:
@@ -490,7 +493,9 @@ class ModuleGeneratorLua(ModuleGenerator):
     def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
-        @param paths: list of module path extensions to generate use statements for
+        @param paths: list of module path extensions to generate use statements for; paths will be quoted
+        @param prefix: optional path prefix; not quoted, i.e., can be a statement
+        @param guarded: use statements will be guarded to only apply if path exists
         """
         use_statements = []
         for path in paths:
