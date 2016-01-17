@@ -675,6 +675,10 @@ class EasyConfig(object):
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
         if dependency['external_module']:
+            # check whether the external module is hidden
+            if dependency['full_mod_name'].split('/')[-1].startswith('.'):
+                dependency['hidden'] = True
+
             self.log.debug("Returning parsed external dependency: %s", dependency)
             return dependency
 
