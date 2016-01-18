@@ -210,7 +210,7 @@ class EasyBlockTest(EnhancedTestCase):
             home = r'os.getenv\("HOME"\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if \(isDir\(pathJoin\(%s, "%s/Compiler/pi/3.14"\)\)\) then' % (home, subdir_user_modules),
+                r'if isDir\(pathJoin\(%s, "%s/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
             ])
@@ -818,10 +818,15 @@ class EasyBlockTest(EnhancedTestCase):
             modfile_path = os.path.join(modpath, modfile_path)
             modtxt = read_file(modfile_path)
 
-            for imkl_dep in excluded_deps:
-                tup = (imkl_dep, modfile_path, modtxt)
+            for dep in excluded_deps:
+                tup = (dep, modfile_path, modtxt)
                 failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
-                self.assertFalse(re.search('module load "%s"' % imkl_dep, modtxt), failmsg)
+                if get_module_syntax() == 'Tcl':
+                    self.assertFalse(re.search('module load %s' % dep, modtxt), failmsg)
+                elif get_module_syntax() == 'Lua':
+                    self.assertFalse(re.search('load("%s")' % dep, modtxt), failmsg)
+                else:
+                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
