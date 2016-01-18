@@ -135,7 +135,7 @@ class ModuleNamingScheme(object):
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
         @return: A list of $MODULEPATH subdirectories.
         """
-        # by default: use "system" module path extensions
+        # by default: use "system" module path extensions of naming scheme
         return self.det_modpath_extensions(ec)
 
     def det_init_modulepaths(self, ec):

@@ -91,7 +91,7 @@ class CategorizedHMNS(HierarchicalMNS):
 
         Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
         """
-        # Return module path extension of hierarchical MNS (i.e., w/o module class)
+        # Use "system" module path extensions of hierarchical MNS (i.e., w/o module class)
         return super(CategorizedHMNS, self).det_modpath_extensions(ec)
 
     def det_init_modulepaths(self, ec):
