@@ -287,7 +287,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
             self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
         else:
-            self.assertEqual('setalias("key", "value")\n', self.modgen.set_alias("key", "value"))
+            self.assertEqual('set_alias("key", "value")\n', self.modgen.set_alias("key", "value"))
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
