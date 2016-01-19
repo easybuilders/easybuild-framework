@@ -23,19 +23,19 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-CrayPGI toolchain: Cray compilers (PGI) and MPI via Cray compiler drivers - LibSci (PrgEnv-pgi) and Cray FFTW
+CrayPGI toolchain: Cray compilers (PGI) and MPI via Cray compiler drivers (PrgEnv-pgi) minus LibSci minus Cray FFTW
 
 @author: jgp (CSCS)
 """
 from easybuild.toolchains.compiler.craype import CrayPEPGI
-from easybuild.toolchains.fft.crayfftw import CrayFFTW
+# from easybuild.toolchains.fft.crayfftw import CrayFFTW
 # from easybuild.toolchains.linalg.libsci import LibSci
 from easybuild.toolchains.mpi.craympich import CrayMPICH
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
 # class CrayPGI(CrayPEPGI, CrayMPICH, LibSci, CrayFFTW):
-class CrayPGI(CrayPEPGI, CrayMPICH, CrayFFTW):
+class CrayPGI(CrayPEPGI, CrayMPICH):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (PGI) (PrgEnv-pgi)."""
     NAME = 'CrayPGI'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
