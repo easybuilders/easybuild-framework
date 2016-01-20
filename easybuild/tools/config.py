@@ -522,7 +522,12 @@ def get_log_filename(name, version, date=None, timestamp=None, add_salt=False):
 
 
 def find_last_log(curlog):
-    """Find location to last log file that is still available."""
+    """
+    Find location to last log file that is still available.
+
+    @param curlog: location to log file of current session
+    @return: path to last log file (or None if no log files were found)
+    """
     variables = ConfigurationVariables()
     log_dir = get_build_log_path()
     if variables['tmp_logdir'] is None:
