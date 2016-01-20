@@ -605,8 +605,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
 
         title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
 
-    if descr is None:
-        descr = "(created using `eb --new-pr`)"
+    full_descr = "(created using `eb --new-pr`)\n"
+    if descr is not None:
+        full_descr += descr
 
     # create PR
     github_target_branch = build_option('github_target_branch')
@@ -620,7 +621,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         "* title: \"%s\"" % title,
         "* description:",
         '"""',
-        descr,
+        full_descr,
         '"""',
         "* overview of changes:\n%s" % diff_stat,
         '',
@@ -634,7 +635,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
             'base': github_target_branch,
             'head': '%s:%s' % (github_user, branch),
             'title': title,
-            'body': descr,
+            'body': full_descr,
         }
         status, data = pulls_url.post(body=body)
         if not status == HTTP_STATUS_CREATED:
