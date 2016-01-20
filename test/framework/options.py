@@ -2020,6 +2020,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
         args = [
             '--new-pr',
+            '--experimental',
             toy_ec,
             '-D',
             '--disable-cleanup-tmpdir',
@@ -2085,6 +2086,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # PR for EasyBuild v2.5.0 release
             # we need a PR where the base branch is still available ('develop', in this case)
             '--update-pr=2237',
+            '--experimental',
             toy_ec,
             '-D',
             # only to speed things up
