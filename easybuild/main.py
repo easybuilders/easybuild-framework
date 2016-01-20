@@ -233,8 +233,6 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     _log.debug("Initial session state: %s" % init_session_state)
 
     # GitHub integration
-    target_account = options.github_target_account
-    target_repo = options.github_target_repo
     if options.review_pr or options.new_pr or options.update_pr:
         if options.review_pr:
             print review_pr(options.review_pr, colored=options.color)
