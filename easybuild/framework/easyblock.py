@@ -158,11 +158,16 @@ class EasyBlock(object):
         # module generator
         self.module_generator = module_generator(self, fake=True)
 
-        # modules footer
+        # modules footer/header
         self.modules_footer = None
         modules_footer_path = build_option('modules_footer')
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
+
+        self.modules_header = None
+        modules_header_path = build_option('modules_header')
+        if modules_header_path is not None:
+            self.modules_header = read_file(modules_header_path)
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -823,7 +828,7 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = self.load_fake_module(purge=True)
 
-        header = self.module_generator.MODULE_HEADER
+        header = self.module_generator.MODULE_SHEBANG
         if header:
             header += '\n'
 
@@ -1889,7 +1894,14 @@ class EasyBlock(object):
         """
         modpath = self.module_generator.prepare(fake=fake)
 
-        txt = self.make_module_description()
+        txt = self.module_generator.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+
+        if self.modules_header is not None:
+            txt += self.modules_header + '\n'
+
+        txt += self.make_module_description()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()

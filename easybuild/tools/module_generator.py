@@ -59,7 +59,7 @@ class ModuleGenerator(object):
     CHARS_TO_ESCAPE = None
 
     MODULE_FILE_EXTENSION = None
-    MODULE_HEADER = None
+    MODULE_SHEBANG = None
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -153,7 +153,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     SYNTAX = 'Tcl'
     MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
-    MODULE_HEADER = '#%Module'
+    MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
@@ -187,7 +187,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
             whatis = [description]
 
         lines = [
-            self.MODULE_HEADER.replace('%', '%%'),
             "proc ModulesHelp { } {",
             "    puts stderr { %(description)s",
             "    }",
@@ -332,7 +331,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     SYNTAX = 'Lua'
     MODULE_FILE_EXTENSION = '.lua'
-    MODULE_HEADER = ''  # no header in Lua module files
+    MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
     LOAD_REGEX = r'^\s*load\("(\S+)"'

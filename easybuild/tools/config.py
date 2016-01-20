@@ -106,6 +106,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_polling_interval',
         'job_target_resource',
         'modules_footer',
+        'modules_header',
         'only_blocks',
         'optarch',
         'parallel',
