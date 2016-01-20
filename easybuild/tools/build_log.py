@@ -184,7 +184,7 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, testing=False):
+def init_logging(logfile, logtostdout=False, silent=False):
     """Initialize logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True)
@@ -195,7 +195,7 @@ def init_logging(logfile, logtostdout=False, testing=False):
             os.close(fd)
 
         fancylogger.logToFile(logfile)
-        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
+        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
 
     log = fancylogger.getLogger(fname=False)
 

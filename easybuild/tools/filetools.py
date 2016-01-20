@@ -971,7 +971,7 @@ def move_logs(src_logfile, target_logfile):
                              src_logfile, target_logfile, err)
 
 
-def cleanup(logfile, tempdir, testing):
+def cleanup(logfile, tempdir, testing, silent=False):
     """Cleanup the specified log file and the tmp directory, if desired."""
 
     if build_option('cleanup_tmpdir') and not testing:
@@ -981,17 +981,18 @@ def cleanup(logfile, tempdir, testing):
                     os.remove(log)
             except OSError, err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing or silent)
 
         if tempdir is not None:
             try:
                 shutil.rmtree(tempdir, ignore_errors=True)
             except OSError, err:
                 raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing or silent)
 
     else:
-        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
+        msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
+        print_msg(msg, log=None, silent=testing or silent)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):

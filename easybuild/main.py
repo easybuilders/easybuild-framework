@@ -177,7 +177,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, testing=testing)
+    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.last_log)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -221,7 +221,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if options.last_log:
         # print location to last log file, and exit
         print_msg(find_last_log(logfile), log=_log, prefix=False)
-        cleanup(logfile, eb_tmpdir, testing)
+        cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 
     # check whether packaging is supported when it's being used
