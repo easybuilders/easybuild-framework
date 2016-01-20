@@ -127,6 +127,7 @@ BUILD_OPTIONS_CMDLINE = {
         'dump_autopep8',
         'extended_dry_run',
         'experimental',
+        'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
