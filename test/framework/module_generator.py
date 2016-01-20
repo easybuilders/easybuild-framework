@@ -77,7 +77,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
-                "#%Module",
                 "proc ModulesHelp { } {",
                 "    puts stderr { %s" % gzip_txt,
                 "    }",
@@ -110,7 +109,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb.cfg['whatis'] = ['foo', 'bar']
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
-                "#%Module",
                 "proc ModulesHelp { } {",
                 "    puts stderr { %s" % gzip_txt,
                 "    }",
