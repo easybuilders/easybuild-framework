@@ -97,6 +97,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hide_deps',
         'from_pr',
         'git_working_dirs_path',
+        'pr_branch_name',
         'pr_target_account',
         'pr_target_branch',
         'pr_target_repo',

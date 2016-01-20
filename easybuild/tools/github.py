@@ -567,6 +567,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     """Open new pull request using specified files."""
     _log.info("Opening new pull request for  with %s", paths)
 
+    pr_branch_name = build_option('pr_branch_name')
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
@@ -582,7 +583,8 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, target_account=pr_target_account,
+    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+                                                                    target_account=pr_target_account,
                                                                     commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
@@ -660,12 +662,13 @@ def update_pr(pr, paths, commit_msg=None):
                              pr, pr_target_account, pr_target_repo, status, pr_data)
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
+    account = pr_data['head']['label'].split(':')[0]
     branch = ':'.join(pr_data['head']['label'].split(':')[1:])
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
     _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
-                                                target_account=github_user, commit_msg=commit_msg)
+                                                target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 

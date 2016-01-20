@@ -376,6 +376,8 @@ class EasyBuildOptions(GeneralOption):
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", None, 'store', None),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
+            'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
+                               str, 'store', None),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
             'pr-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
