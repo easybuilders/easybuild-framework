@@ -972,7 +972,14 @@ def move_logs(src_logfile, target_logfile):
 
 
 def cleanup(logfile, tempdir, testing, silent=False):
-    """Cleanup the specified log file and the tmp directory, if desired."""
+    """
+    Cleanup the specified log file and the tmp directory, if desired.
+
+    @param logfile: path to log file to clean up
+    @param tempdir: path to temporary directory to clean up
+    @param testing: are we in testing mode? if so, don't actually clean up anything
+    @param silent: be silent (don't print anything to stdout)
+    """
 
     if build_option('cleanup_tmpdir') and not testing:
         if logfile is not None:

@@ -489,9 +489,15 @@ def get_build_log_path():
     return res
 
 
-def get_log_filename(name, version, date=None, timestamp=None, add_salt=False):
+def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     """
     Generate a filename to be used for logging
+
+    @param name: software name ('%(name)s')
+    @param version: software version ('%(version)s')
+    @param add_salt: add salt (5 random characters)
+    @param date: string representation of date to use ('%(date)s')
+    @param timestamp: timestamp to use ('%(time)s')
     """
     if date is None:
         date = time.strftime("%Y%m%d")
