@@ -1036,12 +1036,21 @@ class EasyBlock(object):
         txt = ''
         if self.cfg['include_modpath_extensions']:
             modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
-            self.log.debug("Including module path extensions returned by module naming scheme: %s" % modpath_exts)
+            self.log.debug("Including module path extensions returned by module naming scheme: %s", modpath_exts)
             full_path_modpath_extensions = [os.path.join(self.installdir_mod, ext) for ext in modpath_exts]
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
             txt = self.module_generator.use(full_path_modpath_extensions)
+
+            # add user-specific module path; use statement will be guarded so no need to create the directories
+            user_modpath = build_option('subdir_user_modules')
+            if user_modpath:
+                user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
+                user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
+                self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
+                txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
+                                                 guarded=True)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt

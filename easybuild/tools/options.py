@@ -319,6 +319,7 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
+            'subdir-user-modules': ("Base path of user-specific modules relative to their $HOME", None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage

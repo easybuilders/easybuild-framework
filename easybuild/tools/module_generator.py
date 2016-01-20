@@ -128,6 +128,12 @@ class ModuleGenerator(object):
         """Return formatted conditional statement, with given condition and body."""
         raise NotImplementedError
 
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        raise NotImplementedError
+
     def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
         """
         Generate load statement for specified module.
@@ -286,13 +292,26 @@ class ModuleGeneratorTcl(ModuleGenerator):
         statements = [template % (key, p) for p in abspaths]
         return ''.join(statements)
 
-    def use(self, paths):
+    def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
+        @param paths: list of module path extensions to generate use statements for; paths will be quoted
+        @param prefix: optional path prefix; not quoted, i.e., can be a statement
+        @param guarded: use statements will be guarded to only apply if path exists
         """
         use_statements = []
         for path in paths:
-            use_statements.append("module use %s\n" % path)
+            quoted_path = quote_str(path)
+            if prefix:
+                full_path = '[ file join %s %s ]' % (prefix, quoted_path)
+            else:
+                full_path = quoted_path
+            if guarded:
+                cond_statement = self.conditional_statement('file isdirectory %s' % full_path,
+                                                            'module use %s' % full_path)
+                use_statements.append(cond_statement)
+            else:
+                use_statements.append("module use %s\n" % full_path)
         return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
@@ -325,6 +344,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        return '$env(%s)' % envvar
+
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
@@ -339,7 +364,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
-    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)\n'
+    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -462,14 +487,30 @@ class ModuleGeneratorLua(ModuleGenerator):
                     abspaths.append('root')
 
         statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in abspaths]
-        return ''.join(statements)
+        statements.append('')
+        return '\n'.join(statements)
 
-    def use(self, paths):
+    def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
-        @param paths: list of module path extensions to generate use statements for
+        @param paths: list of module path extensions to generate use statements for; paths will be quoted
+        @param prefix: optional path prefix; not quoted, i.e., can be a statement
+        @param guarded: use statements will be guarded to only apply if path exists
         """
-        return ''.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths])
+        use_statements = []
+        for path in paths:
+            quoted_path = quote_str(path)
+            if prefix:
+                full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
+            else:
+                full_path = quoted_path
+            if guarded:
+                cond_statement = self.conditional_statement('isDir(%s)' % full_path,
+                                                            self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                use_statements.append(cond_statement)
+            else:
+                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
+        return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -496,6 +537,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set_alias("%s", %s)\n' % (key, quote_str(value))
+
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        return 'os.getenv("%s")' % envvar
 
 
 def avail_module_generators():

@@ -83,6 +83,17 @@ class CategorizedHMNS(HierarchicalMNS):
 
         return self.categorize_paths(basepaths)
 
+    def det_user_modpath_extensions(self, ec):
+        """
+        Determine user module path extensions, if any. As typical users are not expected to have many local modules,
+        further categorizing them using module classes is considered overkill. Thus, we are using a plain hierarchical
+        scheme for user modules instead.
+
+        Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
+        """
+        # Use "system" module path extensions of hierarchical MNS (i.e., w/o module class)
+        return super(CategorizedHMNS, self).det_modpath_extensions(ec)
+
     def det_init_modulepaths(self, ec):
         """
         Determine list of initial module paths (i.e., top of the hierarchy).
