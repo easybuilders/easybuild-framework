@@ -220,7 +220,8 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     if options.last_log:
         # print location to last log file, and exit
-        print_msg(find_last_log(logfile), log=_log, prefix=False)
+        last_log = find_last_log(logfile) or '(none)'
+        print_msg(last_log, log=_log, prefix=False)
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 

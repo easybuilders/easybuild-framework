@@ -549,10 +549,15 @@ def find_last_log(curlog):
     except OSError as err:
         raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
 
-    # log of current session is typically listed last, should be taken into account
-    res = sorted_paths[-1]
-    if os.path.samefile(res, curlog):
-        res = sorted_paths[-2]
+    try:
+        # log of current session is typically listed last, should be taken into account
+        res = sorted_paths[-1]
+        if os.path.exists(curlog) and os.path.samefile(res, curlog):
+            res = sorted_paths[-2]
+
+    except IndexError:
+        _log.debug("No last log file found (sorted retained paths: %s)", sorted_paths)
+        res = None
 
     _log.debug("Picked %s as last log file (current: %s) from %s", res, curlog, sorted_paths)
     return res
