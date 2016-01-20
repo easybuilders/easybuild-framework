@@ -41,10 +41,12 @@ from urllib2 import URLError
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax
+from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -1996,6 +1998,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         self.assertTrue(os.path.samefile(last_log_path, txt), "%s != %s" % (last_log_path, txt))
+
+    def test_fixed_installdir_naming_scheme(self):
+        """Test use of --fixed-installdir-naming-scheme."""
+        # by default, name of install dir match module naming scheme used
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'])
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+
+        # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
+        build_options = {
+            'fixed_installdir_naming_scheme': True,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
 
 def suite():
