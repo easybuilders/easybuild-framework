@@ -533,10 +533,21 @@ def find_last_log(curlog):
     _log.info("Looking for log files that match filename pattern '%s'...", glob_pattern)
 
     try:
-        # sorted by modification time, most recent last
-        sorted_paths = sorted(glob.glob(glob_pattern), key=lambda f: os.stat(f).st_mtime)
+        my_uid = os.getuid()
+        paths = []
+        for path in glob.glob(glob_pattern):
+            path_info = os.stat(path)
+            # only retain logs owned by current user
+            if path_info.st_uid == my_uid:
+                paths.append((path_info.st_mtime, path))
+            else:
+                _log.debug("Skipping %s, not owned by current user", path)
+
+        # sorted retained paths by modification time, most recent last
+        sorted_paths = [p for (_, p) in sorted(paths)]
+
     except OSError as err:
-        raise EasyBuildError("Failed to locate log files matching '%s': %s", glob_pattern, err)
+        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
 
     # log of current session is typically listed last, should be taken into account
     res = sorted_paths[-1]
