@@ -1063,7 +1063,12 @@ class EasyBlock(object):
             self.dry_run_msg("List of paths that would be searched and added to modulefile:")
 
             if self.dry_run:
-                lines.append(self.module_generator.comment("note: glob patterns are not expanded and existence checks for paths is skipped for the statements below"))
+                lines.append(self.module_generator.comment(
+                    """
+                    note: glob patterns are not expanded and existence checks
+                    for paths is skipped for the statements below
+                    """
+                ))
 
             for key in sorted(requirements):
                 self.dry_run_msg("\t'%s': %s" % (key, requirements[key]))
@@ -1074,11 +1079,8 @@ class EasyBlock(object):
 
                 for path in reqs:
                     # only use glob if the string is non-empty
-                    if path:
-                        if self.dry_run:
-                            paths = path
-                        else:
-                            paths = sorted(glob.glob(path))
+                    if path and not self.dry_run:
+                        paths = sorted(glob.glob(path))
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
                         paths = [path]
