@@ -565,7 +565,8 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_pr(paths, title=None, descr=None, commit_msg=None):
     """Open new pull request using specified files."""
-    _log.info("Opening new pull request for  with %s", paths)
+
+    _log.experimental("Opening new pull request for  with %s", paths)
 
     pr_branch_name = build_option('pr_branch_name')
     pr_target_account = build_option('pr_target_account')
@@ -649,7 +650,8 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
 @only_if_module_is_available('git', pkgname='GitPython')
 def update_pr(pr, paths, commit_msg=None):
     """Update specified pull request using specified files."""
-    _log.info("Updating pull request #%s with %s", pr, paths)
+
+    _log.experimental("Updating pull request #%s with %s", pr, paths)
 
     github_user = build_option('github_user')
     pr_target_account = build_option('pr_target_account')
