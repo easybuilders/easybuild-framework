@@ -673,7 +673,7 @@ def update_pr(pr, paths, commit_msg=None):
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
     full_repo = '%s/%s' % (pr_target_account, pr_target_repo)
-    msg = "Updated %s pull request #%s by pushing to branch %s/%s" % (full_repo, pr, github_user, branch)
+    msg = "Updated %s PR #%s by pushing to branch %s/%s" % (full_repo, pr, account, branch)
     if build_option('dry_run') or build_option('extended_dry_run'):
         msg += " [DRY RUN]"
     print_msg(msg, log=_log, prefix=False)
