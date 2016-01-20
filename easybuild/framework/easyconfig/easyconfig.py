@@ -1153,7 +1153,7 @@ def copy_easyconfigs(paths, target_dir):
 
     if os.path.exists(os.path.join(target_dir, subdir)):
         for path in paths:
-            ecs = process_easyconfig(path)
+            ecs = process_easyconfig(path, validate=False)
             if len(ecs) == 1:
                 file_info['ecs'].append(ecs[0]['ec'])
                 name = file_info['ecs'][-1].name
