@@ -1106,20 +1106,42 @@ def det_size(path):
 
 def copy_files(src, dst, symlinks=False, ignore=None):
     """
-    Wrapper around shutil.copytree to nicely handle extended dry run
-    Arguments are the same as for the original function
-    The destination directory must not exist
+    Copy the list of files or directories to a destintation
+    @src list or string of files and directories to copy
+    @dst the destination directory
+    @symlinks copy symlinks as symlinks
+    @ignore files to ignore in case the src is a directory
     """
     if build_option('extended_dry_run'):
         dry_run_msg("Copying directory %s to %s" % (src, dst), silent=build_option('silent'))
         return
 
     if os.path.exists(dst):
-        raise EasyBuildError("Destination directory %s of copy already exists.", dst)
+        if not os.path.isdir(dst):
+            raise EasyBuildError("File with the same name as destination directory %s \
+                                  already exists.", dst)
+        elif not os.path.listdir(dst):
+            raise EasyBuildError("Destination directory %s of copy already exists.", dst)
+        else:
+            try:
+                _log.debug("Removing empty directory %s." % dst)
+                os.rmdir(dst)
+            except OSError, err:
+                raise EasyBuildError("Failed to remove %s: %s", dst, err)
+
+    if isinstance(src, basestring):
+        src = [src]
 
     try:
-        _log.debug("Copying directory %s to %s" % (src, dst))
-        shutil.copytree(src, dst, symlinks=symlinks, ignore=ignore)
+        for item in src:
+            if os.path.isfile(item):
+                _log.debug("Copying file %s to %s" % (item, dst))
+                shutil.copy2(item, dst)
+            elif os.path.isdir(item):
+                _log.debug("Copying directory %s to %s" % (src, dst))
+                shutil.copytree(src, dst, symlinks=symlinks, ignore=ignore)
+            else:
+                raise EasyBuildError("Can't copy non-existing path %s to %s", item, dst)
     except OSError, err:
         raise EasyBuildError("Failed to copy %s to %s: %s", src, dst, err)
 
