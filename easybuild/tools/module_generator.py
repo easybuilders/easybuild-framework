@@ -61,6 +61,9 @@ class ModuleGenerator(object):
     MODULE_FILE_EXTENSION = None
     MODULE_HEADER = None
 
+    # a single level of indentation
+    INDENTATION = ' ' * 4
+
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
@@ -124,8 +127,15 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def conditional_statement(self, condition, body, negative=False):
-        """Return formatted conditional statement, with given condition and body."""
+    def conditional_statement(self, condition, body, negative=False, else_body=None):
+        """
+        Return formatted conditional statement, with given condition and body.
+
+        @param condition: string containing the statement for the if condition (in correct syntax)
+        @param body: (multiline) string with if body (in correct syntax, without indentation)
+        @param negative: boolean indicating whether the condition should be negated
+        @param else_body: optional body for 'else' part
+        """
         raise NotImplementedError
 
     def getenv_cmd(self, envvar):
@@ -169,16 +179,31 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False):
-        """Return formatted conditional statement, with given condition and body."""
+    def conditional_statement(self, condition, body, negative=False, else_body=None):
+        """
+        Return formatted conditional statement, with given condition and body.
+
+        @param condition: string containing the statement for the if condition (in correct syntax)
+        @param body: (multiline) string with if body (in correct syntax, without indentation)
+        @param negative: boolean indicating whether the condition should be negated
+        @param else_body: optional body for 'else' part
+        """
         if negative:
             lines = ["if { ![ %s ] } {" % condition]
         else:
             lines = ["if { [ %s ] } {" % condition]
 
         for line in body.split('\n'):
-            lines.append('    ' + line)
-        lines.extend(['}', ''])
+            lines.append(self.INDENTATION + line)
+
+        if else_body is None:
+            lines.extend(['}', ''])
+        else:
+            lines.append('} else {')
+            for line in else_body.split('\n'):
+                lines.append(self.INDENTATION + line)
+            lines.extend(['}', ''])
+
         return '\n'.join(lines)
 
     def get_description(self, conflict=True):
@@ -374,16 +399,31 @@ class ModuleGeneratorLua(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "-- %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False):
-        """Return formatted conditional statement, with given condition and body."""
+    def conditional_statement(self, condition, body, negative=False, else_body=None):
+        """
+        Return formatted conditional statement, with given condition and body.
+
+        @param condition: string containing the statement for the if condition (in correct syntax)
+        @param body: (multiline) string with if body (in correct syntax, without indentation)
+        @param negative: boolean indicating whether the condition should be negated
+        @param else_body: optional body for 'else' part
+        """
         if negative:
             lines = ["if not %s then" % condition]
         else:
             lines = ["if %s then" % condition]
 
         for line in body.split('\n'):
-            lines.append('    ' + line)
-        lines.extend(['end', ''])
+            lines.append(self.INDENTATION + line)
+
+        if else_body is None:
+            lines.extend(['end', ''])
+        else:
+            lines.append('else')
+            for line in else_body.split('\n'):
+                lines.append(self.INDENTATION + line)
+            lines.extend(['end', ''])
+
         return '\n'.join(lines)
 
     def get_description(self, conflict=True):
