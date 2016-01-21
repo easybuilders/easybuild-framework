@@ -1804,11 +1804,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         klass = get_easyblock_class('FooBar')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
-        # 'undo' import of foo easyblock
+        # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
+
+        os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
 
         error_msg = "Failed to obtain class for FooBar easyblock"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
+
+        # clear log
+        write_file(self.logfile, '')
 
         # importing without specifying 'generic' also works, and generic easyblock can be imported as well
         write_file(os.path.join(self.test_prefix, 'foobar.py'), foo_txt)
