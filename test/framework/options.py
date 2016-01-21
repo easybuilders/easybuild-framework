@@ -941,26 +941,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
-    def test_footer(self):
-        """Test specifying a module footer."""
+    def test_header_footer(self):
+        """Test specifying a module header/footer."""
 
         # create file containing modules footer
         if get_module_syntax() == 'Tcl':
-            module_footer_txt = '\n'.join([
+            modules_header_txt = '\n'.join([
+                "# test header",
+                "setenv SITE_SPECIFIC_HEADER_ENV_VAR foo",
+            ])
+            modules_footer_txt = '\n'.join([
                 "# test footer",
-                "setenv SITE_SPECIFIC_ENV_VAR foobar",
+                "setenv SITE_SPECIFIC_FOOTER_ENV_VAR bar",
             ])
         elif get_module_syntax() == 'Lua':
-            module_footer_txt = '\n'.join([
+            modules_header_txt = '\n'.join([
+                "-- test header",
+                'setenv("SITE_SPECIFIC_HEADER_ENV_VAR", "foo")',
+            ])
+            modules_footer_txt = '\n'.join([
                 "-- test footer",
-                'setenv("SITE_SPECIFIC_ENV_VAR", "foobar")',
+                'setenv("SITE_SPECIFIC_FOOTER_ENV_VAR", "bar")',
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-        fd, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
-        os.close(fd)
-        write_file(modules_footer, module_footer_txt)
+        # dump header/footer text to file
+        handle, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
+        os.close(handle)
+        write_file(modules_footer, modules_footer_txt)
+        handle, modules_header = tempfile.mkstemp(prefix='modules-header-')
+        os.close(handle)
+        write_file(modules_header, modules_header_txt)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
@@ -973,20 +985,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
+            '--modules-header=%s' % modules_header,
             '--modules-footer=%s' % modules_footer,
         ]
-        self.eb_main(args, do_build=True)
+        self.eb_main(args, do_build=True, raise_error=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-        footer_regex = re.compile(r'%s$' % module_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
-        msg = "modules footer '%s' is present in '%s'" % (module_footer_txt, toy_module_txt)
-        self.assertTrue(footer_regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_header_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules header '%s' is present in '%s'" % (modules_header_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules footer '%s' is present in '%s'" % (modules_footer_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
 
         # cleanup
         os.remove(modules_footer)
+        os.remove(modules_header)
 
     def test_recursive_module_unload(self):
         """Test generating recursively unloading modules."""
