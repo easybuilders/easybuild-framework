@@ -441,7 +441,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         raise EasyBuildError("No paths specified")
 
     tmp_git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
-    os.rmdir(tmp_git_working_dir)
 
     # copy or init git working directory
     pr_target_repo = build_option('pr_target_repo')
@@ -451,12 +450,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         if os.path.exists(workdir):
             try:
                 print_msg("copying %s..." % workdir)
+                os.rmdir(tmp_git_working_dir)
                 shutil.copytree(workdir, tmp_git_working_dir)
             except OSError as err:
                 raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, tmp_git_working_dir, err)
-
-    if not os.path.exists(tmp_git_working_dir):
-        mkdir(tmp_git_working_dir, parents=True)
 
     git_repo = git.Repo.init(tmp_git_working_dir)
 
@@ -505,6 +502,8 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
         origin_start_branch.checkout(b=alt_branch)
     _log.debug("git status: %s", git_repo.git.status())
+
+    origin.pull(start_branch)
 
     # copy files to right place
     file_info = copy_easyconfigs(paths, tmp_git_working_dir)
