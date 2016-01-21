@@ -1018,7 +1018,7 @@ def cleanup(logfile, tempdir, testing, silent=False):
 
 
 def copytree(src, dst, symlinks=False, ignore=None):
-    """Has been replaced by copy_files"""
+    """Deprecated: has been replaced by copy_files"""
     _log.deprecated("easybuild.tools.filetools.copytree has been replaced by copy_files", '3.0')
     copy_files(src, dst, symlinks=symlinks, ignore=ignore)
 
@@ -1108,7 +1108,7 @@ def copy_files(src, dst, symlinks=False, ignore=None):
     """
     Wrapper around shutil.copytree to nicely handle extended dry run
     Arguments are the same as for the original function
-    The destination directoy must not exist
+    The destination directory must not exist
     """
     if build_option('extended_dry_run'):
         dry_run_msg("Copying directory %s to %s" % (src, dst), silent=build_option('silent'))
