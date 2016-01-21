@@ -717,6 +717,9 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
+    if build_option('extended_dry_run'):
+        dry_run_msg("Adjusting permissions for %s to %s" % (name, permissionBits), silent=build_option('silent'))
+        return
 
     name = os.path.abspath(name)
 
