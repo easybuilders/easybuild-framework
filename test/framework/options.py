@@ -993,10 +993,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-        for txt in [modules_header_txt, modules_footer_txt]:
-            regex = re.compile(r'%s$' % txt.replace('(', '\\(').replace(')', '\\)'), re.M)
-            msg = "modules footer '%s' is present in '%s'" % (txt, toy_module_txt)
-            self.assertTrue(regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_header_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules header '%s' is present in '%s'" % (modules_header_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules footer '%s' is present in '%s'" % (modules_footer_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
 
         # cleanup
         os.remove(modules_footer)

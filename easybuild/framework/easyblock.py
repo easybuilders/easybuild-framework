@@ -1898,7 +1898,7 @@ class EasyBlock(object):
         if txt:
             txt += '\n'
 
-        if self.modules_header is not None:
+        if self.modules_header:
             txt += self.modules_header + '\n'
 
         txt += self.make_module_description()
