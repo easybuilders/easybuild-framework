@@ -1806,6 +1806,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
+        reload(easybuild.easyblocks.generic)
 
         os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
 
