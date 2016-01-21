@@ -84,6 +84,15 @@ class ModuleNamingScheme(object):
         # by default: full module name doesn't include a $MODULEPATH subdir
         return self.det_full_module_name(ec)
 
+    def parse_full_module_name(self, mod_name):
+        """
+        Parse specified full module name into list of possible matching name/version/versionsuffix/toolchain specs.
+
+        @param mod_name: full module name to parse
+        @return: list of dictionaries with possible matching specs
+        """
+        raise EasyBuildError("Parsing of module names not implemented for '%s'", self.__class__.__name__)
+
     def det_install_subdir(self, ec):
         """
         Determine name of software installation subdirectory of install path.
