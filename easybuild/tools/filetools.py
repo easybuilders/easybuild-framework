@@ -718,7 +718,19 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     and directories (if onlyfiles is False) in path
     """
     if build_option('extended_dry_run'):
-        dry_run_msg("Adjusting permissions for %s to %s" % (name, permissionBits), silent=build_option('silent'))
+        msg = ''
+        if recursive:
+            msg += 'Recursively '
+        msg += 'adjusting permissions of %s ' % name
+        if add:
+            msg += ' by adding the following bits: %s ' % bin(permissionBits)
+        else:
+            msg += ' by removing the following bits: %s ' % bin(permissionBits)
+
+        if group_id is not None:
+            msg += ' and group id to %s' % group_id
+
+        dry_run_msg(msg, silent=build_option('silent'))
         return
 
     name = os.path.abspath(name)
