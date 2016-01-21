@@ -1119,6 +1119,7 @@ def change_to(dst):
         return
 
     try:
+        _log.debug("Changing to directory %s" % dst)
         os.chdir(dst)
     except OSError, err:
         raise EasyBuildError("Failed to move to directory %s: %s", dst, err)
