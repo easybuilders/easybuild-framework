@@ -177,3 +177,24 @@ def restore_env(env):
     Restore active environment based on specified dictionary.
     """
     modify_env(os.environ, env, verbose=False)
+
+
+def sanitize_env():
+    """
+    Sanitize environment.
+
+    This function undefines all $PYTHON* environment variables,
+    since they may affect the build/install procedure of Python packages.
+
+    cfr. https://docs.python.org/2/using/cmdline.html#environment-variables
+
+    While the $PYTHON* environment variables may be relevant/required for EasyBuild itself,
+    and for any non-stdlib Python packages it uses,
+    they are irrelevant (and potentially harmful) when installing Python packages.
+
+    Note that this is not an airtight protection against the Python being used in the build/install procedure
+    picking up non-stdlib Python packages (e.g., setuptools, vsc-base, ...), thanks to the magic of .pth files,
+    cfr. https://docs.python.org/2/library/site.html .
+    """
+    keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
+    unset_env_vars(keys_to_unset)
