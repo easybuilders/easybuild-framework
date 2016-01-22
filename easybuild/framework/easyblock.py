@@ -1019,7 +1019,7 @@ class EasyBlock(object):
 
     def make_module_footer(self):
         """
-        Insert a footer section in the modulefile, primarily meant for contextual information
+        Insert a footer section in the module file, primarily meant for contextual information
         """
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
@@ -1074,7 +1074,16 @@ class EasyBlock(object):
                 raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
 
             lines.append('\n')
+
+            if self.dry_run:
+                self.dry_run_msg("List of paths that would be searched and added to module file:\n")
+                note = "note: glob patterns are not expanded and existence checks "
+                note += "for paths are skipped for the statements below due to dry run"
+                lines.append(self.module_generator.comment(note))
+
             for key in sorted(requirements):
+                if self.dry_run:
+                    self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
                 reqs = requirements[key]
                 if isinstance(reqs, basestring):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
@@ -1082,12 +1091,15 @@ class EasyBlock(object):
 
                 for path in reqs:
                     # only use glob if the string is non-empty
-                    if path:
+                    if path and not self.dry_run:
                         paths = sorted(glob.glob(path))
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
                         paths = [path]
+
                     lines.append(self.module_generator.prepend_paths(key, paths))
+            if self.dry_run:
+                self.dry_run_msg('')
             try:
                 os.chdir(self.orig_workdir)
             except OSError, err:
