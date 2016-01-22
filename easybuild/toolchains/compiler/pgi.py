@@ -85,3 +85,8 @@ class Pgi(Compiler):
         'dynamic':'-Bdynamic',
     }
 
+    def _set_compiler_flags(self):
+        """Set -tp=x64 if optarch is set to False."""
+        if not self.options.get('optarch', False):
+            self.variables.nextend('OPTFLAGS', ['tp=x64'])
+        super(Pgi, self)._set_compiler_flags()
