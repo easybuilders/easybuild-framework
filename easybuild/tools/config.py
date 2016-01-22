@@ -90,7 +90,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
-        'default_optimisation',
+        'default_opt_level',
         'download_timeout',
         'dump_test_report',
         'easyblock',
