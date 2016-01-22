@@ -1014,7 +1014,7 @@ class EasyBlock(object):
 
     def make_module_footer(self):
         """
-        Insert a footer section in the modulefile, primarily meant for contextual information
+        Insert a footer section in the module file, primarily meant for contextual information
         """
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
@@ -1060,18 +1060,15 @@ class EasyBlock(object):
                 raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
 
             lines.append('\n')
+            self.dry_run_msg("List of paths that would be searched and added to module file:\n")
 
             if self.dry_run:
-                self.dry_run_msg("List of paths that would be searched and added to modulefile:")
-                lines.append(self.module_generator.comment(
-                    """
-                    note: glob patterns are not expanded and existence checks
-                    for paths is skipped for the statements below
-                    """
-                ))
+                note = "note: glob patterns are not expanded and existence checks "
+                note += "for paths are skipped for the statements below due to dry run"
+                lines.append(self.module_generator.comment(note))
 
             for key in sorted(requirements):
-                self.dry_run_msg("\t'%s': %s" % (key, requirements[key]))
+                self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
                 reqs = requirements[key]
                 if isinstance(reqs, basestring):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
