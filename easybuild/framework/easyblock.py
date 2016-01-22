@@ -1060,9 +1060,9 @@ class EasyBlock(object):
                 raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
 
             lines.append('\n')
-            self.dry_run_msg("List of paths that would be searched and added to modulefile:")
 
             if self.dry_run:
+                self.dry_run_msg("List of paths that would be searched and added to modulefile:")
                 lines.append(self.module_generator.comment(
                     """
                     note: glob patterns are not expanded and existence checks
