@@ -103,18 +103,23 @@ def setvar(key, value, verbose=True):
         dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
 
 
-def unset_env_vars(keys):
+def unset_env_vars(keys, verbose=True):
     """
     Unset the keys given in the environment
     Returns a dict with the old values of the unset keys
     """
     old_environ = {}
 
+    if keys and verbose and build_option('extended_dry_run'):
+        dry_run_msg("Undefining environment variables:\n", silent=build_option('silent'))
+
     for key in keys:
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
             del os.environ[key]
+            if verbose and build_option('extended_dry_run'):
+                dry_run_msg("  unset %s  # value was: %s" % (key, old_environ[key]), silent=build_option('silent'))
 
     return old_environ
 
@@ -197,4 +202,4 @@ def sanitize_env():
     cfr. https://docs.python.org/2/library/site.html .
     """
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
-    unset_env_vars(keys_to_unset)
+    unset_env_vars(keys_to_unset, verbose=False)
