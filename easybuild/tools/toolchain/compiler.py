@@ -241,7 +241,7 @@ class Compiler(Toolchain):
 
         # 1st one is the one to use. add default at the end so len is at least 1
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                   [default_opt]
+                   [self.options.option(default_opt)]
 
         optarchflags = []
         if build_option('optarch') == OPTARCH_GENERIC:
