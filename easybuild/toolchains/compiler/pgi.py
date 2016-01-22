@@ -45,7 +45,7 @@ class Pgi(Compiler):
     """PGI compiler class
     """
 
-    COMPILER_MODULE_NAME = ['pgi']
+    COMPILER_MODULE_NAME = ['PGI']
 
     COMPILER_FAMILY = TC_CONSTANT_PGI
 
