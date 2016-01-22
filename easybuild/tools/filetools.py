@@ -1139,7 +1139,7 @@ def copy_files(src, dst, symlinks=False, ignore=None):
                 shutil.copy2(item, dst)
             elif os.path.isdir(item):
                 _log.debug("Copying directory %s to %s" % (src, dst))
-                shutil.copytree(src, dst, symlinks=symlinks, ignore=ignore)
+                shutil.copytree(item, dst, symlinks=symlinks, ignore=ignore)
             else:
                 raise EasyBuildError("Can't copy non-existing path %s to %s", item, dst)
     except OSError, err:
