@@ -1816,6 +1816,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         # importing without specifying 'generic' also works, and generic easyblock can be imported as well
+        # this works thanks to a fallback mechanism in get_easyblock_class
         txt = '\n'.join([
             'from easybuild.framework.easyblock import EasyBlock',
             'class GenericTest(EasyBlock):',
