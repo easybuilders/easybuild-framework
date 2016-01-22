@@ -1780,13 +1780,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # include extra test easyblocks
-        foo_txt = '\n'.join([
+        txt = '\n'.join([
             'from easybuild.framework.easyblock import EasyBlock',
             'class FooBar(EasyBlock):',
             '   pass',
             ''
         ])
-        write_file(os.path.join(self.test_prefix, 'generic', 'foobar.py'), foo_txt)
+        write_file(os.path.join(self.test_prefix, 'generic', 'foobar.py'), txt)
 
         args = [
             '--include-easyblocks=%s/generic/*.py' % self.test_prefix,
@@ -1806,9 +1806,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
-        reload(easybuild.easyblocks.generic)
-
         os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
+        reload(easybuild.easyblocks.generic)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
@@ -1817,22 +1816,28 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         # importing without specifying 'generic' also works, and generic easyblock can be imported as well
-        write_file(os.path.join(self.test_prefix, 'foobar.py'), foo_txt)
+        txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class GenericTest(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'generictest.py'), txt)
 
         args[0] = '--include-easyblocks=%s/*.py' % self.test_prefix
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
-                                    'foobar.py')
-        foo_regex = re.compile(r"^\|-- FooBar \(easybuild.easyblocks.foobar @ %s\)"  % path_pattern, re.M)
+                                    'generictest.py')
+        foo_regex = re.compile(r"^\|-- GenericTest \(easybuild.easyblocks.generictest @ %s\)"  % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
-        klass = get_easyblock_class('FooBar')
+        klass = get_easyblock_class('GenericTest')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of foo easyblock
-        del sys.modules['easybuild.easyblocks.foobar']
+        del sys.modules['easybuild.easyblocks.generictest']
 
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""
