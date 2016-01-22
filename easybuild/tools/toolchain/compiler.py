@@ -233,15 +233,13 @@ class Compiler(Toolchain):
 
         # Allow a user-defined default optimisation
         default_opt_level = build_option('default_opt_level')
-        if default_opt_level in self.COMPILER_OPT_FLAGS:
-            default_opt = default_opt_level
-        else:
+        if default_opt_level not in self.COMPILER_OPT_FLAGS:
             raise EasyBuildError("Unknown value for default optimisation: %s (possibilities are %s)" %
                                  (default_opt_level, self.COMPILER_OPT_FLAGS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                   [self.options.option(default_opt)]
+                   [self.options.option(default_opt_level)]
 
         optarchflags = []
         if build_option('optarch') == OPTARCH_GENERIC:
