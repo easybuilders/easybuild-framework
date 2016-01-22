@@ -46,6 +46,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path, init_config
 
 
@@ -77,7 +78,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
-                "#%Module",
                 "proc ModulesHelp { } {",
                 "    puts stderr { %s" % gzip_txt,
                 "    }",
@@ -110,7 +110,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb.cfg['whatis'] = ['foo', 'bar']
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
-                "#%Module",
                 "proc ModulesHelp { } {",
                 "    puts stderr { %s" % gzip_txt,
                 "    }",
@@ -254,18 +253,35 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_use(self):
         """Test generating module use statements."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # Test regular 'module use' statements
             expected = ''.join([
-                "module use /some/path\n",
-                "module use /foo/bar/baz\n",
+                'module use "/some/path"\n',
+                'module use "/foo/bar/baz"\n',
             ])
             self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
+
+            # Test guarded 'module use' statements using prefix
+            expected = ''.join([
+                'if { [ file isdirectory [ file join "/foo" "/some/path" ] ] } {\n',
+                '    module use [ file join "/foo" "/some/path" ]\n',
+                '}\n',
+            ])
+            self.assertEqual(self.modgen.use(["/some/path"], prefix=quote_str("/foo"), guarded=True), expected)
         else:
+            # Test regular 'module use' statements
             expected = ''.join([
                 'prepend_path("MODULEPATH", "/some/path")\n',
                 'prepend_path("MODULEPATH", "/foo/bar/baz")\n',
             ])
             self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
 
+            # Test guarded 'module use' statements using prefix
+            expected = ''.join([
+                'if isDir(pathJoin("/foo", "/some/path")) then\n',
+                '    prepend_path("MODULEPATH", pathJoin("/foo", "/some/path"))\n',
+                'end\n',
+            ])
+            self.assertEqual(self.modgen.use(["/some/path"], prefix=quote_str("/foo"), guarded=True), expected)
 
     def test_env(self):
         """Test setting of environment variables."""
@@ -278,6 +294,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             self.assertEqual('setenv("key", "value")\n', self.modgen.set_environment("key", "value"))
 
+    def test_getenv_cmd(self):
+        """Test getting value of environment variable."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual('$env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
+            self.assertEqual('$env(HOME)', self.modgen.getenv_cmd('HOME'))
+        else:
+            self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
+            self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))
+
     def test_alias(self):
         """Test setting of alias in modulefiles."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
@@ -288,6 +313,70 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
         else:
             self.assertEqual('set_alias("key", "value")\n', self.modgen.set_alias("key", "value"))
+
+    def test_conditional_statement(self):
+        """Test formatting of conditional statements."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            simple_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar")
+            expected = '\n'.join([
+                "if { [ is-loaded foo ] } {",
+                "    module load bar",
+                '}',
+                '',
+            ])
+            self.assertEqual(simple_cond, expected)
+
+            neg_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", negative=True)
+            expected = '\n'.join([
+                "if { ![ is-loaded foo ] } {",
+                "    module load bar",
+                '}',
+                '',
+            ])
+            self.assertEqual(neg_cond, expected)
+
+            if_else_cond = self.modgen.conditional_statement("is-loaded foo", "module load bar", else_body='puts "foo"')
+            expected = '\n'.join([
+                "if { [ is-loaded foo ] } {",
+                "    module load bar",
+                "} else {",
+                '    puts "foo"',
+                '}',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+
+        elif self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua:
+            simple_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")')
+            expected = '\n'.join([
+                'if isloaded("foo") then',
+                '    load("bar")',
+                'end',
+                '',
+            ])
+            self.assertEqual(simple_cond, expected)
+
+            neg_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', negative=True)
+            expected = '\n'.join([
+                'if not isloaded("foo") then',
+                '    load("bar")',
+                'end',
+                '',
+            ])
+            self.assertEqual(neg_cond, expected)
+
+            if_else_cond = self.modgen.conditional_statement('isloaded("foo")', 'load("bar")', else_body='load("bleh")')
+            expected = '\n'.join([
+                'if isloaded("foo") then',
+                '    load("bar")',
+                'else',
+                '    load("bleh")',
+                'end',
+                '',
+            ])
+            self.assertEqual(if_else_cond, expected)
+        else:
+            self.assertTrue(False, "Unknown module syntax")
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
@@ -509,32 +598,42 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'valid_module_classes': moduleclasses,
         }
 
-        def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, init_modpaths):
+        def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
             ec = EasyConfig(os.path.join(ecs_dir, ecfile))
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
             self.assertEqual(ActiveMNS().det_modpath_extensions(ec), modpath_exts)
+            self.assertEqual(ActiveMNS().det_user_modpath_extensions(ec), user_modpath_exts)
             self.assertEqual(ActiveMNS().det_init_modulepaths(ec), init_modpaths)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
         init_config(build_options=build_options)
 
-        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_extensions, init_modpaths)
+        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths)
         iccver = '2013.5.192-GCC-4.8.3'
         impi_ec = 'impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb'
         imkl_ec = 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'
         test_ecs = {
-            'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core', ['Compiler/GCC/4.7.2'], ['Core']),
-            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2', ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4', [], ['Core']),
-            'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core', [], ['Core']),
-            'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver], ['Core']),
-            'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core', ['Compiler/intel/2013.3.163'], ['Core']),
-            'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2', ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
-            impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
-            imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [], ['Core']),
+            'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core', ['Compiler/GCC/4.7.2'],
+                             ['Compiler/GCC/4.7.2'], ['Core']),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2', ['MPI/GCC/4.7.2/OpenMPI/1.6.4'],
+                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4', [],
+                             [], ['Core']),
+            'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core', [],
+                             [], ['Core']),
+            'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver],
+                             ['Compiler/intel/%s' % iccver], ['Core']),
+            'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core', ['Compiler/intel/2013.3.163'],
+                             ['Compiler/intel/2013.3.163'], ['Core']),
+            'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2', ['Compiler/GCC-CUDA/4.8.2-5.5.22'],
+                             ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
+            impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/4.1.3.049' % iccver],
+                             ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
+            imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [],
+                             [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
@@ -546,26 +645,32 @@ class ModuleGeneratorTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         init_config(build_options=build_options)
 
-        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_extensions)
+        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_exts, user_modpath_exts)
         test_ecs = {
             'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core/compiler',
-                             ['Compiler/GCC/4.7.2/%s' % c for c in moduleclasses]),
+                             ['Compiler/GCC/4.7.2/%s' % c for c in moduleclasses],
+                             ['Compiler/GCC/4.7.2']),
             'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2/mpi',
-                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4/%s' % c for c in moduleclasses]),
+                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4/%s' % c for c in moduleclasses],
+                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4']),
             'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/tools',
-                             []),
+                             [], []),
             'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core/toolchain',
-                             []),
+                             [], []),
             'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core/compiler',
-                             ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses]),
+                             ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses],
+                             ['Compiler/intel/%s' % iccver]),
             'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core/compiler',
-                             ['Compiler/intel/2013.3.163/%s' % c for c in moduleclasses]),
+                             ['Compiler/intel/2013.3.163/%s' % c for c in moduleclasses],
+                             ['Compiler/intel/2013.3.163']),
             'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2/system',
-                             ['Compiler/GCC-CUDA/4.8.2-5.5.22/%s' % c for c in moduleclasses]),
+                             ['Compiler/GCC-CUDA/4.8.2-5.5.22/%s' % c for c in moduleclasses],
+                             ['Compiler/GCC-CUDA/4.8.2-5.5.22']),
             impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s/mpi' % iccver,
-                             ['MPI/intel/%s/impi/4.1.3.049/%s' % (iccver, c) for c in moduleclasses]),
+                             ['MPI/intel/%s/impi/4.1.3.049/%s' % (iccver, c) for c in moduleclasses],
+                             ['MPI/intel/%s/impi/4.1.3.049' % iccver]),
             imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049/numlib' % iccver,
-                             []),
+                             [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals, init_modpaths = ['Core/%s' % c for c in moduleclasses])
@@ -578,14 +683,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         test_ecs = {
-            'GCC-4.7.2.eb': ('GCC/4.7.2', '', [], []),
-            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4-GCC-4.7.2', '', [], []),
-            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5-goolf-1.4.10', '', [], []),
-            'goolf-1.4.10.eb': ('goolf/1.4.10', '', [], []),
-            'impi-4.1.3.049.eb': ('impi/4.1.3.049', '', [], []),
+            'GCC-4.7.2.eb': ('GCC/4.7.2', '', [], [], []),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4-GCC-4.7.2', '', [], [], []),
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5-goolf-1.4.10', '', [], [], []),
+            'goolf-1.4.10.eb': ('goolf/1.4.10', '', [], [], []),
+            'impi-4.1.3.049.eb': ('impi/4.1.3.049', '', [], [], []),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
+
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""

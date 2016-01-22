@@ -676,6 +676,10 @@ class EasyConfig(object):
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
         if dependency['external_module']:
+            # check whether the external module is hidden
+            if dependency['full_mod_name'].split('/')[-1].startswith('.'):
+                dependency['hidden'] = True
+
             self.log.debug("Returning parsed external dependency: %s", dependency)
             return dependency
 
@@ -1329,6 +1333,13 @@ class ActiveMNS(object):
         self.log.debug("Determining modulepath extensions for %s" % ec)
         modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec))
         self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
+        return modpath_extensions
+
+    def det_user_modpath_extensions(self, ec):
+        """Determine user-specific modulepath extensions according to module naming scheme."""
+        self.log.debug("Determining user modulepath extensions for %s", ec)
+        modpath_extensions = self.mns.det_user_modpath_extensions(self.check_ec_type(ec))
+        self.log.debug("Obtained user modulepath extensions: %s", modpath_extensions)
         return modpath_extensions
 
     def det_init_modulepaths(self, ec):

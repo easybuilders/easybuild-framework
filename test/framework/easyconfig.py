@@ -1089,7 +1089,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
-        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE), ('hidden/.1.2.3', EXTERNAL_MODULE)]"
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
         write_file(toy_ec, ectxt)
 
@@ -1102,11 +1102,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[0]['external_module'], True)
 
         deps = ec.dependencies()
-        self.assertEqual(len(deps), 4)
-        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']
+        self.assertEqual(len(deps), 5)
+        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'hidden/.1.2.3', 'somebuilddep/0.1']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
-        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True])
+        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True, True])
+        self.assertEqual([d['hidden'] for d in deps], [False, False, False, True, False])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
         metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])

@@ -46,7 +46,8 @@ from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIO
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax, module_classes
+from easybuild.tools.config import DEFAULT_MODULECLASSES
+from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -940,26 +941,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
-    def test_footer(self):
-        """Test specifying a module footer."""
+    def test_header_footer(self):
+        """Test specifying a module header/footer."""
 
         # create file containing modules footer
         if get_module_syntax() == 'Tcl':
-            module_footer_txt = '\n'.join([
+            modules_header_txt = '\n'.join([
+                "# test header",
+                "setenv SITE_SPECIFIC_HEADER_ENV_VAR foo",
+            ])
+            modules_footer_txt = '\n'.join([
                 "# test footer",
-                "setenv SITE_SPECIFIC_ENV_VAR foobar",
+                "setenv SITE_SPECIFIC_FOOTER_ENV_VAR bar",
             ])
         elif get_module_syntax() == 'Lua':
-            module_footer_txt = '\n'.join([
+            modules_header_txt = '\n'.join([
+                "-- test header",
+                'setenv("SITE_SPECIFIC_HEADER_ENV_VAR", "foo")',
+            ])
+            modules_footer_txt = '\n'.join([
                 "-- test footer",
-                'setenv("SITE_SPECIFIC_ENV_VAR", "foobar")',
+                'setenv("SITE_SPECIFIC_FOOTER_ENV_VAR", "bar")',
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-        fd, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
-        os.close(fd)
-        write_file(modules_footer, module_footer_txt)
+        # dump header/footer text to file
+        handle, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
+        os.close(handle)
+        write_file(modules_footer, modules_footer_txt)
+        handle, modules_header = tempfile.mkstemp(prefix='modules-header-')
+        os.close(handle)
+        write_file(modules_header, modules_header_txt)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
@@ -972,20 +985,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
+            '--modules-header=%s' % modules_header,
             '--modules-footer=%s' % modules_footer,
         ]
-        self.eb_main(args, do_build=True)
+        self.eb_main(args, do_build=True, raise_error=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-        footer_regex = re.compile(r'%s$' % module_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
-        msg = "modules footer '%s' is present in '%s'" % (module_footer_txt, toy_module_txt)
-        self.assertTrue(footer_regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_header_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules header '%s' is present in '%s'" % (modules_header_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules footer '%s' is present in '%s'" % (modules_footer_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
 
         # cleanup
         os.remove(modules_footer)
+        os.remove(modules_header)
 
     def test_recursive_module_unload(self):
         """Test generating recursively unloading modules."""
@@ -1981,6 +2001,46 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for notthere_regex in [ignoring_error_regex, ignored_error_regex]:
                 msg = "Pattern '%s' NOT found in: %s" % (notthere_regex.pattern, stdout)
                 self.assertFalse(notthere_regex.search(stdout), msg)
+
+    def test_last_log(self):
+        """Test --last-log."""
+        orig_tmpdir = os.environ['TMPDIR']
+        tmpdir = os.path.join(tempfile.gettempdir(), 'eb-tmpdir1')
+        current_log_path = os.path.join(tmpdir, 'easybuild-current.log')
+
+        # $TMPDIR determines path to build log, we need to get it right to make the test check what we want it to
+        os.environ['TMPDIR'] = tmpdir
+        write_file(current_log_path, "this is a log message")
+        self.assertEqual(find_last_log(current_log_path), None)
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        self.mock_stdout(True)
+        mkdir(os.path.dirname(current_log_path))
+        self.eb_main(['--last-log'], logfile=current_log_path, raise_error=True)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        self.assertEqual(txt, '(none)')
+
+        # run something that fails first, we need a log file to find
+        last_log_path = os.path.join(tempfile.gettempdir(), 'eb-tmpdir0', 'easybuild-last.log')
+        mkdir(os.path.dirname(last_log_path))
+        self.eb_main(['thisisaneasyconfigthatdoesnotexist.eb'], logfile=last_log_path, raise_error=False)
+
+        # $TMPDIR determines path to build log, we need to get it right to make the test check what we want it to
+        os.environ['TMPDIR'] = tmpdir
+        write_file(current_log_path, "this is a log message")
+        last_log = find_last_log(current_log_path)
+        self.assertTrue(os.path.samefile(last_log, last_log_path), "%s != %s" % (last_log, last_log_path))
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        self.mock_stdout(True)
+        mkdir(os.path.dirname(current_log_path))
+        self.eb_main(['--last-log'], logfile=current_log_path, raise_error=True)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.samefile(txt, last_log_path), "%s != %s" % (txt, last_log_path))
 
     def test_fixed_installdir_naming_scheme(self):
         """Test use of --fixed-installdir-naming-scheme."""
