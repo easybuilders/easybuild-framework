@@ -78,6 +78,7 @@ class Pgi(Compiler):
 
     COMPILER_F77 = 'pgfortran'
     COMPILER_F90 = 'pgfortran'
+    COMPILER_FC = 'pgfortran'
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
