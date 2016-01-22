@@ -58,7 +58,7 @@ from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
 
-# test account, for which a token is available
+# test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 
@@ -2064,6 +2064,109 @@ class CommandLineOptionsTest(EnhancedTestCase):
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
         self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+
+    def test_new_update_pr(self):
+        """Test use of --new-pr (dry run only)."""
+        if self.github_token is None:
+            print "Skipping test_new_pr, no GitHub token available?"
+            return
+
+        # copy toy test easyconfig
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        # purposely picked one with non-default toolchain/versionsuffix
+        shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
+
+        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
+        args = [
+            '--new-pr',
+            '--experimental',
+            toy_ec,
+            '-D',
+            '--disable-cleanup-tmpdir',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r"^Opening pull request \[DRY RUN\]",
+            r"^\* target: hpcugent/easybuild-easyconfigs:develop",
+            r"^\* from: %s/easybuild-easyconfigs:.*_new_pr_toy00" % GITHUB_TEST_ACCOUNT,
+            r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
+            r"\(created using `eb --new-pr`\)",  # description
+            r"^\* overview of changes:",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*1 file changed",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # determine location of repo clone, can be used to test --git-working-dirs-path (and save time)
+        dirs = glob.glob(os.path.join(self.test_prefix, 'eb-*', '*', 'git-working-dir*'))
+        if len(dirs) == 1:
+            git_working_dir = dirs[0]
+        else:
+            self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
+
+        args.extend([
+            '--git-working-dirs-path=%s' % git_working_dir,
+            '--pr-branch-name=branch_name_for_new_pr_test',
+            '--pr-commit-msg="this is a commit message. really!"',
+            '--pr-descr="moar letters foar teh lettre box"',
+            '--pr-target-branch=master',
+            '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
+            '--pr-title=test-1-2-3',
+        ])
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== fetching branch 'master' from https://github.com/boegel/easybuild-easyconfigs.git...",
+            r"^Opening pull request \[DRY RUN\]",
+            r"^\* target: boegel/easybuild-easyconfigs:master",
+            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ACCOUNT,
+            r"\(created using `eb --new-pr`\)",  # description
+            r"moar letters foar teh lettre box",  # also description (see --pr-descr)
+            r"^\* title: \"test-1-2-3\"",
+            r"^\* overview of changes:",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*1 file changed",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        args = [
+            # PR for EasyBuild v2.5.0 release
+            # we need a PR where the base branch is still available ('develop', in this case)
+            '--update-pr=2237',
+            '--experimental',
+            toy_ec,
+            '-D',
+            # only to speed things up
+            '--git-working-dirs-path=%s' % git_working_dir,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== Determined branch name corresponding to hpcugent/easybuild-easyconfigs PR #2237: develop",
+            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*1 file changed",
+            r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
 
 def suite():

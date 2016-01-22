@@ -44,8 +44,7 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easyconfigs, get_easyblock_class
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
@@ -55,7 +54,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
@@ -1620,6 +1619,39 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(new_ec['dependencies'][1]['dummy'], False)
         self.assertEqual(new_ec['dependencies'][1]['short_mod_name'], 'GCC/4.7.2')
         self.assertEqual(new_ec['dependencies'][1]['full_mod_name'], 'GCC/4.7.2')
+
+    def test_copy_easyconfigs(self):
+        """Test copy_easyconfigs function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        target_dir = os.path.join(self.test_prefix, 'copied_ecs')
+        # easybuild/easyconfigs subdir is expected to exist
+        ecs_target_dir = os.path.join(target_dir, 'easybuild', 'easyconfigs')
+        mkdir(ecs_target_dir, parents=True)
+
+        # passing an empty list of paths is fine
+        res = copy_easyconfigs([], target_dir)
+        self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
+        self.assertEqual(os.listdir(os.path.join(target_dir, 'easybuild', 'easyconfigs')), [])
+
+        # copy test easyconfigs, purposely under a different name
+        test_ecs = [
+            ('GCC-4.6.3.eb', 'GCC.eb'),
+            ('OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
+            ('toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+        ]
+        ecs_to_copy = []
+        for (src_ec, target_ec) in test_ecs:
+            ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
+            shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
+
+        copy_easyconfigs(ecs_to_copy, target_dir)
+
+        # check whether easyconfigs were copied (unmodified) to correct location
+        for orig_ec, src_ec in test_ecs:
+            copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
+            self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
+            self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
 
 
 def suite():
