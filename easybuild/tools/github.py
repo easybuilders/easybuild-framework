@@ -477,7 +477,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
     print_msg("fetching branch '%s' from %s..." % (start_branch, github_url))
     try:
-        res = origin.fetch(start_branch)
+        res = origin.fetch()
     except GitCommandError as err:
         raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", start_branch, github_url, err)
     if res:
@@ -502,8 +502,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
         origin_start_branch.checkout(b=alt_branch)
     _log.debug("git status: %s", git_repo.git.status())
-
-    origin.pull(start_branch)
 
     # copy files to right place
     file_info = copy_easyconfigs(paths, tmp_git_working_dir)
