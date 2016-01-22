@@ -34,6 +34,8 @@ from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
+# default optimization 'level' (see COMPILER_SHARED_OPTION_MAP/COMPILER_OPT_FLAGS)
+DEFAULT_OPT_LEVEL = 'defaultopt'
 
 # 'GENERIC' can  be used to enable generic compilation instead of optimized compilation (which is the default)
 # by doing eb --optarch=GENERIC
@@ -63,7 +65,7 @@ class Compiler(Toolchain):
         'pic': (False, "Use PIC"),  # also FFTW
         'noopt': (False, "Disable compiler optimizations"),
         'lowopt': (False, "Low compiler optimizations"),
-        'defaultopt': (False, "Default compiler optimizations"),  # not set, but default
+        DEFAULT_OPT_LEVEL: (False, "Default compiler optimizations"),  # not set, but default
         'opt': (False, "High compiler optimizations"),
         'optarch': (True, "Enable architecture optimizations"),
         'strict': (False, "Strict (highest) precision"),
@@ -94,7 +96,7 @@ class Compiler(Toolchain):
         'shared': 'shared',
         'noopt': 'O0',
         'lowopt': 'O1',
-        'defaultopt': 'O2',
+        DEFAULT_OPT_LEVEL: 'O2',
         'opt': 'O3',
         '32bit' : 'm32',
         'cstd': 'std=%(value)s',
@@ -104,7 +106,7 @@ class Compiler(Toolchain):
     COMPILER_GENERIC_OPTION = None
 
     COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
-    COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt']  # optimisation args, ordered !
+    COMPILER_OPT_FLAGS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
     COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
     COMPILER_CC = None

@@ -90,7 +90,6 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
-        'default_opt_level',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -170,6 +169,9 @@ BUILD_OPTIONS_CMDLINE = {
     GENERAL_CLASS: [
         'suffix_modules_path',
     ],
+    'defaultopt': [
+        'default_opt_level',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
