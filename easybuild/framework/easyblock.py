@@ -1068,7 +1068,8 @@ class EasyBlock(object):
                 lines.append(self.module_generator.comment(note))
 
             for key in sorted(requirements):
-                self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
+                if self.dry_run:
+                    self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
                 reqs = requirements[key]
                 if isinstance(reqs, basestring):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
@@ -1083,7 +1084,8 @@ class EasyBlock(object):
                         paths = [path]
 
                     lines.append(self.module_generator.prepend_paths(key, paths))
-            self.dry_run_msg('')
+            if self.dry_run:
+                self.dry_run_msg('')
             try:
                 os.chdir(self.orig_workdir)
             except OSError, err:
