@@ -35,7 +35,7 @@ from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
-# 'GENERIC' can  beused to enable generic compilation instead of optimized compilation (which is the default)
+# 'GENERIC' can  be used to enable generic compilation instead of optimized compilation (which is the default)
 # by doing eb --optarch=GENERIC
 OPTARCH_GENERIC = 'GENERIC'
 
@@ -231,9 +231,19 @@ class Compiler(Toolchain):
         fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
 
+        # Allow a user-defined default optimisation
+        if build_option('default_optimisation'):
+            if build_option('default_optimisation') in self.COMPILER_OPT_FLAGS:
+                default_opt = self.options.option(build_option('default_optimisation'))
+            else:
+                raise EasyBuildError("Unknown value for default optimisation: %s (prssibilities are %s)" %
+                                     (build_option('default_optimisation'), self.COMPILER_OPT_FLAGS))
+        else:
+            default_opt = self.options.option('defaultopt')
+
         # 1st one is the one to use. add default at the end so len is at least 1
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                   [self.options.option('defaultopt')]
+                   [default_opt]
 
         optarchflags = []
         if build_option('optarch') == OPTARCH_GENERIC:

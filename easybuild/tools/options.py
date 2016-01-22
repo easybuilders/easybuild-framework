@@ -213,6 +213,9 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Allow color output", None, 'store_true', True),
+            "default-optimisation": ("Set default optimization level, overriding easybuild optimization default "
+                                     "(possibilities are: noopt, lowopt, defaultopt, opt)",
+                                     None, 'store', None),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
