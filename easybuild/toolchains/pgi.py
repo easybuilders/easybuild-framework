@@ -36,4 +36,4 @@ from easybuild.toolchains.compiler.pgi import Pgi
 
 class PgiToolchain(Pgi):
     """Simple toolchain with just the PGI compilers."""
-    NAME = 'pgi'
+    NAME = 'PGI'
