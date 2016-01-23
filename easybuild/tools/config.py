@@ -169,6 +169,9 @@ BUILD_OPTIONS_CMDLINE = {
     GENERAL_CLASS: [
         'suffix_modules_path',
     ],
+    'defaultopt': [
+        'default_opt_level',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
