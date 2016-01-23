@@ -334,9 +334,6 @@ class ModulesTest(EnhancedTestCase):
         """Check whether ModulesTool instance is stateless between runs."""
         test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
 
-        # copy GCC modules; Lmod will be aware they're there outside of $MODULEPATH
-        shutil.copytree(os.path.join(test_modules_path, 'GCC'), os.path.join(self.test_prefix, 'GCC'))
-
         # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
         shutil.copytree(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
         shutil.copytree(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
@@ -355,12 +352,16 @@ class ModulesTest(EnhancedTestCase):
         # force reset of any singletons by reinitiating config
         init_config()
 
-        os.environ['MODULEPATH_ROOT'] = self.test_prefix
+        # make sure $LMOD_DEFAULT_MODULEPATH, since Lmod picks it up and tweaks $MODULEPATH to match it
+        if 'LMOD_DEFAULT_MODULEPATH' in os.environ:
+            del os.environ['LMOD_DEFAULT_MODULEPATH']
+
         os.environ['MODULEPATH'] = os.path.join(self.test_prefix, 'Core')
         modtool = modules_tool()
 
         if isinstance(modtool, Lmod):
-            load_err_msg = "cannot[\s\n]*be[\s\n]*loaded"
+            # GCC/4.6.3 is nowhere to be found (in $MODULEPATH)
+            load_err_msg = r"The following module\(s\) are unknown"
         else:
             load_err_msg = "Unable to locate a modulefile"
 
@@ -373,6 +374,9 @@ class ModulesTest(EnhancedTestCase):
         # OpenMPI/1.6.4 becomes available after loading GCC/4.7.2 module
         modtool.load(['OpenMPI/1.6.4'])
         modtool.purge()
+
+        if 'LMOD_DEFAULT_MODULEPATH' in os.environ:
+            del os.environ['LMOD_DEFAULT_MODULEPATH']
 
         # reset $MODULEPATH, obtain new ModulesTool instance,
         # which should not remember anything w.r.t. previous $MODULEPATH value
@@ -387,6 +391,12 @@ class ModulesTest(EnhancedTestCase):
         modtool.load(['GCC/4.7.2'])
 
         # OpenMPI/1.6.4 is *not* available with current $MODULEPATH (loaded GCC/4.7.2 was not a hierarchical module)
+        if isinstance(modtool, Lmod):
+            # OpenMPI/1.6.4 exists, but is not available for load
+            load_err_msg = r"These module\(s\) exist but cannot be"
+        else:
+            load_err_msg = "Unable to locate a modulefile"
+
         self.assertErrorRegex(EasyBuildError, load_err_msg, modtool.load, ['OpenMPI/1.6.4'])
 
 
