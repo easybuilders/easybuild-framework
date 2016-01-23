@@ -334,6 +334,9 @@ class ModulesTest(EnhancedTestCase):
         """Check whether ModulesTool instance is stateless between runs."""
         test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
 
+        # copy GCC modules; Lmod will be aware they're there outside of $MODULEPATH
+        shutil.copytree(os.path.join(test_modules_path, 'GCC'), os.path.join(self.test_prefix, 'GCC'))
+
         # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
         shutil.copytree(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
         shutil.copytree(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
@@ -352,6 +355,7 @@ class ModulesTest(EnhancedTestCase):
         # force reset of any singletons by reinitiating config
         init_config()
 
+        os.environ['MODULEPATH_ROOT'] = self.test_prefix
         os.environ['MODULEPATH'] = os.path.join(self.test_prefix, 'Core')
         modtool = modules_tool()
 
