@@ -62,7 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warni
 from easybuild.tools.build_log import print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
-from easybuild.tools.environment import restore_env
+from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file, rmtree2
@@ -2235,10 +2235,15 @@ def build_and_install_one(ecdict, init_env):
         dry_run_msg('', silent=silent)
     print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
-    # restore original environment
+    if dry_run:
+        # print note on interpreting dry run output (argument is reference to location of dry run messages)
+        print_dry_run_note('below', silent=silent)
+
+    # restore original environment, and then sanitize it
     _log.info("Resetting environment")
     filetools.errors_found_in_log = 0
     restore_env(init_env)
+    sanitize_env()
 
     cwd = os.getcwd()
 
@@ -2249,10 +2254,6 @@ def build_and_install_one(ecdict, init_env):
 
     try:
         app_class = get_easyblock_class(easyblock, name=name)
-
-        if dry_run:
-            # print note on interpreting dry run output (argument is reference to location of dry run messages)
-            print_dry_run_note('below', silent=silent)
 
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
