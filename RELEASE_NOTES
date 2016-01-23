@@ -3,6 +3,37 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.6.0 (January 26th 2016)
+--------------------------
+
+feature + bugfix release
+- add (experimental) support for opening/updating (easyconfigs) pull requests (--new-pr, --update-pr) (#1528)
+- sanitize environment before each installation by undefining $PYTHON* (#1569)
+- various other enhancements, including:
+    - allow user-local modules with hierarchical naming schemes (--subdir-user-modules) (#1472)
+    - enhance --dry-run output to include paths for requirements in make_module_req (#1520)
+    - rewrite read_file to use 'with' (#1534)
+    - add support for eb --last-log (#1541)
+    - support using fixed install dir scheme (--fixed-installdir-naming-scheme) (#1546)
+    - add edge attributes for build dependencies in --dep-graph output (#1548)
+    - check whether dependencies marked as external module are hidden (#1552)
+    - implement support for --modules-header (#1558)
+    - add support to specify 'else' body for conditional statements in modules (#1559)
+    - add extra test for --include-easyblocks for generic easyblocks (#1562)
+    - allow user to define the default compiler optimization level (--default-opt-level) (#1565)
+    - make toolchain.get_variable more robust w.r.t. dummy toolchain (#1566)
+- various bug fixes, including:
+    - fix missing 'yaml' module check in tests (#1525)
+    - fix 'develop' install script (#1529)
+    - correctly quote FPM option values in packagin support (#1530)
+    - correctly handle '.' in software name w.r.t. $EB* environment variables (#1538)
+    - exclude logs and test reports from packages (#1544)
+    - also pass down --job-cores for pbs_python job backend (#1547)
+    - skip dependencies marked as external modules when packaging (#1550)
+    - fix syntax for set_alias statement in Lua syntax (#1554)
+    - handle the case of all 'offline' nodes correctly for --job (#1560)
+    - fix test_modules_tool_stateless unit test for stateless ModulesTool with Lmod as modules tool (#1570)
+
 v2.5.0 (December 17th 2015)
 ---------------------------
 
