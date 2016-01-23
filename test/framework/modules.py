@@ -392,8 +392,9 @@ class ModulesTest(EnhancedTestCase):
 
         # OpenMPI/1.6.4 is *not* available with current $MODULEPATH (loaded GCC/4.7.2 was not a hierarchical module)
         if isinstance(modtool, Lmod):
-            # OpenMPI/1.6.4 exists, but is not available for load
-            load_err_msg = r"These module\(s\) exist but cannot be"
+            # OpenMPI/1.6.4 exists, but is not available for load;
+            # exact error message depends on Lmod version
+            load_err_msg = r"These module\(s\) exist but cannot be|The following module\(s\) are unknown"
         else:
             load_err_msg = "Unable to locate a modulefile"
 
