@@ -2471,6 +2471,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
             # start with a clean slate
             os.chdir(base_dir)
             restore_env(base_env)
+            sanitize_env()
 
             steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
 
