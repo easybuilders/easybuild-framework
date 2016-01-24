@@ -8,7 +8,7 @@ v2.6.0 (January 26th 2016)
 
 feature + bugfix release
 - add (experimental) support for opening/updating (easyconfigs) pull requests (--new-pr, --update-pr) (#1528)
-- sanitize environment before each installation by undefining $PYTHON* (#1569)
+- sanitize environment before each installation by undefining $PYTHON* (#1569, #1572)
 - various other enhancements, including:
     - allow user-local modules with hierarchical naming schemes (--subdir-user-modules) (#1472)
     - enhance --dry-run output to include paths for requirements in make_module_req (#1520)
