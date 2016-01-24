@@ -126,6 +126,18 @@ class ModuleNamingScheme(object):
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
 
+    def det_user_modpath_extensions(self, ec):
+        """
+        Determine list of subdirectories relative to the user-specific modules directory for which to extend
+        $MODULEPATH with when this module is loaded (if any).
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+        @return: A list of $MODULEPATH subdirectories.
+        """
+        # by default: use "system" module path extensions of naming scheme
+        return self.det_modpath_extensions(ec)
+
     def det_init_modulepaths(self, ec):
         """
         Determine initial module paths, where the modules that are top of the hierarchy (if any) live.

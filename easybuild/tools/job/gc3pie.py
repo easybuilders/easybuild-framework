@@ -192,8 +192,6 @@ class GC3Pie(JobBackend):
 
         if cores:
             named_args['requested_cores'] = cores
-        elif build_option('job_cores'):
-            named_args['requested_cores'] = build_option('job_cores')
         else:
             self.log.warn("Number of cores to request not specified, falling back to whatever GC3Pie does by default")
 

@@ -39,6 +39,7 @@ import copy
 import difflib
 import os
 import re
+import shutil
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
@@ -46,7 +47,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -675,6 +676,10 @@ class EasyConfig(object):
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
         if dependency['external_module']:
+            # check whether the external module is hidden
+            if dependency['full_mod_name'].split('/')[-1].startswith('.'):
+                dependency['hidden'] = True
+
             self.log.debug("Returning parsed external dependency: %s", dependency)
             return dependency
 
@@ -1133,6 +1138,57 @@ def robot_find_easyconfig(name, version):
     return res
 
 
+def copy_easyconfigs(paths, target_dir):
+    """
+    Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
+
+    @paths: list of paths to copy to git working dir
+    @target_dir: target directory
+    @return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    """
+    file_info = {
+        'ecs': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    a_to_z = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+    subdir = os.path.join('easybuild', 'easyconfigs')
+
+    if os.path.exists(os.path.join(target_dir, subdir)):
+        for path in paths:
+            ecs = process_easyconfig(path, validate=False)
+            if len(ecs) == 1:
+                file_info['ecs'].append(ecs[0]['ec'])
+                name = file_info['ecs'][-1].name
+                ec_filename = '%s-%s.eb' % (name, det_full_ec_version(file_info['ecs'][-1]))
+
+                letter = name.lower()[0]
+                if letter not in a_to_z:
+                    raise EasyBuildError("Don't know which letter subdir to use for %s", name)
+
+                target_path = os.path.join(subdir, letter, name, ec_filename)
+                _log.debug("Target path for %s: %s", path, target_path)
+
+                full_target_path = os.path.join(target_dir, target_path)
+                try:
+                    file_info['new'].append(not os.path.exists(full_target_path))
+
+                    mkdir(os.path.dirname(full_target_path), parents=True)
+                    shutil.copy2(path, full_target_path)
+                    _log.info("%s copied to %s", path, full_target_path)
+                except OSError as err:
+                    raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+
+                file_info['paths_in_repo'].append(target_path)
+            else:
+                raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+    else:
+        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
+
+    return file_info
+
+
 class ActiveMNS(object):
     """Wrapper class for active module naming scheme."""
 
@@ -1234,8 +1290,12 @@ class ActiveMNS(object):
     def det_install_subdir(self, ec):
         """Determine name of software installation subdirectory."""
         self.log.debug("Determining software installation subdir for %s", ec)
-        subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
-        self.log.debug("Obtained subdir %s", subdir)
+        if build_option('fixed_installdir_naming_scheme'):
+            subdir = os.path.join(ec['name'], det_full_ec_version(ec))
+            self.log.debug("Using fixed naming software installation subdir: %s", subdir)
+        else:
+            subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
+            self.log.debug("Obtained subdir %s", subdir)
         return subdir
 
     def det_devel_module_filename(self, ec, force_visible=False):
@@ -1273,6 +1333,13 @@ class ActiveMNS(object):
         self.log.debug("Determining modulepath extensions for %s" % ec)
         modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec))
         self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
+        return modpath_extensions
+
+    def det_user_modpath_extensions(self, ec):
+        """Determine user-specific modulepath extensions according to module naming scheme."""
+        self.log.debug("Determining user modulepath extensions for %s", ec)
+        modpath_extensions = self.mns.det_user_modpath_extensions(self.check_ec_type(ec))
+        self.log.debug("Obtained user modulepath extensions: %s", modpath_extensions)
         return modpath_extensions
 
     def det_init_modulepaths(self, ec):

@@ -34,6 +34,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Ward Poelmans (Ghent University)
 """
 import copy
+import glob
 import os
 import random
 import string
@@ -43,7 +44,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 
 
@@ -96,6 +97,11 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'hide_deps',
         'from_pr',
+        'git_working_dirs_path',
+        'pr_branch_name',
+        'pr_target_account',
+        'pr_target_branch',
+        'pr_target_repo',
         'github_user',
         'group',
         'ignore_dirs',
@@ -106,12 +112,14 @@ BUILD_OPTIONS_CMDLINE = {
         'job_polling_interval',
         'job_target_resource',
         'modules_footer',
+        'modules_header',
         'only_blocks',
         'optarch',
         'parallel',
         'regtest_output_dir',
         'skip',
         'stop',
+        'subdir_user_modules',
         'test_report_env_filter',
         'testoutput',
         'umask',
@@ -123,6 +131,7 @@ BUILD_OPTIONS_CMDLINE = {
         'dump_autopep8',
         'extended_dry_run',
         'experimental',
+        'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
@@ -160,6 +169,9 @@ BUILD_OPTIONS_CMDLINE = {
     GENERAL_CLASS: [
         'suffix_modules_path',
     ],
+    'defaultopt': [
+        'default_opt_level',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -487,18 +499,26 @@ def get_build_log_path():
     return res
 
 
-def get_log_filename(name, version, add_salt=False):
+def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     """
     Generate a filename to be used for logging
+
+    @param name: software name ('%(name)s')
+    @param version: software version ('%(version)s')
+    @param add_salt: add salt (5 random characters)
+    @param date: string representation of date to use ('%(date)s')
+    @param timestamp: timestamp to use ('%(time)s')
     """
-    date = time.strftime("%Y%m%d")
-    timeStamp = time.strftime("%H%M%S")
+    if date is None:
+        date = time.strftime("%Y%m%d")
+    if timestamp is None:
+        timestamp = time.strftime("%H%M%S")
 
     filename = log_file_format() % {
         'name': name,
         'version': version,
         'date': date,
-        'time': timeStamp,
+        'time': timestamp,
     }
 
     if add_salt:
@@ -515,6 +535,53 @@ def get_log_filename(name, version, add_salt=False):
         filepath = "%s.%d" % (filepath, counter)
 
     return filepath
+
+
+def find_last_log(curlog):
+    """
+    Find location to last log file that is still available.
+
+    @param curlog: location to log file of current session
+    @return: path to last log file (or None if no log files were found)
+    """
+    variables = ConfigurationVariables()
+    log_dir = get_build_log_path()
+    if variables['tmp_logdir'] is None:
+        # take info account that last part of default temporary logdir is random, if --tmp-logdir is not specified
+        log_dir = os.path.join(os.path.dirname(log_dir), '*')
+
+    glob_pattern = os.path.join(log_dir, 'easybuild*.log')  # see init_logging
+    _log.info("Looking for log files that match filename pattern '%s'...", glob_pattern)
+
+    try:
+        my_uid = os.getuid()
+        paths = []
+        for path in glob.glob(glob_pattern):
+            path_info = os.stat(path)
+            # only retain logs owned by current user
+            if path_info.st_uid == my_uid:
+                paths.append((path_info.st_mtime, path))
+            else:
+                _log.debug("Skipping %s, not owned by current user", path)
+
+        # sorted retained paths by modification time, most recent last
+        sorted_paths = [p for (_, p) in sorted(paths)]
+
+    except OSError as err:
+        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
+
+    try:
+        # log of current session is typically listed last, should be taken into account
+        res = sorted_paths[-1]
+        if os.path.exists(curlog) and os.path.samefile(res, curlog):
+            res = sorted_paths[-2]
+
+    except IndexError:
+        _log.debug("No last log file found (sorted retained paths: %s)", sorted_paths)
+        res = None
+
+    _log.debug("Picked %s as last log file (current: %s) from %s", res, curlog, sorted_paths)
+    return res
 
 
 def module_classes():

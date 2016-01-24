@@ -74,6 +74,20 @@ class ToolchainTest(EnhancedTestCase):
         """Test for goalf toolchain."""
         self.get_toolchain("goalf", version="1.1.0-no-OFED")
 
+    def test_get_variable_dummy_toolchain(self):
+        """Test get_variable on dummy toolchain"""
+        tc = self.get_toolchain('dummy', version='dummy')
+        tc.prepare()
+        self.assertEqual(tc.get_variable('CC'), '')
+        self.assertEqual(tc.get_variable('CXX', typ=str), '')
+        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
+        tc = self.get_toolchain('dummy', version='')
+        tc.prepare()
+        self.assertEqual(tc.get_variable('CC'), '')
+        self.assertEqual(tc.get_variable('CXX', typ=str), '')
+        self.assertEqual(tc.get_variable('CFLAGS', typ=list), [])
+
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
