@@ -652,6 +652,11 @@ class EasyBlockTest(EnhancedTestCase):
         """Test generation of sanity check paths for libraries."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+        # specify that libtoy.a and libtoy.so should also be there, either in lib or lib64
+        ec['ec']['sanity_check_paths'].update({
+            'shared_libs': ['libtoy'],
+            'static_libs': ['libtoy'],
+        })
 
         from easybuild.easyblocks.toy import EB_toy
         eb = EB_toy(ec['ec'])
