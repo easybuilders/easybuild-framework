@@ -11,7 +11,7 @@ feature + bugfix release
 - sanitize environment before each installation by undefining $PYTHON* (#1569, #1572)
 - various other enhancements, including:
     - allow user-local modules with hierarchical naming schemes (--subdir-user-modules) (#1472)
-    - enhance --dry-run output to include paths for requirements in make_module_req (#1520)
+    - enhance --extended-dry-run output to include paths for requirements in make_module_req (#1520)
     - rewrite read_file to use 'with' (#1534)
     - add support for eb --last-log (#1541)
     - support using fixed install dir scheme (--fixed-installdir-naming-scheme) (#1546)
