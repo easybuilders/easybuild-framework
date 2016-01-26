@@ -166,6 +166,60 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_extend_modpath(self):
+        """Test for make_module_extend_modpath"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'moduleclass = "compiler"',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
+        self.assertEqual(eb.make_module_extend_modpath(), '')
+
+        usermodsdir = 'my/own/modules'
+        modclasses = ['compiler', 'tools']
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
+        build_options = {
+            'subdir_user_modules': usermodsdir,
+            'valid_module_classes': modclasses,
+        }
+        init_config(build_options=build_options)
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        txt = eb.make_module_extend_modpath()
+        if get_module_syntax() == 'Tcl':
+            regexs = [r'^module use ".*/modules/all/Compiler/pi/3.14/%s"$' % c for c in modclasses]
+            home = r'\$env\(HOME\)'
+            regexs.extend([
+                # extension for user modules is guarded
+                r'if { \[ file isdirectory \[ file join %s "%s/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
+                # no per-moduleclass extension for user modules
+                r'^\s+module use \[ file join %s "%s/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
+            ])
+        elif get_module_syntax() == 'Lua':
+            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/all/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
+            home = r'os.getenv\("HOME"\)'
+            regexs.extend([
+                # extension for user modules is guarded
+                r'if isDir\(pathJoin\(%s, "%s/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
+                # no per-moduleclass extension for user modules
+                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_make_module_req(self):
         """Testcase for make_module_req"""
         self.contents = '\n'.join([
@@ -764,10 +818,15 @@ class EasyBlockTest(EnhancedTestCase):
             modfile_path = os.path.join(modpath, modfile_path)
             modtxt = read_file(modfile_path)
 
-            for imkl_dep in excluded_deps:
-                tup = (imkl_dep, modfile_path, modtxt)
+            for dep in excluded_deps:
+                tup = (dep, modfile_path, modtxt)
                 failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
-                self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
+                if get_module_syntax() == 'Tcl':
+                    self.assertFalse(re.search('module load %s' % dep, modtxt), failmsg)
+                elif get_module_syntax() == 'Lua':
+                    self.assertFalse(re.search('load("%s")' % dep, modtxt), failmsg)
+                else:
+                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)

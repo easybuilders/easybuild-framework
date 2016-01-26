@@ -62,7 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warni
 from easybuild.tools.build_log import print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
-from easybuild.tools.environment import restore_env
+from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file, rmtree2
@@ -158,11 +158,16 @@ class EasyBlock(object):
         # module generator
         self.module_generator = module_generator(self, fake=True)
 
-        # modules footer
+        # modules footer/header
         self.modules_footer = None
         modules_footer_path = build_option('modules_footer')
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
+
+        self.modules_header = None
+        modules_header_path = build_option('modules_header')
+        if modules_header_path is not None:
+            self.modules_header = read_file(modules_header_path)
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -823,7 +828,7 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = self.load_fake_module(purge=True)
 
-        header = self.module_generator.MODULE_HEADER
+        header = self.module_generator.MODULE_SHEBANG
         if header:
             header += '\n'
 
@@ -1014,7 +1019,7 @@ class EasyBlock(object):
 
     def make_module_footer(self):
         """
-        Insert a footer section in the modulefile, primarily meant for contextual information
+        Insert a footer section in the module file, primarily meant for contextual information
         """
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
@@ -1036,12 +1041,21 @@ class EasyBlock(object):
         txt = ''
         if self.cfg['include_modpath_extensions']:
             modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
-            self.log.debug("Including module path extensions returned by module naming scheme: %s" % modpath_exts)
+            self.log.debug("Including module path extensions returned by module naming scheme: %s", modpath_exts)
             full_path_modpath_extensions = [os.path.join(self.installdir_mod, ext) for ext in modpath_exts]
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
             txt = self.module_generator.use(full_path_modpath_extensions)
+
+            # add user-specific module path; use statement will be guarded so no need to create the directories
+            user_modpath = build_option('subdir_user_modules')
+            if user_modpath:
+                user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
+                user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
+                self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
+                txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
+                                                 guarded=True)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
@@ -1060,7 +1074,16 @@ class EasyBlock(object):
                 raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
 
             lines.append('\n')
+
+            if self.dry_run:
+                self.dry_run_msg("List of paths that would be searched and added to module file:\n")
+                note = "note: glob patterns are not expanded and existence checks "
+                note += "for paths are skipped for the statements below due to dry run"
+                lines.append(self.module_generator.comment(note))
+
             for key in sorted(requirements):
+                if self.dry_run:
+                    self.dry_run_msg(" $%s: %s" % (key, ', '.join(requirements[key])))
                 reqs = requirements[key]
                 if isinstance(reqs, basestring):
                     self.log.warning("Hoisting string value %s into a list before iterating over it", reqs)
@@ -1068,12 +1091,15 @@ class EasyBlock(object):
 
                 for path in reqs:
                     # only use glob if the string is non-empty
-                    if path:
+                    if path and not self.dry_run:
                         paths = sorted(glob.glob(path))
                     else:
                         # empty string is a valid value here (i.e. to prepend the installation prefix, cfr $CUDA_HOME)
                         paths = [path]
+
                     lines.append(self.module_generator.prepend_paths(key, paths))
+            if self.dry_run:
+                self.dry_run_msg('')
             try:
                 os.chdir(self.orig_workdir)
             except OSError, err:
@@ -1889,7 +1915,14 @@ class EasyBlock(object):
         """
         modpath = self.module_generator.prepare(fake=fake)
 
-        txt = self.make_module_description()
+        txt = self.module_generator.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+
+        if self.modules_header:
+            txt += self.modules_header + '\n'
+
+        txt += self.make_module_description()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
@@ -2202,10 +2235,15 @@ def build_and_install_one(ecdict, init_env):
         dry_run_msg('', silent=silent)
     print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
-    # restore original environment
+    if dry_run:
+        # print note on interpreting dry run output (argument is reference to location of dry run messages)
+        print_dry_run_note('below', silent=silent)
+
+    # restore original environment, and then sanitize it
     _log.info("Resetting environment")
     filetools.errors_found_in_log = 0
     restore_env(init_env)
+    sanitize_env()
 
     cwd = os.getcwd()
 
@@ -2216,10 +2254,6 @@ def build_and_install_one(ecdict, init_env):
 
     try:
         app_class = get_easyblock_class(easyblock, name=name)
-
-        if dry_run:
-            # print note on interpreting dry run output (argument is reference to location of dry run messages)
-            print_dry_run_note('below', silent=silent)
 
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
@@ -2437,6 +2471,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
             # start with a clean slate
             os.chdir(base_dir)
             restore_env(base_env)
+            sanitize_env()
 
             steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
 

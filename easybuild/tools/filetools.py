@@ -132,21 +132,15 @@ class ZlibChecksum(object):
 
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
-    f = None
-    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    txt = None
     try:
-        f = open(path, 'r')
-        txt = f.read()
-        f.close()
-        return txt
+        with open(path, 'r') as handle:
+            txt = handle.read()
     except IOError, err:
-        # make sure file handle is always closed
-        if f is not None:
-            f.close()
         if log_error:
             raise EasyBuildError("Failed to read %s: %s", path, err)
-        else:
-            return None
+
+    return txt
 
 
 def write_file(path, txt, append=False, forced=False):
@@ -705,7 +699,8 @@ def convert_name(name, upper=False):
     # no regexps
     charmap = {
         '+': 'plus',
-        '-': 'min'
+        '-': 'min',
+        '.': '',
     }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
@@ -976,8 +971,15 @@ def move_logs(src_logfile, target_logfile):
                              src_logfile, target_logfile, err)
 
 
-def cleanup(logfile, tempdir, testing):
-    """Cleanup the specified log file and the tmp directory, if desired."""
+def cleanup(logfile, tempdir, testing, silent=False):
+    """
+    Cleanup the specified log file and the tmp directory, if desired.
+
+    @param logfile: path to log file to clean up
+    @param tempdir: path to temporary directory to clean up
+    @param testing: are we in testing mode? if so, don't actually clean up anything
+    @param silent: be silent (don't print anything to stdout)
+    """
 
     if build_option('cleanup_tmpdir') and not testing:
         if logfile is not None:
@@ -986,17 +988,18 @@ def cleanup(logfile, tempdir, testing):
                     os.remove(log)
             except OSError, err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing or silent)
 
         if tempdir is not None:
             try:
                 shutil.rmtree(tempdir, ignore_errors=True)
             except OSError, err:
                 raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing or silent)
 
     else:
-        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
+        msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
+        print_msg(msg, log=None, silent=testing or silent)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):

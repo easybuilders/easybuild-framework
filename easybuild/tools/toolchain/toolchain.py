@@ -178,11 +178,17 @@ class Toolchain(object):
         typ: indicates what type of return value is expected"""
 
         if typ == str:
-            return str(self.variables[name])
+            res = str(self.variables.get(name, ''))
+
         elif typ == list:
-            return self.variables[name].flatten()
+            if name in self.variables:
+                res = self.variables[name].flatten()
+            else:
+                res = []
         else:
             raise EasyBuildError("get_variable: Don't know how to create value of type %s.", typ)
+
+        return res
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
