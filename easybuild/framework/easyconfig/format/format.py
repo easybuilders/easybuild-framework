@@ -71,7 +71,7 @@ GROUPED_PARAMS = [
     ['preinstallopts', 'installopts'],
     ['parallel', 'maxparallel'],
 ]
-LAST_PARAMS = ['sanity_check_paths', 'moduleclass', 'moduleclasses']
+LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
 
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
