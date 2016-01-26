@@ -44,8 +44,7 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easyconfigs, get_easyblock_class
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import to_template_str
@@ -55,7 +54,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
@@ -586,8 +585,9 @@ class EasyConfigTest(EnhancedTestCase):
         new_patches = ['two.patch', 'three.patch']
         specs.update({
             'patches': new_patches[:],
+            'builddependencies': [('testbuildonly', '4.5.6')],
             'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
-            'hiddendependencies': [('test', '3.2.1')],
+            'hiddendependencies': [('test', '3.2.1'), ('testbuildonly', '4.5.6')],
         })
         parsed_deps = [
             {
@@ -598,6 +598,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'build_only': False,
                 'hidden': False,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -610,6 +611,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'build_only': False,
                 'hidden': False,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -622,6 +624,20 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
+                'build_only': False,
+                'hidden': True,
+                'external_module': False,
+                'external_module_metadata': {},
+            },
+            {
+                'name': 'testbuildonly',
+                'version': '4.5.6',
+                'versionsuffix': '',
+                'toolchain': ec['toolchain'],
+                'dummy': False,
+                'short_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
+                'full_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
+                'build_only': True,
                 'hidden': True,
                 'external_module': False,
                 'external_module_metadata': {},
@@ -631,7 +647,7 @@ class EasyConfigTest(EnhancedTestCase):
         # hidden dependencies must be included in list of dependencies
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
-        error_pattern = "Hidden dependencies with visible module names .* not in list of dependencies: .*"
+        error_pattern = "Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
 
         specs['dependencies'].append(('test', '3.2.1'))
@@ -642,9 +658,11 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec.dependencies(), parsed_deps)
 
-        # hidden dependencies are filtered from list of dependencies
+        # hidden dependencies are filtered from list of (build)dependencies
         self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
         self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('testbuildonly/4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertTrue('testbuildonly/.4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # hidden dependencies are also filtered from list of dependencies when validation is skipped
@@ -652,6 +670,8 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(res[1], validate=False)
         self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
         self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertFalse('testbuildonly/4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertTrue('testbuildonly/.4.5.6-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # verify append functionality for lists
@@ -1069,7 +1089,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
-        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
+        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE), ('hidden/.1.2.3', EXTERNAL_MODULE)]"
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
         write_file(toy_ec, ectxt)
 
@@ -1082,11 +1102,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[0]['external_module'], True)
 
         deps = ec.dependencies()
-        self.assertEqual(len(deps), 4)
-        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'somebuilddep/0.1']
+        self.assertEqual(len(deps), 5)
+        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'hidden/.1.2.3', 'somebuilddep/0.1']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
-        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True])
+        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True, True])
+        self.assertEqual([d['hidden'] for d in deps], [False, False, False, True, False])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
         metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
@@ -1187,7 +1208,10 @@ class EasyConfigTest(EnhancedTestCase):
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
             ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
+            ecdict = ec.asdict()
             ec.dump(test_ec)
+            # dict representation of EasyConfig instance should not change after dump
+            self.assertEqual(ecdict, ec.asdict())
             ectxt = read_file(test_ec)
 
             patterns = [r"^name = ['\"]", r"^version = ['0-9\.]", r'^description = ["\']']
@@ -1595,6 +1619,39 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(new_ec['dependencies'][1]['dummy'], False)
         self.assertEqual(new_ec['dependencies'][1]['short_mod_name'], 'GCC/4.7.2')
         self.assertEqual(new_ec['dependencies'][1]['full_mod_name'], 'GCC/4.7.2')
+
+    def test_copy_easyconfigs(self):
+        """Test copy_easyconfigs function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        target_dir = os.path.join(self.test_prefix, 'copied_ecs')
+        # easybuild/easyconfigs subdir is expected to exist
+        ecs_target_dir = os.path.join(target_dir, 'easybuild', 'easyconfigs')
+        mkdir(ecs_target_dir, parents=True)
+
+        # passing an empty list of paths is fine
+        res = copy_easyconfigs([], target_dir)
+        self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
+        self.assertEqual(os.listdir(os.path.join(target_dir, 'easybuild', 'easyconfigs')), [])
+
+        # copy test easyconfigs, purposely under a different name
+        test_ecs = [
+            ('GCC-4.6.3.eb', 'GCC.eb'),
+            ('OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
+            ('toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+        ]
+        ecs_to_copy = []
+        for (src_ec, target_ec) in test_ecs:
+            ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
+            shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
+
+        copy_easyconfigs(ecs_to_copy, target_dir)
+
+        # check whether easyconfigs were copied (unmodified) to correct location
+        for orig_ec, src_ec in test_ecs:
+            copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
+            self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
+            self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
 
 
 def suite():

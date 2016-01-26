@@ -31,6 +31,7 @@ cfr. https://www.nersc.gov/users/software/programming-libraries/math-libraries/l
 """
 import os
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

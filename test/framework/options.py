@@ -41,10 +41,13 @@ from urllib2 import URLError
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import DEFAULT_MODULECLASSES, get_build_log_path, get_module_syntax
+from easybuild.tools.config import DEFAULT_MODULECLASSES
+from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -55,7 +58,7 @@ from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
 
-# test account, for which a token is available
+# test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 
@@ -72,7 +75,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
         for var in os.environ.keys():
-            if var.startswith('EASYBUILD_'):
+            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
                 del os.environ[var]
 
     def test_help_short(self, txt=None):
@@ -937,26 +941,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
-    def test_footer(self):
-        """Test specifying a module footer."""
+    def test_header_footer(self):
+        """Test specifying a module header/footer."""
 
         # create file containing modules footer
         if get_module_syntax() == 'Tcl':
-            module_footer_txt = '\n'.join([
+            modules_header_txt = '\n'.join([
+                "# test header",
+                "setenv SITE_SPECIFIC_HEADER_ENV_VAR foo",
+            ])
+            modules_footer_txt = '\n'.join([
                 "# test footer",
-                "setenv SITE_SPECIFIC_ENV_VAR foobar",
+                "setenv SITE_SPECIFIC_FOOTER_ENV_VAR bar",
             ])
         elif get_module_syntax() == 'Lua':
-            module_footer_txt = '\n'.join([
+            modules_header_txt = '\n'.join([
+                "-- test header",
+                'setenv("SITE_SPECIFIC_HEADER_ENV_VAR", "foo")',
+            ])
+            modules_footer_txt = '\n'.join([
                 "-- test footer",
-                'setenv("SITE_SPECIFIC_ENV_VAR", "foobar")',
+                'setenv("SITE_SPECIFIC_FOOTER_ENV_VAR", "bar")',
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-        fd, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
-        os.close(fd)
-        write_file(modules_footer, module_footer_txt)
+        # dump header/footer text to file
+        handle, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
+        os.close(handle)
+        write_file(modules_footer, modules_footer_txt)
+        handle, modules_header = tempfile.mkstemp(prefix='modules-header-')
+        os.close(handle)
+        write_file(modules_header, modules_header_txt)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
@@ -969,20 +985,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
+            '--modules-header=%s' % modules_header,
             '--modules-footer=%s' % modules_footer,
         ]
-        self.eb_main(args, do_build=True)
+        self.eb_main(args, do_build=True, raise_error=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-        footer_regex = re.compile(r'%s$' % module_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
-        msg = "modules footer '%s' is present in '%s'" % (module_footer_txt, toy_module_txt)
-        self.assertTrue(footer_regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_header_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules header '%s' is present in '%s'" % (modules_header_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
+
+        regex = re.compile(r'%s$' % modules_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
+        msg = "modules footer '%s' is present in '%s'" % (modules_footer_txt, toy_module_txt)
+        self.assertTrue(regex.search(toy_module_txt), msg)
 
         # cleanup
         os.remove(modules_footer)
+        os.remove(modules_header)
 
     def test_recursive_module_unload(self):
         """Test generating recursively unloading modules."""
@@ -1670,14 +1693,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_generate_cmd_line(self):
         """Test for generate_cmd_line."""
-        ebopts = EasyBuildOptions()
-        self.assertEqual(ebopts.generate_cmd_line(), [])
+        self.purge_environment()
 
-        ebopts = EasyBuildOptions(go_args=['--force'])
-        self.assertEqual(ebopts.generate_cmd_line(), ['--force'])
+        def generate_cmd_line(ebopts):
+            """Helper function to filter generated command line (to ignore $EASYBUILD_IGNORECONFIGFILES)."""
+            return [x for x in ebopts.generate_cmd_line() if not x.startswith('--ignoreconfigfiles=')]
 
-        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'])
-        self.assertEqual(ebopts.generate_cmd_line(), ['--search=foobar'])
+        ebopts = EasyBuildOptions(envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), [])
+
+        ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--force'])
+
+        ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--search=foobar'])
+
+        os.environ['EASYBUILD_DEBUG'] = '1'
+        ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
@@ -1727,8 +1760,85 @@ class CommandLineOptionsTest(EnhancedTestCase):
         foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
+        # easyblock is found via get_easyblock_class
+        klass = get_easyblock_class('EB_foo')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
+
+    def test_include_generic_easyblocks(self):
+        """Test --include-easyblocks with a generic easyblock."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        # generic easyblock FooBar is not there initially
+        error_msg = "Failed to obtain class for FooBar easyblock"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
+
+        # include extra test easyblocks
+        txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class FooBar(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'generic', 'foobar.py'), txt)
+
+        args = [
+            '--include-easyblocks=%s/generic/*.py' % self.test_prefix,
+            '--list-easyblocks=detailed',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
+                                    'generic', 'foobar.py')
+        foo_regex = re.compile(r"^\|-- FooBar \(easybuild.easyblocks.generic.foobar @ %s\)"  % path_pattern, re.M)
+        self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
+
+        klass = get_easyblock_class('FooBar')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of foobar easyblock
+        del sys.modules['easybuild.easyblocks.generic.foobar']
+        os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
+        reload(easybuild.easyblocks.generic)
+
+        error_msg = "Failed to obtain class for FooBar easyblock"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
+
+        # clear log
+        write_file(self.logfile, '')
+
+        # importing without specifying 'generic' also works, and generic easyblock can be imported as well
+        # this works thanks to a fallback mechanism in get_easyblock_class
+        txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class GenericTest(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        write_file(os.path.join(self.test_prefix, 'generictest.py'), txt)
+
+        args[0] = '--include-easyblocks=%s/*.py' % self.test_prefix
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+
+        path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
+                                    'generictest.py')
+        foo_regex = re.compile(r"^\|-- GenericTest \(easybuild.easyblocks.generictest @ %s\)"  % path_pattern, re.M)
+        self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
+
+        klass = get_easyblock_class('GenericTest')
+        self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
+
+        # 'undo' import of foo easyblock
+        del sys.modules['easybuild.easyblocks.generictest']
 
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""
@@ -1968,6 +2078,172 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for notthere_regex in [ignoring_error_regex, ignored_error_regex]:
                 msg = "Pattern '%s' NOT found in: %s" % (notthere_regex.pattern, stdout)
                 self.assertFalse(notthere_regex.search(stdout), msg)
+
+    def test_last_log(self):
+        """Test --last-log."""
+        orig_tmpdir = os.environ['TMPDIR']
+        tmpdir = os.path.join(tempfile.gettempdir(), 'eb-tmpdir1')
+        current_log_path = os.path.join(tmpdir, 'easybuild-current.log')
+
+        # $TMPDIR determines path to build log, we need to get it right to make the test check what we want it to
+        os.environ['TMPDIR'] = tmpdir
+        write_file(current_log_path, "this is a log message")
+        self.assertEqual(find_last_log(current_log_path), None)
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        self.mock_stdout(True)
+        mkdir(os.path.dirname(current_log_path))
+        self.eb_main(['--last-log'], logfile=current_log_path, raise_error=True)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        self.assertEqual(txt, '(none)')
+
+        # run something that fails first, we need a log file to find
+        last_log_path = os.path.join(tempfile.gettempdir(), 'eb-tmpdir0', 'easybuild-last.log')
+        mkdir(os.path.dirname(last_log_path))
+        self.eb_main(['thisisaneasyconfigthatdoesnotexist.eb'], logfile=last_log_path, raise_error=False)
+
+        # $TMPDIR determines path to build log, we need to get it right to make the test check what we want it to
+        os.environ['TMPDIR'] = tmpdir
+        write_file(current_log_path, "this is a log message")
+        last_log = find_last_log(current_log_path)
+        self.assertTrue(os.path.samefile(last_log, last_log_path), "%s != %s" % (last_log, last_log_path))
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        self.mock_stdout(True)
+        mkdir(os.path.dirname(current_log_path))
+        self.eb_main(['--last-log'], logfile=current_log_path, raise_error=True)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.samefile(txt, last_log_path), "%s != %s" % (txt, last_log_path))
+
+    def test_fixed_installdir_naming_scheme(self):
+        """Test use of --fixed-installdir-naming-scheme."""
+        # by default, name of install dir match module naming scheme used
+        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'])
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+
+        # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
+        build_options = {
+            'fixed_installdir_naming_scheme': True,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
+        app = EasyBlock(EasyConfig(eb_file))
+        app.gen_installdir()
+        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+
+    def test_new_update_pr(self):
+        """Test use of --new-pr (dry run only)."""
+        if self.github_token is None:
+            print "Skipping test_new_pr, no GitHub token available?"
+            return
+
+        # copy toy test easyconfig
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        # purposely picked one with non-default toolchain/versionsuffix
+        shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
+
+        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
+        args = [
+            '--new-pr',
+            '--experimental',
+            toy_ec,
+            '-D',
+            '--disable-cleanup-tmpdir',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r"^Opening pull request \[DRY RUN\]",
+            r"^\* target: hpcugent/easybuild-easyconfigs:develop",
+            r"^\* from: %s/easybuild-easyconfigs:.*_new_pr_toy00" % GITHUB_TEST_ACCOUNT,
+            r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
+            r"\(created using `eb --new-pr`\)",  # description
+            r"^\* overview of changes:",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*1 file changed",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # determine location of repo clone, can be used to test --git-working-dirs-path (and save time)
+        dirs = glob.glob(os.path.join(self.test_prefix, 'eb-*', '*', 'git-working-dir*'))
+        if len(dirs) == 1:
+            git_working_dir = dirs[0]
+        else:
+            self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
+
+        args.extend([
+            '--git-working-dirs-path=%s' % git_working_dir,
+            '--pr-branch-name=branch_name_for_new_pr_test',
+            '--pr-commit-msg="this is a commit message. really!"',
+            '--pr-descr="moar letters foar teh lettre box"',
+            '--pr-target-branch=master',
+            '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
+            '--pr-title=test-1-2-3',
+        ])
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== fetching branch 'master' from https://github.com/boegel/easybuild-easyconfigs.git...",
+            r"^Opening pull request \[DRY RUN\]",
+            r"^\* target: boegel/easybuild-easyconfigs:master",
+            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ACCOUNT,
+            r"\(created using `eb --new-pr`\)",  # description
+            r"moar letters foar teh lettre box",  # also description (see --pr-descr)
+            r"^\* title: \"test-1-2-3\"",
+            r"^\* overview of changes:",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*1 file changed",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        args = [
+            # PR for EasyBuild v2.5.0 release
+            # we need a PR where the base branch is still available ('develop', in this case)
+            '--update-pr=2237',
+            '--experimental',
+            toy_ec,
+            '-D',
+            # only to speed things up
+            '--git-working-dirs-path=%s' % git_working_dir,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== Determined branch name corresponding to hpcugent/easybuild-easyconfigs PR #2237: develop",
+            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*1 file changed",
+            r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
 
 def suite():

@@ -39,6 +39,7 @@ import copy
 import difflib
 import os
 import re
+import shutil
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
@@ -46,7 +47,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -161,15 +162,10 @@ class EasyConfig(object):
             tup = (type(self.extra_options), self.extra_options)
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
-        # deep copy to make sure self.extra_options remains unchanged
-        self._config.update(copy.deepcopy(self.extra_options))
-
         self.mandatory = MANDATORY_PARAMS[:]
 
-        # extend mandatory keys
-        for key, value in self.extra_options.items():
-            if value[2] == MANDATORY:
-                self.mandatory.append(key)
+        # deep copy to make sure self.extra_options remains unchanged
+        self.extend_params(copy.deepcopy(self.extra_options))
 
         # set valid stops
         self.valid_stops = build_option('valid_stops')
@@ -219,6 +215,27 @@ class EasyConfig(object):
         self.mod_subdir = mns.det_module_subdir(self)
 
         self.software_license = None
+
+    def extend_params(self, extra, overwrite=True):
+        """Extend list of known parameters via provided list of extra easyconfig parameters."""
+
+        self.log.debug("Extending list of known easyconfig parameters with: %s", ' '.join(extra.keys()))
+
+        if overwrite:
+            self._config.update(extra)
+        else:
+            for key in extra:
+                if key not in self._config:
+                    self._config[key] = extra[key]
+                    self.log.debug("Added new easyconfig parameter: %s", key)
+                else:
+                    self.log.debug("Easyconfig parameter %s already known, not overwriting", key)
+
+        # extend mandatory keys
+        for key, value in extra.items():
+            if value[2] == MANDATORY:
+                self.mandatory.append(key)
+        self.log.debug("Updated list of mandatory easyconfig parameters: %s", self.mandatory)
 
     def copy(self):
         """
@@ -283,8 +300,10 @@ class EasyConfig(object):
             # validations are skipped, just set in the config
             # do not store variables we don't need
             if key in self._config.keys():
-                if key in ['builddependencies', 'dependencies']:
+                if key in ['dependencies']:
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
+                elif key in ['builddependencies']:
+                    self[key] = [self._parse_dependency(dep, build_only=True) for dep in local_vars[key]]
                 elif key in ['hiddendependencies']:
                     self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
                 else:
@@ -409,30 +428,44 @@ class EasyConfig(object):
 
     def filter_hidden_deps(self):
         """
-        Filter hidden dependencies from list of dependencies.
+        Filter hidden dependencies from list of (build) dependencies.
         """
-        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
+        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
+        build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
 
         faulty_deps = []
-        for hidden_dep in self['hiddendependencies']:
-            # check whether hidden dep is a listed dep using *visible* module name, not hidden one
+        for i, hidden_dep in enumerate(self['hiddendependencies']):
             hidden_mod_name = ActiveMNS().det_full_module_name(hidden_dep)
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
+
+            # track whether this hidden dep is listed as a build dep
+            if visible_mod_name in build_dep_mod_names or hidden_mod_name in build_dep_mod_names:
+                # templating must be temporarily disabled when updating a value in a dict;
+                # see comments in resolve_template
+                enable_templating = self.enable_templating
+                self.enable_templating = False
+                self['hiddendependencies'][i]['build_only'] = True
+                self.enable_templating = enable_templating
+
+            # filter hidden dep from list of (build)dependencies
             if visible_mod_name in dep_mod_names:
-                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != visible_mod_name]
-                self.log.debug("Removed dependency matching hidden dependency %s" % hidden_dep)
+                for key in ['builddependencies', 'dependencies']:
+                    self[key] = [d for d in self[key] if d['full_mod_name'] != visible_mod_name]
+                self.log.debug("Removed (build)dependency matching hidden dependency %s", hidden_dep)
             elif hidden_mod_name in dep_mod_names:
-                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != hidden_mod_name]
-                self.log.debug("Hidden dependency %s is already marked to be installed as hidden module", hidden_dep)
+                for key in ['builddependencies', 'dependencies']:
+                    self[key] = [d for d in self[key] if d['full_mod_name'] != hidden_mod_name]
+                self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
+                               hidden_dep)
             else:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
-                self.log.warning("Hidden dependency %s not in list of dependencies" % visible_mod_name)
+                self.log.warning("Hidden dependency %s not in list of (build)dependencies", visible_mod_name)
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
-            raise EasyBuildError("Hidden dependencies with visible module names %s not in list of dependencies: %s",
+            raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
     def dependencies(self):
@@ -549,8 +582,23 @@ class EasyConfig(object):
         if self[attr] and self[attr] not in values:
             raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
+    def handle_external_module_metadata(self, dep_name):
+        """
+        helper function for _parse_dependency
+        handles metadata for external module dependencies
+        """
+        dependency = {}
+        if dep_name in self.external_modules_metadata:
+            dependency['external_module_metadata'] = self.external_modules_metadata[dep_name]
+            self.log.info("Updated dependency info with available metadata for external module %s: %s",
+                          dep_name, dependency['external_module_metadata'])
+        else:
+            self.log.info("No metadata available for external module %s", dep_name)
+
+        return dependency
+
     # private method
-    def _parse_dependency(self, dep, hidden=False):
+    def _parse_dependency(self, dep, hidden=False, build_only=False):
         """
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
@@ -563,6 +611,7 @@ class EasyConfig(object):
          'external_module']
 
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        @param build_only: indicate whether this is a build-only dependency
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -582,6 +631,8 @@ class EasyConfig(object):
             'dummy': False,
             # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
+            # boolean indicating whether this this a build-only dependency
+            'build_only': build_only,
             # boolean indicating whether this dependency should be resolved via an external module
             'external_module': False,
             # metadata in case this is an external module;
@@ -590,9 +641,13 @@ class EasyConfig(object):
         }
         if isinstance(dep, dict):
             dependency.update(dep)
+
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+
+            if dep.get('external_module', False):
+                dependency.update(self.handle_external_module_metadata(dep['full_mod_name']))
 
         elif isinstance(dep, Dependency):
             dependency['name'] = dep.name()
@@ -610,12 +665,7 @@ class EasyConfig(object):
                     dependency['external_module'] = True
                     dependency['short_mod_name'] = dep[0]
                     dependency['full_mod_name'] = dep[0]
-                    if dep[0] in self.external_modules_metadata:
-                        dependency['external_module_metadata'].update(self.external_modules_metadata[dep[0]])
-                        self.log.info("Updated dependency info with available metadata for external module %s: %s",
-                                      dep[0], dependency['external_module_metadata'])
-                    else:
-                        self.log.info("No metadata available for external module %s", dep[0])
+                    dependency.update(self.handle_external_module_metadata(dep[0]))
                 else:
                     raise EasyBuildError("Incorrect external dependency specification: %s", dep)
             else:
@@ -626,6 +676,10 @@ class EasyConfig(object):
             raise EasyBuildError("Dependency %s of unsupported type: %s", dep, type(dep))
 
         if dependency['external_module']:
+            # check whether the external module is hidden
+            if dependency['full_mod_name'].split('/')[-1].startswith('.'):
+                dependency['hidden'] = True
+
             self.log.debug("Returning parsed external dependency: %s", dependency)
             return dependency
 
@@ -1084,6 +1138,57 @@ def robot_find_easyconfig(name, version):
     return res
 
 
+def copy_easyconfigs(paths, target_dir):
+    """
+    Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
+
+    @paths: list of paths to copy to git working dir
+    @target_dir: target directory
+    @return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    """
+    file_info = {
+        'ecs': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    a_to_z = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+    subdir = os.path.join('easybuild', 'easyconfigs')
+
+    if os.path.exists(os.path.join(target_dir, subdir)):
+        for path in paths:
+            ecs = process_easyconfig(path, validate=False)
+            if len(ecs) == 1:
+                file_info['ecs'].append(ecs[0]['ec'])
+                name = file_info['ecs'][-1].name
+                ec_filename = '%s-%s.eb' % (name, det_full_ec_version(file_info['ecs'][-1]))
+
+                letter = name.lower()[0]
+                if letter not in a_to_z:
+                    raise EasyBuildError("Don't know which letter subdir to use for %s", name)
+
+                target_path = os.path.join(subdir, letter, name, ec_filename)
+                _log.debug("Target path for %s: %s", path, target_path)
+
+                full_target_path = os.path.join(target_dir, target_path)
+                try:
+                    file_info['new'].append(not os.path.exists(full_target_path))
+
+                    mkdir(os.path.dirname(full_target_path), parents=True)
+                    shutil.copy2(path, full_target_path)
+                    _log.info("%s copied to %s", path, full_target_path)
+                except OSError as err:
+                    raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+
+                file_info['paths_in_repo'].append(target_path)
+            else:
+                raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+    else:
+        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
+
+    return file_info
+
+
 class ActiveMNS(object):
     """Wrapper class for active module naming scheme."""
 
@@ -1185,8 +1290,12 @@ class ActiveMNS(object):
     def det_install_subdir(self, ec):
         """Determine name of software installation subdirectory."""
         self.log.debug("Determining software installation subdir for %s", ec)
-        subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
-        self.log.debug("Obtained subdir %s", subdir)
+        if build_option('fixed_installdir_naming_scheme'):
+            subdir = os.path.join(ec['name'], det_full_ec_version(ec))
+            self.log.debug("Using fixed naming software installation subdir: %s", subdir)
+        else:
+            subdir = self.mns.det_install_subdir(self.check_ec_type(ec))
+            self.log.debug("Obtained subdir %s", subdir)
         return subdir
 
     def det_devel_module_filename(self, ec, force_visible=False):
@@ -1224,6 +1333,13 @@ class ActiveMNS(object):
         self.log.debug("Determining modulepath extensions for %s" % ec)
         modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec))
         self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
+        return modpath_extensions
+
+    def det_user_modpath_extensions(self, ec):
+        """Determine user-specific modulepath extensions according to module naming scheme."""
+        self.log.debug("Determining user modulepath extensions for %s", ec)
+        modpath_extensions = self.mns.det_user_modpath_extensions(self.check_ec_type(ec))
+        self.log.debug("Obtained user modulepath extensions: %s", modpath_extensions)
         return modpath_extensions
 
     def det_init_modulepaths(self, ec):

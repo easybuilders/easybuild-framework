@@ -136,7 +136,7 @@ def only_if_module_is_available(modname, pkgname=None, url=None):
             return orig
 
         except ImportError as err:
-            def error(*args):
+            def error(*args, **kwargs):
                 msg = "%s; required module '%s' is not available" % (err, modname)
                 if pkgname:
                     msg += " (provided by Python package %s, available from %s)" % (pkgname, url)

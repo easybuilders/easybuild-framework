@@ -61,7 +61,8 @@ from easybuild.tools.config import DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
-from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
+from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
+from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
@@ -72,6 +73,7 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
+from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -212,6 +214,8 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Allow color output", None, 'store_true', True),
+            'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
+                                  Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
@@ -220,6 +224,8 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
+            'fixed-installdir-naming-scheme': ("Use fixed naming scheme for installation directories", None,
+                                               'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
                                           None, 'store_true', False),
@@ -295,6 +301,8 @@ class EasyBuildOptions(GeneralOption):
                               None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
+            'modules-header': ("Path to file containing header to be added to all generated module files",
+                               None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'packagepath': ("The destination path for the packages built by package-tool",
@@ -317,6 +325,7 @@ class EasyBuildOptions(GeneralOption):
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
+            'subdir-user-modules': ("Base path of user-specific modules relative to their $HOME", None, 'store', None),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
@@ -348,6 +357,7 @@ class EasyBuildOptions(GeneralOption):
                                            None, 'store_true', False),
             'dep-graph': ("Create dependency graph",
                           None, "store", None, {'metavar': 'depgraph.<ext>'}),
+            'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",
@@ -364,25 +374,46 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
+    def github_options(self):
+        """GitHub integration configuration options."""
+        descr = ("GitHub integration options", "Integration with GitHub")
+
+        opts = OrderedDict({
+            'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
+            'github-user': ("GitHub username", None, 'store', None),
+            'new-pr': ("Open a new pull request", None, 'store_true', False),
+            'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
+                               str, 'store', None),
+            'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
+            'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
+            'pr-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
+            'pr-target-branch': ("Target branch for new PRs", str, 'store', 'develop'),
+            'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
+            'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
+            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
+                                       None, 'regex', None),
+            'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
+        })
+
+        self.log.debug("github_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
     def regtest_options(self):
-        # regression test options
+        """Regression test configuration options."""
         descr = ("Regression test options", "Run and control an EasyBuild regression test.")
 
         opts = OrderedDict({
             'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
                                   None, 'store', None, {'metavar': 'DIR'}),
-            'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
-            'github-user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
-            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
-            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
-            'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
-                                       None, 'regex', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
