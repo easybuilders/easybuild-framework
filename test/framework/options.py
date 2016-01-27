@@ -181,7 +181,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test forcing installation even if the module is already available."""
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'GCC-4.6.3.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'GCC-4.6.3.eb')
 
         # check log message without --force
         args = [
@@ -207,7 +207,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test skipping installation of module (--skip, -k)."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -267,7 +267,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test submitting build as a job."""
 
         # use gzip-1.4.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'gzip-1.4.eb')
 
         def check_args(job_args, passed_args=None):
             """Check whether specified args yield expected result."""
@@ -334,7 +334,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
 
-        toy_ecfile = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toy_ecfile = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
         self.logfile = None
         out = self.eb_main([toy_ecfile, '--debug', '-l', '--force'], raise_error=True)
 
@@ -481,8 +481,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        shutil.copytree(self.test_easyconfigs, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -564,7 +563,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--search=gzip',
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot=%s' % self.test_easyconfigs,
             '--unittest-file=%s' % self.logfile,
         ]
         self.eb_main(args, logfile=dummylogfn)
@@ -582,7 +581,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--search=^gcc.*2.eb',
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot=%s' % self.test_easyconfigs,
             '--unittest-file=%s' % self.logfile,
         ]
         self.eb_main(args, logfile=dummylogfn)
@@ -604,7 +603,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 search_arg,
                 'toy-0.0',
                 '-r',
-                os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                self.test_easyconfigs,
                 '--unittest-file=%s' % self.logfile,
             ]
             self.eb_main(args, logfile=dummylogfn, raise_error=True, verbose=True)
@@ -625,10 +624,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
+            os.path.join(self.test_easyconfigs, 'gzip-1.4-GCC-4.6.3.eb'),
             '--dry-run',  # implies enabling dependency resolution
             '--unittest-file=%s' % self.logfile,
-            '--robot-paths=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot-paths=%s' % self.test_easyconfigs,
         ]
         self.eb_main(args, logfile=dummylogfn)
         logtxt = read_file(self.logfile)
@@ -656,8 +655,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        shutil.copytree(self.test_easyconfigs, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -700,9 +698,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        eb_file1 = os.path.join(test_ecs_dir, 'FFTW-3.3.3-gompi-1.4.10.eb')
-        eb_file2 = os.path.join(test_ecs_dir, 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb')
+        eb_file1 = os.path.join(self.test_easyconfigs, 'FFTW-3.3.3-gompi-1.4.10.eb')
+        eb_file2 = os.path.join(self.test_easyconfigs, 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -713,7 +710,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--force',
-            '--robot=%s' % test_ecs_dir,
+            '--robot=%s' % self.test_easyconfigs,
             '--try-toolchain=gompi,1.3.12',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
@@ -740,17 +737,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         args = [
-            os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),
-            os.path.join(test_ecs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
+            os.path.join(self.test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb'),
+            os.path.join(self.test_easyconfigs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=HierarchicalMNS',
             '--ignore-osdeps',
             '--force',
             '--debug',
-            '--robot-paths=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            '--robot-paths=%s' % self.test_easyconfigs,
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
 
@@ -781,17 +777,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         self.setup_categorized_hmns_modules()
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         args = [
-            os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),
-            os.path.join(test_ecs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
+            os.path.join(self.test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb'),
+            os.path.join(self.test_easyconfigs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=CategorizedHMNS',
             '--ignore-osdeps',
             '--force',
             '--debug',
-            '--robot-paths=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            '--robot-paths=%s' % self.test_easyconfigs,
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
 
@@ -831,7 +826,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot=%s' % self.test_easyconfigs,
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -877,10 +872,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         ecstmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(ecstmpdir, 'easybuild'), parents=True)
-        shutil.copytree(test_ecs_path, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
+        shutil.copytree(self.test_easyconfigs, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
 
         # inject path to test easyconfigs into head of Python search path
         sys.path.insert(0, ecstmpdir)
@@ -894,7 +888,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % test_ecs_path,
+            '--robot=%s' % self.test_easyconfigs,
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -902,13 +896,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         try:
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (test_ecs_path, 'toy/0.0'),  # not included in PR
-                (test_ecs_path, 'GCC/4.9.2'),  # not included in PR
+                (self.test_easyconfigs, 'toy/0.0'),  # not included in PR
+                (self.test_easyconfigs, 'GCC/4.9.2'),  # not included in PR
                 (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
                 (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
                 (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
                 (tmpdir, 'gompi/2015a'),
-                (test_ecs_path, 'GCC/4.6.3'),  # not included in PR
+                (self.test_easyconfigs, 'GCC/4.6.3'),  # not included in PR
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -975,7 +969,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(modules_header, modules_header_txt)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -1011,7 +1005,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test generating recursively unloading modules."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-deps.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'toy-0.0-deps.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -1039,7 +1033,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
 
         # check log message with --skip for existing module
         args = [
@@ -1202,7 +1196,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure MockModulesTool is available
         from test.framework.modulestool import MockModulesTool
 
-        ec_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        ec_file = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
 
         # keep track of original module definition so we can restore it
         orig_module = os.environ.get('module', None)
@@ -1253,9 +1247,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_try(self):
         """Test whether --try options are taken into account."""
-        ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
-        shutil.copy2(os.path.join(ecs_path, 'toy-0.0.eb'), tweaked_toy_ec)
+        shutil.copy2(os.path.join(self.test_easyconfigs, 'toy-0.0.eb'), tweaked_toy_ec)
         f = open(tweaked_toy_ec, 'a')
         f.write("easyblock = 'ConfigureMake'")
         f.close()
@@ -1266,7 +1259,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
             '--dry-run',
-            '--robot=%s' % ecs_path,
+            '--robot=%s' % self.test_easyconfigs,
         ]
 
         test_cases = [
@@ -1311,17 +1304,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_recursive_try(self):
         """Test whether recursive --try-X works."""
-        ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ecs_path = os.path.join(self.test_easyconfigs)
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         shutil.copy2(os.path.join(ecs_path, 'toy-0.0.eb'), tweaked_toy_ec)
         f = open(tweaked_toy_ec, 'a')
         f.write("dependencies = [('gzip', '1.4')]\n")  # add fictious dependency
         f.close()
 
-        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
         args = [
             tweaked_toy_ec,
-            '--sourcepath=%s' % sourcepath,
+            '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
             '--try-toolchain=gompi,1.4.10',
@@ -1370,7 +1362,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_cleanup_builddir(self):
         """Test cleaning up of build dir and --disable-cleanup-builddir."""
-        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        toy_ec = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
         toy_buildpath = os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy')
 
         args = [
@@ -1398,15 +1390,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_filter_deps(self):
         """Test use of --filter-deps."""
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(test_dir, 'easyconfigs', 'goolf-1.4.10.eb')
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        ec_file = os.path.join(self.test_easyconfigs, 'goolf-1.4.10.eb')
         args = [
             ec_file,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
-            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
+            '--robot=%s' % self.test_easyconfigs,
             '--dry-run',
+            '--force',
         ]
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
@@ -1425,15 +1416,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_hide_deps(self):
         """Test use of --hide-deps."""
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(test_dir, 'easyconfigs', 'goolf-1.4.10.eb')
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        ec_file = os.path.join(self.test_easyconfigs, 'goolf-1.4.10.eb')
         args = [
             ec_file,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
-            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
+            '--robot=%s' % self.test_easyconfigs,
             '--dry-run',
+            '--force',
         ]
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
@@ -1465,7 +1455,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         def toy(extra_args=None):
             """Build & install toy, return contents of test report."""
-            eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            eb_file = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
             args = [
                 eb_file,
                 '--sourcepath=%s' % self.test_sourcepath,
@@ -1514,8 +1504,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
         os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_prefix
 
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
+        eb_file = os.path.join(self.test_easyconfigs, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
 
         # hide test modules
         self.reset_modulepath([])
@@ -1523,7 +1512,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # dependency resolution is disabled by default, even if required paths are available
         args = [
             eb_file,
-            '--robot-paths=%s' % test_ecs_path,
+            '--robot-paths=%s' % self.test_easyconfigs,
         ]
         error_regex = "Missing modules for one or more dependencies: .*"
         self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
@@ -1537,13 +1526,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'Irresolvable dependencies', self.eb_main, args, raise_error=True)
 
         # add path to test easyconfigs to robot paths, so dependencies can be resolved
-        self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)
+        self.eb_main(args + ['--robot-paths=%s' % self.test_easyconfigs], raise_error=True)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
         # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
-        shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        shutil.copytree(self.test_easyconfigs, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         del os.environ['EASYBUILD_ROBOT_PATHS']
@@ -1557,14 +1546,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that paths specified to --robot get preference over --robot-paths
         args = [
             eb_file,
-            '--robot=%s' % test_ecs_path,
+            '--robot=%s' % self.test_easyconfigs,
             '--robot-paths=%s' % os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
             '--dry-run',
         ]
         outtxt = self.eb_main(args, raise_error=True)
 
         for ecfile in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
-            ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
+            ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(self.test_easyconfigs, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
     def test_missing_cfgfile(self):
@@ -1728,8 +1717,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        test_easyblocks = os.path.dirname(os.path.abspath(__file__))
-        path_pattern = os.path.join(test_easyblocks, 'sandbox', 'easybuild', 'easyblocks', 'f', 'foo.py')
+        path_pattern = os.path.join(self.test_easyblocks, 'f', 'foo.py')
         foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
@@ -1898,7 +1886,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(os.path.join(self.test_prefix, 'test_mns.py'), mns_txt)
 
-        eb_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        eb_file = os.path.join(self.test_easyconfigs, 'toy-0.0.eb')
         args = [
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=AnotherTestIncludedMNS',
@@ -1972,7 +1960,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_cleanup_tmpdir(self):
         """Test --cleanup-tmpdir."""
         args = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb'),
+            os.path.join(self.test_easyconfigs, 'toy-0.0.eb'),
             '--dry-run',
             '--try-software-version=1.0',  # so we get a tweaked easyconfig
         ]

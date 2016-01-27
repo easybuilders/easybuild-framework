@@ -53,16 +53,21 @@ def get_git_revision():
 
     relies on GitPython (see http://gitorious.org/git-python)
     """
+    res = UNKNOWN
     try:
         import git
+        # __file__ may contain path in a zipped egg
+        if os.path.exists(__file__):
+            path = os.path.dirname(__file__)
+            try:
+                gitrepo = git.Git(path)
+                res = gitrepo.rev_list("HEAD").splitlines()[0]
+            except git.GitCommandError:
+                pass
     except ImportError:
-        return UNKNOWN
-    try:
-        path = os.path.dirname(__file__)
-        gitrepo = git.Git(path)
-        return gitrepo.rev_list("HEAD").splitlines()[0]
-    except git.GitCommandError:
-        return UNKNOWN
+        pass
+
+    return res
 
 git_rev = get_git_revision()
 if git_rev == UNKNOWN:
