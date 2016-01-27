@@ -132,21 +132,15 @@ class ZlibChecksum(object):
 
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
-    f = None
-    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    txt = None
     try:
-        f = open(path, 'r')
-        txt = f.read()
-        f.close()
-        return txt
+        with open(path, 'r') as handle:
+            txt = handle.read()
     except IOError, err:
-        # make sure file handle is always closed
-        if f is not None:
-            f.close()
         if log_error:
             raise EasyBuildError("Failed to read %s: %s", path, err)
-        else:
-            return None
+
+    return txt
 
 
 def write_file(path, txt, append=False, forced=False):
@@ -172,7 +166,7 @@ def remove_file(path):
         if os.path.exists(path):
             os.remove(path)
     except OSError, err:
-          raise EasyBuildError("Failed to remove %s: %s", path, err)
+        raise EasyBuildError("Failed to remove %s: %s", path, err)
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -321,7 +315,7 @@ def find_easyconfigs(path, ignore_dirs=None):
             files.append(spec)
 
         # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return files
 
@@ -361,7 +355,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             # note: we still need to consider e.g., .local !
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+            dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
         hits = sorted(hits)
 
@@ -384,7 +378,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     @param path: Path of file to compute checksum for
     @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
-    if not checksum_type in CHECKSUM_FUNCTIONS:
+    if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
                              checksum_type, CHECKSUM_FUNCTIONS.keys())
 
@@ -541,22 +535,25 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
-    """Determine list of patched files from a patch."""
-    # expected format: "--- path/to/patched/file"
-    # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex_old = re.compile(r"^\s*\-{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
+    """
+    Determine list of patched files from a patch.
+    It searches for "+++/--- path/to/patched/file" lines to determine
+    the patched files.
+    @param path: the path to the diff
+    @param txt: the contents of the diff (either path or txt should be give)
+    @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
+    @param github: only consider lines that start with 'diff --git' to determine list of patched files
+    """
+    if github:
+        patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+    else:
+        patched_regex_old = r"^\s*\-{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+        patched_regex_new = r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+    patched_regex = re.compile(patched_regex, re.M)
 
-    # expected format: "+++ path/to/patched/file"
-    # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex_new = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
     if path is not None:
-        try:
-            f = open(path, 'r')
-            txt = f.read()
-            f.close()
-        except IOError, err:
-            raise EasyBuildError("Failed to read patch %s: %s", path, err)
+        txt = read_file(path)
     elif txt is None:
         raise EasyBuildError("Either a file path or a string representing a patch should be supplied")
 
@@ -595,9 +592,9 @@ def guess_patch_level(patched_files, parent_dir):
                 # If the file is missing, we create an empty file,
                 # but only if the old line is /dev/null
                 if patched_file_old in ['/dev/null']:
-                    open(os.path.join(parent_dir, *tf2[level:]), "a+")
-                    path_found = True
-                    break
+                   open(os.path.join(parent_dir, *tf2[level:]), "a+")
+                   path_found = True
+                   break
         if path_found:
             patch_level = level
             break
@@ -714,7 +711,8 @@ def convert_name(name, upper=False):
     # no regexps
     charmap = {
         '+': 'plus',
-        '-': 'min'
+        '-': 'min',
+        '.': '',
     }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
@@ -981,12 +979,19 @@ def move_logs(src_logfile, target_logfile):
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
     except (IOError, OSError), err:
-        raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s" ,
+        raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
                              src_logfile, target_logfile, err)
 
 
-def cleanup(logfile, tempdir, testing):
-    """Cleanup the specified log file and the tmp directory, if desired."""
+def cleanup(logfile, tempdir, testing, silent=False):
+    """
+    Cleanup the specified log file and the tmp directory, if desired.
+
+    @param logfile: path to log file to clean up
+    @param tempdir: path to temporary directory to clean up
+    @param testing: are we in testing mode? if so, don't actually clean up anything
+    @param silent: be silent (don't print anything to stdout)
+    """
 
     if build_option('cleanup_tmpdir') and not testing:
         if logfile is not None:
@@ -995,17 +1000,18 @@ def cleanup(logfile, tempdir, testing):
                     os.remove(log)
             except OSError, err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing or silent)
 
         if tempdir is not None:
             try:
                 shutil.rmtree(tempdir, ignore_errors=True)
             except OSError, err:
                 raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing or silent)
 
     else:
-        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
+        msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
+        print_msg(msg, log=None, silent=testing or silent)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):
@@ -1082,7 +1088,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
         else:
             errors.extend((src, dst, str(why)))
     if errors:
-        raise Error, errors
+        raise Error(errors)
 
 
 def encode_string(name):
@@ -1140,6 +1146,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
     _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
