@@ -74,4 +74,4 @@ then
     exit 3
 fi
 
-$PYTHON -O -m easybuild.main $@
+$PYTHON -O -m easybuild.main "$@"

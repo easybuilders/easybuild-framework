@@ -28,10 +28,11 @@ EasyBuild support for gmvapich2 compiler toolchain (includes GCC and MVAPICH2).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
-class Gmvapich2(Gcc, Mvapich2):
+class Gmvapich2(GccToolchain, Mvapich2):
     """Compiler toolchain with GCC and MVAPICH2."""
     NAME = 'gmvapich2'
+    SUBTOOLCHAIN = GccToolchain.NAME

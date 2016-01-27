@@ -640,7 +640,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+            self.assertTrue(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -655,7 +655,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertFalse(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+            self.assertFalse(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -698,7 +698,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+            self.assertTrue(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -797,10 +797,8 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
-                r'whatis\(\[\[Name: toy\]\]\)',
-                r'whatis\(\[\[Version: 0.0\]\]\)',
-                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
-                r'whatis\(\[\[Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'',
+                r'whatis\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -832,7 +830,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
@@ -1028,6 +1026,17 @@ class ToyBuildTest(EnhancedTestCase):
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
+
+    def test_regtest(self):
+        """Test use of --regtest."""
+        self.test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
+
+        # just check whether module exists
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        msg = "module %s found" % toy_module
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module), msg)
 
 
 def suite():

@@ -57,6 +57,7 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+    SUBTOOLCHAIN = None
     TOOLCHAIN_FAMILY = None
 
     # list of class 'constants' that should be restored for every new instance of this class
@@ -177,11 +178,17 @@ class Toolchain(object):
         typ: indicates what type of return value is expected"""
 
         if typ == str:
-            return str(self.variables[name])
+            res = str(self.variables.get(name, ''))
+
         elif typ == list:
-            return self.variables[name].flatten()
+            if name in self.variables:
+                res = self.variables[name].flatten()
+            else:
+                res = []
         else:
             raise EasyBuildError("get_variable: Don't know how to create value of type %s.", typ)
+
+        return res
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
@@ -269,6 +276,8 @@ class Toolchain(object):
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
             'hidden': False,
+            'full_mod_name': self.mod_full_name,
+            'short_mod_name': self.mod_short_name,
         }
 
     def det_short_module_name(self):

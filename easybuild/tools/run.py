@@ -122,7 +122,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     ec = p.poll()
     stdouterr = ''
-    while ec < 0:
+    while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         output = p.stdout.read(readSize)
@@ -269,7 +269,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     oldLenOut = -1
     hitCount = 0
 
-    while ec < 0:
+    while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:

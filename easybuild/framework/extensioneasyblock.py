@@ -80,6 +80,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
             self.is_extension = True
             self.unpack_options = None
+
+            # make sure that extra custom easyconfig parameters are known
+            extra_params = self.__class__.extra_options()
+            self.cfg.extend_params(extra_params, overwrite=False)
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
@@ -108,14 +112,15 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['exts_filter'] = exts_filter
         self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
 
-        if not self.is_extension:
+        fake_mod_data = None
+        if not (self.is_extension or self.dry_run):
             # load fake module
             fake_mod_data = self.load_fake_module(purge=True)
 
         # perform sanity check
         sanity_check_ok = Extension.sanity_check_step(self)
 
-        if not self.is_extension:
+        if fake_mod_data:
             # unload fake module and clean up
             self.clean_up_fake_module(fake_mod_data)
 

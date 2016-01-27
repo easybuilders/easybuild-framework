@@ -30,7 +30,7 @@ This is the original pure python code, to be exec'ed rather then parsed
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import re
 import tempfile
@@ -43,7 +43,7 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFo
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.templates import to_template_str
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.utilities import quote_py_str
 
 
@@ -223,11 +223,12 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         for group in keyset:
             printed = False
             for key in group:
-                # the value for 'dependencies' may have been modified after parsing via filter_hidden_deps
+                val = copy.deepcopy(ecfg[key])
+                # include hidden deps back in list of (build)dependencies, they were filtered out via filter_hidden_deps
                 if key == 'dependencies':
-                    val = ecfg[key] + ecfg['hiddendependencies']
-                else:
-                    val = ecfg[key]
+                    val.extend([d for d in ecfg['hiddendependencies'] if not d['build_only']])
+                elif key == 'builddependencies':
+                    val.extend([d for d in ecfg['hiddendependencies'] if d['build_only']])
 
                 if val != default_values[key]:
                     # dependency easyconfig parameters were parsed, so these need special care to 'unparse' them
@@ -354,10 +355,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
     reg_dep_block = re.compile(r"^\s*block\s*=(\s*.*?)\s*$", re.M)
 
     spec_fn = os.path.basename(spec)
-    try:
-        txt = open(spec).read()
-    except IOError, err:
-        raise EasyBuildError("Failed to read file %s: %s", spec, err)
+    txt = read_file(spec)
 
     # split into blocks using regex
     pieces = reg_block.split(txt)

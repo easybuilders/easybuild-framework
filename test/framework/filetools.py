@@ -85,10 +85,10 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_convert_name(self):
         """Test convert_name function."""
-        name = ft.convert_name("test+test-test")
-        self.assertEqual(name, "testplustestmintest")
-        name = ft.convert_name("test+test-test", True)
-        self.assertEqual(name, "TESTPLUSTESTMINTEST")
+        name = ft.convert_name("test+test-test.mpi")
+        self.assertEqual(name, "testplustestmintestmpi")
+        name = ft.convert_name("test+test-test.mpi", True)
+        self.assertEqual(name, "TESTPLUSTESTMINTESTMPI")
 
     def test_cwd(self):
         """tests should be run from the base easybuild directory"""
@@ -527,6 +527,33 @@ class FileToolsTest(EnhancedTestCase):
 
         # restore original umask
         os.umask(orig_umask)
+
+    def test_apply_regex_substitutions(self):
+        """Test apply_regex_substitutions function."""
+        testfile = os.path.join(self.test_prefix, 'test.txt')
+        testtxt = '\n'.join([
+            "CC = gcc",
+            "CFLAGS = -O3 -g",
+            "FC = gfortran",
+            "FFLAGS = -O3 -g -ffixed-form",
+        ])
+        ft.write_file(testfile, testtxt)
+
+        regex_subs = [
+            (r"^(CC)\s*=\s*.*$", r"\1 = ${CC}"),
+            (r"^(FC\s*=\s*).*$", r"\1${FC}"),
+            (r"^(.FLAGS)\s*=\s*-O3\s-g(.*)$", r"\1 = -O2\2"),
+        ]
+        ft.apply_regex_substitutions(testfile, regex_subs)
+
+        expected_testtxt = '\n'.join([
+            "CC = ${CC}",
+            "CFLAGS = -O2",
+            "FC = ${FC}",
+            "FFLAGS = -O2 -ffixed-form",
+        ])
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt)
 
 
 def suite():

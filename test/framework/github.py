@@ -41,7 +41,7 @@ from easybuild.tools.filetools import read_file, write_file
 import easybuild.tools.github as gh
 
 
-# test account, for which a token is available
+# test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 # the user who's repo to test
 GITHUB_USER = "hpcugent"
@@ -49,6 +49,7 @@ GITHUB_USER = "hpcugent"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
+
 
 class GithubTest(EnhancedTestCase):
     """ small test for The github package

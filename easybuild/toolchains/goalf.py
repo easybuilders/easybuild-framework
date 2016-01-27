@@ -29,13 +29,13 @@ EasyBuild support for goalf compiler toolchain (includes GCC, OpenMPI, ATLAS, BL
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.atlas import Atlas
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Goalf(Gcc, OpenMPI, Atlas, ScaLAPACK, Fftw):
+class Goalf(Gompi, Atlas, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, ATLAS, ScaLAPACK and FFTW."""
     NAME = 'goalf'
+    SUBTOOLCHAIN = Gompi.NAME
