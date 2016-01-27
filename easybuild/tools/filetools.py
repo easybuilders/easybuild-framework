@@ -572,7 +572,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
         if patched_file in ['/dev/null']:
             _log.debug("Ignoring patched file %s" % patched_file)
         else:
-	    # Add tuple with [old filepath (from ---), and new filepath (from +++)]
+            # Add list with [old filepath (from ---), and new filepath (from +++)]
             patched_files.append([old_matches[idx][1].group('file'), patched_file])
 
     return patched_files
@@ -591,13 +591,13 @@ def guess_patch_level(patched_files, parent_dir):
             if os.path.isfile(os.path.join(parent_dir, *tf2[level:])):
                 path_found = True
                 break
-	    else:
-		# If the file is missing, we create an empty file,
-		# but only if the old line is /dev/null
-		if patched_file_old in ['/dev/null']:
-		    open(os.path.join(parent_dir, *tf2[level:]), "a+")
-		    path_found = True
-		    break
+            else:
+                # If the file is missing, we create an empty file,
+                # but only if the old line is /dev/null
+                if patched_file_old in ['/dev/null']:
+                    open(os.path.join(parent_dir, *tf2[level:]), "a+")
+                    path_found = True
+                    break
         if path_found:
             patch_level = level
             break
