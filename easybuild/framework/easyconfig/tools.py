@@ -371,8 +371,9 @@ def find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules
             else:  # parent and dependency use same toolchain
                 if use_existing_modules:
                     # check whether a module using one of the (sub)toolchains is available for this dependency
-                    # if so, pick the minimal subtoolchain for which a module is available
-                    for toolchain in toolchain_hierarchy:
+                    # if so, pick the *highest* subtoolchain for which a module is available (you may have built at a
+                    # higher level for performance reasons, e.g., zlib)
+                    for toolchain in reversed(toolchain_hierarchy):
                         cand_dep = copy.deepcopy(dep)
                         cand_dep['toolchain'] = toolchain
                         full_mod_name = ActiveMNS().det_full_module_name(cand_dep)
