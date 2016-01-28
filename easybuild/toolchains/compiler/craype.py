@@ -59,12 +59,12 @@ class CrayPECompiler(Compiler):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = {
-        'dynamic': (False, "Generate dynamically linked executable"),
+        'dynamic': (True, "Generate dynamically linked executable"),
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
         'optarch': (False, "Enable architecture optimizations"),
-        'verbose': (True, "Verbose output"),
+        'verbose': (False, "Verbose output"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
