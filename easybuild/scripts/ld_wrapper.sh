@@ -12,9 +12,11 @@
 # rpaths to binary. 
 
 
-LDWRAPPER=$NSC_LD_FLAG
-LDORIG=/usr/bin/ld    
-LINKER=$NSC_LINKER_NAME   ## not yet implemented 
+LDWRAPPER=$EB_LD_FLAG
+LDORIG=${EB_LD:-/usr/bin/ld}
+LINKER=$EB_LINKER_NAME   ## not yet implemented 
+EB_LD_VERBOSE=${EB_LD_VERBOSE:-false}
+
 #######################################################
 
 function create_symbol_array(){
@@ -111,10 +113,6 @@ function create_symbol_array(){
     exclude_lib_paths=("/tmp" "/opt")
   fi
 
-  if [ -z "$NSC_COMPILER_VERBOSE" ]; then
-    NSC_COMPILER_VERBOSE=false
-  fi
-
   L=""
   lib_array=()
   dir=`pwd`
@@ -124,7 +122,7 @@ function create_symbol_array(){
 	## If runpath exists in the binary it can be controlled by LD_LIBRARY_PATH.
 	## We want only rpath in the binary and no runpath.
 	## If the user wants to use runpath he should disable linker warpper
-	## by using NSC_LD_FLAG=0
+	## by using EB_LD_FLAG=0
         set -- "${@:1:$(( $i - 1 ))}" "${@:$(( $i + 1 ))}"
     fi
   done
@@ -180,6 +178,6 @@ function create_symbol_array(){
     sym_str="$sym_str --defsym $x"
   done
 
-  $NSC_COMPILER_VERBOSE && echo "INFO: linking with rpath and NSC symbols"
+  $EB_LD_VERBOSE && echo "INFO: linking with rpath and NSC symbols"
   $LDORIG "$RPATH" "$@" "$sym_str"
  
