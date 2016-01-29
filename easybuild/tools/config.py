@@ -141,6 +141,7 @@ BUILD_OPTIONS_CMDLINE = {
         'read_only_installdir',
         'rebuild',
         'robot',
+        'rpath',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',

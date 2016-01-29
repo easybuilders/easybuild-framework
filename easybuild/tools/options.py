@@ -433,6 +433,16 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
+    def rpath_options(self):
+        # rpath Options
+        descr = ("RPATH options", "changes linking to include rpaths")
+
+        opts = OrderedDict({
+            'rpath': ("Enable RPATH support", None, 'store_true', False),
+        })
+        self.log.debug("rpath_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
     def easyconfig_options(self):
         # easyconfig options (to be passed to easyconfig instance)
         descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")

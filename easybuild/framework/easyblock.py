@@ -73,6 +73,7 @@ from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
+from easybuild.tools.rpath import prepare_ld_wrapper
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -1523,6 +1524,12 @@ class EasyBlock(object):
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
 
+        self.log.debug("prepare_step: PATH %s" % os.environ['PATH'])
+        if build_option('rpath'):
+            # Setup the environment and copy wrapper script into path
+            prepare_ld_wrapper()
+
+        self.log.debug("prepare_step after rpath : PATH %s" % os.environ['PATH'])
         # guess directory to start configure/build/install process in, and move there
         self.guess_start_dir()
 
