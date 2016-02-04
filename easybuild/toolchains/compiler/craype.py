@@ -64,7 +64,7 @@ class CrayPECompiler(Compiler):
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
         'optarch': (False, "Enable architecture optimizations"),
-        'verbose': (False, "Verbose output"),
+        'verbose': (True, "Verbose output"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
