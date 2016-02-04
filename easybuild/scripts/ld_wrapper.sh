@@ -11,95 +11,13 @@
 # (e.g., gcc, gfortran, icc, ifort etc.) and adds
 # rpaths to binary.
 
+SCRIPTNAME=$(basename $0)
 
 LDWRAPPER=$EB_LD_FLAG
-LDORIG=${EB_LD:-/usr/bin/ld}
+LDORIG=${EB_LD:-/bin/$SCRIPTNAME}
 LINKER=$EB_LINKER_NAME   ## not yet implemented
 EB_LD_VERBOSE=${EB_LD_VERBOSE:-false}
 
-#######################################################
-
-function create_symbol_array(){
-  declare -A dict
-  ## extract all environment vars starting with NSC_
-  ## and store them in a bash dictionary.
-  for i in $(env | grep NSC_)
-  do
-    j=(${i//=/ })
-    j0=${j[0]}
-    j1=${j[1]}
-    dict[$j0]=$j1
-  done
-
-  ## *_tag variables control which symbols are
-  ## written to the binary.
-  mpi_tag="0"
-  mkl_tag="0"
-  com_tag="0"
-
-  #NSC_COMP, NSC_COMP_VER, NSC_COMP_BIN_PATH, NSC_COMP_LIB_PATH,
-  #NSC_MPI, NSC_MPI_VER, NSC_MPI_LIB_PATH,
-  #NSC_MKL_VER, NSC_MKL_LIB_PATH should be
-  #defined in the corresponding module file.
-
-  ### check which components are used in actual compilation
-  ### e.g., mkl may be loaded but not used in compilation
-  for key in "${!dict[@]}"
-  do
-    if [ "$key" == "NSC_COMP_LIB_PATH" ]; then
-      if [[ "$@" =~ ${dict[$key]} ]]; then
-	  com_tag="1" ## compiler is used
-      fi
-    elif [ "$key" == "NSC_MPI_LIB_PATH" ]; then
-      if [[ "$@" =~ ${dict[$key]} ]]; then
-	  mpi_tag="1" ## mpi is used
-      fi
-    elif [ "$key" == "NSC_MKL_LIB_PATH" ]; then
-      if [[ "$@" =~ ${dict[$key]} ]]; then
-	  mkl_tag="1" ## mkl is used
-      fi
-    fi
-  done
-
-  sym_array=()
-  for key in "${!dict[@]}"
-  do
-    val=$(echo ${dict[$key]} |sed -e 's/\./_/g')
-    if [ "$key" == "NSC_COMP" ]; then
-      if [ "$com_tag" == "1" ]; then
-        str="__${key}_${val}=0"
-        sym_array=( "${sym_array[@]}" "$str" )
-      fi
-    elif [ "$key" == "NSC_COMP_VER" ]; then
-      if [ "$com_tag" == "1" ]; then
-        str="__NSC_COMPVER_${val}=0"
-        sym_array=( "${sym_array[@]}" "$str" )
-      fi
-    elif [ "$key" == "NSC_MPI" ]; then
-      if [ "$mpi_tag" == "1" ]; then
-	str="__${key}_${val}=0"
-        sym_array=( "${sym_array[@]}" "$str" )
-       fi
-    elif [ "$key" == "NSC_MPI_VER" ]; then
-      if [ "$mpi_tag" == "1" ]; then
-	str="__NSC_MPIVER_${val}=0"
-        sym_array=( "${sym_array[@]}" "$str" )
-       fi
-    elif [ "$key" == "NSC_MKL_VER" ]; then
-      if [ "$mkl_tag" == "1" ]; then
-	str="__NSC_MKLVER_${val}=0"
-        sym_array=( "${sym_array[@]}" "$str" )
-       fi
-    fi
-  done
-  if [ "${#sym_array[@]}" -ne 0 ]; then
-    sym_array=( "${sym_array[@]}" "__NSC_TAGVER_5=0" )
-    sym_array=( "${sym_array[@]}" "__NSC_BDATE_$(date +%y%m%d_%H%M%S)=0" )
-  fi
-  echo "${sym_array[@]}"
-}
-
-##################################################
 
 $EB_LD_VERBOSE && echo "INFO: linking with rpath "
 
@@ -175,12 +93,6 @@ $EB_LD_VERBOSE && echo "INFO: linking with rpath "
 
   sym_str=""
 
-  for x in $(create_symbol_array ${lib_array[@]})
-  do
-    sym_str="$sym_str --defsym $x"
-  done
-
-  $EB_LD_VERBOSE && echo "INFO: linking with rpath and NSC symbols"
-  $EB_LD_VERBOSE && echo "INFO: RPATH : $RPATH sym_str: $sym_str"
-  $EB_LD_VERBOSE && echo "INFO: $LDORIG $RPATH $@ $sym_str"
-  $LDORIG "$RPATH" "$@" "$sym_str"
+  $EB_LD_VERBOSE && echo "INFO: linking with rpath and NSC symbols "
+  $EB_LD_VERBOSE && echo "INFO: RPATH : $RPATH sym_str: $sym_str @: $@ ::"
+  $LDORIG "$RPATH" "$@"

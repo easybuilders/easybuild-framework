@@ -16,6 +16,7 @@ ld_wrapper_script_loc = os.path.abspath(os.path.join(os.path.dirname(__file__), 
 
 DEBUG = True
 
+
 def prepare_ld_wrapper():
     """
     Copy wrapper from framework for each iteration, a bit expensive, but might give flexibility
@@ -24,16 +25,20 @@ def prepare_ld_wrapper():
     wrapper_dir = tempfile.mkdtemp(prefix='eb-ldwrapper-')
     # copy wrapper script from framework
     wrapper_ld = os.path.join(wrapper_dir, "ld")
+    wrapper_ld_gold = os.path.join(wrapper_dir, "ld.gold")
     shutil.copy(ld_wrapper_script_loc, wrapper_ld)
+    shutil.copy(ld_wrapper_script_loc, wrapper_ld_gold)
     adjust_permissions(wrapper_ld, stat.S_IXUSR, add=True)
+    adjust_permissions(wrapper_ld_gold, stat.S_IXUSR, add=True)
 
     # put wrapper script in PATH
+    # TODO: get path to existing ld and put it in EB_LD
     os.environ['PATH'] = os.pathsep.join([wrapper_dir] +
                                          [x for x in os.environ.get('PATH', '').split(os.pathsep) if len(x) > 0])
 
     os.environ['EB_LD_FLAG'] = "1"
     if DEBUG:
-        os.environ['EB_LD_VERBOSE']='true'
+        os.environ['EB_LD_VERBOSE'] = 'true'
 
 
 def teardown_ld_wrapper():
