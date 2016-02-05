@@ -178,7 +178,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.last_log)
+    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.terse)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -223,21 +223,12 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         # print location to last log file, and exit
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
-        cleanup(logfile, eb_tmpdir, testing, silent=True)
-        sys.exit(0)
 
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
-
-    # update session state
-    eb_config = eb_go.generate_cmd_line(add_default=True)
-    modlist = session_module_list(testing=testing)  # build options must be initialized first before 'module list' works
-    init_session_state.update({'easybuild_configuration': eb_config})
-    init_session_state.update({'module_list': modlist})
-    _log.debug("Initial session state: %s" % init_session_state)
 
     # GitHub integration
     if options.review_pr or options.new_pr or options.update_pr:
@@ -254,9 +245,22 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         sys.exit(0)
 
     # search for easyconfigs, if a query is specified
-    query = options.search or options.search_short
+    query = options.search or options.search_filename or options.search_short
     if query:
-        search_easyconfigs(query, short=not options.search)
+        search_easyconfigs(query, short=options.search_short, filename_only=options.search_filename,
+                           terse=options.terse)
+
+    # non-verbose cleanup and exit after printing terse info
+    if options.terse:
+        cleanup(logfile, eb_tmpdir, testing, silent=True)
+        sys.exit(0)
+
+    # update session state
+    eb_config = eb_go.generate_cmd_line(add_default=True)
+    modlist = session_module_list(testing=testing)  # build options must be initialized first before 'module list' works
+    init_session_state.update({'easybuild_configuration': eb_config})
+    init_session_state.update({'module_list': modlist})
+    _log.debug("Initial session state: %s" % init_session_state)
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
@@ -264,8 +268,8 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search, options.search_short,
-                  options.regtest, options.update_pr]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search,
+                  options.search_filename, options.search_short, options.regtest, options.update_pr]
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)

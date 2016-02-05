@@ -362,13 +362,16 @@ class EasyBuildOptions(GeneralOption):
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",
                                 None, 'store_true', False),
-            'search': ("Search for easyconfig files in the robot directory, print full paths",
-                       None, 'store', None, {'metavar': 'STR'}),
-            'search-short': ("Search for easyconfig files in the robot directory, print short paths",
-                             None, 'store', None, 'S', {'metavar': 'STR'}),
+            'search': ("Search for easyconfig files in the robot search path, print full paths",
+                       None, 'store', None, {'metavar': 'REGEX'}),
+            'search-filename': ("Search for easyconfig files in the robot search path, print only filenames",
+                                None, 'store', None, {'metavar': 'REGEX'}),
+            'search-short': ("Search for easyconfig files in the robot search path, print short paths",
+                             None, 'store', None, 'S', {'metavar': 'REGEX'}),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
+            'terse': ("Terse output (machine-readable)", None, 'store_true', False),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
@@ -565,6 +568,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.dump_autopep8:
             if not HAVE_AUTOPEP8:
                 raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
+
+        # imply --terse for --last-log to avoid extra output that gets in the way
+        if self.options.last_log:
+            self.options.terse = True
 
         self._postprocess_external_modules_metadata()
 
