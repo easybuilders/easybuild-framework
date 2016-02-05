@@ -569,7 +569,7 @@ class EasyBuildOptions(GeneralOption):
             if not HAVE_AUTOPEP8:
                 raise EasyBuildError("Python 'autopep8' module required to reformat dumped easyconfigs as requested")
 
-        # some options imply enabling --terse
+        # imply --terse for --last-log to avoid extra output that gets in the way
         if self.options.last_log:
             self.options.terse = True
 
