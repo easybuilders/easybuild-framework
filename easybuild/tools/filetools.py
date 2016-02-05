@@ -373,7 +373,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
 
     if terse:
         for line in hits:
-            print line
+            print(line)
     else:
         for line in var_lines + hit_lines:
             print_msg(line, log=_log, silent=silent, prefix=False)
