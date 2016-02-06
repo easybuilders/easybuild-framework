@@ -74,4 +74,11 @@ then
     exit 3
 fi
 
-$PYTHON -O -m easybuild.main "$@"
+# enable optimization, unless $PYTHONOPTIMIZE is defined (use "export PYTHONOPTIMIZE=0" to disable optimization)
+if [ -z $PYTHONOPTIMIZE ]
+then
+    # instruct Python to turn on basic optimizations (equivalent to using 'python -O')
+    export PYTHONOPTIMIZE=1
+fi
+
+$PYTHON -m easybuild.main "$@"
