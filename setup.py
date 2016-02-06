@@ -111,4 +111,5 @@ implement support for installing particular (groups of) software packages.""",
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
     },
+    namespace_packages=['easybuild'],
 )
