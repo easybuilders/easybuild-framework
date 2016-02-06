@@ -35,12 +35,10 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import copy
 import os
-import re
 import sys
 from datetime import datetime
 from time import gmtime, strftime
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available

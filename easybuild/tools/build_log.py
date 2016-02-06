@@ -64,6 +64,8 @@ class EasyBuildError(LoggedException):
     """
     LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
     LOC_INFO_LEVEL = 1
+    # always include location where error was raised from, even under 'python -O'
+    INCLUDE_LOCATION = True
 
     # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
     # only required because 'error' log method raises (should no longer be needed in EB v3.x)

@@ -84,6 +84,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
 
+        # make sure option parser doesn't pick up any cmdline arguments/options
+        while len(sys.argv) > 1:
+            sys.argv.pop()
+
         # keep track of log handlers
         log = fancylogger.getLogger(fname=False)
         self.orig_log_handlers = log.handlers[:]
