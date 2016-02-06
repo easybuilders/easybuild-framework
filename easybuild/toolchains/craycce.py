@@ -29,13 +29,12 @@ CrayCCE toolchain: Cray compilers (CCE) and MPI via Cray compiler drivers + LibS
 @author: Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.craype import CrayPECray
-from easybuild.toolchains.fft.crayfftw import CrayFFTW
 from easybuild.toolchains.linalg.libsci import LibSci
 from easybuild.toolchains.mpi.craympich import CrayMPICH
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
-class CrayCCE(CrayPECray, CrayMPICH, LibSci, CrayFFTW):
+class CrayCCE(CrayPECray, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME

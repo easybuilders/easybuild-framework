@@ -559,65 +559,97 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_search(self):
         """Test searching for easyconfigs."""
 
-        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
-        os.close(fd)
+        test_easyconfigs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
 
+        # simple search
         args = [
             '--search=gzip',
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
-            '--unittest-file=%s' % self.logfile,
+            '--robot=%s' % test_easyconfigs_dir,
         ]
-        self.eb_main(args, logfile=dummylogfn)
-        logtxt = read_file(self.logfile)
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
 
         info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
-        self.assertTrue(re.search(info_msg, logtxt), "Info message when searching for easyconfigs in '%s'" % logtxt)
+        self.assertTrue(re.search(info_msg, txt), "Info message when searching for easyconfigs in '%s'" % txt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
-            self.assertTrue(re.search(r" \* \S*%s$" % ec, logtxt, re.M), "Found easyconfig %s in '%s'" % (ec, logtxt))
+            regex = re.compile(r" \* \S*%s$" % ec, re.M)
+            self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
 
-        if os.path.exists(dummylogfn):
-            os.remove(dummylogfn)
-
-        write_file(self.logfile, '')
-
+        # search w/ regex
         args = [
             '--search=^gcc.*2.eb',
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
-            '--unittest-file=%s' % self.logfile,
+            '--robot=%s' % test_easyconfigs_dir,
         ]
-        self.eb_main(args, logfile=dummylogfn)
-        logtxt = read_file(self.logfile)
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
 
         info_msg = r"Searching \(case-insensitive\) for '\^gcc.\*2.eb' in"
-        self.assertTrue(re.search(info_msg, logtxt), "Info message when searching for easyconfigs in '%s'" % logtxt)
+        self.assertTrue(re.search(info_msg, txt), "Info message when searching for easyconfigs in '%s'" % txt)
         for ec in ['GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.9.2.eb']:
-            self.assertTrue(re.search(r" \* \S*%s$" % ec, logtxt, re.M), "Found easyconfig %s in '%s'" % (ec, logtxt))
+            regex = re.compile(r" \* \S*%s$" % ec, re.M)
+            self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
 
-        if os.path.exists(dummylogfn):
-            os.remove(dummylogfn)
+        gcc_ecs = [
+            'GCC-4.6.3.eb',
+            'GCC-4.6.4.eb',
+            'GCC-4.7.2.eb',
+            'GCC-4.8.2.eb',
+            'GCC-4.8.3.eb',
+            'GCC-4.9.2.eb',
+        ]
 
-        write_file(self.logfile, '')
+        # test --search-filename
+        args = [
+            '--search-filename=^gcc',
+            '--robot=%s' % test_easyconfigs_dir,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
 
+        for ec in gcc_ecs:
+            regex = re.compile(r"^ \* %s$" % ec, re.M)
+            self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
+
+        # test --search-filename --terse
+        args = [
+            '--search-filename=^gcc',
+            '--terse',
+            '--robot=%s' % test_easyconfigs_dir,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        for ec in gcc_ecs:
+            regex = re.compile(r"^%s$" % ec, re.M)
+            self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
+
+        # also test --search-short/-S
         for search_arg in ['-S', '--search-short']:
-            open(self.logfile, 'w').write('')
             args = [
                 search_arg,
                 'toy-0.0',
                 '-r',
-                os.path.join(os.path.dirname(__file__), 'easyconfigs'),
-                '--unittest-file=%s' % self.logfile,
+                test_easyconfigs_dir,
             ]
-            self.eb_main(args, logfile=dummylogfn, raise_error=True, verbose=True)
-            logtxt = read_file(self.logfile)
+            self.mock_stdout(True)
+            self.eb_main(args, raise_error=True, verbose=True, testing=False)
+            txt = self.get_stdout()
+            self.mock_stdout(False)
 
             info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
-            self.assertTrue(re.search(info_msg, logtxt), "Info message when searching for easyconfigs in '%s'" % logtxt)
-            self.assertTrue(re.search('INFO CFGS\d+=', logtxt), "CFGS line message found in '%s'" % logtxt)
+            self.assertTrue(re.search(info_msg, txt), "Info message when searching for easyconfigs in '%s'" % txt)
+            self.assertTrue(re.search('^CFGS\d+=', txt, re.M), "CFGS line message found in '%s'" % txt)
             for ec in ["toy-0.0.eb", "toy-0.0-multiple.eb"]:
-                self.assertTrue(re.search(" \* \$CFGS\d+/*%s" % ec, logtxt), "Found easyconfig %s in '%s'" % (ec, logtxt))
-
-            if os.path.exists(dummylogfn):
-                os.remove(dummylogfn)
+                regex = re.compile(r" \* \$CFGS\d+/*%s" % ec, re.M)
+                self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
 
     def test_dry_run(self):
         """Test dry run (long format)."""
