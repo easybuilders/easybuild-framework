@@ -76,9 +76,6 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
-KNOWN_TEST_REPOS = ['framework', 'easyblocks', 'easyconfigs']
-DEFAULT_TEST_REPO = KNOWN_TEST_REPOS[0]
-
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):

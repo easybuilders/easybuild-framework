@@ -156,7 +156,6 @@ class EasyBuildOptions(GeneralOption):
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
-            'test': ("Run unit tests for specified EasyBuild repository", None, 'store_or_None', None),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
