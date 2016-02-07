@@ -263,8 +263,8 @@ def template_documentation():
     # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        doc.append("%s%sver: full version for %s" % (indent_l1, pref, name))
         doc.append("%s%sshortver: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
+        doc.append("%s%sver: full version for %s" % (indent_l1, pref, name))
 
     # step 3: add remaining self._config
     doc.append('Template names/values as set in easyconfig')
