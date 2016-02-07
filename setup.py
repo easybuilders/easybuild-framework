@@ -92,7 +92,7 @@ implement support for installing particular (groups of) software packages.""",
     package_dir={'test.framework': "test/framework"},
     package_data={"test.framework": find_rel_test()},
     scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash"],
-    data_files=[('easybuild/scripts', glob.glob('easybuild/scripts/*'))],
+    data_files=[('cray_external_modules_metadata.cfg', easybuild/scripts', glob.glob('easybuild/scripts/*'))],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
