@@ -750,7 +750,16 @@ class EasyConfigTest(EnhancedTestCase):
             '   "files": ["lib/python%%(pyshortver)s/site-packages"],',
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
             '}',
-            'dependencies = [("Python", "2.7.10")]',
+            'dependencies = [',
+            '   ("Perl", "5.22.0"),'
+            '   ("Python", "2.7.10"),'
+            '   ("R", "3.2.3"),'
+            ']',
+            'modloadmsg = "%s"' % '; '.join([
+                'Python: %%(pyver)s, %%(pyshortver)s',
+                'Perl: %%(perlver)s, %%(perlshortver)s',
+                'R: %%(rver)s, %%(rshortver)s',
+            ]),
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -767,6 +776,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
         self.assertEqual(eb['homepage'], "http://example.com/P/p")
+        self.assertEqual(eb['modloadmsg'], "Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
