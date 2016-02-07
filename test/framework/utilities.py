@@ -34,6 +34,7 @@ import re
 import shutil
 import sys
 import tempfile
+from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
@@ -134,15 +135,10 @@ class EnhancedTestCase(_EnhancedTestCase):
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
                 sys.path.remove(path)
 
-        # add test easyblocks to Python search path and (re)import and reload easybuild modules
+        # add sandbox to Python search path, update namespace packages
         import easybuild
         sys.path.append(os.path.join(testdir, 'sandbox'))
-        reload(easybuild)
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+        fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
 
         modtool = modules_tool()
         # purge out any loaded modules with original $MODULEPATH before running each test
