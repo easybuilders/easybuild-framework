@@ -65,16 +65,17 @@ pkg_resources.declare_namespace(__name__)
 # repository, i.e. in first-letter subdirectories
 EASYBLOCKS_PKG_INIT_BODY = """
 import pkg_resources
+import pkgutil
 
 # extend path so Python finds our easyblocks in the subdirectories where they are located
 subdirs = [chr(l) for l in range(ord('a'), ord('z') + 1)] + ['0']
 for subdir in subdirs:
-    pkg_resources.declare_namespace('%s.%s' % (__name__, subdir))
+    __path__ = pkgutil.extend_path(__path__, '%s.%s' % (__name__, subdir))
 
 # extend path so Python knows this is not the only place to look for modules in this package
 pkg_resources.declare_namespace(__name__)
 
-del subdir, subdirs, l
+del l, subdir, subdirs
 """
 
 
