@@ -42,12 +42,14 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
+    ('nameletter', "First letter of software name"),
+    ('pyver', "Python version (only if Python is a direct dependency)"),
+    ('pyshortver', "Short Python version (<major>.<minor>, only if Python is a direct dependency)"),
     ('toolchain_name', "Toolchain name"),
     ('toolchain_version', "Toolchain version"),
     ('version_major_minor', "Major.Minor version"),
     ('version_major', "Major version"),
     ('version_minor', "Minor version"),
-    ('nameletter', "First letter of software name"),
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
@@ -144,6 +146,11 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     for name in TEMPLATE_NAMES_EASYCONFIG:
         if name in ignore:
             continue
+
+        # check if this template name is already handled
+        if template_values.get(name[0]) is not None:
+            continue
+
         if name[0].startswith('toolchain_'):
             tc = config.get('toolchain')[0]
             if tc is not None:
@@ -170,12 +177,20 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                     pass
                 # only go through this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+
         elif name[0].endswith('letter'):
             # parse first letters
             if name[0].startswith('name'):
                 softname = config['name'][0]
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
+
+        elif name[0].startswith('py'):
+            for dep in config['dependencies'][0]:
+                if dep['name'].lower() == 'python':
+                    template_values['pyver'] = dep['version']
+                    template_values['pyshortver'] = '.'.join(dep['version'].split('.')[:2])
+
         else:
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 

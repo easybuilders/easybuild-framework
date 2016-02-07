@@ -740,12 +740,17 @@ class EasyConfigTest(EnhancedTestCase):
             'easyblock = "ConfigureMake"',
             'name = "%(name)s"',
             'version = "%(version)s"',
+            'versionsuffix = "-Python-%%(pyver)s"',
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
             'source_urls = [(GOOGLECODE_SOURCE)]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, "%(cmd)s")]',
-            'sanity_check_paths = {"files": [], "dirs": ["libfoo.%%s" %% SHLIB_EXT]}',
+            'sanity_check_paths = {',
+            '   "files": ["lib/python%%(pyshortver)s/site-packages"],',
+            '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
+            '}',
+            'dependencies = [("Python", "2.7.10")]',
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -758,6 +763,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
+        self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
+        self.assertEqual(eb['sanity_check_paths']['files'][0], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
         self.assertEqual(eb['homepage'], "http://example.com/P/p")
 
