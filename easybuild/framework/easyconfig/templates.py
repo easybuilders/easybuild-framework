@@ -258,29 +258,29 @@ def template_documentation():
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
     for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
 
     # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        doc.append("%s%sshortver: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
-        doc.append("%s%sver: full version for %s" % (indent_l1, pref, name))
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
 
     # step 3: add remaining self._config
     doc.append('Template names/values as set in easyconfig')
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (indent_l1, name))
+        doc.append("%s%%(%s)s" % (indent_l1, name))
 
     # step 4. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
 
     # step 5. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
 
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
