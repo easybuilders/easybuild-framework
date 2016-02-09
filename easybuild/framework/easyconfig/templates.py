@@ -42,12 +42,12 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
+    ('nameletter', "First letter of software name"),
     ('toolchain_name', "Toolchain name"),
     ('toolchain_version', "Toolchain version"),
     ('version_major_minor', "Major.Minor version"),
     ('version_major', "Major version"),
     ('version_minor', "Minor version"),
-    ('nameletter', "First letter of software name"),
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
@@ -66,6 +66,13 @@ TEMPLATE_NAMES_LOWER = [
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('installdir', "Installation directory"),
     ('builddir', "Build directory"),
+]
+# software names for which to define <pref>ver and <pref>shortver templates
+TEMPLATE_SOFTWARE_VERSIONS = [
+    # software name, prefix for *ver and *shortver
+    ('Perl', 'perl'),
+    ('Python', 'py'),
+    ('R', 'r'),
 ]
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
@@ -144,6 +151,11 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     for name in TEMPLATE_NAMES_EASYCONFIG:
         if name in ignore:
             continue
+
+        # check if this template name is already handled
+        if template_values.get(name[0]) is not None:
+            continue
+
         if name[0].startswith('toolchain_'):
             tc = config.get('toolchain')[0]
             if tc is not None:
@@ -170,6 +182,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                     pass
                 # only go through this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+
         elif name[0].endswith('letter'):
             # parse first letters
             if name[0].startswith('name'):
@@ -179,7 +192,15 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         else:
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 
-    # step 2: add remaining from config
+    # step 2: define *ver and *shortver templates
+    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        for dep in config['dependencies'][0]:
+            if isinstance(dep['name'], basestring) and dep['name'].lower() == name.lower():
+                template_values['%sver' % pref] = dep['version']
+                template_values['%sshortver' % pref] = '.'.join(dep['version'].split('.')[:2])
+                break
+
+    # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:
         if name in ignore:
             continue
@@ -187,7 +208,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             template_values[name] = config[name][0]
             _log.debug('name: %s, config: %s', name, config[name][0])
 
-    # step 3. make lower variants if not skip_lower
+    # step 4. make lower variants if not skip_lower
     if not skip_lower:
         for name in TEMPLATE_NAMES_LOWER:
             if name in ignore:
@@ -237,23 +258,29 @@ def template_documentation():
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
     for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
 
-    # step 2: add remaining self._config
+    # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
+    doc.append("Template names/values for (short) software versions")
+    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
+
+    # step 3: add remaining self._config
     doc.append('Template names/values as set in easyconfig')
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (indent_l1, name))
+        doc.append("%s%%(%s)s" % (indent_l1, name))
 
-    # step 3. make lower variants
+    # step 4. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
 
-    # step 4. self.template_values can/should be updated from outside easyconfig
+    # step 5. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
 
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
