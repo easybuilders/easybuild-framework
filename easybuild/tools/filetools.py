@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -320,7 +320,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
     """
     Search for a particular file (only prints)
     """
@@ -340,7 +340,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     for path in paths:
         hits = []
         hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
+        if not terse:
+            print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
@@ -349,7 +350,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
                         var = "CFGS%d" % var_index
                         var_index += 1
                         hit_in_path = True
-                    hits.append(os.path.join(dirpath, filename))
+                    if filename_only:
+                        hits.append(filename)
+                    else:
+                        hits.append(os.path.join(dirpath, filename))
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
@@ -359,7 +363,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
 
         hits = sorted(hits)
 
-        if hits:
+        if hits and not terse:
             common_prefix = det_common_path_prefix(hits)
             if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
                 var_lines.append("%s=%s" % (var, common_prefix))
@@ -367,8 +371,12 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             else:
                 hit_lines.extend([" * %s" % fn for fn in hits])
 
-    for line in var_lines + hit_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
+    if terse:
+        for line in hits:
+            print(line)
+    else:
+        for line in var_lines + hit_lines:
+            print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):

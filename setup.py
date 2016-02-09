@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -91,7 +91,7 @@ implement support for installing particular (groups of) software packages.""",
     packages=easybuild_packages,
     package_dir={'test.framework': "test/framework"},
     package_data={"test.framework": find_rel_test()},
-    scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash"],
+    scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash", "eb_bash_completion.bash"],
     data_files=[('easybuild/scripts', glob.glob('easybuild/scripts/*'))],
     long_description=read('README.rst'),
     classifiers=[
@@ -107,7 +107,7 @@ implement support for installing particular (groups of) software packages.""",
     provides=["eb"] + easybuild_packages,
     test_suite="test.framework.suite",
     zip_safe=False,
-    install_requires=["vsc-base >= 2.2.4"],
+    install_requires=["vsc-base >= 2.2.6"],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
     },

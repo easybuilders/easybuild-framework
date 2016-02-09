@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -258,7 +258,7 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False):
+def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     """Search for easyconfigs, if a query is provided."""
     robot_path = build_option('robot_path')
     if robot_path:
@@ -267,4 +267,5 @@ def search_easyconfigs(query, short=False):
         search_path = [os.getcwd()]
     ignore_dirs = build_option('ignore_dirs')
     silent = build_option('silent')
-    search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent)
+    search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent, filename_only=filename_only,
+                terse=terse)

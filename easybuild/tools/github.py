@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -455,7 +455,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             except OSError as err:
                 raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, tmp_git_working_dir, err)
 
-    git_repo = git.Repo.init(tmp_git_working_dir)
+    try:
+        git_repo = git.Repo.init(tmp_git_working_dir)
+    except GitCommandError as err:
+        raise EasyBuildError("Failed to init git repo at %s: %s", tmp_git_working_dir, err)
 
     _log.debug("temporary git working directory ready at %s", tmp_git_working_dir)
 
@@ -528,13 +531,13 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # commit
     if commit_msg:
         _log.debug("Committing all %d new/modified easyconfigs at once", len(file_info['paths_in_repo']))
-        git_repo.index.commit(commit_msg)
     else:
         commit_msg_parts = []
         for path, new in zip(file_info['paths_in_repo'], file_info['new']):
             commit_msg_parts.append("%s easyconfig %s" % (('modify', 'add')[new], os.path.basename(path)))
         commit_msg = ', '.join(commit_msg_parts)
-        git_repo.index.commit(commit_msg)
+
+    git_repo.index.commit(commit_msg)
 
     # push to GitHub
     github_user = build_option('github_user')
@@ -544,8 +547,13 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if not dry_run:
-        my_remote = git_repo.create_remote(remote_name, github_url)
-        res = my_remote.push(pr_branch)
+        _log.debug("Pushing branch '%s' to remote '%s' (%s)", pr_branch, remote_name, github_url)
+        try:
+            my_remote = git_repo.create_remote(remote_name, github_url)
+            res = my_remote.push(pr_branch)
+        except GitCommandError as err:
+            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", pr_branch, github_url, err)
+
         if res:
             if res[0].ERROR & res[0].flags:
                 raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
