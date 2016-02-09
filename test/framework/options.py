@@ -33,7 +33,6 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 from urllib2 import URLError
@@ -55,6 +54,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.version import VERSION
+from test.framework.utilities import EnhancedTestCase, init_config
 from vsc.utils import fancylogger
 
 

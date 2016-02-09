@@ -30,15 +30,10 @@ Unit tests for module_generator.py.
 """
 
 import os
-import shutil
-import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, TestSuite, TextTestRunner, main
+from unittest import TestLoader, TestSuite, TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
-from vsc.utils.missing import get_subclasses
 
-import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
@@ -47,7 +42,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import quote_str
-from test.framework.utilities import find_full_path, init_config
+from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
@@ -448,13 +443,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
             },
         }
         self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', ActiveMNS().det_full_module_name(non_parsed))
-
-        # install custom module naming scheme dynamically
-        test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        sys.path.append(test_mns_parent_dir)
-        reload(easybuild)
-        reload(easybuild.tools)
-        reload(easybuild.tools.module_naming_scheme)
 
         # make sure test module naming schemes are available
         mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_more']

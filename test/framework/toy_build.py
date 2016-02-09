@@ -35,6 +35,7 @@ import shutil
 import stat
 import sys
 import tempfile
+from pkg_resources import fixup_namespace_packages
 from test.framework.utilities import EnhancedTestCase
 from test.framework.package import mock_fpm
 from unittest import TestLoader
@@ -741,6 +742,7 @@ class ToyBuildTest(EnhancedTestCase):
         # install test module naming scheme dynamically
         test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         sys.path.append(test_mns_parent_dir)
+        fixup_namespace_packages(test_mns_parent_dir)
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)

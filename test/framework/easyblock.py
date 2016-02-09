@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from pkg_resources import fixup_namespace_packages
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
@@ -633,6 +634,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb_blocks_path = os.path.join(testdir, 'sandbox')
         if eb_blocks_path not in sys.path:
             sys.path.append(eb_blocks_path)
+            fixup_namespace_packages(eb_blocks_path)
             easybuild = reload(easybuild)
 
         import easybuild.easyblocks
