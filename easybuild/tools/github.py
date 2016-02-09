@@ -466,7 +466,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
     # add remote to pull from
-    github_url = 'https://github.com/%s/%s.git' % (target_account, pr_target_repo)
+    github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
     _log.debug("Cloning from %s", github_url)
 
     origin = git_repo.create_remote('pr_target_account_%s_%s' % (target_account, salt), github_url)
