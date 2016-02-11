@@ -392,11 +392,13 @@ class ModulesTool(object):
         if mod_paths is None:
             mod_paths = []
 
-        # purge all loaded modules if desired
+        # purge all loaded modules if desired by restoring initial environment
+        # actually running 'module purge' is futile (and wrong/broken on some systems, e.g. Cray)
         if purge:
-            self.purge()
             # restore initial environment if provided
-            if init_env is not None:
+            if init_env is None:
+                raise EasyBuildError("Initial environment required when purging before loading, but not available")
+            else:
                 restore_env(init_env)
 
         # make sure $MODULEPATH is set correctly after purging
