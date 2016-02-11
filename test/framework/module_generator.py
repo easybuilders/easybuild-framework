@@ -145,25 +145,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             # default: guarded module load (which implies no recursive unloading)
-            expected = [
+            expected = '\n'.join([
                 '',
                 "if { ![ is-loaded mod_name ] } {",
                 "    module load mod_name",
                 "}",
                 '',
-            ]
-            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+            ])
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # with recursive unloading: no if is-loaded guard
-            expected = [
+            expected = '\n'.join([
                 '',
                 "module load mod_name",
                 '',
-            ]
-            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
+            ])
+            self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
-            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -173,7 +173,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'end',
                 '',
             ])
-            self.assertEqual(expected,self.modgen.load_module("mod_name"))
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # with recursive unloading: no if isloaded guard
             expected = '\n'.join([
@@ -184,7 +184,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
-            self.assertEqual(expected,self.modgen.load_module("mod_name"))
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
     def test_unload(self):
         """Test unload part in generated module file."""
@@ -194,13 +194,57 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "module unload mod_name",
             ])
-            self.assertEqual(expected, self.modgen.unload_module("mod_name"))
         else:
             expected = '\n'.join([
                 '',
                 'unload("mod_name")',
             ])
-            self.assertEqual(expected, self.modgen.unload_module("mod_name"))
+
+        self.assertEqual(expected, self.modgen.unload_module("mod_name"))
+
+    def test_swap(self):
+        """Test for swap statements."""
+
+        # unguarded swap
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "module swap foo bar",
+                '',
+            ])
+        else:
+            expected = '\n'.join([
+                '',
+                'swap("foo", "bar")',
+                '',
+            ])
+
+        self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=False))
+
+        # guarded swap (enabled by default default)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { [ is-loaded foo ] } {",
+                "    module swap foo bar",
+                '} else {',
+                "    module load bar",
+                '}',
+                '',
+            ])
+        else:
+            expected = '\n'.join([
+                '',
+                'if isloaded("foo") then',
+                '    swap("foo", "bar")',
+                'else',
+                '    load("bar")',
+                'end',
+                '',
+            ])
+
+        self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
+        self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
