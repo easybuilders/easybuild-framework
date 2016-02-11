@@ -684,6 +684,9 @@ def update_pr(pr, paths, commit_msg=None):
     _log.experimental("Updating pull request #%s with %s", pr, paths)
 
     github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to use --new-pr")
+
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
