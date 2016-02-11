@@ -195,11 +195,6 @@ class EasyBuildOptions(GeneralOption):
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
 
-        # additional options that don't need a --try equivalent
-        opts.update({
-            'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
-        })
-
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
@@ -383,6 +378,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", None, 'store', None),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
@@ -398,7 +394,7 @@ class EasyBuildOptions(GeneralOption):
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
             'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
-            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False, 'u'),
         })
 
         self.log.debug("github_options: descr %s opts %s" % (descr, opts))
