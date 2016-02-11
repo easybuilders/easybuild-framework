@@ -455,7 +455,10 @@ def setup_repo(git_repo, github_url, target_account, branch_name):
     except GitCommandError as err:
         alt_branch = 'pr_start_branch_%s_%s' % (branch_name, salt)
         _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
-        origin_branch.checkout(b=alt_branch)
+        try:
+            origin_branch.checkout(b=alt_branch)
+        except GitCommandError as err:
+            raise EasyBuildError("Failed to check out branch '%s' from repo at %s: %s", alt_branch, github_url, err)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
