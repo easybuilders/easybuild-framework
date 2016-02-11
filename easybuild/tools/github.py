@@ -567,6 +567,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # push to GitHub
     github_user = build_option('github_user')
     github_url = 'git@github.com:%s/%s.git' % (github_user, pr_target_repo)
+    salt = ''.join(random.choice(string.letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (github_user, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
