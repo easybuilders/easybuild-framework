@@ -92,6 +92,16 @@ DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 _log = fancylogger.getLogger('options', fname=False)
 
 
+def cleanup_and_exit(tmpdir):
+    """Clean up temporary directory and exit."""
+    try:
+        shutil.rmtree(tmpdir)
+    except OSError as err:
+        raise EasyBuildError("Failed to clean up temporary directory %s: %s", tmpdir, err)
+
+    sys.exit(0)
+
+
 class EasyBuildOptions(GeneralOption):
     """Easybuild generaloption class"""
     VERSION = this_is_easybuild()
@@ -350,8 +360,7 @@ class EasyBuildOptions(GeneralOption):
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
                                            None, 'store_true', False),
-            'dep-graph': ("Create dependency graph",
-                          None, "store", None, {'metavar': 'depgraph.<ext>'}),
+            'dep-graph': ("Create dependency graph", None, "store", None, {'metavar': 'depgraph.<ext>'}),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
@@ -363,6 +372,7 @@ class EasyBuildOptions(GeneralOption):
                                 None, 'store', None, {'metavar': 'REGEX'}),
             'search-short': ("Search for easyconfig files in the robot search path, print short paths",
                              None, 'store', None, 'S', {'metavar': 'REGEX'}),
+            'show-current-config': ("Dump current EasyBuild configuration", None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
@@ -573,6 +583,11 @@ class EasyBuildOptions(GeneralOption):
 
         self._postprocess_config()
 
+        # show current configuration and exit, if requested
+        if self.options.show_current_config:
+            show_eb_config(self.dict_by_prefix(), ignore_opts=['show_current_config'])
+            cleanup_and_exit(self.tmpdir)
+
     def _postprocess_external_modules_metadata(self):
         """Parse file(s) specifying metadata for external modules."""
         # leave external_modules_metadata untouched if no files are provided
@@ -704,13 +719,8 @@ class EasyBuildOptions(GeneralOption):
         else:
             print msg
 
-        # cleanup tmpdir
-        try:
-            shutil.rmtree(self.tmpdir)
-        except OSError as err:
-            raise EasyBuildError("Failed to clean up temporary directory %s: %s", self.tmpdir, err)
-
-        sys.exit(0)
+        # cleanup tmpdir and exit
+        cleanup_and_exit(self.tmpdir)
 
     def avail_cfgfile_constants(self):
         """
@@ -900,6 +910,58 @@ def parse_options(args=None):
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
 
     return eb_go
+
+
+def show_eb_config(current_opts_dict, ignore_opts=None):
+    """Show specified EasyBuild configuration, relative to default EasyBuild configuration."""
+    default_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None, go_useconfigfiles=False).dict_by_prefix()
+    cfgfile_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None).dict_by_prefix()
+    env_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
+
+    # construct dict of non-default options
+    opts_dict = {}
+    for prefix in sorted(default_opts_dict):
+        for opt in sorted(default_opts_dict[prefix]):
+            cur_opt_val = current_opts_dict[prefix][opt]
+            if opt not in ignore_opts and cur_opt_val != default_opts_dict[prefix][opt]:
+                # figure out where this opt was defined
+                if cur_opt_val == cfgfile_opts_dict[prefix][opt]:
+                    # config file
+                    loc = 'F'
+                elif cur_opt_val == env_opts_dict[prefix][opt]:
+                    # environment variable
+                    loc = 'E'
+                else:
+                    # command line option
+                    loc = 'C'
+
+                if prefix:
+                    opt = '%s-%s' % (prefix, opt)
+
+                opts_dict.update({opt: (cur_opt_val, loc)})
+
+    # pretty-print
+    lines = [
+        '#',
+        "# Current EasyBuild configuration",
+        "# [C: command line option, E: environment variable, F: configuration file]",
+        '#',
+    ]
+    nwopt = max([len(opt) for opt in opts_dict])
+    nwval = max([len(str(val)) for (val, _) in opts_dict.values()])
+    for opt in sorted(opts_dict):
+        opt_val, loc = opts_dict[opt]
+
+        if opt_val == '':
+            opt_val = "''"
+        elif isinstance(opt_val, list):
+            opt_val = ', '.join(opt_val)
+
+        opt = opt.replace('_', '-')
+
+        lines.append("{0:<{nwopt}} = {1:<{nwval}}   [{2:}]".format(opt, opt_val, loc, nwopt=nwopt, nwval=nwval))
+
+    print '\n'.join(lines)
 
 
 def process_software_build_specs(options):
