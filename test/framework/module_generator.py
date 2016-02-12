@@ -221,7 +221,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=False))
 
-        # guarded swap (enabled by default default)
+        # guarded swap (enabled by default)
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 '',
