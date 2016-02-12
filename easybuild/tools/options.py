@@ -101,6 +101,41 @@ def cleanup_and_exit(tmpdir):
 
     sys.exit(0)
 
+def pretty_print_opts(opts_dict):
+    """Pretty print options dict."""
+
+    # rewrite option names/values a bit for pretty printing
+    for opt in sorted(opts_dict):
+        opt_val, loc = opts_dict[opt]
+
+        if opt_val == '':
+            opt_val = "''"
+        elif isinstance(opt_val, list):
+            opt_val = ', '.join(opt_val)
+
+        del opts_dict[opt]
+        opt = opt.replace('_', '-')
+        opts_dict[opt] = (opt_val, loc)
+
+    # determine max width or option names/values
+    nwopt = max([len(opt) for opt in opts_dict])
+    nwval = max([len(str(val)) for (val, _) in opts_dict.values()])
+
+    # header
+    lines = [
+        '#',
+        "# Current EasyBuild configuration",
+        "# (C: command line argument, D: default value, E: environment variable, F: configuration file)",
+        '#',
+    ]
+
+    # add one line per retained option
+    for opt in sorted(opts_dict):
+        opt_val, loc = opts_dict[opt]
+        lines.append("{0:<{nwopt}} ({1:}) = {2:<{nwval}}".format(opt, loc, opt_val, nwopt=nwopt, nwval=nwval))
+
+    print '\n'.join(lines)
+
 
 class EasyBuildOptions(GeneralOption):
     """Easybuild generaloption class"""
@@ -372,7 +407,9 @@ class EasyBuildOptions(GeneralOption):
                                 None, 'store', None, {'metavar': 'REGEX'}),
             'search-short': ("Search for easyconfig files in the robot search path, print short paths",
                              None, 'store', None, 'S', {'metavar': 'REGEX'}),
-            'show-current-config': ("Dump current EasyBuild configuration", None, 'store_true', False),
+            'show-config': ("Show current EasyBuild configuration (only non-default + selected settings)",
+                            None, 'store_true', False),
+            'show-full-config': ("Show current EasyBuild configuration (all settings)", None, 'store_true', False),
             'show-default-configfiles': ("Show list of default config files", None, 'store_true', False),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
@@ -584,8 +621,8 @@ class EasyBuildOptions(GeneralOption):
         self._postprocess_config()
 
         # show current configuration and exit, if requested
-        if self.options.show_current_config:
-            show_eb_config(self.dict_by_prefix(), ignore_opts=['show_current_config'])
+        if self.options.show_config or self.options.show_full_config:
+            self.show_config()
             cleanup_and_exit(self.tmpdir)
 
     def _postprocess_external_modules_metadata(self):
@@ -891,6 +928,50 @@ class EasyBuildOptions(GeneralOption):
             lines.append("\t%s:%s%s" % (name, (" " * (maxlen - len(name))), descr))
         return '\n'.join(lines)
 
+    def show_config(self):
+        """Show specified EasyBuild configuration, relative to default EasyBuild configuration."""
+        # options that should never/always be printed
+        ignore_opts = ['show_config', 'show_full_config']
+        include_opts = ['buildpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
+
+        # determine option dicts by selectively disabling configuration levels
+        default_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None, go_useconfigfiles=False).dict_by_prefix()
+        cfgfile_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None).dict_by_prefix()
+        env_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
+        cmdline_opts_dict = self.dict_by_prefix()
+
+        # construct dict of non-default options
+        opts_dict = {}
+        for prefix in sorted(default_opts_dict):
+            for opt in sorted(default_opts_dict[prefix]):
+                cur_opt_val = cmdline_opts_dict[prefix][opt]
+                is_default = cur_opt_val == default_opts_dict[prefix][opt]
+
+                if opt in ignore_opts:
+                    continue
+
+                if self.options.show_full_config or opt in include_opts or not is_default:
+
+                    # figure out where this opt was defined
+                    if is_default:
+                        loc = 'D'
+                    elif cur_opt_val == cfgfile_opts_dict[prefix][opt]:
+                        # config file
+                        loc = 'F'
+                    elif cur_opt_val == env_opts_dict[prefix][opt]:
+                        # environment variable
+                        loc = 'E'
+                    else:
+                        # command line option
+                        loc = 'C'
+
+                    if prefix:
+                        opt = '%s-%s' % (prefix, opt)
+
+                    opts_dict.update({opt: (cur_opt_val, loc)})
+
+        pretty_print_opts(opts_dict)
+
 
 def parse_options(args=None):
     """wrapper function for option parsing"""
@@ -910,58 +991,6 @@ def parse_options(args=None):
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
 
     return eb_go
-
-
-def show_eb_config(current_opts_dict, ignore_opts=None):
-    """Show specified EasyBuild configuration, relative to default EasyBuild configuration."""
-    default_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None, go_useconfigfiles=False).dict_by_prefix()
-    cfgfile_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None).dict_by_prefix()
-    env_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
-
-    # construct dict of non-default options
-    opts_dict = {}
-    for prefix in sorted(default_opts_dict):
-        for opt in sorted(default_opts_dict[prefix]):
-            cur_opt_val = current_opts_dict[prefix][opt]
-            if opt not in ignore_opts and cur_opt_val != default_opts_dict[prefix][opt]:
-                # figure out where this opt was defined
-                if cur_opt_val == cfgfile_opts_dict[prefix][opt]:
-                    # config file
-                    loc = 'F'
-                elif cur_opt_val == env_opts_dict[prefix][opt]:
-                    # environment variable
-                    loc = 'E'
-                else:
-                    # command line option
-                    loc = 'C'
-
-                if prefix:
-                    opt = '%s-%s' % (prefix, opt)
-
-                opts_dict.update({opt: (cur_opt_val, loc)})
-
-    # pretty-print
-    lines = [
-        '#',
-        "# Current EasyBuild configuration",
-        "# [C: command line option, E: environment variable, F: configuration file]",
-        '#',
-    ]
-    nwopt = max([len(opt) for opt in opts_dict])
-    nwval = max([len(str(val)) for (val, _) in opts_dict.values()])
-    for opt in sorted(opts_dict):
-        opt_val, loc = opts_dict[opt]
-
-        if opt_val == '':
-            opt_val = "''"
-        elif isinstance(opt_val, list):
-            opt_val = ', '.join(opt_val)
-
-        opt = opt.replace('_', '-')
-
-        lines.append("{0:<{nwopt}} = {1:<{nwval}}   [{2:}]".format(opt, opt_val, loc, nwopt=nwopt, nwval=nwval))
-
-    print '\n'.join(lines)
 
 
 def process_software_build_specs(options):
