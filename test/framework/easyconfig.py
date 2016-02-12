@@ -762,6 +762,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'Perl: %%(perlver)s, %%(perlshortver)s',
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
+            'license_file = HOME + "/licenses/PI/license.txt"',
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -779,6 +780,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
         self.assertEqual(eb['homepage'], "http://example.com/P/p")
         self.assertEqual(eb['modloadmsg'], "Java: 1.7.80, 1.7; Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
+        self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
