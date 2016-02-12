@@ -2305,9 +2305,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"# \(C: command line argument, D: default value, E: environment variable, F: configuration file\)",
             r"#",
             r"buildpath\s* \(C\) = /weird/build/dir",
-            r"configfiles\s* \(E\) = " + cfgfile,
+            r"configfiles\s* \(E\) = .*" + cfgfile,
             r"deprecated\s* \(E\) = 10000000",
-            r"ignoreconfigfiles\s* \(E\) = ",
+            r"ignoreconfigfiles\s* \(E\) = %s" % ', '.join(os.environ['EASYBUILD_IGNORECONFIGFILES'].split(',')),
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
             r"repositorypath\s* \(D\) = " + os.path.join(default_prefix, 'ebfiles_repo'),
             r"robot-paths\s* \(E\) = " + os.path.join(test_dir, 'easyconfigs'),
@@ -2315,7 +2315,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"subdir-modules\s* \(F\) = mods",
         ]
 
-        self.assertTrue(re.match('\n'.join(expected_lines), txt.strip()))
+        self.assertTrue(re.search('\n'.join(expected_lines), txt.strip()))
 
         args = ['--show-full-config', '--buildpath=/weird/build/dir']
         self.mock_stdout(True)
@@ -2325,9 +2325,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # output of --show-full-config includes additional lines for options with default values
         expected_lines.extend([
-            r"force\s* (D) = False",
-            r"module-syntax\s* (D) = Tcl",
-            r"umask\s* (D) = None",
+            r"force\s* \(D\) = False",
+            r"module-syntax\s* \(D\) = Tcl",
+            r"umask\s* \(D\) = None",
         ])
 
         for expected_line in expected_lines:
