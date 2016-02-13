@@ -2293,7 +2293,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--show-config', '--buildpath=/weird/build/dir']
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
-        txt = self.get_stdout()
+        txt = self.get_stdout().strip()
         self.mock_stdout(False)
 
         default_prefix = os.path.join(os.environ['HOME'], '.local', 'easybuild')
@@ -2315,7 +2315,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"subdir-modules\s* \(F\) = mods",
         ]
 
-        self.assertTrue(re.search('\n'.join(expected_lines), txt.strip()))
+        regex = re.compile('\n'.join(expected_lines))
+        self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         args = ['--show-full-config', '--buildpath=/weird/build/dir']
         self.mock_stdout(True)
