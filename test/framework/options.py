@@ -2288,7 +2288,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'EASYBUILD_ROBOT_PATHS',
             'EASYBUILD_SOURCEPATH',
         ]
-        for key in os.environ:
+        for key in os.environ.keys():
             if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
                 del os.environ[key]
 
