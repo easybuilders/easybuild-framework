@@ -12,9 +12,10 @@
 # rpaths to binary.
 
 SCRIPTNAME=$(basename $0)
-
+ALLSCRIPTS=( $( which -a $SCRIPTNAME ) )
+$EB_LD_VERBOSE && echo "found scriptname: $SCRIPTNAME allscripts: ${ALLSCRIPTS[1]}"
+LDORIG=${ALLSCRIPTS[1]}
 LDWRAPPER=$EB_LD_FLAG
-LDORIG=${EB_LD:-/bin/$SCRIPTNAME}
 LINKER=$EB_LINKER_NAME   ## not yet implemented
 EB_LD_VERBOSE=${EB_LD_VERBOSE:-false}
 
@@ -91,8 +92,6 @@ $EB_LD_VERBOSE && echo "INFO: linking with rpath "
     fi
   done
 
-  sym_str=""
-
   $EB_LD_VERBOSE && echo "INFO: linking with rpath and NSC symbols "
-  $EB_LD_VERBOSE && echo "INFO: RPATH : $RPATH sym_str: $sym_str @: $@ ::"
-  $LDORIG "$RPATH" "$@"
+  $EB_LD_VERBOSE && echo "INFO: LDORIG: $LDORIG RPATH : $RPATH @: $@ ::"
+  $LDORIG "-rpath=$L" "$@"
