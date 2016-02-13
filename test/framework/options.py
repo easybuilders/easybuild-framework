@@ -2279,8 +2279,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_show_config(self):
         """"Test --show-config and --show-full-config."""
-        # unset $EASYBUILD_PREFIX, to check for defaults
-        del os.environ['EASYBUILD_PREFIX']
+
+        # only retain $EASYBUILD_* environment variables we expect for this test
+        retained_eb_env_vars = [
+            'EASYBUILD_DEPRECATED',
+            'EASYBUILD_IGNORECONFIGFILES',
+            'EASYBUILD_INSTALLPATH',
+            'EASYBUILD_ROBOT_PATHS',
+            'EASYBUILD_SOURCEPATH',
+        ]
+        for key in os.environ:
+            if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
+                del os.environ[key]
 
         cfgfile = os.path.join(self.test_prefix, 'test.cfg')
         cfgtxt = '\n'.join([
