@@ -93,7 +93,11 @@ _log = fancylogger.getLogger('options', fname=False)
 
 
 def cleanup_and_exit(tmpdir):
-    """Clean up temporary directory and exit."""
+    """
+    Clean up temporary directory and exit.
+
+    @param tmpdir: path to temporary directory to clean up
+    """
     try:
         shutil.rmtree(tmpdir)
     except OSError as err:
@@ -102,7 +106,11 @@ def cleanup_and_exit(tmpdir):
     sys.exit(0)
 
 def pretty_print_opts(opts_dict):
-    """Pretty print options dict."""
+    """
+    Pretty print options dict.
+
+    @param opts_dict: dictionary with option names as keys, and (value, location) tuples as values
+    """
 
     # rewrite option names/values a bit for pretty printing
     for opt in sorted(opts_dict):
