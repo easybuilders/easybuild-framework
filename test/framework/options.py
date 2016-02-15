@@ -2277,6 +2277,73 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_show_config(self):
+        """"Test --show-config and --show-full-config."""
+
+        # only retain $EASYBUILD_* environment variables we expect for this test
+        retained_eb_env_vars = [
+            'EASYBUILD_DEPRECATED',
+            'EASYBUILD_IGNORECONFIGFILES',
+            'EASYBUILD_INSTALLPATH',
+            'EASYBUILD_ROBOT_PATHS',
+            'EASYBUILD_SOURCEPATH',
+        ]
+        for key in os.environ.keys():
+            if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
+                del os.environ[key]
+
+        cfgfile = os.path.join(self.test_prefix, 'test.cfg')
+        cfgtxt = '\n'.join([
+            "[config]",
+            "subdir-modules = mods",
+        ])
+        write_file(cfgfile, cfgtxt)
+        os.environ['EASYBUILD_CONFIGFILES'] = cfgfile
+
+        args = ['--show-config', '--buildpath=/weird/build/dir']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        default_prefix = os.path.join(os.environ['HOME'], '.local', 'easybuild')
+
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        expected_lines = [
+            r"#",
+            r"# Current EasyBuild configuration",
+            r"# \(C: command line argument, D: default value, E: environment variable, F: configuration file\)",
+            r"#",
+            r"buildpath\s* \(C\) = /weird/build/dir",
+            r"configfiles\s* \(E\) = .*" + cfgfile,
+            r"deprecated\s* \(E\) = 10000000",
+            r"ignoreconfigfiles\s* \(E\) = %s" % ', '.join(os.environ['EASYBUILD_IGNORECONFIGFILES'].split(',')),
+            r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
+            r"repositorypath\s* \(D\) = " + os.path.join(default_prefix, 'ebfiles_repo'),
+            r"robot-paths\s* \(E\) = " + os.path.join(test_dir, 'easyconfigs'),
+            r"sourcepath\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'sources'),
+            r"subdir-modules\s* \(F\) = mods",
+        ]
+
+        regex = re.compile('\n'.join(expected_lines))
+        self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        args = ['--show-full-config', '--buildpath=/weird/build/dir']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        # output of --show-full-config includes additional lines for options with default values
+        expected_lines.extend([
+            r"force\s* \(D\) = False",
+            r"module-syntax\s* \(D\) = Tcl",
+            r"umask\s* \(D\) = None",
+        ])
+
+        for expected_line in expected_lines:
+            self.assertTrue(re.search(expected_line, txt, re.M), "Found '%s' in: %s" % (expected_line, txt))
+
 
 def suite():
     """ returns all the testcases in this module """
