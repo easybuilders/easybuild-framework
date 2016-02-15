@@ -32,6 +32,7 @@ Utility module for working with github
 import base64
 import os
 import random
+import re
 import socket
 import shutil
 import string
@@ -718,6 +719,54 @@ def update_pr(pr, paths, commit_msg=None):
     print_msg(msg, log=_log, prefix=False)
 
 
+def check_github_config():
+    """
+    Check GitHub configuration, and report back.
+    * check whether GitHub username is available
+    * check whether a GitHub token is available, and whether it works
+    * check whether git and GitPython are available
+    * check whether push access to own GitHub repositories works
+    """
+    success = True
+    report_lines = ["\nChecking GitHub-related configuration settings (and beyond)..."]
+
+    # GitHub user
+    github_user = build_option('github_user')
+    report_line_init = "* GitHub user: "
+    if github_user is None:
+        success = False
+        report_lines.append(report_line_init + "(none available) => FAIL")
+    else:
+        report_lines.append(report_line_init + github_user + " => OK")
+
+    # GitHub token
+    github_token = fetch_github_token(github_user)
+    report_line_init = "* GitHub token: "
+    if github_token is None:
+        success = False
+        report_lines.append(report_line_init + "(none available) => FAIL")
+    else:
+        partial_token = '%s..%s' % (github_token[:3], github_token[-3:])
+        report_line_init += partial_token + " (len: %d)" % len(github_token)
+        if validate_github_token(github_token, github_user):
+            report_lines.append(report_line_init + " => OK (validated)")
+        else:
+            success = False
+            report_lines.append(report_line_init + " => FAIL (validation failed)")
+
+    if success:
+        report_lines.append("\nAll checks PASSed!\n")
+    else:
+        report_lines.extend([
+            '',
+            "One or more checks FAILed, GitHub configuration not fully complete!",
+            "See http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#configuration for help.",
+            '',
+        ])
+
+    print '\n'.join(report_lines)
+
+
 class GithubToken(object):
     """Representation of a GitHub token."""
 
@@ -754,3 +803,13 @@ class GithubToken(object):
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
     return GithubToken(user).token
+
+
+def validate_github_token(token, github_user):
+    """
+    Check GitHub token:
+    * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
+    * see if it can be used for authenticated access
+    """
+    sanity_check = re.match('^[0-9a-f]{40}$', token)
+    return sanity_check
