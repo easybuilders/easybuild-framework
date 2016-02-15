@@ -543,7 +543,7 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
     It searches for "+++ path/to/patched/file" lines to determine
@@ -570,8 +570,12 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
 
+        delete_regex = re.compile(r"%s\ndeleted file" % re.escape(os.path.basename(patched_file)), re.M)
         if patched_file in ['/dev/null']:
-            _log.debug("Ignoring patched file %s" % patched_file)
+            _log.debug("Ignoring patched file %s", patched_file)
+
+        elif filter_deleted and delete_regex.search(txt):
+            _log.debug("Filtering out deleted file %s", patched_file)
         else:
             patched_files.append(patched_file)
 
