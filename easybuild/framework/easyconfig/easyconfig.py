@@ -56,7 +56,7 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
-from easybuild.tools.utilities import quote_py_str, quote_str, remove_unwanted_chars
+from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -119,6 +119,7 @@ def module_is_available(full_mod_name, modtool, avail_modules, hidden):
     if hidden:
         resolved |= modtool.exist([full_mod_name])[0]
     return resolved
+
 
 def toolchain_hierarchy_cache(func):
     """Function decorator to cache (and retrieve cached) toolchain hierarchy queries."""
@@ -793,7 +794,11 @@ class EasyConfig(object):
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
         tc_spec = dependency['toolchain']
-        if tc_spec is not None:
+        if tc_spec is None:
+            if build_option('minimal_toolchains'):
+                # Update the toolchain with the minimal value
+                tc = robot_find_minimal_toolchain_of_dependency(dependency, tc)
+        else:
             # (true) boolean value simply indicates that a dummy toolchain is used
             if isinstance(tc_spec, bool) and tc_spec:
                 tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
@@ -810,8 +815,7 @@ class EasyConfig(object):
                     raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
             else:
                 raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
-        elif build_option('minimal_toolchains'):
-            tc = robot_find_minimal_toolchain_of_dependency(dependency, tc)
+
         self.log.debug("Derived toolchain to use for dependency %s, based on toolchain spec %s: %s", dep, tc_spec, tc)
         dependency['toolchain'] = tc
 
@@ -1241,7 +1245,8 @@ def robot_find_easyconfig(name, version):
 
     return res
 
-def robot_find_minimal_toolchain_of_dependency(dependency, parent_toolchain):
+
+def robot_find_minimal_toolchain_of_dependency(dep, parent_tc):
     """
     Find the minimal toolchain of a dependency
 
@@ -1249,17 +1254,18 @@ def robot_find_minimal_toolchain_of_dependency(dependency, parent_toolchain):
     @parent_toolchain: toolchain from which to derive the toolchain hierarchy to search
     @return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
+    modtool = modules_tool()
+    existing_modules = []
     if build_option('use_existing_modules') and not build_option('retain_all_deps'):
         existing_modules = modules_tool().available()
-    modtool = modules_tool()
 
-    newdep = copy.deepcopy(dependency)
-    toolchain_hierarchy = get_toolchain_hierarchy(parent_toolchain)
+    newdep = copy.deepcopy(dep)
+    toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
 
     possible_toolchains = []
     # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
-    for toolchain in toolchain_hierarchy:
-        newdep['toolchain'] = toolchain
+    for tc in toolchain_hierarchy:
+        newdep['toolchain'] = tc
         eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
         if eb_file is not None:
             module_exists = False
@@ -1268,21 +1274,21 @@ def robot_find_minimal_toolchain_of_dependency(dependency, parent_toolchain):
                 full_mod_name = ActiveMNS().det_full_module_name(newdep)
                 module_exists = module_is_available(full_mod_name, modtool, existing_modules, newdep['hidden'])
             # Add the toolchain to list of possibilities
-            possible_toolchains.append({'toolchain': toolchain, 'module_exists': module_exists})
+            possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
 
     if not possible_toolchains:
-        raise EasyBuildError("Irresolvable dependency found (even with minimal toolchains): %s", dependency)
+        raise EasyBuildError("Irresolvable dependency found (even with minimal toolchains): %s", dep)
 
     # Select the toolchain to return, defaulting to the first element (lowest possible toolchain)
     minimal_toolchain = possible_toolchains[0]['toolchain']
     if build_option('use_existing_modules') and not build_option('retain_all_deps'):
         # Take the last element in the case of using existing modules (allows optimisation)
-        filtered_possibilities = [toolchain for toolchain in possible_toolchains if toolchain['module_exists']]
+        filtered_possibilities = [tc for tc in possible_toolchains if tc['module_exists']]
         if filtered_possibilities:
             # Take the last element (the maximum toolchain where a module exists already)
             minimal_toolchain = filtered_possibilities[-1]['toolchain']
 
-    _log.info("Minimally resolving dependency %s using toolchain %s", dependency, toolchain)
+    _log.info("Minimally resolving dependency %s using toolchain %s", dep, tc)
     return minimal_toolchain
 
 def copy_easyconfigs(paths, target_dir):
