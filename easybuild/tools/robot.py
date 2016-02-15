@@ -131,6 +131,7 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=
     @param use_existing_modules: boolean for whether to prioritise the reuse of existing modules (works in
                                      combination with minimal_toolchains)
     """
+    minimal_toolchains = False
 
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument

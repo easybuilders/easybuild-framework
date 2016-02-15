@@ -51,11 +51,11 @@ from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdi
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
-from easybuild.tools.toolchain.utilities import get_toolchain
+from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import quote_py_str, quote_str, remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -66,7 +66,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, Li
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-
+from easybuild.toolchains.gcccore import GCCcore
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
@@ -103,6 +103,109 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
         return ec_method(self, key, *args, **kwargs)
 
     return new_ec_method
+
+
+def module_is_available(full_mod_name, modtool, avail_modules, hidden):
+    """
+    Check whether specified module is available.
+
+    @param full_mod_name: full module name
+    @param modtool: ModulesTool instance that can be used to check whether (hidden) modules exist
+    @param avail_modules: list of available modules
+    @param hidden: hidden module
+    """
+    resolved = full_mod_name in avail_modules
+    # hidden modules need special care, since they may not be included in list of available modules
+    if hidden:
+        resolved |= modtool.exist([full_mod_name])[0]
+    return resolved
+
+def toolchain_hierarchy_cache(func):
+    """Function decorator to cache (and retrieve cached) toolchain hierarchy queries."""
+    cache = {}
+
+    def cache_aware_func(toolchain):
+        """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
+        cache_key = (toolchain['name'], toolchain['version'])
+
+        # fetch from cache if available, cache it if it's not
+        if cache_key in cache:
+            _log.debug("Using cache to return hierarchy for toolchain %s: %s", str(toolchain), cache[cache_key])
+            return cache[cache_key]
+        else:
+            toolchain_hierarchy = func(toolchain)
+            cache[cache_key] = toolchain_hierarchy
+            return cache[cache_key]
+
+    return cache_aware_func
+
+
+@toolchain_hierarchy_cache
+def get_toolchain_hierarchy(parent_toolchain):
+    """
+    Determine list of subtoolchains for specified parent toolchain.
+    Result starts with the most minimal subtoolchains first, ends with specified toolchain.
+
+    The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
+    build option is enabled.
+
+    @param parent_toolchain: dictionary with name/version of parent toolchain
+    """
+    # obtain list of all possible subtoolchains
+    _, all_tc_classes = search_toolchain('')
+    subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+
+    current_tc_name, current_tc_version = parent_toolchain['name'], parent_toolchain['version']
+    subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+
+    # the parent toolchain is at the top of the hierarchy
+    toolchain_hierarchy = [parent_toolchain]
+
+    while subtoolchain_name:
+        # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
+        path = robot_find_easyconfig(current_tc_name, current_tc_version)
+        if path is None:
+            raise EasyBuildError("Could not find easyconfig for %(name)s toolchain version %(version)s",
+                                 current_tc_name, current_tc_version)
+
+        # parse the easyconfig
+        parsed_ec = process_easyconfig(path)[0]
+        # search the dependencies for the version of the subtoolchain
+        dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
+                                              if dep_toolchain['toolchain']['name'] == subtoolchain_name]
+        unique_dep_tc_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
+
+        if len(unique_dep_tc_versions) == 1:
+            subtoolchain_version = dep_tcs[0]['version']
+
+        elif len(unique_dep_tc_versions) == 0:
+            # only retain GCCcore as subtoolchain if version was found
+            if subtoolchain_name == GCCcore.NAME:
+                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
+                          subtoolchain_name)
+                subtoolchain_name = GCCcore.SUBTOOLCHAIN
+                subtoolchain_version = ''
+            # dummy toolchain: end of the line
+            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                subtoolchain_version = ''
+            else:
+                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                     subtoolchain_name, current_tc_name)
+        else:
+            raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                 subtoolchain_name, current_tc_name, unique_dep_tc_versions)
+
+        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
+            # we're done
+            break
+
+        # add to hierarchy and move to next
+        current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
+        subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+        toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
+
+    _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
+    return toolchain_hierarchy
 
 
 class EasyConfig(object):
@@ -707,7 +810,8 @@ class EasyConfig(object):
                     raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
             else:
                 raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
-
+        elif build_option('minimal_toolchains'):
+            tc = robot_find_minimal_toolchain_of_dependency(dependency, tc)
         self.log.debug("Derived toolchain to use for dependency %s, based on toolchain spec %s: %s", dep, tc_spec, tc)
         dependency['toolchain'] = tc
 
@@ -1137,6 +1241,49 @@ def robot_find_easyconfig(name, version):
 
     return res
 
+def robot_find_minimal_toolchain_of_dependency(dependency, parent_toolchain):
+    """
+    Find the minimal toolchain of a dependency
+
+    @dependency: dependency target dict (long and short module names may not exist yet)
+    @parent_toolchain: toolchain from which to derive the toolchain hierarchy to search
+    @return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
+    """
+    if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+        existing_modules = modules_tool().available()
+    modtool = modules_tool()
+
+    newdep = copy.deepcopy(dependency)
+    toolchain_hierarchy = get_toolchain_hierarchy(parent_toolchain)
+
+    possible_toolchains = []
+    # reversed search: start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
+    for toolchain in toolchain_hierarchy:
+        newdep['toolchain'] = toolchain
+        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+        if eb_file is not None:
+            module_exists = False
+            # if necessary check if module exists
+            if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+                full_mod_name = ActiveMNS().det_full_module_name(newdep)
+                module_exists = module_is_available(full_mod_name, modtool, existing_modules, newdep['hidden'])
+            # Add the toolchain to list of possibilities
+            possible_toolchains.append({'toolchain': toolchain, 'module_exists': module_exists})
+
+    if not possible_toolchains:
+        raise EasyBuildError("Irresolvable dependency found (even with minimal toolchains): %s", dependency)
+
+    # Select the toolchain to return, defaulting to the first element (lowest possible toolchain)
+    minimal_toolchain = possible_toolchains[0]['toolchain']
+    if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+        # Take the last element in the case of using existing modules (allows optimisation)
+        filtered_possibilities = [toolchain for toolchain in possible_toolchains if toolchain['module_exists']]
+        if filtered_possibilities:
+            # Take the last element (the maximum toolchain where a module exists already)
+            minimal_toolchain = filtered_possibilities[-1]['toolchain']
+
+    _log.info("Minimally resolving dependency %s using toolchain %s", dependency, toolchain)
+    return minimal_toolchain
 
 def copy_easyconfigs(paths, target_dir):
     """
