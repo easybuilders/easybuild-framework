@@ -41,8 +41,8 @@ import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.tools import find_resolved_modules, find_minimally_resolved_modules
-from easybuild.framework.easyconfig.tools import get_toolchain_hierarchy, robot_find_minimal_easyconfig_for_dependency
+from easybuild.framework.easyconfig.tools import find_resolved_modules
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
@@ -339,6 +339,8 @@ class RobotTest(EnhancedTestCase):
 
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
@@ -383,11 +385,9 @@ class RobotTest(EnhancedTestCase):
 
         # no modules available, so all dependencies are retained
         MockModule.avail_modules = []
-        res = resolve_dependencies([bar], minimal_toolchains=True)
+        res = resolve_dependencies([bar])
         self.assertEqual(len(res), 10)
         self.assertEqual([x['full_mod_name'] for x in res], all_mods_ordered)
-        # cleanup
-        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         MockModule.avail_modules = [
             'GCC/4.7.2',
@@ -401,27 +401,24 @@ class RobotTest(EnhancedTestCase):
 
         # test resolving dependencies with minimal toolchain (rather than using goolf/1.4.10 for all of them)
         # existing modules are *not* taken into account when determining minimal subtoolchain, by default
-        res = resolve_dependencies([bar], minimal_toolchains=True)
+        res = resolve_dependencies([bar])
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], bar['ec'].full_mod_name)
-        # cleanup
-        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         # test retaining all dependencies, regardless of whether modules are available or not
-        res = resolve_dependencies([bar], minimal_toolchains=True, retain_all_deps=True)
+        res = resolve_dependencies([bar], retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertEqual(mods, all_mods_ordered)
         self.assertTrue('SQLite/3.8.10.2-GCC-4.7.2' in mods)
-        # cleanup
-        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         # test taking into account existing modules
         # with an SQLite module with goolf/1.4.10 in place, this toolchain should be used rather than GCC/4.7.2
         MockModule.avail_modules = [
             'SQLite/3.8.10.2-goolf-1.4.10',
         ]
-        res = resolve_dependencies([bar], minimal_toolchains=True, retain_all_deps=True, use_existing_modules=True)
+
+        res = resolve_dependencies([bar], retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertTrue('SQLite/3.8.10.2-goolf-1.4.10' in mods)
