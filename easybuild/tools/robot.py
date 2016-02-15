@@ -37,7 +37,6 @@ import os
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
-from easybuild.framework.easyconfig.tools import find_minimally_resolved_modules
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -81,8 +80,6 @@ def dry_run(easyconfigs, short=False):
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_dependencies(easyconfigs,
-                                         minimal_toolchains = build_option('minimal_toolchains'),
-                                         use_existing_modules = build_option('use_existing_modules'),
                                          retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
@@ -121,17 +118,13 @@ def dry_run(easyconfigs, short=False):
     return '\n'.join(lines)
 
 
-def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=False, use_existing_modules=False):
+def resolve_dependencies(easyconfigs, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param easyconfigs: list of easyconfigs
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
-    @param minimal_toolchains: boolean for whether to try to resolve dependencies with minimum possible toolchain
-    @param use_existing_modules: boolean for whether to prioritise the reuse of existing modules (works in
-                                     combination with minimal_toolchains)
     """
-    minimal_toolchains = False
 
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
@@ -171,12 +164,7 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False, minimal_toolchains=
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
-            if minimal_toolchains:
-                res = find_minimally_resolved_modules(easyconfigs, avail_modules, existing_modules,
-                                                      retain_all_deps=retain_all_deps,
-                                                      use_existing_modules=use_existing_modules)
-            else:
-                res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
+            res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
             more_ecs, easyconfigs, avail_modules = res
             for ec in more_ecs:
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
