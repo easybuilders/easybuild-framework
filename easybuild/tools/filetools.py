@@ -552,6 +552,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     @param txt: the contents of the diff (either path or txt should be give)
     @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
     @param github: only consider lines that start with 'diff --git' to determine list of patched files
+    @param filter_deleted: filter all files that were deleted by the patch
     """
     if github:
         patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
