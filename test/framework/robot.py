@@ -737,6 +737,7 @@ class RobotTest(EnhancedTestCase):
             "setenv  EBDEVELSQLITE $root/easybuild/SQLite-3.8.10.2-easybuild-devel",
         ])
         write_file(module_file,module_txt)
+        original_modulepath = os.getenv('MODULEPATH')
         os.environ['MODULEPATH'] = module_parent # Add the parent directory to the MODULEPATH
 
         # Reinitialize the environment for the updated MODULEPATH and use_existing_modules
@@ -759,6 +760,8 @@ class RobotTest(EnhancedTestCase):
         sqlite = bar.dependencies()[3]
         self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-goolf-1.4.10')
 
+        # Tidy up
+        os.environ['MODULEPATH'] = original_modulepath
 
 
 def suite():
