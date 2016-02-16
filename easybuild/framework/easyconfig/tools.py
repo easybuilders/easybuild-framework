@@ -217,10 +217,23 @@ def get_toolchain_hierarchy(parent_toolchain):
                                  current_tc_name, current_tc_version)
 
         # parse the easyconfig
-        parsed_ec = process_easyconfig(path)[0]
+        parsed_ec = process_easyconfig(path, validate=False)[0]
         # search the dependencies for the version of the subtoolchain
-        dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
-                                              if dep_toolchain['toolchain']['name'] == subtoolchain_name]
+        #dep_tcs = [dep_toolchain['toolchain'] for dep_toolchain in parsed_ec['dependencies']
+        #                                      if dep_toolchain['toolchain']['name'] == subtoolchain_name]
+
+
+        dep_tcs = []
+        for dep in parsed_ec['dependencies']:
+            # dep == icc
+            ec = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+            ec = process_easyconfig(ec, validate=False)[0]
+            #print ec
+            # ec == icc.eb
+            # dummy, GCCcore, binutils
+            alldeps = [ec['ec']['toolchain']] + ec['ec']['dependencies']
+            dep_tcs.extend([d for d in alldeps if d['name'] == subtoolchain_name])
+
         unique_dep_tc_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
 
         if len(unique_dep_tc_versions) == 1:
