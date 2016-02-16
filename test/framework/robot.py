@@ -342,7 +342,6 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
-            'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
