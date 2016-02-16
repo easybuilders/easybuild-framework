@@ -1292,7 +1292,7 @@ def robot_find_minimal_toolchain_of_dependency(dep, parent_tc):
     # Select the toolchain to return, defaulting to the first element (lowest possible toolchain)
     minimal_toolchain = possible_toolchains[0]['toolchain']
     if build_option('use_existing_modules') and not build_option('retain_all_deps'):
-        # Take the last element in the case of using existing modules (allows optimisation)
+        # Take the last element in the case of using existing modules (allows for potentially better optimisation)
         filtered_possibilities = [tc for tc in possible_toolchains if tc['module_exists']]
         if filtered_possibilities:
             # Take the last element (the maximum toolchain where a module exists already)
