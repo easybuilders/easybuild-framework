@@ -208,7 +208,7 @@ class GithubError(Exception):
     pass
 
 
-def github_api_get_request(request_f, github_user=None, **kwargs):
+def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
     Helper method, for performing get requests to GitHub API.
     @param request_f: function that should be called to compose request, providing a RestClient instance
@@ -218,7 +218,9 @@ def github_api_get_request(request_f, github_user=None, **kwargs):
     if github_user is None:
         github_user = build_option('github_user')
 
-    token = fetch_github_token(github_user)
+    if token is None:
+        token = fetch_github_token(github_user)
+
     url = request_f(RestClient(GITHUB_API_URL, username=github_user, token=token))
 
     try:
@@ -231,7 +233,7 @@ def github_api_get_request(request_f, github_user=None, **kwargs):
     return (status, data)
 
 
-def fetch_latest_commit_sha(repo, account, branch='master', github_user=None):
+def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, token=None):
     """
     Fetch latest SHA1 for a specified repository and branch.
     @param repo: GitHub repository
@@ -239,7 +241,8 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None):
     @param branch: branch to fetch latest SHA1 for
     @return: latest SHA1
     """
-    status, data = github_api_get_request(lambda x: x.repos[account][repo].branches, github_user=github_user)
+    status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
+                                          github_user=github_user, token=token)
     if not status == HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)",
                              branch, account, repo, status, data)
@@ -904,9 +907,6 @@ def check_github():
 class GithubToken(object):
     """Representation of a GitHub token."""
 
-    # singleton metaclass: only one instance is created
-    __metaclass__ = Singleton
-
     def __init__(self, user):
         """Initialize: obtain GitHub token for specified user from keyring."""
         self.token = None
@@ -939,6 +939,47 @@ def fetch_github_token(user):
     return GithubToken(user).token
 
 
+def install_github_token(token, github_user, silent=False):
+    """
+    Install specified GitHub token for specified user.
+
+    @param token: GitHub token to install
+    @param github_user: GitHub user to install token for
+    """
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to install GitHub token")
+
+    if HAVE_KEYRING:
+        # check if there's a token available already
+        current_token = fetch_github_token(github_user)
+
+        if current_token:
+            current_token = '%s..%s' % (current_token[:3], current_token[-3:])
+            if build_option('force'):
+                msg = "WARNING: overwriting installed token '%s' for user '%s'..." % (current_token, github_user)
+                print_msg(msg, prefix=False, silent=silent)
+            else:
+                raise EasyBuildError("Installed token '%s' found for user '%s', not overwriting it without --force",
+                                     current_token, github_user)
+
+        # validate token before installing it
+        print_msg("Validating token...", prefix=False, silent=silent)
+        valid_token = validate_github_token(token, github_user)
+        if valid_token:
+            print_msg("Token seems to be valid, installing it.", prefix=False, silent=silent)
+        else:
+            raise EasyBuildError("Token validation failed, not installing it. Please verify your token and try again.")
+
+        # install token
+        keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
+        print_msg("Token '%s..%s' installed!" % (token[:3], token[-3:]), prefix=False, silent=silent)
+
+    else:
+        msg = "Failed to obtain GitHub token from keyring, "
+        msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
+        raise EasyBuildError(msg)
+
+
 def validate_github_token(token, github_user):
     """
     Check GitHub token:
@@ -948,14 +989,21 @@ def validate_github_token(token, github_user):
     sha_regex = re.compile('^[0-9a-f]{40}')
 
     # token should be 40 characters long, and only contain characters in [0-9a-f]
-    sanity_check = sha_regex.match(token)
+    sanity_check = bool(sha_regex.match(token))
+    if sanity_check:
+        _log.info("Sanity check on token passed")
+    else:
+        _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", sha_regex.pattern)
 
     # try and determine sha of latest commit in hpcugent/easybuild-easyconfigs repo through authenticated access
     sha = None
     try:
-        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user)
-    except Exception:
-        pass
-    token_test = sha_regex.match(sha or '')
+        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user, token=token)
+    except Exception as err:
+        _log.warning("An exception occurred when trying to use token for authenticated GitHub access: %s", err)
+
+    token_test = bool(sha_regex.match(sha or ''))
+    if token_test:
+        _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
 
     return sanity_check and token_test

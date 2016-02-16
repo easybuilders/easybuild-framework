@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, new_pr, update_pr
+from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -231,10 +231,13 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # GitHub integration
-    if options.check_github or options.new_pr or options.review_pr or options.update_pr:
+    if options.check_github or install_github_token or options.new_pr or options.review_pr or options.update_pr:
 
         if options.check_github:
             check_github()
+
+        elif options.install_github_token:
+            install_github_token(options.install_github_token, options.github_user, silent=build_option('silent'))
 
         elif options.new_pr:
             new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
