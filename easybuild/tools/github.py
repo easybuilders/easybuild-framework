@@ -36,6 +36,7 @@ import re
 import socket
 import shutil
 import string
+import sys
 import tempfile
 import time
 from vsc.utils import fancylogger
@@ -45,7 +46,9 @@ from vsc.utils.patterns import Singleton
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file, write_file
+from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
+from easybuild.tools.filetools import which, write_file
+from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
 
@@ -228,7 +231,7 @@ def github_api_get_request(request_f, github_user=None, **kwargs):
     return (status, data)
 
 
-def fetch_latest_commit_sha(repo, account, branch='master'):
+def fetch_latest_commit_sha(repo, account, branch='master', github_user=None):
     """
     Fetch latest SHA1 for a specified repository and branch.
     @param repo: GitHub repository
@@ -236,7 +239,7 @@ def fetch_latest_commit_sha(repo, account, branch='master'):
     @param branch: branch to fetch latest SHA1 for
     @return: latest SHA1
     """
-    status, data = github_api_get_request(lambda x: x.repos[account][repo].branches)
+    status, data = github_api_get_request(lambda x: x.repos[account][repo].branches, github_user=github_user)
     if not status == HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)",
                              branch, account, repo, status, data)
@@ -409,13 +412,70 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
-def setup_repo(git_repo, github_url, target_account, branch_name):
+def clone_repo(path, github_account, repo_name, **kwargs):
     """
-    Set up repository by checking out specified branch from repo at specified URL.
+    Clone (specified branch of) specified GitHub repository to specified location.
+
+    @param path: location where Git repository should be cloned
+    @param github_account: GitHub account to clone from
+    @param repo_name: name of Git repository to clone
+    @param kwargs: additional keyword arguments to be passed to Repo.clone_from method
+    """
+    github_url = 'httpsxx://github.com/%s/%s.git' % (github_account, repo_name)
+    _log.debug("Cloning %s (kwargs: %s) to %s...", github_url, kwargs, path)
+    try:
+        repo = git.Repo.clone_from(github_url, path, **kwargs)
+
+    except GitCommandError as err:
+        # if cloning repository over https fails, fall back to trying with git/SSH
+        alt_github_url = 'git@github.com:%s/%s.git' % (github_account, repo_name)
+
+        _log.debug("Cloning %s (kwargs: %s) to %s...", alt_github_url, kwargs, path)
+        try:
+            repo = git.Repo.clone_from(alt_github_url, path, **kwargs)
+
+        except GitCommandError as err:
+            raise EasyBuildError("Failed to clone Git repo %s/%s to %s (kwargs: %s): %s",
+                                 github_account, repo_name, path, kwargs, err)
+
+    return repo
+
+
+def init_repo(path, repo_name):
+    """
+    Initialize a new Git repository at the specified location.
+
+    @param path: location where Git repository should be initialized
+    """
+    # copy or init git working directory
+    git_working_dirs_path = build_option('git_working_dirs_path')
+    if build_option('git_working_dirs_path'):
+        workdir = os.path.join(git_working_dirs_path, repo_name)
+        if os.path.exists(workdir):
+            try:
+                print_msg("copying %s..." % workdir)
+                os.rmdir(path)
+                shutil.copytree(workdir, path)
+            except OSError as err:
+                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, path, err)
+
+    try:
+        repo = git.Repo.init(path)
+    except GitCommandError as err:
+        raise EasyBuildError("Failed to init git repo at %s: %s", path, err)
+
+    _log.debug("temporary git working directory ready at %s", path)
+
+    return repo
+
+
+def setup_repo_from(git_repo, github_url, target_account, branch_name):
+    """
+    Set up repository by checking out specified branch from repository at specified URL.
 
     @param git_repo: git.Repo instance
-    @param github_url: URL to GitHub repo
-    @param target_account: name of GitHub account that owns GitHub repo
+    @param github_url: URL to GitHub repository
+    @param target_account: name of GitHub account that owns GitHub repository at specified URL
     @param branch_name: name of branch to check out
     """
     _log.debug("Cloning from %s", github_url)
@@ -462,6 +522,29 @@ def setup_repo(git_repo, github_url, target_account, branch_name):
             raise EasyBuildError("Failed to check out branch '%s' from repo at %s: %s", alt_branch, github_url, err)
 
 
+def setup_repo(git_repo, target_account, target_repo, branch_name):
+    """
+    Set up repository by checking out specified branch for specfied GitHub accont/repository.
+
+    @param git_repo: git.Repo instance
+    @param target_account: name of GitHub account that owns GitHub repository
+    @param target_repo: name of GitHib repository
+    @param branch_name: name of branch to check out
+    """
+    github_url = 'https://github.com/%s/%s.git' % (target_account, target_repo)
+    try:
+        setup_repo_from(git_repo, github_url, target_account, branch_name)
+
+    except EasyBuildError as err:
+        # if checking out repository over https fails, fall back to trying with git/SSH
+        alt_github_url = 'git@github.com:%s/%s.git' % (target_account, target_repo)
+
+        _log.warning("Checking out branch '%s' from %s failed (%s); falling back to %s",
+                     branch_name, github_url, err, alt_github_url)
+
+        setup_repo_from(git_repo, alt_github_url, target_account, branch_name)
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
@@ -491,27 +574,11 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     else:
         raise EasyBuildError("No paths specified")
 
-    tmp_git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
-
-    # copy or init git working directory
     pr_target_repo = build_option('pr_target_repo')
-    git_working_dirs_path = build_option('git_working_dirs_path')
-    if build_option('git_working_dirs_path'):
-        workdir = os.path.join(git_working_dirs_path, pr_target_repo)
-        if os.path.exists(workdir):
-            try:
-                print_msg("copying %s..." % workdir)
-                os.rmdir(tmp_git_working_dir)
-                shutil.copytree(workdir, tmp_git_working_dir)
-            except OSError as err:
-                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, tmp_git_working_dir, err)
 
-    try:
-        git_repo = git.Repo.init(tmp_git_working_dir)
-    except GitCommandError as err:
-        raise EasyBuildError("Failed to init git repo at %s: %s", tmp_git_working_dir, err)
-
-    _log.debug("temporary git working directory ready at %s", tmp_git_working_dir)
+    # initialize repository
+    git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
+    git_repo = init_repo(git_working_dir, pr_target_repo)
 
     if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
@@ -520,23 +587,12 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         start_branch = build_option('pr_target_branch')
 
     # set up repository
-    github_url = 'https://github.com/%s/%s.git' % (target_account, pr_target_repo)
-    try:
-        setup_repo(git_repo, github_url, target_account, start_branch)
-
-    except EasyBuildError as err:
-        # if checking out repository over https fails, fall back to trying with git/SSH
-        alt_github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
-
-        _log.warning("Checking out branch '%s' from %s failed (%s); falling back to %s",
-                     start_branch, github_url, err, alt_github_url)
-
-        setup_repo(git_repo, alt_github_url, target_account, start_branch)
+    setup_repo(git_repo, target_account, pr_target_repo, start_branch)
 
     _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
-    file_info = copy_easyconfigs(paths, tmp_git_working_dir)
+    file_info = copy_easyconfigs(paths, git_working_dir)
 
     # checkout target branch
     if pr_branch is None:
@@ -719,16 +775,19 @@ def update_pr(pr, paths, commit_msg=None):
     print_msg(msg, log=_log, prefix=False)
 
 
-def check_github_config():
+def check_github():
     """
-    Check GitHub configuration, and report back.
+    Check access to GitHub, and report back.
     * check whether GitHub username is available
     * check whether a GitHub token is available, and whether it works
     * check whether git and GitPython are available
     * check whether push access to own GitHub repositories works
+    * check whether creating gists works
     """
     success = True
     report_lines = ["\nChecking GitHub-related configuration settings (and beyond)..."]
+
+    # FIXME check whether we're online? if not, half of the checks are going to fail...
 
     # GitHub user
     github_user = build_option('github_user')
@@ -746,6 +805,7 @@ def check_github_config():
         success = False
         report_lines.append(report_line_init + "(none available) => FAIL")
     else:
+        # don't print full token, should be kept secret!
         partial_token = '%s..%s' % (github_token[:3], github_token[-3:])
         report_line_init += partial_token + " (len: %d)" % len(github_token)
         if validate_github_token(github_token, github_user):
@@ -754,6 +814,80 @@ def check_github_config():
             success = False
             report_lines.append(report_line_init + " => FAIL (validation failed)")
 
+    # check git command
+    report_line_init = "* git command: "
+    git_cmd = which('git')
+    git_version = get_tool_version('git')
+    if git_cmd:
+        if git_version == UNKNOWN:
+            success = False
+            report_lines.append(report_line_init + git_version + " version => FAIL")
+        else:
+            report_lines.append(report_line_init + "OK (\"%s\")" % git_version)
+    else:
+        success = False
+        report_lines.append(report_line_init + "(not found) => FAIL")
+
+    # check GitPython module
+    report_line_init = "* GitPython module: "
+    if 'git' in sys.modules:
+        git_check = True
+        git_attrs = ['GitCommandError', 'Repo']
+        for attr in git_attrs:
+            git_check &= attr in dir(git)
+
+        if git_check:
+            report_lines.append(report_line_init + "OK")
+        else:
+            success = False
+            report_lines.append(report_line_init + "FAIL (import ok, but module doesn't provide what is expected)")
+    else:
+        success = False
+        report_lines.append(report_line_init + "FAIL (import failed)")
+
+    # test push access to own GitHub repository
+    git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
+    res = None
+    try:
+        git_repo = clone_repo(git_working_dir, github_user, GITHUB_EASYCONFIGS_REPO, depth='1')
+        branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
+        git_repo.create_head(branch_name)
+        res = git_repo.remotes.origin.push(branch_name)
+    except Exception as err:
+        _log.warning("Exception when testing push access to %s/%s: %s", github_user, GITHUB_EASYCONFIGS_REPO, err)
+
+    report_line_init = "* push access to %s/%s: " % (github_user, GITHUB_EASYCONFIGS_REPO)
+    if res:
+        if res[0].flags & res[0].ERROR:
+            _log.warning("Error occured when pushing test branch to GitHub: %s", res[0].summary)
+            success = False
+            report_lines.append(report_line_init + "FAIL (error occured)")
+        else:
+            report_lines.append(report_line_init + "OK")
+    else:
+        success = False
+        report_lines.append(report_line_init + "FAIL (unexpected exception)")
+
+    # cleanup: delete test branch that was pushed to GitHub
+    git_repo.remotes.origin.push(branch_name, delete=True)
+
+    # test creating a gist
+    report_line_init = "* creating gists: "
+    res = None
+    try:
+        res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user+'xxx')
+    except Exception as err:
+        _log.warning("Exception occured when trying to create gist: %s", err)
+
+    if res and re.match('https://gist.github.com/[0-9a-f]+$', res):
+        report_lines.append(report_line_init + "OK")
+    else:
+        success = False
+        report_lines.append(report_line_init + "FAIL (res: %s)" % res)
+
+    # FIXME: check whether --git-working-dirs-path is specified, to speed things up
+
+    # report back
     if success:
         report_lines.append("\nAll checks PASSed!\n")
     else:
@@ -811,5 +945,17 @@ def validate_github_token(token, github_user):
     * see if it conforms expectations (only [a-f]+[0-9] characters, length of 40)
     * see if it can be used for authenticated access
     """
-    sanity_check = re.match('^[0-9a-f]{40}$', token)
-    return sanity_check
+    sha_regex = re.compile('^[0-9a-f]{40}')
+
+    # token should be 40 characters long, and only contain characters in [0-9a-f]
+    sanity_check = sha_regex.match(token)
+
+    # try and determine sha of latest commit in hpcugent/easybuild-easyconfigs repo through authenticated access
+    sha = None
+    try:
+        sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user)
+    except Exception:
+        pass
+    token_test = sha_regex.match(sha or '')
+
+    return sanity_check and token_test
