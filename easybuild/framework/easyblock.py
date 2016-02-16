@@ -190,6 +190,10 @@ class EasyBlock(object):
         # list of loaded modules
         self.loaded_modules = []
 
+        # dictionary of unwanted environment variables that were unset and should be restored
+        # defined when env vars are unset in prepare_step, used when env vars are restored in cleanup_step
+        self.unwanted_env_vars = {}
+
         # iterate configure/build/options
         self.iter_opts = {}
 
@@ -1517,11 +1521,11 @@ class EasyBlock(object):
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
 
-        # clean environment, undefine any unwanted environment variables that may be harmful
-        self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
-
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
+
+        # clean environment, undefine any unwanted environment variables that may be harmful
+        self.unwanted_env_vars = env.unset_env_vars(self.cfg['unwanted_env_vars'])
 
         # guess directory to start configure/build/install process in, and move there
         self.guess_start_dir()
@@ -1905,7 +1909,7 @@ class EasyBlock(object):
         if not build_option('cleanup_builddir'):
             self.log.info("Keeping builddir %s" % self.builddir)
 
-        env.restore_env_vars(self.cfg['unwanted_env_vars'])
+        env.restore_env_vars(self.unwanted_env_vars)
 
     def make_module_step(self, fake=False):
         """

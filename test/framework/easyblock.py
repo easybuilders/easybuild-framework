@@ -952,6 +952,47 @@ class EasyBlockTest(EnhancedTestCase):
         err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
         self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
+    def test_unwanted_env_vars(self):
+        """Test use of unwanted_env_vars."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+
+        env_var = 'TESTENVIRONMENTVARIABLETHATSHOULDNOTBEDEFINED'
+        self.assertFalse(env_var in os.environ)
+        os.environ[env_var] = 'test'
+
+        # make sure $LIBS is not defined to make checks below reliable
+        if 'LIBS' in os.environ:
+            del os.environ['LIBS']
+
+        ec = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'))
+        ec.update('unwanted_env_vars', [env_var])
+        eb = EasyBlock(ec)
+        eb.builddir = config.build_path()
+
+        self.assertTrue(env_var in os.environ)
+        self.assertFalse('LIBS' in os.environ)
+
+        # unwanted env var is undefined, but $LIBS defined by toolchain mechanism is still there
+        eb.prepare_step()
+        self.assertFalse(env_var in os.environ)
+        self.assertTrue('LIBS' in os.environ)
+
+        # reset
+        os.environ[env_var] = 'test'
+        del os.environ['LIBS']
+
+        # $LIBS is also undefined if specified as unwanted env var
+        ec.update('unwanted_env_vars', ['LIBS'])
+        eb = EasyBlock(ec)
+        eb.builddir = config.build_path()
+
+        self.assertTrue(env_var in os.environ)
+        self.assertFalse('LIBS' in os.environ)
+
+        eb.prepare_step()
+        self.assertFalse(env_var in os.environ)
+        self.assertFalse('LIBS' in os.environ)
+
 
 def suite():
     """ return all the tests in this file """
