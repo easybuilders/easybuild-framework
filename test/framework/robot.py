@@ -37,6 +37,7 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 
+import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
@@ -60,6 +61,7 @@ from test.framework.utilities import find_full_path
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 ORIG_MODULES_TOOL = modules.modules_tool
+ORIG_ECEC_MODULES_TOOL = ecec.modules_tool
 ORIG_ECTOOLS_MODULES_TOOL = ectools.modules_tool
 ORIG_ROBOT_MODULES_TOOL = robot.modules_tool
 ORIG_MODULE_FUNCTION = os.environ.get('module', None)
@@ -97,6 +99,7 @@ def install_mock_module():
     # replace Modules class with something we have control over
     config.modules_tool = mock_module
     ectools.modules_tool = mock_module
+    ecec.modules_tool = mock_module
     robot.modules_tool = mock_module
     os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
@@ -120,6 +123,7 @@ class RobotTest(EnhancedTestCase):
         # restore original modules tool, it may have been tampered with
         config.modules_tool = ORIG_MODULES_TOOL
         ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
+        ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
         robot.modules_tool = ORIG_ROBOT_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
             if 'module' in os.environ:
@@ -419,6 +423,9 @@ class RobotTest(EnhancedTestCase):
         MockModule.avail_modules = [
             'SQLite/3.8.10.2-goolf-1.4.10',
         ]
+
+        # parsed easyconfigs are cached, so clear the cache before reprocessing easyconfigs
+        ecec._easyconfigs_cache.clear()
 
         bar = process_easyconfig(barec)[0]
         res = resolve_dependencies([bar], retain_all_deps=True)

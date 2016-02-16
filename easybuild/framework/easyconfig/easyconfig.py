@@ -1266,7 +1266,7 @@ def robot_find_minimal_toolchain_of_dependency(dep, parent_tc):
     modtool = modules_tool()
     existing_modules = []
     if build_option('use_existing_modules') and not build_option('retain_all_deps'):
-        existing_modules = modules_tool().available()
+        existing_modules = modtool.available()
 
     newdep = copy.deepcopy(dep)
     toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
