@@ -82,7 +82,7 @@ class MockModule(modules.ModulesTool):
     def show(self, modname):
         """Dummy implementation of show, which includes full path to (available or hidden) module files."""
         if modname in self.avail_modules or os.path.basename(modname).startswith('.'):
-            txt =  '  %s:' % os.path.join('/tmp', modname)
+            txt = '  %s:' % os.path.join('/tmp', modname)
         else:
             txt = 'Module %s not found' % modname
         return txt
