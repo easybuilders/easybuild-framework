@@ -39,6 +39,7 @@ import string
 import sys
 import tempfile
 import time
+import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 from vsc.utils.patterns import Singleton
@@ -790,7 +791,12 @@ def check_github():
     success = True
     report_lines = ["\nChecking GitHub-related configuration settings (and beyond)..."]
 
-    # FIXME check whether we're online? if not, half of the checks are going to fail...
+    # check whether we're online; if not, half of the checks are going to fail...
+    try:
+        urllib2.urlopen(GITHUB_URL, timeout=5)
+    except urllib2.URLError as err:
+        sys.stderr.write("\nERROR: failed to open %s, checking access to GitHub must be done online.\n\n" % GITHUB_URL)
+        sys.exit(1)
 
     # GitHub user
     github_user = build_option('github_user')
