@@ -453,7 +453,7 @@ def init_repo(path, repo_name):
     """
     # copy or init git working directory
     git_working_dirs_path = build_option('git_working_dirs_path')
-    if build_option('git_working_dirs_path'):
+    if git_working_dirs_path:
         workdir = os.path.join(git_working_dirs_path, repo_name)
         if os.path.exists(workdir):
             try:
@@ -803,7 +803,7 @@ def check_github():
         sys.exit(1)
 
     # GitHub user
-    print "* GitHub user: ",
+    print "* GitHub user:",
     github_user = build_option('github_user')
     if github_user is None:
         check_res = "(none available) => FAIL"
@@ -814,7 +814,7 @@ def check_github():
     print check_res
 
     # check GitHub token
-    print "* GitHub token: ",
+    print "* GitHub token:",
     github_token = fetch_github_token(github_user)
     if github_token is None:
         check_res = "(no token found) => FAIL"
@@ -833,7 +833,7 @@ def check_github():
     print check_res
 
     # check git command
-    print "* git command: ",
+    print "* git command:",
     git_cmd = which('git')
     git_version = get_tool_version('git')
     if git_cmd:
@@ -850,7 +850,7 @@ def check_github():
     print check_res
 
     # check GitPython module
-    print "* GitPython module: ",
+    print "* GitPython module:",
     if 'git' in sys.modules:
         git_check = True
         git_attrs = ['GitCommandError', 'Repo']
@@ -870,7 +870,7 @@ def check_github():
     print check_res
 
     # test push access to own GitHub repository
-    print "* push access to %s/%s repo @ GitHub: " % (github_user, GITHUB_EASYCONFIGS_REPO),
+    print "* push access to %s/%s repo @ GitHub:" % (github_user, GITHUB_EASYCONFIGS_REPO),
 
     # try to clone repo and push a test branch
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
@@ -905,7 +905,7 @@ def check_github():
             pass
 
     # test creating a gist
-    print "* creating gists: ",
+    print "* creating gists:",
     res = None
     try:
         res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user+'xxx')
@@ -921,6 +921,12 @@ def check_github():
     print check_res
 
     # FIXME: check whether --git-working-dirs-path is specified, to speed things up
+    print "* location to Git working dirs:",
+    git_working_dirs_path = build_option('git_working_dirs_path')
+    if git_working_dirs_path:
+        print "OK (%s)" % git_working_dirs_path
+    else:
+        print "not found (suboptimal)"
 
     # report back
     if all(status.values()):
