@@ -788,7 +788,11 @@ def check_github():
     * check whether push access to own GitHub repositories works
     * check whether creating gists works
     """
-    success = True
+    # start by assuming that everything works, individual checks will disable action that won't work
+    status = {}
+    for action in ['--from-pr', '--new-pr', '--review-pr', '--upload-test-report', '--update-pr']:
+        status[action] = True
+
     print "\nChecking status of GitHub integration...\n"
 
     # check whether we're online; if not, half of the checks are going to fail...
@@ -802,17 +806,18 @@ def check_github():
     print "* GitHub user: ",
     github_user = build_option('github_user')
     if github_user is None:
-        success, check_res = False, "(none available) => FAIL"
+        check_res = "(none available) => FAIL"
+        status['--new-pr'] = status['--update-pr'] = status['--upload-test-report'] = False
     else:
         check_res = "%s => OK" % github_user
 
     print check_res
 
-    # GitHub token
+    # check GitHub token
     print "* GitHub token: ",
     github_token = fetch_github_token(github_user)
     if github_token is None:
-        success, check_res = False, "(none available) => FAIL"
+        check_res = "(no token found) => FAIL"
     else:
         # don't print full token, should be kept secret!
         partial_token = '%s..%s' % (github_token[:3], github_token[-3:])
@@ -820,7 +825,10 @@ def check_github():
         if validate_github_token(github_token, github_user):
             check_res = "%s => OK (validated)" % token_descr
         else:
-            success, check_res = False, "%s => FAIL (validation failed)" % token_descr
+            check_res = "%s => FAIL (validation failed)" % token_descr
+
+    if 'FAIL' in check_res:
+        status['--new-pr'] = status['--update-pr'] = status['--upload-test-report'] = False
 
     print check_res
 
@@ -830,11 +838,14 @@ def check_github():
     git_version = get_tool_version('git')
     if git_cmd:
         if git_version in [UNKNOWN, None]:
-            success, check_res = False, "%s version => FAIL" % git_version
+            check_res = "%s version => FAIL" % git_version
         else:
             check_res = "OK (\"%s\")" % git_version
     else:
-        success, check_res = False, "(not found) => FAIL"
+        check_res = "(not found) => FAIL"
+
+    if 'FAIL' in check_res:
+        status['--new-pr'] = status['--update-pr'] = False
 
     print check_res
 
@@ -849,9 +860,12 @@ def check_github():
         if git_check:
             check_res = "OK"
         else:
-            success, check_res = False, "FAIL (import ok, but module doesn't provide what is expected)"
+            check_res = "FAIL (import ok, but module doesn't provide what is expected)"
     else:
-        success, check_res = False, "FAIL (import failed)"
+        check_res = "FAIL (import failed)"
+
+    if 'FAIL' in check_res:
+        status['--new-pr'] = status['--update-pr'] = False
 
     print check_res
 
@@ -860,7 +874,7 @@ def check_github():
 
     # try to clone repo and push a test branch
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
-    res = None
+    git_repo, res = None, None
     try:
         git_repo = clone_repo(git_working_dir, github_user, GITHUB_EASYCONFIGS_REPO, depth='1')
         branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
@@ -872,16 +886,23 @@ def check_github():
     if res:
         if res[0].flags & res[0].ERROR:
             _log.warning("Error occured when pushing test branch to GitHub: %s", res[0].summary)
-            success, check_res = False, "FAIL (error occured)"
+            check_res = "FAIL (error occured)"
         else:
             check_res = "OK"
     else:
-        success, check_res = False, "FAIL (unexpected exception)"
+        check_res = "FAIL (unexpected exception)"
+
+    if 'FAIL' in check_res:
+        status['--new-pr'] = status['--update-pr'] = False
 
     print check_res
 
     # cleanup: delete test branch that was pushed to GitHub
-    git_repo.remotes.origin.push(branch_name, delete=True)
+    if git_repo:
+        try:
+            git_repo.remotes.origin.push(branch_name, delete=True)
+        except GitCommandError:
+            pass
 
     # test creating a gist
     print "* creating gists: ",
@@ -894,14 +915,15 @@ def check_github():
     if res and re.match('https://gist.github.com/[0-9a-f]+$', res):
         check_res = "OK"
     else:
-        success, check_res = False, "FAIL (res: %s)" % res
+        check_res = "FAIL (res: %s)" % res
+        status['--upload-test-report'] = False
 
     print check_res
 
     # FIXME: check whether --git-working-dirs-path is specified, to speed things up
 
     # report back
-    if success:
+    if all(status.values()):
         print "\nAll checks PASSed!\n"
     else:
         print '\n'.join([
@@ -910,6 +932,15 @@ def check_github():
             "See http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#configuration for help.",
             '',
         ])
+
+    print "Status of GitHub integration:"
+    for action in sorted(status):
+        print "* %s:" % action,
+        if status[action]:
+            print "OK"
+        else:
+            print "not supported"
+    print ''
 
 
 class GithubToken(object):
