@@ -2298,9 +2298,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "subdir-modules = mods",
         ])
         write_file(cfgfile, cfgtxt)
-        os.environ['EASYBUILD_CONFIGFILES'] = cfgfile
 
-        args = ['--show-config', '--buildpath=/weird/build/dir']
+        args = ['--configfiles=%s' % cfgfile, '--show-config', '--buildpath=/weird/build/dir']
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout().strip()
@@ -2315,7 +2314,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"# \(C: command line argument, D: default value, E: environment variable, F: configuration file\)",
             r"#",
             r"buildpath\s* \(C\) = /weird/build/dir",
-            r"configfiles\s* \(E\) = .*" + cfgfile,
+            r"configfiles\s* \(C\) = .*" + cfgfile,
             r"deprecated\s* \(E\) = 10000000",
             r"ignoreconfigfiles\s* \(E\) = %s" % ', '.join(os.environ['EASYBUILD_IGNORECONFIGFILES'].split(',')),
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
@@ -2328,7 +2327,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile('\n'.join(expected_lines))
         self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        args = ['--show-full-config', '--buildpath=/weird/build/dir']
+        args = ['--configfiles=%s' % cfgfile, '--show-full-config', '--buildpath=/weird/build/dir']
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout()
@@ -2343,6 +2342,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for expected_line in expected_lines:
             self.assertTrue(re.search(expected_line, txt, re.M), "Found '%s' in: %s" % (expected_line, txt))
+
+        # --show-config should also work if no configuration files are available
+        # (existing config files are ignored via $EASYBUILD_IGNORECONFIGFILES)
+        self.assertFalse(os.environ.get('EASYBUILD_CONFIGFILES', False))
+        args = ['--show-config', '--buildpath=/weird/build/dir']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+        self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
 
 
 def suite():
