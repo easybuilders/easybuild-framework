@@ -77,7 +77,7 @@ def eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines)
 
 
 @only_if_module_is_available('pep8')
-def test_style_conformance(lst_easyconfigs, verbose=False):
+def style_conformance(lst_easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
     @param lst_easyconfigs list of file paths to easyconfigs
