@@ -345,7 +345,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = read_file(diff_filepath)
     os.remove(diff_filepath)
 
-    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True)
+    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
