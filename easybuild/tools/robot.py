@@ -79,8 +79,7 @@ def dry_run(easyconfigs, short=False):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs,
-                                         retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs, retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
@@ -125,20 +124,16 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False):
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
-
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 
-    existing_modules = modules_tool().available()
+    avail_modules = modules_tool().available()
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
-        # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = existing_modules[:]
-
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
