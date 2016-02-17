@@ -109,7 +109,7 @@ implement support for installing particular (groups of) software packages.""",
     zip_safe=False,
     install_requires=[
         'setuptools',
-        "vsc-base >= 2.2.6",
+        "vsc-base >= 2.4.18",
     ],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
