@@ -2104,7 +2104,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        sqlite_regex = re.compile("hwloc-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| hwloc/", re.M)
+        sqlite_regex = re.compile("hwloc-1.6.2-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| hwloc/", re.M)
         self.assertTrue(sqlite_regex.search(txt), "Pattern '%s' found in: %s" % (sqlite_regex.pattern, txt))
 
     def test_extended_dry_run(self):
