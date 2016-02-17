@@ -151,7 +151,7 @@ def get_toolchain_hierarchy(parent_toolchain):
         # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
         path = robot_find_easyconfig(current_tc_name, current_tc_version)
         if path is None:
-            raise EasyBuildError("Could not find easyconfig for %(name)s toolchain version %(version)s",
+            raise EasyBuildError("Could not find easyconfig for %s toolchain version %s",
                                  current_tc_name, current_tc_version)
 
         # parse the easyconfig
@@ -162,7 +162,7 @@ def get_toolchain_hierarchy(parent_toolchain):
         for dep in parsed_ec['dependencies']:
             ec = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
             ec = process_easyconfig(ec, validate=False)[0]
-            alldeps = [ec['ec']['toolchain']] + ec['ec']['dependencies']
+            alldeps = [ec['ec']['toolchain']] + parsed_ec['dependencies']
             dep_tcs.extend([d for d in alldeps if d['name'] == subtoolchain_name])
 
         unique_dep_tc_versions = set([dep_tc['version'] for dep_tc in dep_tcs])
