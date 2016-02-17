@@ -2314,6 +2314,20 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
+            # For reproducability we dump out the parsed easyconfig since the contents are affected when
+            # minimal_toolchains (and use_existing modules) is used
+            write_spec = spec
+            if build_option("minimal_toolchains"):
+                reprod_dir = os.path.join(new_log_dir, 'reprod')
+                parsed_ec_dump_file = os.path.join(reprod_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
+                try:
+                    # Add the parsed file to the reproducability directory
+                    app.cfg.dump(parsed_ec_dump_file)
+                except EasyBuildError, err:
+                    _log.warn("Unable to dump parsed easyconfig to reproducability directory: %s", err)
+                if os._exists(parsed_ec_dump_file):
+                    # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
+                    write_spec = parsed_ec_dump_file
             try:
                 # upload spec to central repository
                 currentbuildstats = app.cfg['buildstats']
@@ -2321,7 +2335,7 @@ def build_and_install_one(ecdict, init_env):
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                repo.add_easyconfig(write_spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
