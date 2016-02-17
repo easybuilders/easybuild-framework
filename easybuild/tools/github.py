@@ -781,7 +781,7 @@ def update_pr(pr, paths, commit_msg=None):
 
 def check_github():
     """
-    Check access to GitHub, and report back.
+    Check status of GitHub integration, and report back.
     * check whether GitHub username is available
     * check whether a GitHub token is available, and whether it works
     * check whether git and GitPython are available
@@ -789,7 +789,7 @@ def check_github():
     * check whether creating gists works
     """
     success = True
-    report_lines = ["\nChecking GitHub-related configuration settings (and beyond)..."]
+    print "\nChecking status of GitHub integration...\n"
 
     # check whether we're online; if not, half of the checks are going to fail...
     try:
@@ -799,46 +799,47 @@ def check_github():
         sys.exit(1)
 
     # GitHub user
+    print "* GitHub user: ",
     github_user = build_option('github_user')
-    report_line_init = "* GitHub user: "
     if github_user is None:
-        success = False
-        report_lines.append(report_line_init + "(none available) => FAIL")
+        success, check_res = False, "(none available) => FAIL"
     else:
-        report_lines.append(report_line_init + github_user + " => OK")
+        check_res = "%s => OK" % github_user
+
+    print check_res
 
     # GitHub token
+    print "* GitHub token: ",
     github_token = fetch_github_token(github_user)
-    report_line_init = "* GitHub token: "
     if github_token is None:
-        success = False
-        report_lines.append(report_line_init + "(none available) => FAIL")
+        success, check_res = False, "(none available) => FAIL"
     else:
         # don't print full token, should be kept secret!
         partial_token = '%s..%s' % (github_token[:3], github_token[-3:])
-        report_line_init += partial_token + " (len: %d)" % len(github_token)
+        token_descr = partial_token + " (len: %d)" % len(github_token)
         if validate_github_token(github_token, github_user):
-            report_lines.append(report_line_init + " => OK (validated)")
+            check_res = "%s => OK (validated)" % token_descr
         else:
-            success = False
-            report_lines.append(report_line_init + " => FAIL (validation failed)")
+            success, check_res = False, "%s => FAIL (validation failed)" % token_descr
+
+    print check_res
 
     # check git command
-    report_line_init = "* git command: "
+    print "* git command: ",
     git_cmd = which('git')
     git_version = get_tool_version('git')
     if git_cmd:
-        if git_version == UNKNOWN:
-            success = False
-            report_lines.append(report_line_init + git_version + " version => FAIL")
+        if git_version in [UNKNOWN, None]:
+            success, check_res = False, "%s version => FAIL" % git_version
         else:
-            report_lines.append(report_line_init + "OK (\"%s\")" % git_version)
+            check_res = "OK (\"%s\")" % git_version
     else:
-        success = False
-        report_lines.append(report_line_init + "(not found) => FAIL")
+        success, check_res = False, "(not found) => FAIL"
+
+    print check_res
 
     # check GitPython module
-    report_line_init = "* GitPython module: "
+    print "* GitPython module: ",
     if 'git' in sys.modules:
         git_check = True
         git_attrs = ['GitCommandError', 'Repo']
@@ -846,15 +847,18 @@ def check_github():
             git_check &= attr in dir(git)
 
         if git_check:
-            report_lines.append(report_line_init + "OK")
+            check_res = "OK"
         else:
-            success = False
-            report_lines.append(report_line_init + "FAIL (import ok, but module doesn't provide what is expected)")
+            success, check_res = False, "FAIL (import ok, but module doesn't provide what is expected)"
     else:
-        success = False
-        report_lines.append(report_line_init + "FAIL (import failed)")
+        success, check_res = False, "FAIL (import failed)"
+
+    print check_res
 
     # test push access to own GitHub repository
+    print "* push access to %s/%s repo @ GitHub: " % (github_user, GITHUB_EASYCONFIGS_REPO),
+
+    # try to clone repo and push a test branch
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     res = None
     try:
@@ -865,23 +869,22 @@ def check_github():
     except Exception as err:
         _log.warning("Exception when testing push access to %s/%s: %s", github_user, GITHUB_EASYCONFIGS_REPO, err)
 
-    report_line_init = "* push access to %s/%s: " % (github_user, GITHUB_EASYCONFIGS_REPO)
     if res:
         if res[0].flags & res[0].ERROR:
             _log.warning("Error occured when pushing test branch to GitHub: %s", res[0].summary)
-            success = False
-            report_lines.append(report_line_init + "FAIL (error occured)")
+            success, check_res = False, "FAIL (error occured)"
         else:
-            report_lines.append(report_line_init + "OK")
+            check_res = "OK"
     else:
-        success = False
-        report_lines.append(report_line_init + "FAIL (unexpected exception)")
+        success, check_res = False, "FAIL (unexpected exception)"
+
+    print check_res
 
     # cleanup: delete test branch that was pushed to GitHub
     git_repo.remotes.origin.push(branch_name, delete=True)
 
     # test creating a gist
-    report_line_init = "* creating gists: "
+    print "* creating gists: ",
     res = None
     try:
         res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user+'xxx')
@@ -889,25 +892,24 @@ def check_github():
         _log.warning("Exception occured when trying to create gist: %s", err)
 
     if res and re.match('https://gist.github.com/[0-9a-f]+$', res):
-        report_lines.append(report_line_init + "OK")
+        check_res = "OK"
     else:
-        success = False
-        report_lines.append(report_line_init + "FAIL (res: %s)" % res)
+        success, check_res = False, "FAIL (res: %s)" % res
+
+    print check_res
 
     # FIXME: check whether --git-working-dirs-path is specified, to speed things up
 
     # report back
     if success:
-        report_lines.append("\nAll checks PASSed!\n")
+        print "\nAll checks PASSed!\n"
     else:
-        report_lines.extend([
+        print '\n'.join([
             '',
             "One or more checks FAILed, GitHub configuration not fully complete!",
             "See http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#configuration for help.",
             '',
         ])
-
-    print '\n'.join(report_lines)
 
 
 class GithubToken(object):
