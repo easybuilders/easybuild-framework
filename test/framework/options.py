@@ -2107,8 +2107,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         sqlite_regex = re.compile("hwloc-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| hwloc/", re.M)
         self.assertTrue(sqlite_regex.search(txt), "Pattern '%s' found in: %s" % (sqlite_regex.pattern, txt))
 
-        # FIXME also check whether GCCcore is considered as subtoolchain in get_toolchain_hierarchy if it's only a dep!
-
     def test_extended_dry_run(self):
         """Test use of --extended-dry-run/-x."""
         ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
