@@ -46,7 +46,7 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig, module_is_available
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
@@ -127,7 +127,7 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
                 _log.debug("Retaining new dep %s in 'retain all deps' mode", dep)
                 deps.append(dep)
 
-            elif not module_is_available(full_mod_name, modtool, avail_modules, dep['hidden']):
+            elif full_mod_name not in avail_modules and not (dep['hidden'] and modtool.exist([full_mod_name])[0]):
                 # no module available (yet) => retain dependency as one to be resolved
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)

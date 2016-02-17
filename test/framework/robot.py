@@ -668,7 +668,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
-        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15, gzip15['toolchain'])
+        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15)
         self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
         # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
@@ -678,7 +678,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
-        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14, gzip14['toolchain']), None)
+        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14), None)
 
         # use gompi/1.4.10 toolchain, to dance around caching of toolchain hierarchy
         gzip14['toolchain'] = {'name': 'gompi', 'version': '1.4.10'}
@@ -691,7 +691,15 @@ class RobotTest(EnhancedTestCase):
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, gzip14['toolchain'])
+        # specify alternative parent toolchain
+        gompi_1410 = {'name': 'gompi', 'version': '1.4.10'}
+        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, parent_tc=gompi_1410)
+        self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
+        self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
+
+        # default: use toolchain from dependency
+        gzip14['toolchain'] = gompi_1410
+        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
@@ -745,8 +753,7 @@ class RobotTest(EnhancedTestCase):
             "setenv EBVERSIONSQLITE 3.8.10.2",
             "setenv  EBDEVELSQLITE $root/easybuild/SQLite-3.8.10.2-easybuild-devel",
         ])
-        write_file(module_file,module_txt)
-        original_modulepath = os.getenv('MODULEPATH')
+        write_file(module_file, module_txt)
         os.environ['MODULEPATH'] = module_parent # Add the parent directory to the MODULEPATH
 
         # Reinitialize the environment for the updated MODULEPATH and use_existing_modules
@@ -764,13 +771,10 @@ class RobotTest(EnhancedTestCase):
 
         # Add the goolf version as an available version and check that gets precedence over the gompi version
         module_file = os.path.join(module_parent, 'SQLite', '3.8.10.2-goolf-1.4.10')
-        write_file(module_file,module_txt)
+        write_file(module_file, module_txt)
         bar = EasyConfig(barec) # Re-parse the parent easyconfig
         sqlite = bar.dependencies()[3]
         self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-goolf-1.4.10')
-
-        # Tidy up
-        os.environ['MODULEPATH'] = original_modulepath
 
 
 def suite():
