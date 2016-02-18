@@ -163,11 +163,11 @@ def get_toolchain_hierarchy(parent_toolchain):
         parsed_ec = process_easyconfig(path, validate=False)[0]
 
         # search the toolchain+dependencies for the version of the subtoolchain
-        dep_tcs = []
+        dep_tcs = [d for d in parsed_ec['dependencies'] if d['name'] == subtoolchain_name]
         for dep in parsed_ec['dependencies']:
             ec = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
             ec = process_easyconfig(ec, validate=False)[0]
-            alldeps = [ec['ec']['toolchain']] + parsed_ec['dependencies']
+            alldeps = [ec['ec']['toolchain']] + ec['ec']['dependencies']
             dep_tcs.extend([d for d in alldeps if d['name'] == subtoolchain_name])
 
         unique_dep_tc_versions = set([dep_tc['version'] for dep_tc in dep_tcs])

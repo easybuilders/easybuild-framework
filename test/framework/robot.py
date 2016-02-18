@@ -576,6 +576,14 @@ class RobotTest(EnhancedTestCase):
             {'name': 'GCC', 'version': '4.9.3-2.25'},
         ])
 
+        get_toolchain_hierarchy.clear()
+        iccifort_hierarchy = get_toolchain_hierarchy({'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'})
+        self.assertEqual(iccifort_hierarchy, [
+            {'name': 'dummy', 'version': ''},
+            {'name': 'GCCcore', 'version': '4.9.3'},
+            {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+        ])
+
     def test_find_resolved_modules(self):
         """Test find_resolved_modules function."""
         nodeps = {
