@@ -559,7 +559,6 @@ class RobotTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
 
-        # testing with gompi/1.4.10, since the result for goolf/1.4.10 is cached (and it's hard to reset the cache)
         get_toolchain_hierarchy.clear()
         gompi_hierarchy = get_toolchain_hierarchy({'name': 'gompi', 'version': '1.4.10'})
         self.assertEqual(gompi_hierarchy, [
@@ -692,7 +691,6 @@ class RobotTest(EnhancedTestCase):
         get_toolchain_hierarchy.clear()
         self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14), None)
 
-        # use gompi/1.4.10 toolchain, to dance around caching of toolchain hierarchy
         gzip14['toolchain'] = {'name': 'gompi', 'version': '1.4.10'}
 
         #
