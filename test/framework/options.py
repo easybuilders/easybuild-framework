@@ -44,7 +44,7 @@ import easybuild.tools.toolchain
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
@@ -2069,6 +2069,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
             shutil.rmtree(mytmpdir)
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
+
+    def test_minimal_toolchains(self):
+        """End-to-end test for --minimal-toolchains."""
+        # create test easyconfig specifically tailored for this test
+        # include a dependency for which no easyconfig is available with parent toolchains, only with subtoolchain
+        ec_file = os.path.join(self.test_prefix, 'test_minimal_toolchains.eb')
+        ectxt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "homepage = 'http://example.com'",
+            "description = 'this is just a test'",
+            "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
+            # hwloc-1.6.2-gompi-1.4.10.eb is *not* available, but hwloc-1.6.2-GCC-4.7.2.eb is,
+            # and GCC/4.7.2 is a subtoolchain of gompi/1.4.10
+            "dependencies = [('hwloc', '1.6.2')]",
+        ])
+        write_file(ec_file, ectxt)
+
+        # check requirements for test
+        init_config([], build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
+        self.assertFalse(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-gompi-1.4.10') or 'nosuchfile'))
+        self.assertTrue(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-GCC-4.7.2')))
+
+        args = [
+            ec_file,
+            '--minimal-toolchains',
+            '--experimental',
+            '--module-naming-scheme=HierarchicalMNS',
+            '--dry-run',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        sqlite_regex = re.compile("hwloc-1.6.2-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| hwloc/", re.M)
+        self.assertTrue(sqlite_regex.search(txt), "Pattern '%s' found in: %s" % (sqlite_regex.pattern, txt))
 
     def test_extended_dry_run(self):
         """Test use of --extended-dry-run/-x."""
