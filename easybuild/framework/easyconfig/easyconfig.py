@@ -38,6 +38,7 @@ Easyconfig module that contains the EasyConfig class.
 
 import copy
 import difflib
+import functools
 import os
 import re
 import shutil
@@ -110,6 +111,7 @@ def toolchain_hierarchy_cache(func):
     """Function decorator to cache (and retrieve cached) toolchain hierarchy queries."""
     cache = {}
 
+    @functools.wraps(func)
     def cache_aware_func(toolchain):
         """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
         cache_key = (toolchain['name'], toolchain['version'])
@@ -122,6 +124,9 @@ def toolchain_hierarchy_cache(func):
             toolchain_hierarchy = func(toolchain)
             cache[cache_key] = toolchain_hierarchy
             return cache[cache_key]
+
+    # Expose clear method of cache to wrapped function
+    cache_aware_func.clear = cache.clear
 
     return cache_aware_func
 
