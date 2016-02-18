@@ -567,6 +567,14 @@ class RobotTest(EnhancedTestCase):
             {'name': 'gompi', 'version': '1.4.10'},
         ])
 
+        # check whether GCCcore is considered as subtoolchain, even if it's only listed as a dep
+        gcc_hierarchy = get_toolchain_hierarchy({'name': 'GCC', 'version': '4.9.3-2.25'})
+        self.assertEqual(gcc_hierarchy, [
+            {'name': 'dummy', 'version': ''},
+            {'name': 'GCCcore', 'version': '4.9.3'},
+            {'name': 'GCC', 'version': '4.9.3-2.25'},
+        ])
+
     def test_find_resolved_modules(self):
         """Test find_resolved_modules function."""
         nodeps = {
