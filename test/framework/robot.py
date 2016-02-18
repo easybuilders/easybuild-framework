@@ -560,6 +560,7 @@ class RobotTest(EnhancedTestCase):
         })
 
         # testing with gompi/1.4.10, since the result for goolf/1.4.10 is cached (and it's hard to reset the cache)
+        get_toolchain_hierarchy.clear()
         gompi_hierarchy = get_toolchain_hierarchy({'name': 'gompi', 'version': '1.4.10'})
         self.assertEqual(gompi_hierarchy, [
             {'name': 'dummy', 'version': ''},
@@ -567,6 +568,7 @@ class RobotTest(EnhancedTestCase):
             {'name': 'gompi', 'version': '1.4.10'},
         ])
 
+        get_toolchain_hierarchy.clear()
         # check whether GCCcore is considered as subtoolchain, even if it's only listed as a dep
         gcc_hierarchy = get_toolchain_hierarchy({'name': 'GCC', 'version': '4.9.3-2.25'})
         self.assertEqual(gcc_hierarchy, [
@@ -676,6 +678,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
+        get_toolchain_hierarchy.clear()
         new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15)
         self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
@@ -686,6 +689,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
+        get_toolchain_hierarchy.clear()
         self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14), None)
 
         # use gompi/1.4.10 toolchain, to dance around caching of toolchain hierarchy
@@ -701,12 +705,14 @@ class RobotTest(EnhancedTestCase):
         })
         # specify alternative parent toolchain
         gompi_1410 = {'name': 'gompi', 'version': '1.4.10'}
+        get_toolchain_hierarchy.clear()
         new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, parent_tc=gompi_1410)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
         # default: use toolchain from dependency
         gzip14['toolchain'] = gompi_1410
+        get_toolchain_hierarchy.clear()
         new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
