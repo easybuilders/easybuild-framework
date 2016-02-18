@@ -41,12 +41,12 @@ except ImportError:
 _log = fancylogger.getLogger('easyconfig.style', fname=False)
 
 
-# any function starting with eb_check_ will be added to the tests
+# any function starting with _eb_check_ will be added to the tests
 # if the test number is added to the select list. The test number is
 # definied as AXXX where A is either E or W and XXX is a 3 digit number.
 # It should be mentioned in the docstring as a single word.
 # Read the pep8 docs to understand the arguments of these functions
-def eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines):
+def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines):
     """
     W299
     Warn about trailing whitespace, expect for the description and comments.
@@ -89,9 +89,9 @@ def style_conformance(lst_easyconfigs, verbose=False):
     reload(pep8)
 
     # register the extra checks before using pep8:
-    # any function in this module starting with `eb_check_` will be used.
+    # any function in this module starting with `_eb_check_` will be used.
     cands = globals()
-    for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith('eb_check_')]):
+    for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith('_eb_check_')]):
         pep8.register_check(check_function)
 
     pep8style = pep8.StyleGuide(quiet=False, config_file=None)
