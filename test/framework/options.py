@@ -2084,7 +2084,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
             # hwloc-1.6.2-gompi-1.4.10.eb is *not* available, but hwloc-1.6.2-GCC-4.7.2.eb is,
             # and GCC/4.7.2 is a subtoolchain of gompi/1.4.10
-            "dependencies = [('hwloc', '1.6.2')]",
+            "dependencies = [('hwloc', '1.6.2'), ('SQLite', '3.8.10.2')]",
         ])
         write_file(ec_file, ectxt)
 
@@ -2092,6 +2092,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config([], build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
         self.assertFalse(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-gompi-1.4.10') or 'nosuchfile'))
         self.assertTrue(os.path.exists(robot_find_easyconfig('hwloc', '1.6.2-GCC-4.7.2')))
+        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-gompi-1.4.10')))
+        self.assertTrue(os.path.exists(robot_find_easyconfig('SQLite', '3.8.10.2-GCC-4.7.2')))
 
         args = [
             ec_file,
@@ -2105,6 +2107,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         sqlite_regex = re.compile("hwloc-1.6.2-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| hwloc/", re.M)
+        sqlite_regex = re.compile("SQLite-3.8.10.2-GCC-4.7.2.eb \(module: Compiler/GCC/4.7.2 \| SQLite/", re.M)
         self.assertTrue(sqlite_regex.search(txt), "Pattern '%s' found in: %s" % (sqlite_regex.pattern, txt))
 
     def test_extended_dry_run(self):
