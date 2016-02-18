@@ -51,7 +51,7 @@ def eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines)
     W299
     Warn about trailing whitespace, expect for the description and comments.
     This differs from the standard trailing whitespace check as that
-    will will warn for any trailing whitespace.
+    will warn for any trailing whitespace.
     """
     comment_re = re.compile('^\s*#')
     if comment_re.match(physical_line):
@@ -84,7 +84,8 @@ def style_conformance(lst_easyconfigs, verbose=False):
     @param verbose print our statistics and be verbose about the errors and warning
     @return the number of warnings and errors
     """
-    # importing autopep8 fucks up pep8. We reload it just to be sure
+    # importing autopep8 changes some pep8 functions.
+    # We reload it to be sure to get the real pep8 functions.
     reload(pep8)
 
     # register the extra checks before using pep8:
@@ -102,10 +103,7 @@ def style_conformance(lst_easyconfigs, verbose=False):
                       'W291',  # replaced by W299
                       'E501',  # line too long
                       )
-    if verbose:
-        options.verbose = 1
-    else:
-        options.verbose = 0
+    options.verbose = int(verbose)
 
     result = pep8style.check_files(lst_easyconfigs)
 

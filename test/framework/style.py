@@ -51,7 +51,6 @@ class StyleTest(TestCase):
             print "Skipping style checks (no pep8 available)"
             return
 
-
         # all available easyconfig files
         test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         specs = glob.glob('%s/*.eb' % test_easyconfigs_path)
