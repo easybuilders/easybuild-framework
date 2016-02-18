@@ -110,7 +110,7 @@ def get_total_memory():
 
     # Return total memory as an integer, a number of megabytes.
 
-    memtotal = 0
+    memtotal = None
     os_type = get_os_type()
 
     if os_type == LINUX and os.path.exists(PROC_MEMINFO_FP):
@@ -120,7 +120,7 @@ def get_total_memory():
                 if memline_sub != memline:
                     memtotal = int(memline_sub) / 1024
 
-    if memtotal == 0:
+    if memtotal is None:
         raise SystemToolsException('Can not determine total memory on this system')
     else:
         return memtotal
