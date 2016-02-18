@@ -2324,7 +2324,7 @@ def build_and_install_one(ecdict, init_env):
                 # add the parsed file to the reproducability directory
                 # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
                 repo_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-                app.cfg.dump(parsed_ec_dump_file)
+                app.cfg.dump(repo_spec)
 
             else:
                 _log.debug("Dumping original easyconfig to install dir")
