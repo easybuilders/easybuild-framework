@@ -84,11 +84,11 @@ class TweakTest(EnhancedTestCase):
 
         specs = {
             'name': 'ifort',
-            'versionsuffix': '-GCC-4.8.3',
+            'versionsuffix': '-GCC-4.9.3-2.25',
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertFalse(generated)
-        self.assertEqual(os.path.basename(ec_file), 'ifort-2013.5.192-GCC-4.8.3.eb')
+        self.assertEqual(os.path.basename(ec_file), 'ifort-2016.1.150-GCC-4.9.3-2.25.eb')
 
         # latest version if not specified
         specs = {
