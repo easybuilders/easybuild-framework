@@ -169,7 +169,7 @@ def get_toolchain_hierarchy(parent_toolchain):
         for dep in parsed_ec['dependencies']:
             # include dep and toolchain of dep as candidates
             cands.extend([
-                {'name': dep['name'], 'version': dep['version']+dep['versionsuffix']},
+                {'name': dep['name'], 'version': dep['version'] + dep['versionsuffix']},
                 dep['toolchain'],
             ])
 
@@ -179,7 +179,7 @@ def get_toolchain_hierarchy(parent_toolchain):
 
             # include deps and toolchains of deps of this dep
             for depdep in easyconfig['dependencies']:
-                cands.append({'name': depdep['name'], 'version': depdep['version']+depdep['versionsuffix']})
+                cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
 
         # only retain candidates that match subtoolchain name
