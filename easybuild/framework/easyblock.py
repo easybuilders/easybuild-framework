@@ -2314,6 +2314,22 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
+            ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
+            if build_option("minimal_toolchains"):
+                # for reproducability we dump out the parsed easyconfig since the contents are affected when
+                # --minimal-toolchains (and --use-existing-modules) is used
+                _log.debug("Dumping parsed easyconfig rather than original easyconfig to install dir")
+
+                # add the parsed file to the reproducability directory
+                # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
+                repo_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+                app.cfg.dump(repo_spec)
+
+            else:
+                _log.debug("Dumping original easyconfig to install dir")
+                repo_spec = spec
+
             try:
                 # upload spec to central repository
                 currentbuildstats = app.cfg['buildstats']
@@ -2321,7 +2337,7 @@ def build_and_install_one(ecdict, init_env):
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                repo.add_easyconfig(repo_spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
@@ -2333,7 +2349,7 @@ def build_and_install_one(ecdict, init_env):
         move_logs(app.logfile, application_log)
 
         try:
-            newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
+            newspec = os.path.join(new_log_dir, ec_filename)
             # only copy if the files are not the same file already (yes, it happens)
             if os.path.exists(newspec) and os.path.samefile(spec, newspec):
                 _log.debug("Not copying easyconfig file %s to %s since files are identical" % (spec, newspec))

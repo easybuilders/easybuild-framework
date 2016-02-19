@@ -37,12 +37,14 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 
+import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.tools import find_resolved_modules, find_minimally_resolved_modules
-from easybuild.framework.easyconfig.tools import get_toolchain_hierarchy, robot_find_minimal_easyconfig_for_dependency
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig
+from easybuild.framework.easyconfig.tools import find_resolved_modules
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
@@ -50,6 +52,7 @@ from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import write_file
 from easybuild.tools.github import fetch_github_token
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
 from test.framework.utilities import find_full_path
 
@@ -58,6 +61,7 @@ from test.framework.utilities import find_full_path
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 ORIG_MODULES_TOOL = modules.modules_tool
+ORIG_ECEC_MODULES_TOOL = ecec.modules_tool
 ORIG_ECTOOLS_MODULES_TOOL = ectools.modules_tool
 ORIG_ROBOT_MODULES_TOOL = robot.modules_tool
 ORIG_MODULE_FUNCTION = os.environ.get('module', None)
@@ -80,7 +84,7 @@ class MockModule(modules.ModulesTool):
     def show(self, modname):
         """Dummy implementation of show, which includes full path to (available or hidden) module files."""
         if modname in self.avail_modules or os.path.basename(modname).startswith('.'):
-            txt =  '  %s:' % os.path.join('/tmp', modname)
+            txt = '  %s:' % os.path.join('/tmp', modname)
         else:
             txt = 'Module %s not found' % modname
         return txt
@@ -95,6 +99,7 @@ def install_mock_module():
     # replace Modules class with something we have control over
     config.modules_tool = mock_module
     ectools.modules_tool = mock_module
+    ecec.modules_tool = mock_module
     robot.modules_tool = mock_module
     os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
@@ -118,6 +123,7 @@ class RobotTest(EnhancedTestCase):
         # restore original modules tool, it may have been tampered with
         config.modules_tool = ORIG_MODULES_TOOL
         ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
+        ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
         robot.modules_tool = ORIG_ROBOT_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
             if 'module' in os.environ:
@@ -339,6 +345,8 @@ class RobotTest(EnhancedTestCase):
 
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
@@ -383,11 +391,9 @@ class RobotTest(EnhancedTestCase):
 
         # no modules available, so all dependencies are retained
         MockModule.avail_modules = []
-        res = resolve_dependencies([bar], minimal_toolchains=True)
+        res = resolve_dependencies([bar])
         self.assertEqual(len(res), 10)
         self.assertEqual([x['full_mod_name'] for x in res], all_mods_ordered)
-        # cleanup
-        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         MockModule.avail_modules = [
             'GCC/4.7.2',
@@ -401,27 +407,28 @@ class RobotTest(EnhancedTestCase):
 
         # test resolving dependencies with minimal toolchain (rather than using goolf/1.4.10 for all of them)
         # existing modules are *not* taken into account when determining minimal subtoolchain, by default
-        res = resolve_dependencies([bar], minimal_toolchains=True)
+        res = resolve_dependencies([bar])
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], bar['ec'].full_mod_name)
-        # cleanup
-        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         # test retaining all dependencies, regardless of whether modules are available or not
-        res = resolve_dependencies([bar], minimal_toolchains=True, retain_all_deps=True)
+        res = resolve_dependencies([bar], retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertEqual(mods, all_mods_ordered)
         self.assertTrue('SQLite/3.8.10.2-GCC-4.7.2' in mods)
-        # cleanup
-        shutil.rmtree(os.path.join(tempfile.gettempdir(), 'minimal-easyconfigs'))
 
         # test taking into account existing modules
         # with an SQLite module with goolf/1.4.10 in place, this toolchain should be used rather than GCC/4.7.2
         MockModule.avail_modules = [
             'SQLite/3.8.10.2-goolf-1.4.10',
         ]
-        res = resolve_dependencies([bar], minimal_toolchains=True, retain_all_deps=True, use_existing_modules=True)
+
+        # parsed easyconfigs are cached, so clear the cache before reprocessing easyconfigs
+        ecec._easyconfigs_cache.clear()
+
+        bar = process_easyconfig(barec)[0]
+        res = resolve_dependencies([bar], retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertTrue('SQLite/3.8.10.2-goolf-1.4.10' in mods)
@@ -552,12 +559,29 @@ class RobotTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
 
-        # testing with gompi/1.4.10, since the result for goolf/1.4.10 is cached (and it's hard to reset the cache)
+        get_toolchain_hierarchy.clear()
         gompi_hierarchy = get_toolchain_hierarchy({'name': 'gompi', 'version': '1.4.10'})
         self.assertEqual(gompi_hierarchy, [
             {'name': 'dummy', 'version': ''},
             {'name': 'GCC', 'version': '4.7.2'},
             {'name': 'gompi', 'version': '1.4.10'},
+        ])
+
+        get_toolchain_hierarchy.clear()
+        # check whether GCCcore is considered as subtoolchain, even if it's only listed as a dep
+        gcc_hierarchy = get_toolchain_hierarchy({'name': 'GCC', 'version': '4.9.3-2.25'})
+        self.assertEqual(gcc_hierarchy, [
+            {'name': 'dummy', 'version': ''},
+            {'name': 'GCCcore', 'version': '4.9.3'},
+            {'name': 'GCC', 'version': '4.9.3-2.25'},
+        ])
+
+        get_toolchain_hierarchy.clear()
+        iccifort_hierarchy = get_toolchain_hierarchy({'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'})
+        self.assertEqual(iccifort_hierarchy, [
+            {'name': 'dummy', 'version': ''},
+            {'name': 'GCCcore', 'version': '4.9.3'},
+            {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
         ])
 
     def test_find_resolved_modules(self):
@@ -640,8 +664,8 @@ class RobotTest(EnhancedTestCase):
 
         self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
 
-    def test_robot_find_minimal_easyconfig_for_dependency(self):
-        """Test robot_find_minimal_easyconfig_for_dependency."""
+    def test_robot_find_minimal_toolchain_for_dependency(self):
+        """Test robot_find_minimal_toolchain_for_dependency."""
 
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
@@ -652,15 +676,18 @@ class RobotTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
 
+        #
+        # First test that it can do basic resolution
+        #
         gzip15 = {
             'name': 'gzip',
             'version': '1.5',
             'versionsuffix': '',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
-        new_gzip15, ecfile = robot_find_minimal_easyconfig_for_dependency(gzip15)
-        self.assertEqual(new_gzip15, gzip15)
-        self.assertTrue(os.path.samefile(ecfile, os.path.join(test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb')))
+        get_toolchain_hierarchy.clear()
+        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15)
+        self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
         # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
         gzip14 = {
@@ -669,30 +696,38 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
-        self.assertEqual(robot_find_minimal_easyconfig_for_dependency(gzip14), None)
+        get_toolchain_hierarchy.clear()
+        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14), None)
 
-        # use gompi/1.4.10 toolchain, to dance around caching of toolchain hierarchy
         gzip14['toolchain'] = {'name': 'gompi', 'version': '1.4.10'}
 
-        # test also including dummy toolchain
+        #
+        # Second test also including dummy toolchain
+        #
         init_config(build_options={
             'add_dummy_to_minimal_toolchains': True,
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
-        new_gzip14, ecfile = robot_find_minimal_easyconfig_for_dependency(gzip14)
-        self.assertTrue(new_gzip14 != gzip14)
-        self.assertEqual(new_gzip14['toolchain'], {'name': 'dummy', 'version': ''})
-        self.assertTrue(os.path.samefile(ecfile, os.path.join(test_easyconfigs, 'gzip-1.4.eb')))
+        # specify alternative parent toolchain
+        gompi_1410 = {'name': 'gompi', 'version': '1.4.10'}
+        get_toolchain_hierarchy.clear()
+        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, parent_tc=gompi_1410)
+        self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
+        self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
-    def test_find_minimally_resolved_modules(self):
-        """Test find_minimally_resolved_modules function."""
+        # default: use toolchain from dependency
+        gzip14['toolchain'] = gompi_1410
+        get_toolchain_hierarchy.clear()
+        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14)
+        self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
+        self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
-
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        #
+        # Finally test if it can recognise existing modules and use those
+        #
         init_config(build_options={
+            'minimal_toolchains': True,
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
@@ -712,109 +747,54 @@ class RobotTest(EnhancedTestCase):
             "   ('OpenMPI', '1.6.4'),",  # available with GCC/4.7.2
             "   ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2'),",  # available with gompi/1.4.10
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2'),",  # available with gompi/1.4.10
-            "   ('SQLite', '3.8.10.2'),",  # only available with goolf/1.4.10
+            "   ('SQLite', '3.8.10.2'),",  # available with goolf/1.4.10, gompi/1.4.10 and GCC/4.7.2
             "]",
         ])
         write_file(barec, barec_txt)
-        bar = process_easyconfig(barec)[0]
+        bar = EasyConfig(barec)
 
-        ecs = [bar]
-        mods = [
-            'gompi/1.4.10',
-            'goolf/1.4.10',
-            # include modules for dependencies, with subtoolchains rather than full toolchain (except for SQLite)
-            'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
-            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
-            'SQLite/3.8.10.2-GCC-4.7.2',
-        ]
-        ordered_ecs, new_easyconfigs, new_avail_modules = find_minimally_resolved_modules(ecs, mods, [])
+        # Check that all bar dependencies have been processed as expected
+        openmpi = bar.dependencies()[0]
+        openblas = bar.dependencies()[1]
+        scalapack = bar.dependencies()[2]
+        sqlite = bar.dependencies()[3]
+        self.assertEqual(det_full_ec_version(openmpi), '1.6.4-GCC-4.7.2')
+        self.assertEqual(det_full_ec_version(openblas), '0.2.6-gompi-1.4.10-LAPACK-3.4.2')
+        self.assertEqual(det_full_ec_version(scalapack), '2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2')
+        self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-GCC-4.7.2')
 
-        # all dependencies are resolved for easyconfigs included in ordered_ecs
-        self.assertEqual(len(ordered_ecs), 1)
-        self.assertEqual(ordered_ecs[0]['dependencies'], [])
+        # Add the gompi/1.4.10 version of SQLite as an available module
+        module_parent = os.path.join(self.test_prefix, 'minimal_toolchain_modules')
+        module_file = os.path.join(module_parent, 'SQLite', '3.8.10.2-gompi-1.4.10')
+        module_txt = '\n'.join([
+            "#%Module",
+            "set root /tmp/SQLite/3.8.10.2",
+            "setenv EBROOTSQLITE $root",
+            "setenv EBVERSIONSQLITE 3.8.10.2",
+            "setenv  EBDEVELSQLITE $root/easybuild/SQLite-3.8.10.2-easybuild-devel",
+        ])
+        write_file(module_file, module_txt)
+        os.environ['MODULEPATH'] = module_parent # Add the parent directory to the MODULEPATH
 
-        # module is added to list of available modules
-        self.assertTrue(bar['ec'].full_mod_name in new_avail_modules)
-
-        # nothing left
-        self.assertEqual(new_easyconfigs, [])
-
-    def test_find_minimally_resolved_modules_dummy(self):
-        """Test find_minimally_resolved_modules function, also considering dummy toolchain."""
-
-        # replace log.experimental with log.warning to allow experimental code
-        easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
-
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        # Reinitialize the environment for the updated MODULEPATH and use_existing_modules
         init_config(build_options={
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
         })
 
-        barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
-        barec_lines = [
-            "easyblock = 'ConfigureMake'",
-            "name = 'bar'",
-            "version = '1.2.3'",
-            "homepage = 'http://example.com'",
-            "description = 'foo'",
-            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
-            # to test resolving of dependencies with minimal toolchain
-            # for each of these, we know test easyconfigs are available (which are required here)
-            "dependencies = [",
-            "   ('GCC', '4.7.2'),",  # only available with dummy toolchain
-            "   ('OpenMPI', '1.6.4'),",  # available with GCC/4.7.2
-            "   ('OpenBLAS', '0.2.6', '-LAPACK-3.4.2'),",  # available with gompi/1.4.10
-            "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2'),",  # available with gompi/1.4.10
-            "]",
-            # toolchain as list line, for easy modification later
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
-        ]
-        write_file(barec, '\n'.join(barec_lines))
-        bar = process_easyconfig(barec)[0]
+        # Check gompi is now being picked up
+        bar = EasyConfig(barec) # Re-parse the parent easyconfig
+        sqlite = bar.dependencies()[3]
+        self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-gompi-1.4.10')
 
-        ecs = [bar]
-        mods = [
-            'gompi/1.4.10',
-            'goolf/1.4.10',
-            # include modules for dependencies, with subtoolchains rather than full toolchain (except for SQLite)
-            'GCC/4.7.2',
-            'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
-            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
-        ]
-        ordered_ecs, new_easyconfigs, new_avail_modules = find_minimally_resolved_modules(ecs, mods, [])
-
-        # (only) GCC dependency is unresolved
-        self.assertEqual(ordered_ecs, [])
-        self.assertEqual(len(new_easyconfigs), 1)
-        self.assertEqual(len(new_easyconfigs[0]['dependencies']), 1)
-        self.assertEqual(new_easyconfigs[0]['dependencies'][0]['name'], 'GCC')
-
-        # test also including dummy toolchain
-        init_config(build_options={
-            'add_dummy_to_minimal_toolchains': True,
-            'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
-        })
-
-        # modify toolchain to gompi (to deal with toolchain hierarchy caching)
-        barec_lines[-1] = "toolchain = {'name': 'gompi', 'version': '1.4.10'}"
-        write_file(barec, '\n'.join(barec_lines))
-        bar = process_easyconfig(barec)[0]
-        ecs = [bar]
-        ordered_ecs, new_easyconfigs, new_avail_modules = find_minimally_resolved_modules(ecs, mods, [])
-
-        # all dependencies are resolved for easyconfigs included in ordered_ecs
-        self.assertEqual(len(ordered_ecs), 1)
-        self.assertEqual(ordered_ecs[0]['dependencies'], [])
-
-        # module is added to list of available modules
-        self.assertTrue(bar['ec'].full_mod_name in new_avail_modules)
-
-        # nothing left
-        self.assertEqual(new_easyconfigs, [])
+        # Add the goolf version as an available version and check that gets precedence over the gompi version
+        module_file = os.path.join(module_parent, 'SQLite', '3.8.10.2-goolf-1.4.10')
+        write_file(module_file, module_txt)
+        bar = EasyConfig(barec) # Re-parse the parent easyconfig
+        sqlite = bar.dependencies()[3]
+        self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-goolf-1.4.10')
 
 
 def suite():
