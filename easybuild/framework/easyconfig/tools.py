@@ -57,6 +57,7 @@ from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -500,9 +501,11 @@ def dump_env_script(easyconfigs):
         app.prepare_step(start_dir=False)
 
         # compose script
+        ecfile = os.path.basename(ec.path)
         script_lines = [
             "#!/bin/bash",
-            "# script to set up build environment for %s" % ec.path,
+            "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
+            "# usage: source %s" % os.path.basename(script_path),
         ]
 
         script_lines.extend(['', "# toolchain & dependency modules"])
@@ -519,6 +522,6 @@ def dump_env_script(easyconfigs):
             script_lines.append("# (no build environment defined)")
 
         write_file(script_path, '\n'.join(script_lines))
-        print_msg("Script to set up build environment for %s dumped to %s" % (ec.path, script_path), prefix=False)
+        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
 
         restore_env(orig_env)
