@@ -2393,6 +2393,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
 
+    def test_stop(self):
+        """Test use of --stop."""
+        args = ['toy-0.0.eb', '--force', '--stop=configure']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        regex = re.compile("COMPLETED: Installation STOPPED successfully", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
 
 def suite():
     """ returns all the testcases in this module """
