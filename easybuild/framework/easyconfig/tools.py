@@ -49,6 +49,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
@@ -484,6 +485,8 @@ def dump_env_script(easyconfigs):
             raise EasyBuildError("One or more scripts already exists, not overwriting them (unless forced): %s",
                                  ' '.join(existing_scripts))
 
+    orig_env = copy.deepcopy(os.environ)
+
     for ec, script_path in ecs_and_script_paths:
         # obtain EasyBlock instance
         app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
@@ -501,11 +504,21 @@ def dump_env_script(easyconfigs):
             "#!/bin/bash",
             "# script to set up build environment for %s" % ec.path,
         ]
+
         script_lines.extend(['', "# toolchain & dependency modules"])
-        script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+        if app.toolchain.modules:
+            script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+        else:
+            script_lines.append("# (no modules loaded)")
+
         script_lines.extend(['', "# build environment"])
-        env_vars = sorted(app.toolchain.vars.items())
-        script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+        if app.toolchain.vars:
+            env_vars = sorted(app.toolchain.vars.items())
+            script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+        else:
+            script_lines.append("# (no build environment defined)")
 
         write_file(script_path, '\n'.join(script_lines))
         print_msg("Script to set up build environment for %s dumped to %s" % (ec.path, script_path), prefix=False)
+
+        restore_env(orig_env)
