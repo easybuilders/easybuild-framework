@@ -416,40 +416,13 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
-def clone_repo(path, github_account, repo_name, **kwargs):
-    """
-    Clone (specified branch of) specified GitHub repository to specified location.
-
-    @param path: location where Git repository should be cloned
-    @param github_account: GitHub account to clone from
-    @param repo_name: name of Git repository to clone
-    @param kwargs: additional keyword arguments to be passed to Repo.clone_from method
-    """
-    github_url = 'httpsxx://github.com/%s/%s.git' % (github_account, repo_name)
-    _log.debug("Cloning %s (kwargs: %s) to %s...", github_url, kwargs, path)
-    try:
-        repo = git.Repo.clone_from(github_url, path, **kwargs)
-
-    except GitCommandError as err:
-        # if cloning repository over https fails, fall back to trying with git/SSH
-        alt_github_url = 'git@github.com:%s/%s.git' % (github_account, repo_name)
-
-        _log.debug("Cloning %s (kwargs: %s) to %s...", alt_github_url, kwargs, path)
-        try:
-            repo = git.Repo.clone_from(alt_github_url, path, **kwargs)
-
-        except GitCommandError as err:
-            raise EasyBuildError("Failed to clone Git repo %s/%s to %s (kwargs: %s): %s",
-                                 github_account, repo_name, path, kwargs, err)
-
-    return repo
-
-
-def init_repo(path, repo_name):
+def init_repo(path, repo_name, silent=False):
     """
     Initialize a new Git repository at the specified location.
 
     @param path: location where Git repository should be initialized
+    @param repo_name: name of Git repository
+    @param silent: keep quiet (don't print any messages)
     """
     # copy or init git working directory
     git_working_dirs_path = build_option('git_working_dirs_path')
@@ -457,7 +430,7 @@ def init_repo(path, repo_name):
         workdir = os.path.join(git_working_dirs_path, repo_name)
         if os.path.exists(workdir):
             try:
-                print_msg("copying %s..." % workdir)
+                print_msg("copying %s..." % workdir, silent=silent)
                 os.rmdir(path)
                 shutil.copytree(workdir, path)
             except OSError as err:
@@ -473,7 +446,7 @@ def init_repo(path, repo_name):
     return repo
 
 
-def setup_repo_from(git_repo, github_url, target_account, branch_name):
+def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=False):
     """
     Set up repository by checking out specified branch from repository at specified URL.
 
@@ -481,6 +454,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name):
     @param github_url: URL to GitHub repository
     @param target_account: name of GitHub account that owns GitHub repository at specified URL
     @param branch_name: name of branch to check out
+    @param silent: keep quiet (don't print any messages)
     """
     _log.debug("Cloning from %s", github_url)
 
@@ -495,7 +469,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name):
 
     # git fetch
     # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
-    print_msg("fetching branch '%s' from %s..." % (branch_name, github_url))
+    print_msg("fetching branch '%s' from %s..." % (branch_name, github_url), silent=silent)
     try:
         res = origin.fetch()
     except GitCommandError as err:
@@ -518,15 +492,17 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name):
     try:
         origin_branch.checkout(b=branch_name)
     except GitCommandError as err:
-        alt_branch = 'pr_start_branch_%s_%s' % (branch_name, salt)
+        alt_branch = '%s_%s' % (branch_name, salt)
         _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
         try:
-            origin_branch.checkout(b=alt_branch)
+            origin_branch.checkout(b=alt_branch, force=True)
         except GitCommandError as err:
             raise EasyBuildError("Failed to check out branch '%s' from repo at %s: %s", alt_branch, github_url, err)
 
+    return True
 
-def setup_repo(git_repo, target_account, target_repo, branch_name):
+
+def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False):
     """
     Set up repository by checking out specified branch for specfied GitHub accont/repository.
 
@@ -534,19 +510,25 @@ def setup_repo(git_repo, target_account, target_repo, branch_name):
     @param target_account: name of GitHub account that owns GitHub repository
     @param target_repo: name of GitHib repository
     @param branch_name: name of branch to check out
+    @param silent: keep quiet (don't print any messages)
     """
-    github_url = 'https://github.com/%s/%s.git' % (target_account, target_repo)
-    try:
-        setup_repo_from(git_repo, github_url, target_account, branch_name)
+    tmpl_github_urls = [
+        'https://github.com/%s/%s.git',
+        'git@github.com:%s/%s.git',
+    ]
+    repo = None
+    errors = []
+    for tmpl_github_url in tmpl_github_urls:
+        github_url = tmpl_github_url % (target_account, target_repo)
+        try:
+            repo = setup_repo_from(git_repo, github_url, target_account, branch_name, silent=silent)
+            break
 
-    except EasyBuildError as err:
-        # if checking out repository over https fails, fall back to trying with git/SSH
-        alt_github_url = 'git@github.com:%s/%s.git' % (target_account, target_repo)
+        except EasyBuildError as err:
+            errors.append("Checking out branch '%s' from %s failed: %s" % (branch_name, github_url, err))
 
-        _log.warning("Checking out branch '%s' from %s failed (%s); falling back to %s",
-                     branch_name, github_url, err, alt_github_url)
-
-        setup_repo_from(git_repo, alt_github_url, target_account, branch_name)
+    if not repo:
+        raise EasyBuildError('; '.join(errors))
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -787,6 +769,7 @@ def check_github():
     * check whether git and GitPython are available
     * check whether push access to own GitHub repositories works
     * check whether creating gists works
+    * check whether location to local working directories for Git repositories is available (not strictly needed)
     """
     # start by assuming that everything works, individual checks will disable action that won't work
     status = {}
@@ -799,11 +782,11 @@ def check_github():
     try:
         urllib2.urlopen(GITHUB_URL, timeout=5)
     except urllib2.URLError as err:
-        sys.stderr.write("\nERROR: failed to open %s, checking access to GitHub must be done online.\n\n" % GITHUB_URL)
+        sys.stderr.write("\nERROR: checking status of GitHub integration must be done online.\n\n")
         sys.exit(1)
 
     # GitHub user
-    print "* GitHub user:",
+    print "* GitHub user...",
     github_user = build_option('github_user')
     if github_user is None:
         check_res = "(none available) => FAIL"
@@ -814,7 +797,7 @@ def check_github():
     print check_res
 
     # check GitHub token
-    print "* GitHub token:",
+    print "* GitHub token...",
     github_token = fetch_github_token(github_user)
     if github_token is None:
         check_res = "(no token found) => FAIL"
@@ -833,7 +816,7 @@ def check_github():
     print check_res
 
     # check git command
-    print "* git command:",
+    print "* git command...",
     git_cmd = which('git')
     git_version = get_tool_version('git')
     if git_cmd:
@@ -850,7 +833,7 @@ def check_github():
     print check_res
 
     # check GitPython module
-    print "* GitPython module:",
+    print "* GitPython module...",
     if 'git' in sys.modules:
         git_check = True
         git_attrs = ['GitCommandError', 'Repo']
@@ -870,14 +853,15 @@ def check_github():
     print check_res
 
     # test push access to own GitHub repository
-    print "* push access to %s/%s repo @ GitHub:" % (github_user, GITHUB_EASYCONFIGS_REPO),
+    print "* push access to %s/%s repo @ GitHub..." % (github_user, GITHUB_EASYCONFIGS_REPO),
 
     # try to clone repo and push a test branch
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo, res = None, None
+    branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
     try:
-        git_repo = clone_repo(git_working_dir, github_user, GITHUB_EASYCONFIGS_REPO, depth='1')
-        branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
+        git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
+        setup_repo(git_repo, github_user, GITHUB_EASYCONFIGS_REPO, 'master', silent=True)
         git_repo.create_head(branch_name)
         res = git_repo.remotes.origin.push(branch_name)
     except Exception as err:
@@ -905,10 +889,10 @@ def check_github():
             pass
 
     # test creating a gist
-    print "* creating gists:",
+    print "* creating gists...",
     res = None
     try:
-        res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user+'xxx')
+        res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user)
     except Exception as err:
         _log.warning("Exception occured when trying to create gist: %s", err)
 
@@ -920,8 +904,8 @@ def check_github():
 
     print check_res
 
-    # FIXME: check whether --git-working-dirs-path is specified, to speed things up
-    print "* location to Git working dirs:",
+    # check whether location to local working directories for Git repositories is available (not strictly needed)
+    print "* location to Git working dirs...",
     git_working_dirs_path = build_option('git_working_dirs_path')
     if git_working_dirs_path:
         print "OK (%s)" % git_working_dirs_path
