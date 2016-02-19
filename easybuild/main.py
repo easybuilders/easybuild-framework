@@ -152,7 +152,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
-def handle_github_options(options):
+def handle_github_options(options, orig_paths):
     """Handle options related to GitHub integration, if any are set."""
     done = True
 
@@ -262,7 +262,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
                            terse=options.terse)
 
     # GitHub integration
-    cleanup_and_exit = handle_github_options(options)
+    cleanup_and_exit = handle_github_options(options, orig_paths)
 
     # non-verbose cleanup and exit after handling GitHub integration stuff or printing terse info
     if cleanup_and_exit or options.terse:
