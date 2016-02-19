@@ -231,7 +231,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # GitHub integration
-    if options.check_github or install_github_token or options.new_pr or options.review_pr or options.update_pr:
+    if options.check_github or options.install_github_token or options.new_pr or options.review_pr or options.update_pr:
 
         if options.check_github:
             check_github()
