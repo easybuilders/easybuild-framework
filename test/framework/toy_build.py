@@ -1038,6 +1038,15 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module += '.lua'
         self.assertTrue(os.path.exists(toy_module), msg)
 
+    def test_minimal_toolchains(self):
+        """Test toy build with --minimal-toolchains."""
+        # this test doesn't check for anything specific to using minimal toolchains, only side-effects
+        self.test_toy_build(extra_args=['--minimal-toolchains'])
+
+        # also check whether easyconfig is dumped to reprod/ subdir
+        reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(reprod_ec))
+
 
 def suite():
     """ return all the tests in this file """
