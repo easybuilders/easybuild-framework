@@ -504,7 +504,8 @@ def dump_env_script(easyconfigs):
         script_lines.extend(['', "# toolchain & dependency modules"])
         script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
         script_lines.extend(['', "# build environment"])
-        script_lines.extend(["export %s=%s" % env_var_def for env_var_def in sorted(app.toolchain.vars.items())])
+        env_vars = sorted(app.toolchain.vars.items())
+        script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
 
         write_file(script_path, '\n'.join(script_lines))
         print_msg("Script to set up build environment for %s dumped to %s" % (ec.path, script_path), prefix=False)
