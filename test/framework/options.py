@@ -53,7 +53,7 @@ from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions, set_tmpdir
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
