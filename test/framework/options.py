@@ -2370,7 +2370,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for name in [fftw, gcc, openmpi]:
             # check stdout
-            regex = re.compile("^Script to set up build environment for .*/%s.eb dumped to %s.env" % (name, name), re.M)
+            regex = re.compile("^Script to set up build environment for %s.eb dumped to %s.env" % (name, name), re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
             # check whether scripts were dumped
