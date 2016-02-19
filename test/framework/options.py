@@ -2357,24 +2357,40 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_dump_env_config(self):
         """Test for --dump-env-config."""
 
+        fftw = 'FFTW-3.3.3-gompi-1.4.10'
+        gcc = 'GCC-4.9.2'
         openmpi = 'OpenMPI-1.6.4-GCC-4.7.2'
-        args = [
-            '%s.eb' % openmpi,
-            '--dump-env-script',
-        ]
+        args = ['%s.eb' % ec for ec in [fftw, gcc, openmpi]] + ['--dump-env-script']
+
         os.chdir(self.test_prefix)
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout().strip()
         self.mock_stdout(False)
 
-        regex = re.compile("^Script to set up build environment for .* dumped to OpenMPI-1.6.4-GCC-4.7.2.env", re.M)
-        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        for name in [fftw, gcc, openmpi]:
+            # check stdout
+            regex = re.compile("^Script to set up build environment for .*/%s.eb dumped to %s.env" % (name, name), re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
-        self.assertTrue(os.path.exists(env_script))
+            # check whether scripts were dumped
+            env_script = os.path.join(self.test_prefix, '%s.env' % name)
+            self.assertTrue(os.path.exists(env_script))
+
+        # existing .env files are not overwritten, unless forced
+        os.chdir(self.test_prefix)
+        args = ['%s.eb' % openmpi, '--dump-env-script']
+        error_msg = r"One or more scripts already exists, not overwriting them \(unless forced\): %s.env" % openmpi
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
+
+        os.chdir(self.test_prefix)
+        args.append('--force')
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.mock_stdout(False)
 
         # check contents of script
+        env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
         txt = read_file(env_script)
         patterns = [
             "module load GCC/4.7.2",  # loading of toolchain module
