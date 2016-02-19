@@ -53,7 +53,8 @@ from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions, set_tmpdir
-from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
@@ -2352,6 +2353,47 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().strip()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
+
+    def test_dump_env_config(self):
+        """Test for --dump-env-config."""
+
+        openmpi = 'OpenMPI-1.6.4-GCC-4.7.2'
+        args = [
+            '%s.eb' % openmpi,
+            '--dump-env-script',
+        ]
+        os.chdir(self.test_prefix)
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        regex = re.compile("^Script to set up build environment for .* dumped to OpenMPI-1.6.4-GCC-4.7.2.env", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
+        self.assertTrue(os.path.exists(env_script))
+
+        # check contents of script
+        txt = read_file(env_script)
+        patterns = [
+            "module load GCC/4.7.2",  # loading of toolchain module
+            "module load hwloc/1.6.2-GCC-4.7.2",  # loading of dependency module
+            # defining build env
+            "export FC='gfortran'",
+            "export CFLAGS='-O2 -march=native'",
+        ]
+        for pattern in patterns:
+            regex = re.compile("^%s$" % pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        out, ec = run_cmd("function module { echo $@; } && source %s && echo FC: $FC" % env_script, simple=False)
+        expected_out = '\n'.join([
+            "load GCC/4.7.2",
+            "load hwloc/1.6.2-GCC-4.7.2",
+            "FC: gfortran",
+        ])
+        self.assertEqual(out.strip(), expected_out)
 
 
 def suite():
