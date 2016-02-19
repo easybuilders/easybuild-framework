@@ -400,7 +400,9 @@ class EasyBuildOptions(GeneralOption):
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
                                            None, 'store_true', False),
-            'dep-graph': ("Create dependency graph", None, "store", None, {'metavar': 'depgraph.<ext>'}),
+            'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
+            'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
+                                None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),

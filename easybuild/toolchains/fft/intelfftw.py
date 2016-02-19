@@ -93,7 +93,7 @@ class IntelFFTW(Fftw):
         else:
             msg = "Not all FFTW interface libraries %s are found in %s" % (check_fftw_libs, fft_lib_dirs)
             msg += ", can't set $FFT_LIB."
-            if build_option('extended_dry_run'):
+            if self.dry_run:
                 dry_run_warning(msg, silent=build_option('silent'))
             else:
                 raise EasyBuildError(msg)

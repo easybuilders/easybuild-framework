@@ -50,7 +50,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths, dump_env_script
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
@@ -309,8 +309,12 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         txt = dry_run(easyconfigs, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
+    # dump source script to set up build environment
+    if options.dump_env_script:
+        dump_env_script(easyconfigs)
+
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.dry_run, options.dry_run_short]):
+    if any(no_ec_opts + [options.dry_run, options.dry_run_short, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

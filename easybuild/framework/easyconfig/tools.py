@@ -46,8 +46,8 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
@@ -465,3 +465,46 @@ def review_pr(pr, colored=True, branch='develop'):
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
     return '\n'.join(lines)
+
+
+def dump_env_script(easyconfigs):
+    """
+    Dump source scripts that set up build environment for specified easyconfigs."""
+    ecs_and_script_paths = []
+    for easyconfig in easyconfigs:
+        script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
+        ecs_and_script_paths.append((easyconfig['ec'], script_path))
+
+    # don't just overwrite existing scripts
+    existing_scripts = [s for (_, s) in ecs_and_script_paths if os.path.exists(s)]
+    if existing_scripts:
+        if build_option('force'):
+            _log.info("Found existing scripts, overwriting them: %s", ' '.join(existing_scripts))
+        else:
+            raise EasyBuildError("One or more scripts already exists, not overwriting them (unless forced): %s",
+                                 ' '.join(existing_scripts))
+
+    for ec, script_path in ecs_and_script_paths:
+        # obtain EasyBlock instance
+        app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        app = app_class(ec)
+
+        # mimic dry run, and keep quiet
+        app.dry_run = app.silent = app.toolchain.dry_run = True
+
+        # prepare build environment (in dry run mode)
+        app.check_readiness_step()
+        app.prepare_step(start_dir=False)
+
+        # compose script
+        script_lines = [
+            "#!/bin/bash",
+            "# script to set up build environment for %s" % ec.path,
+        ]
+        script_lines.extend(['', "# toolchain & dependency modules"])
+        script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+        script_lines.extend(['', "# build environment"])
+        script_lines.extend(["export %s=%s" % env_var_def for env_var_def in sorted(app.toolchain.vars.items())])
+
+        write_file(script_path, '\n'.join(script_lines))
+        print_msg("Script to set up build environment for %s dumped to %s" % (ec.path, script_path), prefix=False)
