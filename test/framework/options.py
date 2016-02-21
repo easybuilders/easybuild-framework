@@ -2380,7 +2380,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # existing .env files are not overwritten, unless forced
         os.chdir(self.test_prefix)
         args = ['%s.eb' % openmpi, '--dump-env-script']
-        error_msg = r"One or more scripts already exists, not overwriting them \(unless forced\): %s.env" % openmpi
+        error_msg = r"Script\(s\) already exists, not overwriting them \(unless --force is used\): %s.env" % openmpi
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
 
         os.chdir(self.test_prefix)

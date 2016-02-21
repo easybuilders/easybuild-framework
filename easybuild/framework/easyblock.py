@@ -1513,6 +1513,8 @@ class EasyBlock(object):
     def prepare_step(self, start_dir=True):
         """
         Pre-configure step. Set's up the builddir just before starting configure
+
+        @param start_dir: guess start directory based on unpacked sources
         """
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")

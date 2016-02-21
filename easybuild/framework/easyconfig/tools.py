@@ -471,7 +471,10 @@ def review_pr(pr, colored=True, branch='develop'):
 
 def dump_env_script(easyconfigs):
     """
-    Dump source scripts that set up build environment for specified easyconfigs."""
+    Dump source scripts that set up build environment for specified easyconfigs.
+
+    @param easyconfigs: list of easyconfigs to generate scripts for
+    """
     ecs_and_script_paths = []
     for easyconfig in easyconfigs:
         script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
@@ -483,7 +486,7 @@ def dump_env_script(easyconfigs):
         if build_option('force'):
             _log.info("Found existing scripts, overwriting them: %s", ' '.join(existing_scripts))
         else:
-            raise EasyBuildError("One or more scripts already exists, not overwriting them (unless forced): %s",
+            raise EasyBuildError("Script(s) already exists, not overwriting them (unless --force is used): %s",
                                  ' '.join(existing_scripts))
 
     orig_env = copy.deepcopy(os.environ)
