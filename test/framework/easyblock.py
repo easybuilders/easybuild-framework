@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -166,6 +166,60 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_extend_modpath(self):
+        """Test for make_module_extend_modpath"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'moduleclass = "compiler"',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
+        self.assertEqual(eb.make_module_extend_modpath(), '')
+
+        usermodsdir = 'my/own/modules'
+        modclasses = ['compiler', 'tools']
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
+        build_options = {
+            'subdir_user_modules': usermodsdir,
+            'valid_module_classes': modclasses,
+        }
+        init_config(build_options=build_options)
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        txt = eb.make_module_extend_modpath()
+        if get_module_syntax() == 'Tcl':
+            regexs = [r'^module use ".*/modules/all/Compiler/pi/3.14/%s"$' % c for c in modclasses]
+            home = r'\$env\(HOME\)'
+            regexs.extend([
+                # extension for user modules is guarded
+                r'if { \[ file isdirectory \[ file join %s "%s/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
+                # no per-moduleclass extension for user modules
+                r'^\s+module use \[ file join %s "%s/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
+            ])
+        elif get_module_syntax() == 'Lua':
+            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/all/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
+            home = r'os.getenv\("HOME"\)'
+            regexs.extend([
+                # extension for user modules is guarded
+                r'if isDir\(pathJoin\(%s, "%s/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
+                # no per-moduleclass extension for user modules
+                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_make_module_req(self):
         """Testcase for make_module_req"""
         self.contents = '\n'.join([
@@ -207,9 +261,165 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
+        # check for behavior when a string value is used as dict value by make_module_req_guesses
+        eb.make_module_req_guess = lambda: {'PATH': 'bin'}
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        # check for correct behaviour if empty string is specified as one of the values
+        # prepend-path statements should be included for both the 'bin' subdir and the install root
+        eb.make_module_req_guess = lambda: {'PATH': ['bin', '']}
+        txt = eb.make_module_req()
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root/bin\n", txt, re.M))
+            self.assertTrue(re.search(r"\nprepend-path\s+PATH\s+\$root\n", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n', txt, re.M))
+            self.assertTrue(re.search(r'\nprepend_path\("PATH", root\)\n', txt, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_make_module_extra(self):
+        """Test for make_module_extra."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            'dependencies = [',
+            "   ('FFTW', '3.3.1'),",
+            "   ('LAPACK', '3.4.0'),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+
+        if get_module_syntax() == 'Tcl':
+            expected_default = re.compile(r'\n'.join([
+                r'setenv\s+EBROOTPI\s+\"\$root"',
+                r'setenv\s+EBVERSIONPI\s+"3.14"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+            ]))
+            expected_alt = re.compile(r'\n'.join([
+                r'setenv\s+EBROOTPI\s+"/opt/software/tau/6.28"',
+                r'setenv\s+EBVERSIONPI\s+"6.28"',
+                r'setenv\s+EBDEVELPI\s+"\$root/easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"',
+            ]))
+        elif get_module_syntax() == 'Lua':
+            expected_default = re.compile(r'\n'.join([
+                r'setenv\("EBROOTPI", root\)',
+                r'setenv\("EBVERSIONPI", "3.14"\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+            ]))
+            expected_alt = re.compile(r'\n'.join([
+                r'setenv\("EBROOTPI", "/opt/software/tau/6.28"\)',
+                r'setenv\("EBVERSIONPI", "6.28"\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-1.1.0-no-OFED-easybuild-devel"\)\)',
+            ]))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        defaulttxt = eb.make_module_extra().strip()
+        self.assertTrue(expected_default.match(defaulttxt),
+                        "Pattern %s found in %s" % (expected_default.pattern, defaulttxt))
+
+        alttxt = eb.make_module_extra(altroot='/opt/software/tau/6.28', altversion='6.28').strip()
+        self.assertTrue(expected_alt.match(alttxt),
+                        "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
+
+    def test_make_module_dep(self):
+        """Test for make_module_dep"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '1.1.0-no-OFED'}",
+            'dependencies = [',
+            "   ('FFTW', '3.3.1'),",
+            "   ('LAPACK', '3.4.0'),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
+
+        if get_module_syntax() == 'Tcl':
+            tc_load = '\n'.join([
+                "if { ![ is-loaded gompi/1.1.0-no-OFED ] } {",
+                "    module load gompi/1.1.0-no-OFED",
+                "}",
+            ])
+            fftw_load = '\n'.join([
+                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "}",
+            ])
+            lapack_load = '\n'.join([
+                "if { ![ is-loaded LAPACK/3.4.0-gompi-1.1.0-no-OFED ] } {",
+                "    module load LAPACK/3.4.0-gompi-1.1.0-no-OFED",
+                "}",
+            ])
+        elif get_module_syntax() == 'Lua':
+            tc_load = '\n'.join([
+                'if not isloaded("gompi/1.1.0-no-OFED") then',
+                '    load("gompi/1.1.0-no-OFED")',
+                'end',
+            ])
+            fftw_load = '\n'.join([
+                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                'end',
+            ])
+            lapack_load = '\n'.join([
+                'if not isloaded("LAPACK/3.4.0-gompi-1.1.0-no-OFED") then',
+                '    load("LAPACK/3.4.0-gompi-1.1.0-no-OFED")',
+                'end',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
+        self.assertEqual(eb.make_module_dep().strip(), expected)
+
+        # provide swap info for FFTW to trigger an extra 'unload FFTW'
+        unload_info = {
+            'FFTW/3.3.1-gompi-1.1.0-no-OFED': 'FFTW',
+        }
+
+        if get_module_syntax() == 'Tcl':
+            fftw_load = '\n'.join([
+                "if { ![ is-loaded FFTW/3.3.1-gompi-1.1.0-no-OFED ] } {",
+                "    module unload FFTW",
+                "    module load FFTW/3.3.1-gompi-1.1.0-no-OFED",
+                "}",
+            ])
+        elif get_module_syntax() == 'Lua':
+            fftw_load = '\n'.join([
+                'if not isloaded("FFTW/3.3.1-gompi-1.1.0-no-OFED") then',
+                '    unload("FFTW")',
+                '    load("FFTW/3.3.1-gompi-1.1.0-no-OFED")',
+                'end',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+        expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
+        self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
 
     def test_extensions_step(self):
         """Test the extensions_step"""
@@ -447,7 +657,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = get_easyblock_instance(ec)
 
         eb.fetch_patches()
-        self.assertEqual(len(eb.patches), 1)
+        self.assertEqual(len(eb.patches), 2)
         self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
         self.assertFalse('level' in eb.patches[0])
 
@@ -560,7 +770,7 @@ class EasyBlockTest(EnhancedTestCase):
         try:
             eb.check_readiness_step()
         except EasyBuildError, err:
-            err_regex = re.compile("no module 'nosuchsoftware/1.2.3-GCC-4.6.4' found for dependency .*")
+            err_regex = re.compile("Missing modules for one or more dependencies: nosuchsoftware/1.2.3-GCC-4.6.4")
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
@@ -608,18 +818,30 @@ class EasyBlockTest(EnhancedTestCase):
             modfile_path = os.path.join(modpath, modfile_path)
             modtxt = read_file(modfile_path)
 
-            for imkl_dep in excluded_deps:
-                tup = (imkl_dep, modfile_path, modtxt)
+            for dep in excluded_deps:
+                tup = (dep, modfile_path, modtxt)
                 failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
-                self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
+                if get_module_syntax() == 'Tcl':
+                    self.assertFalse(re.search('module load %s' % dep, modtxt), failmsg)
+                elif get_module_syntax() == 'Lua':
+                    self.assertFalse(re.search('load("%s")' % dep, modtxt), failmsg)
+                else:
+                    self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
 
     def test_patch_step(self):
         """Test patch step."""
-        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
         orig_sources = ec['ec']['sources'][:]
+
+        toy_patches = [
+            'toy-0.0_typo.patch',  # test for applying patch
+            ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
+        ]
+        self.assertEqual(ec['ec']['patches'], toy_patches)
 
         # test applying patches without sources
         ec['ec']['sources'] = []
@@ -634,6 +856,11 @@ class EasyBlockTest(EnhancedTestCase):
         eb.fetch_step()
         eb.extract_step()
         eb.patch_step()
+        # verify that patches were applied
+        toydir = os.path.join(eb.builddir, 'toy-0.0')
+        self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
+        self.assertTrue("and very proud of it" in read_file(os.path.join(toydir, 'toy.source')))
+        self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
@@ -694,6 +921,36 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb = EasyBlock(EasyConfig(toy_ec2))
         test_eb.check_readiness_step()
         self.assertEqual(test_eb.cfg['parallel'], 67)
+
+    def test_guess_start_dir(self):
+        """Test guessing the start dir."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+
+        def check_start_dir(expected_start_dir):
+            """Check start dir."""
+            eb = EasyBlock(ec['ec'])
+            eb.silent = True
+            eb.cfg['stop'] = 'patch'
+            eb.run_all_steps(False)
+            eb.guess_start_dir()
+            abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
+            self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
+            self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+
+        # default (no start_dir specified): use unpacked dir as start dir
+        self.assertEqual(ec['ec']['start_dir'], None)
+        check_start_dir('toy-0.0')
+
+        # using start_dir equal to the one we're in is OK
+        ec['ec']['start_dir'] = '%(name)s-%(version)s'
+        self.assertEqual(ec['ec']['start_dir'], 'toy-0.0')
+        check_start_dir('toy-0.0')
+
+        # clean error when specified start dir does not exist
+        ec['ec']['start_dir'] = 'thisstartdirisnotthere'
+        err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
+        self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
 
 def suite():

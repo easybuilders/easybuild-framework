@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -39,3 +39,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Gpsolf(Gpsmpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, Parastation MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gpsolf'
+    SUBTOOLCHAIN = Gpsmpi.NAME

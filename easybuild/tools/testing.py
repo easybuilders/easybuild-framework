@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,12 +35,10 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import copy
 import os
-import re
 import sys
 from datetime import datetime
 from time import gmtime, strftime
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
@@ -117,7 +115,7 @@ def regtest(easyconfig_paths, build_specs=None):
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        resolved = resolve_dependencies(easyconfigs)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)

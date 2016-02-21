@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,31 +37,93 @@ from unittest import main as unittestmain
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-
+DEBUG = False
+DEBUG_FPM_FILE = "debug_fpm_mock"
 MOCKED_FPM = """#!/bin/bash
-# only parse what we need to spit out the expected package file, ignore the rest
-workdir=`echo $@ | sed 's/--workdir \([^ ]*\).*/\\1/g'`
-name=`echo $@ | sed 's/.* --name \([^ ]*\).*/\\1/g'`
-version=`echo $@ | sed 's/.*--version \([^ ]*\).*/\\1/g'`
-iteration=`echo $@ | sed 's/.*--iteration \([^ ]*\).*/\\1/g'`
-target=`echo $@ | sed 's/.*-t \([^ ]*\).*/\\1/g'`
 
-args=`echo $@ | sed 's/-[^ ]* [^ ]* //g'`
-installdir=`echo $args | cut -d' ' -f1`
-modulefile=`echo $args | cut -d' ' -f2`
+DEBUG=%(debug)s  #put something here if you want to debug
+
+debug_echo () {
+    if [ -n "$DEBUG" ]; then
+        echo "$@" >> %(debug_fpm_file)s
+    fi
+}
+
+debug_echo "$@"
+
+#an array of excludes (probably more than one)
+excludes=()
+# only parse what we need to spit out the expected package file, ignore the rest
+while true
+do
+    debug_echo "arg: $1"
+    case "$1" in
+        "--workdir")
+            workdir="$2"
+            debug_echo "workdir"
+            debug_echo "$workdir"
+            ;;
+        "--name")
+            name="$2"
+            ;;
+        "--version")
+            version="$2"
+            debug_echo "version"
+            debug_echo "$version"
+            ;;
+        "--description")
+            description="$2"
+            ;;
+        "--url")
+            url="$2"
+            ;;
+        "--iteration")
+            iteration="$2"
+            ;;
+        "-t")
+            target="$2"
+            ;;
+        "-s")
+            source="$2"
+            ;;
+        "--exclude")
+            # pushing this onto an array
+            debug_echo "an exclude being pushed" $2
+            excludes+=("$2")
+            ;;
+        --*)
+            debug_echo "got a unhandled option"
+            ;;
+        *)
+            debug_echo "got the rest of the output"
+            installdir="$1"
+            modulefile="$2"
+            break
+            ;;
+    esac
+    shift 2
+done
 
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
 echo $@ >> $pkgfile
-echo "Contents of installdir $installdir:" >> $pkgfile
-ls $installdir >> $pkgfile
+echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
+for exclude in ${excludes[*]}; do
+    exclude_str+=" -not -path /${exclude} "
+done
+find_cmd="find $installdir  $exclude_str "
+debug_echo "trying: $find_cmd"
+$find_cmd >> $pkgfile
+echo "ENDCONTENTS" >> $pkgfile
 echo "Contents of module file $modulefile:" >> $pkgfile
 cat $modulefile >> $pkgfile
+echo "I found excludes "${excludes[*]} >> $pkgfile
 """
 
 
@@ -69,7 +131,10 @@ def mock_fpm(tmpdir):
     """Put mocked version of fpm command in place in specified tmpdir."""
     # put mocked 'fpm' command in place, just for testing purposes
     fpm = os.path.join(tmpdir, 'fpm')
-    write_file(fpm, MOCKED_FPM)
+    write_file(fpm, MOCKED_FPM % {
+        "debug": ('', 'on')[DEBUG],
+        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)}
+    )
     adjust_permissions(fpm, stat.S_IXUSR, add=True)
 
     # also put mocked rpmbuild in place
@@ -138,6 +203,12 @@ class PackageTest(EnhancedTestCase):
         # build & install first
         easyblock.run_all_steps(False)
 
+        # write a dummy log and report file to make sure they don't get packaged
+        logfile = os.path.join(easyblock.installdir, log_path(), "logfile.log")
+        write_file(logfile, "I'm a logfile")
+        reportfile = os.path.join(easyblock.installdir, log_path(), "report.md")
+        write_file(reportfile, "I'm a reportfile")
+
         # package using default packaging configuration (FPM to build RPM packages)
         pkgdir = package(easyblock)
 
@@ -145,8 +216,18 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
         pkgtxt = read_file(pkgfile)
-        pkgtxt_regex = re.compile("Contents of installdir %s" % easyblock.installdir)
+        pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
+
+        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
+        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+
+        if DEBUG:
+            print "The FPM script debug output"
+            print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
+            print "The Package File"
+            print read_file(pkgfile)
+
 
 def suite():
     """ returns all the testcases in this module """

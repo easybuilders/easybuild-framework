@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,14 +29,15 @@ CrayGNU toolchain: GCC and MPI via Cray compiler drivers + LibSci (PrgEnv-gnu) a
 @author: Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.craype import CrayPEGCC
-from easybuild.toolchains.fft.crayfftw import CrayFFTW
 from easybuild.toolchains.linalg.libsci import LibSci
 from easybuild.toolchains.mpi.craympich import CrayMPICH
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
-class CrayGNU(CrayPEGCC, CrayMPICH, LibSci, CrayFFTW):
+class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
     NAME = 'CrayGNU'
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; marked as experimental."""

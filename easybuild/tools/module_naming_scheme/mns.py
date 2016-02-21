@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2015 Ghent University
+# Copyright 2011-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -125,6 +125,18 @@ class ModuleNamingScheme(object):
         """
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
+
+    def det_user_modpath_extensions(self, ec):
+        """
+        Determine list of subdirectories relative to the user-specific modules directory for which to extend
+        $MODULEPATH with when this module is loaded (if any).
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+        @return: A list of $MODULEPATH subdirectories.
+        """
+        # by default: use "system" module path extensions of naming scheme
+        return self.det_modpath_extensions(ec)
 
     def det_init_modulepaths(self, ec):
         """

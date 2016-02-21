@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import glob
 import os
 import re
@@ -53,13 +54,12 @@ from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
-# a NameError should be catched where these are used
+# a NameError should be caught where these are used
 
 try:
     # PyGraph (used for generating dependency graphs)
@@ -77,7 +77,6 @@ try:
     import gv
 except ImportError:
     pass
-
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -97,48 +96,55 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
+def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
+
+    @param easyconfigs: list of parsed easyconfigs
+    @param avail_modules: list of available modules
+    @param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
     """
     ordered_ecs = []
-    new_avail_modules = avail_modules[:]
-    new_unprocessed = []
+    new_easyconfigs = []
     modtool = modules_tool()
+    # copy, we don't want to modify the origin list of available modules
+    avail_modules = avail_modules[:]
+    _log.debug("Finding resolved modules for %s (available modules: %s)", easyconfigs, avail_modules)
 
-    for ec in unprocessed:
-        new_ec = ec.copy()
+    for easyconfig in easyconfigs:
+        new_ec = easyconfig.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = dep.get('full_mod_name', None)
-            if full_mod_name is None:
-                full_mod_name = ActiveMNS().det_full_module_name(dep)
+            full_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
-            dep_resolved = full_mod_name in new_avail_modules
-            if not retain_all_deps:
-                # hidden modules need special care, since they may not be included in list of available modules
-                dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+            # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+            # since no corresponding easyconfig can be found for them
+            if retain_all_deps and dep.get('external_module', False):
+                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
 
-            if not dep_resolved:
-                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
-                # since no corresponding easyconfig can be found for them
-                if retain_all_deps and dep.get('external_module', False):
-                    _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
-                else:
-                    # no module available (yet) => retain dependency as one to be resolved
-                    deps.append(dep)
+            elif retain_all_deps and full_mod_name not in avail_modules:
+                # if all dependencies should be retained, include dep unless it has been already
+                _log.debug("Retaining new dep %s in 'retain all deps' mode", dep)
+                deps.append(dep)
 
+            elif full_mod_name not in avail_modules and not (dep['hidden'] and modtool.exist([full_mod_name])[0]):
+                # no module available (yet) => retain dependency as one to be resolved
+                _log.debug("No module available for dep %s, retaining it", dep)
+                deps.append(dep)
+
+        # update list of dependencies with only those unresolved
         new_ec['dependencies'] = deps
 
-        if len(new_ec['dependencies']) == 0:
+        # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
+        if not new_ec['dependencies']:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            new_avail_modules.append(ec['full_mod_name'])
+            avail_modules.append(easyconfig['full_mod_name'])
 
         else:
-            new_unprocessed.append(new_ec)
+            new_easyconfigs.append(new_ec)
 
-    return ordered_ecs, new_unprocessed, new_avail_modules
+    return ordered_ecs, new_easyconfigs, avail_modules
 
 
 @only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
@@ -170,6 +176,10 @@ def dep_graph(filename, specs):
         all_nodes.add(spec['module'])
         spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
+        
+        # Get the build dependencies for each spec so we can distinguish them later
+        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
+        all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
     dgr = digraph()
@@ -177,6 +187,8 @@ def dep_graph(filename, specs):
     for spec in specs:
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
+            if dep in spec['ec'].build_dependencies:
+                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
 
     _dep_graph_dump(dgr, filename)
 

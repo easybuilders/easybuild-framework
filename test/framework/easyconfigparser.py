@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -185,6 +185,18 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(constants['PYPI_SOURCE'], 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s')
         self.assertEqual(constants['GPLv2'], 'LicenseGPLv2')
         self.assertEqual(constants['EXTERNAL_MODULE'], 'EXTERNAL_MODULE')
+
+    def test_check_value_types(self):
+        """Test checking of easyconfig parameter value types."""
+        test_ec = os.path.join(TESTDIRBASE, 'gzip-1.4-broken.eb')
+        error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
+        ecp = EasyConfigParser(test_ec, auto_convert_value_types=False)
+        self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
+
+        # test default behaviour: auto-converting of mismatched value types
+        ecp = EasyConfigParser(test_ec)
+        ecdict = ecp.get_config_dict()
+        self.assertEqual(ecdict['version'], '1.4')
 
 
 def suite():

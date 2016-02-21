@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,10 +28,11 @@ EasyBuild support for gmpich2 compiler toolchain (includes GCC and MPICH2).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcc import GccToolchain
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
-class Gmpich2(Gcc, Mpich2):
+class Gmpich2(GccToolchain, Mpich2):
     """Compiler toolchain with GCC and MPICH2."""
     NAME = 'gmpich2'
+    SUBTOOLCHAIN = GccToolchain.NAME

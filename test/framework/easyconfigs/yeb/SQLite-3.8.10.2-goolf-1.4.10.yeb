@@ -1,0 +1,32 @@
+_internal_variables_:
+    - &versionstr 3081002
+
+easyblock: ConfigureMake
+
+name: SQLite
+version: 3.8.10.2
+
+homepage: http://www.sqlite.org/
+# quotes on description to escape special character :
+description: "SQLite: SQL Database Engine in a C Library"
+
+toolchain: goolf, 1.4.10
+
+# eg. http://www.sqlite.org/2014/sqlite-autoconf-3080600.tar.gz
+source_urls: ["http://www.sqlite.org/2015/"]
+sources: [!join [sqlite-autoconf-, *versionstr, .tar.gz]]
+
+# commented out for testing to avoid having to add them all - dependencies are tested in other files
+dependencies: [
+#    [libreadline, '6.3'],
+#    [Tcl, 8.6.4],
+]
+
+parallel: 1
+
+sanity_check_paths: {
+    files: [bin/sqlite3, include/sqlite3ext.h, include/sqlite3.h, lib/libsqlite3.a, lib/libsqlite3.so],
+    dirs: [lib/pkgconfig],
+}
+
+moduleclass: devel

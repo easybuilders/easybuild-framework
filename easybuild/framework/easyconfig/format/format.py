@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,8 @@ FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
 
 # values for these keys will not be templated in dump()
-EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'homepage', 'name', 'toolchain', 'version']
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'homepage', 'name', 'toolchain', 'version'] \
+                                  + DEPENDENCY_PARAMETERS
 
 # ordered groups of keys to obtain a nice looking easyconfig file
 GROUPED_PARAMS = [

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,4 +39,4 @@ class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'intel-para'
-    
+    SUBTOOLCHAIN = Ipsmpi.NAME 

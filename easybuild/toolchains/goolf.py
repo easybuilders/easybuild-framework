@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,13 +28,13 @@ EasyBuild support for goolf compiler toolchain (includes GCC, OpenMPI, OpenBLAS,
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Goolf(Gcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
+class Goolf(Gompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolf'
+    SUBTOOLCHAIN = Gompi.NAME

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,7 +42,6 @@ from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
-from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
@@ -246,7 +245,7 @@ class ModulesTool(object):
             else:
                 out, ec = None, 1
         else:
-            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False, force_in_dry_run=True)
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
@@ -393,11 +392,13 @@ class ModulesTool(object):
         if mod_paths is None:
             mod_paths = []
 
-        # purge all loaded modules if desired
+        # purge all loaded modules if desired by restoring initial environment
+        # actually running 'module purge' is futile (and wrong/broken on some systems, e.g. Cray)
         if purge:
-            self.purge()
             # restore initial environment if provided
-            if init_env is not None:
+            if init_env is None:
+                raise EasyBuildError("Initial environment required when purging before loading, but not available")
+            else:
                 restore_env(init_env)
 
         # make sure $MODULEPATH is set correctly after purging
@@ -589,7 +590,7 @@ class ModulesTool(object):
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            useregex = re.compile(r"^\s*module\s+use\s+(\S+)", re.M)
+            useregex = re.compile(r'^\s*module\s+use\s+"?([^"\s]+)"?', re.M)
             exts = useregex.findall(modtxt)
 
             self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))

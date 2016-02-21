@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,8 +53,9 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.github import new_pr, update_pr
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -129,7 +130,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         # dump test report next to log file
         test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
-        if 'log_file' in ec_res:
+        if 'log_file' in ec_res and ec_res['log_file']:
             test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
             parent_dir = os.path.dirname(test_report_fp)
             # parent dir for test report may not be writable at this time, e.g. when --read-only-installdir is used
@@ -177,7 +178,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, testing=testing)
+    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.terse)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -218,11 +219,41 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
 
+    if options.last_log:
+        # print location to last log file, and exit
+        last_log = find_last_log(logfile) or '(none)'
+        print_msg(last_log, log=_log, prefix=False)
+
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
+
+    # GitHub integration
+    if options.review_pr or options.new_pr or options.update_pr:
+        if options.review_pr:
+            print review_pr(options.review_pr, colored=options.color)
+
+        elif options.new_pr:
+            new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+
+        elif options.update_pr:
+            update_pr(options.update_pr, orig_paths, commit_msg=options.pr_commit_msg)
+
+        cleanup(logfile, eb_tmpdir, testing)
+        sys.exit(0)
+
+    # search for easyconfigs, if a query is specified
+    query = options.search or options.search_filename or options.search_short
+    if query:
+        search_easyconfigs(query, short=options.search_short, filename_only=options.search_filename,
+                           terse=options.terse)
+
+    # non-verbose cleanup and exit after printing terse info
+    if options.terse:
+        cleanup(logfile, eb_tmpdir, testing, silent=True)
+        sys.exit(0)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
@@ -231,22 +262,14 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
-    # review specified PR
-    if options.review_pr:
-        print review_pr(options.review_pr, colored=options.color)
-
-    # search for easyconfigs, if a query is specified
-    query = options.search or options.search_short
-    if query:
-        search_easyconfigs(query, short=not options.search)
-
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.review_pr, options.search, options.search_short, options.regtest]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search,
+                  options.search_filename, options.search_short, options.regtest, options.update_pr]
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
@@ -283,7 +306,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
+        txt = dry_run(easyconfigs, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
@@ -292,7 +315,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         sys.exit(0)
 
     # skip modules that are already installed unless forced
-    if not options.force:
+    if not (options.force or options.rebuild or options.extended_dry_run):
         retained_ecs = skip_available(easyconfigs)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -303,7 +326,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+            ordered_ecs = resolve_dependencies(easyconfigs)
         else:
             ordered_ecs = easyconfigs
     else:

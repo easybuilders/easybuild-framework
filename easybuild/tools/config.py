@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Ward Poelmans (Ghent University)
 """
 import copy
+import glob
 import os
 import random
 import string
@@ -43,11 +44,8 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-import easybuild.tools.environment as env
-from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
-from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -77,7 +75,6 @@ DEFAULT_PKG_TYPE = PKG_TYPE_RPM
 DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
-DEFAULT_STRICT = run.WARN
 
 
 # utility function for obtaining default paths
@@ -100,6 +97,11 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'hide_deps',
         'from_pr',
+        'git_working_dirs_path',
+        'pr_branch_name',
+        'pr_target_account',
+        'pr_target_branch',
+        'pr_target_repo',
         'github_user',
         'group',
         'ignore_dirs',
@@ -110,27 +112,34 @@ BUILD_OPTIONS_CMDLINE = {
         'job_polling_interval',
         'job_target_resource',
         'modules_footer',
+        'modules_header',
         'only_blocks',
         'optarch',
         'parallel',
         'regtest_output_dir',
         'skip',
         'stop',
+        'subdir_user_modules',
         'test_report_env_filter',
         'testoutput',
         'umask',
     ],
     False: [
+        'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
         'dump_autopep8',
+        'extended_dry_run',
         'experimental',
+        'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
+        'minimal_toolchains',
         'module_only',
         'package',
         'read_only_installdir',
+        'rebuild',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -138,12 +147,14 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',
         'cleanup_tmpdir',
+        'extended_dry_run_ignore_errors',
     ],
-    DEFAULT_STRICT: [
+    'warn': [
         'strict',
     ],
     DEFAULT_PKG_RELEASE: [
@@ -158,6 +169,9 @@ BUILD_OPTIONS_CMDLINE = {
     GENERAL_CLASS: [
         'suffix_modules_path',
     ],
+    'defaultopt': [
+        'default_opt_level',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -303,7 +317,9 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        if cmdline_options.dep_graph or cmdline_options.dry_run or cmdline_options.dry_run_short:
+        auto_ignore_osdeps_options = [cmdline_options.dep_graph, cmdline_options.dry_run, cmdline_options.dry_run_short,
+                                      cmdline_options.extended_dry_run]
+        if any(auto_ignore_osdeps_options):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
             cmdline_options.ignore_osdeps = True
 
@@ -333,9 +349,15 @@ def init_build_options(build_options=None, cmdline_options=None):
     return BuildOptions(bo)
 
 
-def build_option(key):
+def build_option(key, **kwargs):
     """Obtain value specified build option."""
-    return BuildOptions()[key]
+    build_options = BuildOptions()
+    if key in build_options:
+        return build_options[key]
+    elif 'default' in kwargs:
+        return kwargs['default']
+    else:
+        raise EasyBuildError("Undefined build option: %s", key)
 
 
 def build_path():
@@ -477,18 +499,26 @@ def get_build_log_path():
     return res
 
 
-def get_log_filename(name, version, add_salt=False):
+def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     """
     Generate a filename to be used for logging
+
+    @param name: software name ('%(name)s')
+    @param version: software version ('%(version)s')
+    @param add_salt: add salt (5 random characters)
+    @param date: string representation of date to use ('%(date)s')
+    @param timestamp: timestamp to use ('%(time)s')
     """
-    date = time.strftime("%Y%m%d")
-    timeStamp = time.strftime("%H%M%S")
+    if date is None:
+        date = time.strftime("%Y%m%d")
+    if timestamp is None:
+        timestamp = time.strftime("%H%M%S")
 
     filename = log_file_format() % {
         'name': name,
         'version': version,
         'date': date,
-        'time': timeStamp,
+        'time': timestamp,
     }
 
     if add_salt:
@@ -507,6 +537,53 @@ def get_log_filename(name, version, add_salt=False):
     return filepath
 
 
+def find_last_log(curlog):
+    """
+    Find location to last log file that is still available.
+
+    @param curlog: location to log file of current session
+    @return: path to last log file (or None if no log files were found)
+    """
+    variables = ConfigurationVariables()
+    log_dir = get_build_log_path()
+    if variables['tmp_logdir'] is None:
+        # take info account that last part of default temporary logdir is random, if --tmp-logdir is not specified
+        log_dir = os.path.join(os.path.dirname(log_dir), '*')
+
+    glob_pattern = os.path.join(log_dir, 'easybuild*.log')  # see init_logging
+    _log.info("Looking for log files that match filename pattern '%s'...", glob_pattern)
+
+    try:
+        my_uid = os.getuid()
+        paths = []
+        for path in glob.glob(glob_pattern):
+            path_info = os.stat(path)
+            # only retain logs owned by current user
+            if path_info.st_uid == my_uid:
+                paths.append((path_info.st_mtime, path))
+            else:
+                _log.debug("Skipping %s, not owned by current user", path)
+
+        # sorted retained paths by modification time, most recent last
+        sorted_paths = [p for (_, p) in sorted(paths)]
+
+    except OSError as err:
+        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
+
+    try:
+        # log of current session is typically listed last, should be taken into account
+        res = sorted_paths[-1]
+        if os.path.exists(curlog) and os.path.samefile(res, curlog):
+            res = sorted_paths[-2]
+
+    except IndexError:
+        _log.debug("No last log file found (sorted retained paths: %s)", sorted_paths)
+        res = None
+
+    _log.debug("Picked %s as last log file (current: %s) from %s", res, curlog, sorted_paths)
+    return res
+
+
 def module_classes():
     """
     Return list of module classes specified in config file.
@@ -517,46 +594,3 @@ def module_classes():
 def read_environment(env_vars, strict=False):
     """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
     _log.nosupport("read_environment has moved to easybuild.tools.environment", '2.0')
-
-
-def set_tmpdir(tmpdir=None, raise_error=False):
-    """Set temporary directory to be used by tempfile and others."""
-    try:
-        if tmpdir is not None:
-            if not os.path.exists(tmpdir):
-                os.makedirs(tmpdir)
-            current_tmpdir = tempfile.mkdtemp(prefix='eb-', dir=tmpdir)
-        else:
-            # use tempfile default parent dir
-            current_tmpdir = tempfile.mkdtemp(prefix='eb-')
-    except OSError, err:
-        raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
-
-    _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
-
-    for var in ['TMPDIR', 'TEMP', 'TMP']:
-        env.setvar(var, current_tmpdir)
-
-    # reset to make sure tempfile picks up new temporary directory to use
-    tempfile.tempdir = None
-
-    # test if temporary directory allows to execute files, warn if it doesn't
-    try:
-        fd, tmptest_file = tempfile.mkstemp()
-        os.close(fd)
-        os.chmod(tmptest_file, 0700)
-        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
-            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
-            msg += "This can cause problems in the build process, consider using --tmpdir."
-            if raise_error:
-                raise EasyBuildError(msg)
-            else:
-                _log.warning(msg)
-        else:
-            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
-        os.remove(tmptest_file)
-
-    except OSError, err:
-        raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
-
-    return current_tmpdir

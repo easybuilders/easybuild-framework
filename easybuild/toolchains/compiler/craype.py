@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -59,7 +59,7 @@ class CrayPECompiler(Compiler):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = {
-        'dynamic': (False, "Generate dynamically linked executable"),
+        'dynamic': (True, "Generate dynamically linked executable"),
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
@@ -80,6 +80,7 @@ class CrayPECompiler(Compiler):
 
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
+    COMPILER_FC = 'ftn'
 
     # suffix for PrgEnv module that matches this toolchain
     # e.g. 'gnu' => 'PrgEnv-gnu/<version>'

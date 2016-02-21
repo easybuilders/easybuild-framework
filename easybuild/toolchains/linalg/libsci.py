@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ cfr. https://www.nersc.gov/users/software/programming-libraries/math-libraries/l
 """
 import os
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

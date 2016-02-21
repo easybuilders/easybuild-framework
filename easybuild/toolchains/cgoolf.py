@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -40,3 +40,4 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Cgoolf(Cgompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgoolf'
+    SUBTOOLCHAIN = Cgompi.NAME

@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,12 +28,14 @@ EasyBuild support for a GCC+CUDA compiler toolchain.
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.cuda import Cuda
+from easybuild.toolchains.gcc import GccToolchain
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
-class GccCUDA(Gcc, Cuda):
+class GccCUDA(GccToolchain, Cuda):
     """Compiler toolchain with GCC and CUDA."""
     NAME = 'gcccuda'
 
     COMPILER_MODULE_NAME = ['GCC', 'CUDA']
+    SUBTOOLCHAIN = GccToolchain.NAME
