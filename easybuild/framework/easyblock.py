@@ -2296,6 +2296,8 @@ def build_and_install_one(ecdict, init_env):
     # successful (non-dry-run) build
     if result and not dry_run:
 
+        ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
         if app.cfg['stop']:
             ended = 'STOPPED'
             if app.builddir is not None:
@@ -2313,8 +2315,6 @@ def build_and_install_one(ecdict, init_env):
 
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
-
-            ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
 
             if build_option("minimal_toolchains"):
                 # for reproducability we dump out the parsed easyconfig since the contents are affected when
