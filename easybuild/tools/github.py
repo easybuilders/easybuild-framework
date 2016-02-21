@@ -732,7 +732,7 @@ def update_pr(pr, paths, commit_msg=None):
 
     github_user = build_option('github_user')
     if github_user is None:
-        raise EasyBuildError("GitHub user must be specified to use --new-pr")
+        raise EasyBuildError("GitHub user must be specified to use --update-pr")
 
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
