@@ -2299,6 +2299,8 @@ def build_and_install_one(ecdict, init_env):
     # successful (non-dry-run) build
     if result and not dry_run:
 
+        ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
         if app.cfg['stop']:
             ended = 'STOPPED'
             if app.builddir is not None:
@@ -2317,8 +2319,6 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
-
             if build_option("minimal_toolchains"):
                 # for reproducability we dump out the parsed easyconfig since the contents are affected when
                 # --minimal-toolchains (and --use-existing-modules) is used
@@ -2327,7 +2327,7 @@ def build_and_install_one(ecdict, init_env):
                 # add the parsed file to the reproducability directory
                 # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
                 repo_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-                app.cfg.dump(parsed_ec_dump_file)
+                app.cfg.dump(repo_spec)
 
             else:
                 _log.debug("Dumping original easyconfig to install dir")
