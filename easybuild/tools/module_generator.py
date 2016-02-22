@@ -435,7 +435,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         whatis = self.app.cfg['whatis']
         if whatis is None:
             # default: include single 'whatis' statement with description as contents
-            whatis = [description]
+            whatis = ["Description: %s" % description]
 
         lines = [
             "help([[%(description)s]])",
