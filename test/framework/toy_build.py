@@ -798,7 +798,7 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
-                r'whatis\(\[\[ Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -830,7 +830,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis { Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
