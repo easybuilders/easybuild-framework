@@ -210,7 +210,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
+        description = "Description: %s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         whatis = self.app.cfg['whatis']
         if whatis is None:
