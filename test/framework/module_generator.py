@@ -129,7 +129,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'help([[%s]])' % gzip_txt,
                 '',
                 "whatis([[Description: foo]])",
-                "whatis([[ Description: bar]])",
+                "whatis([[Description: bar]])",
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
