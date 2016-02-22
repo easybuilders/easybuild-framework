@@ -213,7 +213,8 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
     Helper method, for performing get requests to GitHub API.
     @param request_f: function that should be called to compose request, providing a RestClient instance
-    @param github_user: GitHub user name (to try and obtain matching GitHub token)
+    @param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
+    @param token: GitHub token to use
     @return: tuple with return status and data
     """
     if github_user is None:
@@ -240,6 +241,8 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     @param repo: GitHub repository
     @param account: GitHub account
     @param branch: branch to fetch latest SHA1 for
+    @param github_user: name of GitHub user to use
+    @param token: GitHub token to use
     @return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
@@ -424,6 +427,8 @@ def init_repo(path, repo_name, silent=False):
     @param repo_name: name of Git repository
     @param silent: keep quiet (don't print any messages)
     """
+    repo_path = os.path.join(path, repo_name)
+
     # copy or init git working directory
     git_working_dirs_path = build_option('git_working_dirs_path')
     if git_working_dirs_path:
@@ -431,17 +436,19 @@ def init_repo(path, repo_name, silent=False):
         if os.path.exists(workdir):
             try:
                 print_msg("copying %s..." % workdir, silent=silent)
-                os.rmdir(path)
-                shutil.copytree(workdir, path)
+                shutil.copytree(workdir, repo_path)
             except OSError as err:
-                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, path, err)
+                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, repo_path, err)
+
+    if not os.path.exists(repo_path):
+        mkdir(repo_path, parents=True)
 
     try:
-        repo = git.Repo.init(path)
+        repo = git.Repo.init(repo_path)
     except GitCommandError as err:
-        raise EasyBuildError("Failed to init git repo at %s: %s", path, err)
+        raise EasyBuildError("Failed to init git repo at %s: %s", repo_path, err)
 
-    _log.debug("temporary git working directory ready at %s", path)
+    _log.debug("temporary git working directory ready at %s", repo_path)
 
     return repo
 
@@ -578,7 +585,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
-    file_info = copy_easyconfigs(paths, git_working_dir)
+    file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
 
     # checkout target branch
     if pr_branch is None:

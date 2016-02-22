@@ -152,8 +152,13 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
-def handle_github_options(options, orig_paths):
-    """Handle options related to GitHub integration, if any are set."""
+def handle_github_options(options, ec_paths):
+    """
+    Handle options related to GitHub integration, if any are set.
+
+    @param options: parsed EasyBuild options
+    @param ec_paths: list of paths to easyconfig files
+    """
     done = True
 
     if options.check_github:
@@ -163,13 +168,13 @@ def handle_github_options(options, orig_paths):
         install_github_token(options.install_github_token, options.github_user, silent=build_option('silent'))
 
     elif options.new_pr:
-        new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+        new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
 
     elif options.review_pr:
         print review_pr(options.review_pr, colored=options.color)
 
     elif options.update_pr:
-        update_pr(options.update_pr, orig_paths, commit_msg=options.pr_commit_msg)
+        update_pr(options.update_pr, ec_paths, commit_msg=options.pr_commit_msg)
 
     else:
         done = False
