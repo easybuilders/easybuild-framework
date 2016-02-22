@@ -210,12 +210,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        description = "Description: %s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
+        description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         whatis = self.app.cfg['whatis']
         if whatis is None:
             # default: include single 'whatis' statement with description as contents
-            whatis = [description]
+            whatis = ["Description: %s" % description]
 
         lines = [
             "proc ModulesHelp { } {",
