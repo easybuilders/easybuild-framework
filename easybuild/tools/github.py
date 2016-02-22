@@ -42,7 +42,6 @@ import time
 import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
-from vsc.utils.patterns import Singleton
 
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -789,8 +788,7 @@ def check_github():
     try:
         urllib2.urlopen(GITHUB_URL, timeout=5)
     except urllib2.URLError as err:
-        sys.stderr.write("\nERROR: checking status of GitHub integration must be done online.\n\n")
-        sys.exit(1)
+        raise EasyBuildError("ERROR: checking status of GitHub integration must be done online.")
 
     # GitHub user
     print_msg("* GitHub user...", log=_log, prefix=False, newline=False)
@@ -891,8 +889,8 @@ def check_github():
     if git_repo:
         try:
             git_repo.remotes.origin.push(branch_name, delete=True)
-        except GitCommandError:
-            pass
+        except GitCommandError as err:
+            sys.stderr.write("WARNNIG: failed to delete test branch from GitHub: %s\n" % err)
 
     # test creating a gist
     print_msg("* creating gists...", log=_log, prefix=False, newline=False)
@@ -974,45 +972,41 @@ def fetch_github_token(user):
     return GithubToken(user).token
 
 
+@only_if_module_is_available('keyring')
 def install_github_token(token, github_user, silent=False):
     """
     Install specified GitHub token for specified user.
 
     @param token: GitHub token to install
     @param github_user: GitHub user to install token for
+    @param silent: keep quiet (don't print any messages)
     """
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to install GitHub token")
 
-    if HAVE_KEYRING:
-        # check if there's a token available already
-        current_token = fetch_github_token(github_user)
+    # check if there's a token available already
+    current_token = fetch_github_token(github_user)
 
-        if current_token:
-            current_token = '%s..%s' % (current_token[:3], current_token[-3:])
-            if build_option('force'):
-                msg = "WARNING: overwriting installed token '%s' for user '%s'..." % (current_token, github_user)
-                print_msg(msg, prefix=False, silent=silent)
-            else:
-                raise EasyBuildError("Installed token '%s' found for user '%s', not overwriting it without --force",
-                                     current_token, github_user)
-
-        # validate token before installing it
-        print_msg("Validating token...", prefix=False, silent=silent)
-        valid_token = validate_github_token(token, github_user)
-        if valid_token:
-            print_msg("Token seems to be valid, installing it.", prefix=False, silent=silent)
+    if current_token:
+        current_token = '%s..%s' % (current_token[:3], current_token[-3:])
+        if build_option('force'):
+            msg = "WARNING: overwriting installed token '%s' for user '%s'..." % (current_token, github_user)
+            print_msg(msg, prefix=False, silent=silent)
         else:
-            raise EasyBuildError("Token validation failed, not installing it. Please verify your token and try again.")
+            raise EasyBuildError("Installed token '%s' found for user '%s', not overwriting it without --force",
+                                 current_token, github_user)
 
-        # install token
-        keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
-        print_msg("Token '%s..%s' installed!" % (token[:3], token[-3:]), prefix=False, silent=silent)
-
+    # validate token before installing it
+    print_msg("Validating token...", prefix=False, silent=silent)
+    valid_token = validate_github_token(token, github_user)
+    if valid_token:
+        print_msg("Token seems to be valid, installing it.", prefix=False, silent=silent)
     else:
-        msg = "Failed to obtain GitHub token from keyring, "
-        msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
-        raise EasyBuildError(msg)
+        raise EasyBuildError("Token validation failed, not installing it. Please verify your token and try again.")
+
+    # install token
+    keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
+    print_msg("Token '%s..%s' installed!" % (token[:3], token[-3:]), prefix=False, silent=silent)
 
 
 def validate_github_token(token, github_user):
