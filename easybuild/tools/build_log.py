@@ -219,7 +219,7 @@ def get_log(name=None):
     log.nosupport("Use of get_log function", '2.0')
 
 
-def print_msg(msg, log=None, silent=False, prefix=True):
+def print_msg(msg, log=None, silent=False, prefix=True, newline=True):
     """
     Print a message to stdout.
     """
@@ -227,9 +227,12 @@ def print_msg(msg, log=None, silent=False, prefix=True):
         log.info(msg)
     if not silent:
         if prefix:
-            print "%s %s" % (EB_MSG_PREFIX, msg)
-        else:
+            msg = ' '.join([EB_MSG_PREFIX, msg])
+
+        if newline:
             print msg
+        else:
+            print msg,
 
 
 def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):

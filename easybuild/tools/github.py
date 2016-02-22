@@ -535,7 +535,7 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False)
             errors.append("Checking out branch '%s' from %s failed: %s" % (branch_name, github_url, err))
 
     if not repo:
-        raise EasyBuildError('; '.join(errors))
+        raise EasyBuildError('\n'.join(errors))
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -783,7 +783,7 @@ def check_github():
     for action in ['--from-pr', '--new-pr', '--review-pr', '--upload-test-report', '--update-pr']:
         status[action] = True
 
-    print "\nChecking status of GitHub integration...\n"
+    print_msg("\nChecking status of GitHub integration...\n", log=_log, prefix=False)
 
     # check whether we're online; if not, half of the checks are going to fail...
     try:
@@ -793,7 +793,7 @@ def check_github():
         sys.exit(1)
 
     # GitHub user
-    print "* GitHub user...",
+    print_msg("* GitHub user...", log=_log, prefix=False, newline=False)
     github_user = build_option('github_user')
     if github_user is None:
         check_res = "(none available) => FAIL"
@@ -801,10 +801,10 @@ def check_github():
     else:
         check_res = "%s => OK" % github_user
 
-    print check_res
+    print_msg(check_res, log=_log, prefix=False)
 
     # check GitHub token
-    print "* GitHub token...",
+    print_msg("* GitHub token...", log=_log, prefix=False, newline=False)
     github_token = fetch_github_token(github_user)
     if github_token is None:
         check_res = "(no token found) => FAIL"
@@ -820,10 +820,10 @@ def check_github():
     if 'FAIL' in check_res:
         status['--new-pr'] = status['--update-pr'] = status['--upload-test-report'] = False
 
-    print check_res
+    print_msg(check_res, log=_log, prefix=False)
 
     # check git command
-    print "* git command...",
+    print_msg("* git command...", log=_log, prefix=False, newline=False)
     git_cmd = which('git')
     git_version = get_tool_version('git')
     if git_cmd:
@@ -837,10 +837,10 @@ def check_github():
     if 'FAIL' in check_res:
         status['--new-pr'] = status['--update-pr'] = False
 
-    print check_res
+    print_msg(check_res, log=_log, prefix=False)
 
     # check GitPython module
-    print "* GitPython module...",
+    print_msg("* GitPython module...", log=_log, prefix=False, newline=False)
     if 'git' in sys.modules:
         git_check = True
         git_attrs = ['GitCommandError', 'Repo']
@@ -857,12 +857,11 @@ def check_github():
     if 'FAIL' in check_res:
         status['--new-pr'] = status['--update-pr'] = False
 
-    print check_res
+    print_msg(check_res, log=_log, prefix=False)
 
-    # test push access to own GitHub repository
-    print "* push access to %s/%s repo @ GitHub..." % (github_user, GITHUB_EASYCONFIGS_REPO),
-
-    # try to clone repo and push a test branch
+    # test push access to own GitHub repository: try to clone repo and push a test branch
+    msg = "* push access to %s/%s repo @ GitHub..." % (github_user, GITHUB_EASYCONFIGS_REPO)
+    print_msg(msg, log=_log, prefix=False, newline=False)
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo, res = None, None
     branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
@@ -886,7 +885,7 @@ def check_github():
     if 'FAIL' in check_res:
         status['--new-pr'] = status['--update-pr'] = False
 
-    print check_res
+    print_msg(check_res, log=_log, prefix=False)
 
     # cleanup: delete test branch that was pushed to GitHub
     if git_repo:
@@ -896,7 +895,7 @@ def check_github():
             pass
 
     # test creating a gist
-    print "* creating gists...",
+    print_msg("* creating gists...", log=_log, prefix=False, newline=False)
     res = None
     try:
         res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user)
@@ -909,35 +908,35 @@ def check_github():
         check_res = "FAIL (res: %s)" % res
         status['--upload-test-report'] = False
 
-    print check_res
+    print_msg(check_res, log=_log, prefix=False)
 
     # check whether location to local working directories for Git repositories is available (not strictly needed)
-    print "* location to Git working dirs...",
+    print_msg("* location to Git working dirs... ", log=_log, prefix=False, newline=False)
     git_working_dirs_path = build_option('git_working_dirs_path')
     if git_working_dirs_path:
-        print "OK (%s)" % git_working_dirs_path
+        check_res = "OK (%s)" % git_working_dirs_path
     else:
-        print "not found (suboptimal)"
+        check_res = "not found (suboptimal)"
+
+    print_msg(check_res, log=_log, prefix=False)
 
     # report back
     if all(status.values()):
-        print "\nAll checks PASSed!\n"
+        msg = "\nAll checks PASSed!\n"
     else:
-        print '\n'.join([
+        msg = '\n'.join([
             '',
             "One or more checks FAILed, GitHub configuration not fully complete!",
             "See http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#configuration for help.",
             '',
         ])
+    print_msg(msg, log=_log, prefix=False)
 
-    print "Status of GitHub integration:"
+    print_msg("Status of GitHub integration:", log=_log, prefix=False)
     for action in sorted(status):
-        print "* %s:" % action,
-        if status[action]:
-            print "OK"
-        else:
-            print "not supported"
-    print ''
+        res = ("not supported", 'OK')[status[action]]
+        print_msg("* %s: %s" % (action, res), log=_log, prefix=False)
+    print_msg('', prefix=False)
 
 
 class GithubToken(object):
