@@ -244,7 +244,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
-            'whatis_lines': '\n'.join(["module-whatis { Description: %s}" % line for line in whatis]),
+            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in whatis]),
             'installdir': self.app.installdir,
         }
 
