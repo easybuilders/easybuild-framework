@@ -40,7 +40,7 @@ from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, L
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info, get_gcc_version
+from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
 
 
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
