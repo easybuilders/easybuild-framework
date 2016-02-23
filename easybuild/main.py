@@ -165,7 +165,7 @@ def handle_github_options(options, ec_paths):
         check_github()
 
     elif options.install_github_token:
-        install_github_token(options.install_github_token, options.github_user, silent=build_option('silent'))
+        install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.new_pr:
         new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)

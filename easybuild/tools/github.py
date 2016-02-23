@@ -30,6 +30,7 @@ Utility module for working with github
 @author: Toon Willems (Ghent University)
 """
 import base64
+import getpass
 import os
 import random
 import re
@@ -973,11 +974,10 @@ def fetch_github_token(user):
 
 
 @only_if_module_is_available('keyring')
-def install_github_token(token, github_user, silent=False):
+def install_github_token(github_user, silent=False):
     """
     Install specified GitHub token for specified user.
 
-    @param token: GitHub token to install
     @param github_user: GitHub user to install token for
     @param silent: keep quiet (don't print any messages)
     """
@@ -995,6 +995,9 @@ def install_github_token(token, github_user, silent=False):
         else:
             raise EasyBuildError("Installed token '%s' found for user '%s', not overwriting it without --force",
                                  current_token, github_user)
+
+    # get token to install
+    token = getpass.getpass(prompt="Token: ")
 
     # validate token before installing it
     print_msg("Validating token...", prefix=False, silent=silent)
