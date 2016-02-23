@@ -180,25 +180,34 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
 
-    def test_validate_github_token(self):
-        """Test for validate_github_token function."""
+    def test_install_github_token(self):
+        """Test for install_github_token function."""
         if self.github_token is None:
-            print "Skipping test_validate_github_token, no GitHub token available?"
+            print "Skipping test_install_github_token, no GitHub token available?"
             return
 
         if not HAVE_KEYRING:
-            print "Skipping test_validate_github_token, keyring module not available"
+            print "Skipping test_install_github_token, keyring module not available"
             return
 
         random_user = ''.join(random.choice(string.letters) for _ in range(10))
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
+        # poor mans mocking of getpass
+        def fake_getpass(*args, **kwargs):
+            return self.github_token
+
+        orig_getpass = gh.getpass.getpass
+        gh.getpass.getpass = fake_getpass
+
         token_installed = False
         try:
-            gh.install_github_token(self.github_token, random_user, silent=True)
+            gh.install_github_token(random_user, silent=True)
             token_installed = True
         except Exception as err:
             print err
+
+        gh.getpass.getpass = orig_getpass
 
         token = gh.fetch_github_token(random_user)
 
@@ -207,12 +216,13 @@ class GithubTest(EnhancedTestCase):
             keyring.delete_password(gh.KEYRING_GITHUB_TOKEN, random_user)
 
         # deliberately not using assertEqual, keep token secret!
-        self.assertTrue(token_installed and token == self.github_token)
+        self.assertTrue(token_installed)
+        self.assertTrue(token == self.github_token)
 
-    def test_install_github_token(self):
-        """Test for install_github_token function."""
+    def test_validate_github_token(self):
+        """Test for validate_github_token function."""
         if self.github_token is None:
-            print "Skipping test_install_github_token, no GitHub token available?"
+            print "Skipping test_validate_github_token, no GitHub token available?"
             return
 
         if not HAVE_KEYRING:
