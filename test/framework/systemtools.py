@@ -417,6 +417,11 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.DARWIN
         self.assertEqual(get_glibc_version(), UNKNOWN)
 
+    def test_get_total_memory(self):
+        """Test the function that gets the total memory."""
+        memtotal = get_total_memory()
+        self.assertTrue(isinstance(memtotal, int))
+
     def test_system_info(self):
         """Test getting system info."""
         system_info = get_system_info()
