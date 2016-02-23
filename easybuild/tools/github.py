@@ -352,14 +352,14 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     # obtain most recent version of patched files
     for patched_file in patched_files:
         # path to patch file, incl. subdir it is in
-        fn = os.path.join(os.path.basename(os.path.dirname(patched_file)), os.path.basename(patched_file))
+        fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
         sha = last_commit['sha']
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
         download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
 
     # sanity check: make sure all patched files are downloaded
-    all_files = [os.path.join(os.path.basename(os.path.dirname(x)), os.path.basename(x)) for x in patched_files]
+    all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
 
     tmp_files = []
     for (dirpath, _, filenames) in os.walk(path):
