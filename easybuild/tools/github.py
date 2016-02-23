@@ -351,18 +351,24 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # obtain most recent version of patched files
     for patched_file in patched_files:
-        fn = os.path.basename(patched_file)
+        # path to patch file, incl. subdir it is in
+        fn = os.path.join(os.path.basename(os.path.dirname(patched_file)), os.path.basename(patched_file))
         sha = last_commit['sha']
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
         download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
 
-    all_files = [os.path.basename(x) for x in patched_files]
-    tmp_files = os.listdir(path)
+    # sanity check: make sure all patched files are downloaded
+    all_files = [os.path.join(os.path.basename(os.path.dirname(x)), os.path.basename(x)) for x in patched_files]
+
+    tmp_files = []
+    for (dirpath, _, filenames) in os.walk(path):
+        tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
+
     if not sorted(tmp_files) == sorted(all_files):
         raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
 
-    ec_files = [os.path.join(path, filename) for filename in tmp_files]
+    ec_files = [os.path.join(path, f) for f in tmp_files]
 
     return ec_files
 
