@@ -83,7 +83,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "    }",
                 "}",
                 '',
-                "module-whatis {%s}" % gzip_txt,
+                "module-whatis {Description: %s}" % gzip_txt,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -95,7 +95,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 'help([[%s]])' % gzip_txt,
                 '',
-                "whatis([[%s]])" % gzip_txt,
+                "whatis([[Description: %s]])" % gzip_txt,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
