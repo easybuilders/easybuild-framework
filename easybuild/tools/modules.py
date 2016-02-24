@@ -357,9 +357,17 @@ class ModulesTool(object):
     def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s:\s*$'):
         """
         Check if modules with specified names exists.
+
+        @param mod_names: list of module names
+        @param mod_exists_regex_template: template regular expression to search 'module show' output with
         """
         def mod_exists_via_show(mod_name, partial=False):
-            """Helper function to check whether specified module name exists through 'module show'."""
+            """
+            Helper function to check whether specified module name exists through 'module show'.
+
+            @param mod_name: module name
+            @param partial: indicates whether this is a partial module name
+            """
             if partial:
                 mod_exists_regex = mod_exists_regex_template % ('%s.*' % re.escape(mod_name))
             else:
