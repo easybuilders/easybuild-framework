@@ -203,6 +203,7 @@ def mocked_run_cmd(cmd, **kwargs):
         "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
+        "sysctl -n hw.meminfo": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
@@ -470,12 +471,13 @@ class SystemToolsTest(EnhancedTestCase):
     def test_get_total_memory_darwin(self):
         """Test the function that gets the total memory."""
         st.get_os_type = lambda: st.DARWIN
-        self.assertEqual(get_total_memory(), UNKNOWN)
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_total_memory(), 8192)
 
     def test_get_total_memory_native(self):
         """Test the function that gets the total memory."""
         memtotal = get_total_memory()
-        self.assertTrue(isinstance(memtotal, int) or memtotal == UNKNOWN)
+        self.assertTrue(isinstance(memtotal, int))
 
     def test_system_info(self):
         """Test getting system info."""
