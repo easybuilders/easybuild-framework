@@ -489,6 +489,7 @@ def get_system_info():
     python_version = '; '.join(sys.version.split('\n'))
     return {
         'core_count': get_avail_core_count(),
+        'total_memory': get_total_memory(),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),
