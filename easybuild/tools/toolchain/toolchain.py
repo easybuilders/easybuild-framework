@@ -549,7 +549,7 @@ class Toolchain(object):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
-                                 "(%s vs %s)", self.toolchain_dep_mods, toolchain_definition)
+                                 "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
     def prepare(self, onlymod=None, silent=False):
         """
