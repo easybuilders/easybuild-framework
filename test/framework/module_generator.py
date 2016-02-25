@@ -620,6 +620,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
             ('apps/blacs/1.1', 'BLACS', False),
             ('lib/math/BLACS-stable/1.1', 'BLACS', False),
+            # required so PrgEnv can be listed versionless as external module in Cray toolchains
+            ('PrgEnv', 'PrgEnv', True),
         ]
         for modname, softname, res in test_cases:
             if res:
