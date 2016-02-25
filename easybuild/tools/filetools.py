@@ -1171,3 +1171,72 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
+
+
+def find_flexlm_license(custom_env_vars=None, lic_specs=None):
+    """
+    Find FlexLM license.
+
+    Considered specified list of environment variables;
+    checks for path to existing license file or valid license server specification.
+
+    If no license if found through environment variables, also consider 'lic'.
+
+    @param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
+    @param lic_specs: list of license specifications
+    @return: tuple with list of valid license specs found and name of first valid environment variable
+    """
+    valid_lic_specs = []
+    lic_env_var = None
+
+    # regex for license server spec; format: <port>@<server>
+    server_port_regex = re.compile(r'^[0-9]+@\S+$')
+
+    # always consider $LM_LICENSE_FILE
+    default_lic_env_var = 'LM_LICENSE_FILE'
+    if custom_env_vars is None:
+        lic_env_vars = [default_lic_env_var]
+    else:
+        lic_env_vars = custom_env_vars + [default_lic_env_var]
+
+    # grab values for defined environment variables
+    cand_lic_specs = {}
+    for env_var in lic_env_vars:
+        if env_var in os.environ:
+            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+
+    # also consider provided license spec (last)
+    if lic_specs:
+        cand_lic_specs[None] = lic_specs
+
+    _log.debug("Candidate license specs: %s", cand_lic_specs)
+
+    # check for valid license specs
+    # order matters, so loop over original list of environment variables to consider
+    for env_var in lic_env_vars + [None]:
+        values = cand_lic_specs.get(env_var, None) or []
+        _log.info("Considering $%s to find FlexLM license specs: %s", env_var, values)
+
+        for value in values:
+            if server_port_regex.match(value) or os.path.isfile(value):
+                valid_lic_specs.append(value)
+
+            elif os.path.isdir(value):
+                # consider all *.dat and *.lic files in specified directory
+                lic_files = glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic'))
+                if lic_files:
+                    valid_lic_specs = sorted(lic_files)
+
+        # stop after finding valid license specs
+        if valid_lic_specs:
+            lic_env_var = env_var
+            break
+
+    if lic_env_var:
+        via_msg = '$%s' % lic_env_var
+    else:
+        via_msg = "provided license spec"
+
+    _log.info("Found valid license specs via %s: %s", via_msg, valid_lic_specs)
+
+    return (valid_lic_specs, lic_env_var)
