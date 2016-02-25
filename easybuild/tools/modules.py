@@ -354,25 +354,20 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s:\s*$'):
+    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$'):
         """
         Check if modules with specified names exists.
 
         @param mod_names: list of module names
         @param mod_exists_regex_template: template regular expression to search 'module show' output with
         """
-        def mod_exists_via_show(mod_name, partial=False):
+        def mod_exists_via_show(mod_name):
             """
             Helper function to check whether specified module name exists through 'module show'.
 
             @param mod_name: module name
-            @param partial: indicates whether this is a partial module name
             """
-            if partial:
-                mod_exists_regex = mod_exists_regex_template % ('%s.*' % re.escape(mod_name))
-            else:
-                mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
-
+            mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
             txt = self.show(mod_name)
             mod_exists_regex = re.compile(mod_exists_regex, re.M)
             return bool(mod_exists_regex.search(txt))
@@ -386,7 +381,7 @@ class ModulesTool(object):
         for (mod_name, visible) in mod_names:
             if visible:
                 # module name may be partial, so also check via 'module show' as fallback
-                mods_exist.append(mod_name in avail_mod_names or mod_exists_via_show(mod_name, partial=True))
+                mods_exist.append(mod_name in avail_mod_names or mod_exists_via_show(mod_name))
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
                 self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
@@ -876,7 +871,7 @@ class Lmod(ModulesTool):
         # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
         # the current configuration for matters little, since the module may have been installed with a different cfg;
         # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
-        return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s(.lua)?:\s*$')
+        return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$')
 
 
 def get_software_root_env_var_name(name):
