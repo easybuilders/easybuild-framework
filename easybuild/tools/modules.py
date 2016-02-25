@@ -369,8 +369,7 @@ class ModulesTool(object):
             """
             mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
             txt = self.show(mod_name)
-            mod_exists_regex = re.compile(mod_exists_regex, re.M)
-            return bool(mod_exists_regex.search(txt))
+            return bool(re.search(mod_exists_regex, txt, re.M))
 
 
         avail_mod_names = self.available()
