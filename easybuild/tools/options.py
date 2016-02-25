@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -966,7 +966,8 @@ class EasyBuildOptions(GeneralOption):
         for opt in ['configfiles', 'ignoreconfigfiles']:
             # add option to list of arguments to pass when figuring out configuration level for all options
             opt_val = getattr(self.options, opt)
-            args.append('--%s=%s' % (opt, ','.join(opt_val or [])))
+            if opt_val:
+                args.append('--%s=%s' % (opt, ','.join(opt_val or [])))
 
             # keep track of location where this option was defined
             is_default = opt_val == default_opts_dict[''][opt]

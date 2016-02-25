@@ -6,7 +6,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -326,8 +326,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs, minimal_toolchains=build_option('minimal_toolchains'),
-                                               use_existing_modules=build_option('use_existing_modules'))
+            ordered_ecs = resolve_dependencies(easyconfigs)
         else:
             ordered_ecs = easyconfigs
     else:

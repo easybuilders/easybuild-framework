@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -111,11 +111,14 @@ class ModulesTest(EnhancedTestCase):
         self.init_testmods()
         self.assertEqual(self.testmods.exist(['OpenMPI/1.6.4-GCC-4.6.4']), [True])
         self.assertEqual(self.testmods.exist(['foo/1.2.3']), [False])
-        # exists should not return True for incomplete module names
-        self.assertEqual(self.testmods.exist(['GCC']), [False])
 
         # exists works on hidden modules
         self.assertEqual(self.testmods.exist(['toy/.0.0-deps']), [True])
+
+        # also partial module names work
+        self.assertEqual(self.testmods.exist(['OpenMPI']), [True])
+        # but this doesn't...
+        self.assertEqual(self.testmods.exist(['OpenMPI/1.6.4']), [False])
 
         # exists works on hidden modules in Lua syntax (only with Lmod)
         if isinstance(self.testmods, Lmod):
@@ -131,7 +134,7 @@ class ModulesTest(EnhancedTestCase):
                      'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED',
                      'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
                      'Compiler/GCC/4.7.2/OpenMPI/1.6.4', 'toy/.0.0-deps']
-        self.assertEqual(self.testmods.exist(mod_names), [True, False, False, False, True, True, True])
+        self.assertEqual(self.testmods.exist(mod_names), [True, False, True, False, True, True, True])
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """

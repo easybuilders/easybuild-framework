@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -798,7 +798,7 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
-                r'whatis\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -830,7 +830,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis {Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
@@ -1037,6 +1037,15 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         self.assertTrue(os.path.exists(toy_module), msg)
+
+    def test_minimal_toolchains(self):
+        """Test toy build with --minimal-toolchains."""
+        # this test doesn't check for anything specific to using minimal toolchains, only side-effects
+        self.test_toy_build(extra_args=['--minimal-toolchains'])
+
+        # also check whether easyconfig is dumped to reprod/ subdir
+        reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(reprod_ec))
 
 
 def suite():

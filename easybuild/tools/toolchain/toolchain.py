@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -549,7 +549,7 @@ class Toolchain(object):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
-                                 "(%s vs %s)", self.toolchain_dep_mods, toolchain_definition)
+                                 "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
     def prepare(self, onlymod=None, silent=False):
         """
