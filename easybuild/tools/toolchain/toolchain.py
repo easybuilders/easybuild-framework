@@ -402,13 +402,23 @@ class Toolchain(object):
         # define $EBROOT env var for install prefix, picked up by get_software_root
         prefix = metadata.get('prefix')
         if prefix is not None:
-            if prefix in os.environ:
-                val = os.environ[prefix]
-                self.log.debug("Using value of $%s as prefix for software named %s: %s", prefix, name, val)
+            # the prefix can be specified in a number of ways
+            # * name of environment variable (+ optional relative path to combine it with; format: <name>/<relpath>
+            # * filepath (assumed if environment variable is not defined)
+            parts = prefix.split(os.path.sep)
+            env_var = parts[0]
+            if env_var in os.environ:
+                prefix = os.environ[env_var]
+                rel_path = os.path.sep.join(parts[1:])
+                if rel_path:
+                    prefix = os.path.join(prefix, rel_path, '')
+
+                self.log.debug("Derived prefix for software named %s from $%s (rel path: %s): %s",
+                               name, env_var, rel_path, prefix)
             else:
-                val = prefix
-                self.log.debug("Using specified prefix for software named %s: %s", name, val)
-            setvar(get_software_root_env_var_name(name), val, verbose=verbose)
+                self.log.debug("Using specified path as prefix for software named %s: %s", name, prefix)
+
+            setvar(get_software_root_env_var_name(name), prefix, verbose=verbose)
 
         # define $EBVERSION env var for software version, picked up by get_software_version
         if version is not None:
@@ -469,8 +479,9 @@ class Toolchain(object):
                 else:
                     dry_run_msg("module load %s [SIMULATED]" % mod_name, silent=silent)
                     # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
-                    deproot = '$%s' % get_software_root_env_var_name(dep['name'])
-                    self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
+                    if not dep['external_module']:
+                        deproot = '$%s' % get_software_root_env_var_name(dep['name'])
+                        self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
         else:
             # load modules for all dependencies
             dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
