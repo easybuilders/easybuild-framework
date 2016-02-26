@@ -129,7 +129,7 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
 
             # fallback to checking with modtool.exist is required,
             # for hidden modules and external modules where module name may be partial
-            elif full_mod_name not in avail_modules and not modtool.exist([full_mod_name])[0]:
+            elif full_mod_name not in avail_modules and not modtool.exist([full_mod_name], skip_avail=True)[0]:
                 # no module available (yet) => retain dependency as one to be resolved
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)

@@ -298,7 +298,7 @@ class Toolchain(object):
             if self.mod_short_name is None:
                 raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
             # check whether a matching module exists if self.mod_short_name contains a module name
-            return self.modules_tool.exist([self.mod_full_name])[0]
+            return self.modules_tool.exist([self.mod_full_name], skip_avail=True)[0]
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -423,7 +423,7 @@ class Toolchain(object):
             dry_run_msg("Loading toolchain module...\n", silent=silent)
 
             # load toolchain module, or simulate load of toolchain components if it is not available
-            if self.modules_tool.exist([tc_mod])[0]:
+            if self.modules_tool.exist([tc_mod], skip_avail=True)[0]:
                 self.modules_tool.load([tc_mod])
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:

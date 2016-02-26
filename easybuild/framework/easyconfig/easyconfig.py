@@ -1301,7 +1301,7 @@ def robot_find_minimal_toolchain_of_dependency(dep, parent_tc=None):
                 full_mod_name = ActiveMNS().det_full_module_name(newdep)
                 # fallback to checking with modtool.exist is required,
                 # for hidden modules and external modules where module name may be partial
-                module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name])[0]
+                module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name], skip_avail=True)[0]
             # add the toolchain to list of possibilities
             possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
 
