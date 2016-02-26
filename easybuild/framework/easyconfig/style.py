@@ -71,6 +71,10 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines
     # we will not issue a warning
     keys_re = re.compile("^(?P<key>[a-z_]+)\s*=\s*")
 
+    # starting from the current line and going to the top,
+    # check that if the first `key = value` that is found, has
+    # key == description, then let the test pass, else return
+    # the result of the general pep8 check.
     for line in reversed(lines[:line_number]):
         res = keys_re.match(line)
         if res:
