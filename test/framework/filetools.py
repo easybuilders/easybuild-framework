@@ -603,7 +603,9 @@ class FileToolsTest(EnhancedTestCase):
         # custom env var wins over $LM_LICENSE_FILE
         os.environ['INTEL_LICENSE_FILE'] = lic_file1
         expected = ([lic_file1], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars='INTEL_LICENSE_FILE'), expected)
         self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['NOSUCHENVVAR', 'INTEL_LICENSE_FILE']), expected)
 
         # $LM_LICENSE_FILE is always considered
         os.environ['LM_LICENSE_FILE'] = lic_server
@@ -619,7 +621,7 @@ class FileToolsTest(EnhancedTestCase):
         os.environ['LM_LICENSE_FILE'] = lic_server
         os.environ['INTEL_LICENSE_FILE'] = '/not/a/valid/license/path:%s:/another/bogus/license/file' % lic_file2
         expected = ([lic_file2], 'INTEL_LICENSE_FILE')
-        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars='INTEL_LICENSE_FILE'), expected)
 
         os.environ['INTEL_LICENSE_FILE'] = '1234@lic1.test:4567@lic2.test:7890@lic3.test'
         expected = (['1234@lic1.test', '4567@lic2.test', '7890@lic3.test'], 'INTEL_LICENSE_FILE')

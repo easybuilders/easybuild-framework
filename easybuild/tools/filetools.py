@@ -1180,7 +1180,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     Considered specified list of environment variables;
     checks for path to existing license file or valid license server specification.
 
-    If no license if found through environment variables, also consider 'lic'.
+    If no license is found through environment variables, also consider 'lic_specs'.
 
     @param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
     @param lic_specs: list of license specifications
@@ -1196,6 +1196,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     default_lic_env_var = 'LM_LICENSE_FILE'
     if custom_env_vars is None:
         lic_env_vars = [default_lic_env_var]
+    elif isinstance(custom_env_vars, basestring):
+        lic_env_vars = [custom_env_vars, default_lic_env_var]
     else:
         lic_env_vars = custom_env_vars + [default_lic_env_var]
 
@@ -1215,7 +1217,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     # order matters, so loop over original list of environment variables to consider
     for env_var in lic_env_vars + [None]:
         values = cand_lic_specs.get(env_var, None) or []
-        _log.info("Considering $%s to find FlexLM license specs: %s", env_var, values)
+        _log.info("Considering %s to find FlexLM license specs: %s", env_var, values)
 
         for value in values:
             if server_port_regex.match(value) or os.path.isfile(value):
