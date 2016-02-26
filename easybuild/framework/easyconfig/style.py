@@ -98,6 +98,7 @@ def style_conformance(easyconfigs, verbose=False):
     # any function in this module starting with `_eb_check_` will be used.
     cands = globals()
     for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith('_eb_check_')]):
+        _log.debug("Adding custom style check %s" % check_function)
         pep8.register_check(check_function)
 
     pep8style = pep8.StyleGuide(quiet=False, config_file=None)
