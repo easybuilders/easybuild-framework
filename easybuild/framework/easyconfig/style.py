@@ -53,7 +53,7 @@ _log = fancylogger.getLogger('easyconfig.style', fname=False)
 def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines):
     """
     W299
-    Warn about trailing whitespace, expect for the description and comments.
+    Warn about trailing whitespace, except for the description and comments.
     This differs from the standard trailing whitespace check as that
     will warn for any trailing whitespace.
     The arguments are explained at
