@@ -1,11 +1,11 @@
 ##
-# Copyright 2016 Ghent University
+# Copyright 2016-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Style tests for easyconfig files. Uses pep8.
+Style tests for easyconfig files.
 
 @author: Ward Poelmans (Ghent University)
 """
@@ -31,7 +31,8 @@ Style tests for easyconfig files. Uses pep8.
 import glob
 import os
 import sys
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.style import style_conformance
@@ -42,7 +43,7 @@ except ImportError:
     pass
 
 
-class StyleTest(TestCase):
+class StyleTest(EnhancedTestCase):
     log = fancylogger.getLogger("StyleTest", fname=False)
 
     def test_style_conformance(self):
@@ -50,6 +51,11 @@ class StyleTest(TestCase):
         if 'pep8' not in sys.modules:
             print "Skipping style checks (no pep8 available)"
             return
+            # if self.jenkins():
+            #    self.assertTrue(False, "pep8 not available")
+            # else:
+            #    print "Skipping style checks (no pep8 available)"
+            #    return
 
         # all available easyconfig files
         test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
@@ -58,7 +64,7 @@ class StyleTest(TestCase):
 
         result = style_conformance(specs)
 
-        self.assertEqual(result, 0, "Found code style errors (and/or warnings).")
+        self.assertEqual(result, 0, "No code style errors (and/or warnings) found.")
 
 
 def suite():
