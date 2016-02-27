@@ -632,6 +632,16 @@ class EasyBuildOptions(GeneralOption):
 
     def _postprocess_external_modules_metadata(self):
         """Parse file(s) specifying metadata for external modules."""
+        # use external modules metadata configuration files that are available by default, unless others are specified
+        if not self.options.external_modules_metadata:
+            # we expect to find *external_modules_metadata.cfg files in etc/
+            topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            metadata_cfgs = glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg'))
+
+            if metadata_cfgs:
+                self.log.info("Using default external modules metadata cfg files: %s", metadata_cfgs)
+                self.options.external_modules_metadata = metadata_cfgs
+
         # leave external_modules_metadata untouched if no files are provided
         if not self.options.external_modules_metadata:
             self.log.debug("No metadata provided for external modules.")
