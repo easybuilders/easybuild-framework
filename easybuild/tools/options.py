@@ -319,7 +319,7 @@ class EasyBuildOptions(GeneralOption):
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
-                                          'strlist', 'store', []),
+                                          'strlist', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'include-easyblocks': ("Location(s) of extra or customized easyblocks", 'strlist', 'store', []),
@@ -621,49 +621,12 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
-        self._postprocess_external_modules_metadata()
-
         self._postprocess_config()
 
         # show current configuration and exit, if requested
         if self.options.show_config or self.options.show_full_config:
             self.show_config()
             cleanup_and_exit(self.tmpdir)
-
-    def _postprocess_external_modules_metadata(self):
-        """Parse file(s) specifying metadata for external modules."""
-        # leave external_modules_metadata untouched if no files are provided
-        if not self.options.external_modules_metadata:
-            self.log.debug("No metadata provided for external modules.")
-            return
-
-        parsed_external_modules_metadata = ConfigObj()
-        for path in self.options.external_modules_metadata:
-            if os.path.exists(path):
-                self.log.debug("Parsing %s with external modules metadata", path)
-                try:
-                    parsed_external_modules_metadata.merge(ConfigObj(path))
-                except ConfigObjError, err:
-                    raise EasyBuildError("Failed to parse %s with external modules metadata: %s", path, err)
-            else:
-                raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", path)
-
-        # make sure name/version values are always lists, make sure they're equal length
-        for mod, entry in parsed_external_modules_metadata.items():
-            for key in ['name', 'version']:
-                if isinstance(entry.get(key), basestring):
-                    entry[key] = [entry[key]]
-                    self.log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
-                                   key, mod, entry[key])
-
-            # if both names and versions are available, lists must be of same length
-            names, versions = entry.get('name'), entry.get('version')
-            if names is not None and versions is not None and len(names) != len(versions):
-                raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
-                                     "names: %s; versions: %s", mod, names, versions)
-
-        self.options.external_modules_metadata = parsed_external_modules_metadata
-        self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
 
     def _postprocess_include(self):
         """Postprocess --include options."""
@@ -1105,6 +1068,59 @@ def process_software_build_specs(options):
             build_specs.update({param: value})
 
     return (try_to_generate, build_specs)
+
+
+def parse_external_modules_metadata(cfgs):
+    """
+    Parse metadata for external modules.
+
+    @param cfgs: list of config files providing metadata for external modules
+    @return parsed metadata for external modules
+    """
+
+    # use external modules metadata configuration files that are available by default, unless others are specified
+    if not cfgs:
+        # we expect to find *external_modules_metadata.cfg files in etc/
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        cfgs = glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg'))
+
+        if cfgs:
+            _log.info("Using default external modules metadata cfg files: %s", cfgs)
+        else:
+            _log.info("No default external modules metadata found")
+
+    # leave external_modules_metadata untouched if no files are provided
+    if not cfgs:
+        _log.debug("No metadata provided for external modules.")
+        return {}
+
+    parsed_metadata = ConfigObj()
+    for cfg in cfgs:
+        if os.path.isfile(cfg):
+            _log.debug("Parsing %s with external modules metadata", cfg)
+            try:
+                parsed_metadata.merge(ConfigObj(cfg))
+            except ConfigObjError as err:
+                raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
+        else:
+            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+
+    # make sure name/version values are always lists, make sure they're equal length
+    for mod, entry in parsed_metadata.items():
+        for key in ['name', 'version']:
+            if isinstance(entry.get(key), basestring):
+                entry[key] = [entry[key]]
+                _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
+                           key, mod, entry[key])
+
+        # if both names and versions are available, lists must be of same length
+        names, versions = entry.get('name'), entry.get('version')
+        if names is not None and versions is not None and len(names) != len(versions):
+            raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
+                                 "names: %s; versions: %s", mod, names, versions)
+
+    _log.debug("External modules metadata: %s", parsed_metadata)
+    return parsed_metadata
 
 
 def set_tmpdir(tmpdir=None, raise_error=False):

@@ -57,6 +57,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
@@ -1154,9 +1155,8 @@ class EasyConfigTest(EnhancedTestCase):
             'prefix = /foo/bar',
         ])
         write_file(metadata, metadatatxt)
-        cfg = init_config(args=['--external-modules-metadata=%s' % metadata])
         build_options = {
-            'external_modules_metadata': cfg.external_modules_metadata,
+            'external_modules_metadata': parse_external_modules_metadata([metadata]),
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)

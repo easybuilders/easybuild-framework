@@ -93,7 +93,6 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
-        'external_modules_metadata',
         'filter_deps',
         'hide_deps',
         'from_pr',
@@ -178,6 +177,7 @@ BUILD_OPTIONS_OTHER = {
     None: [
         'build_specs',
         'command_line',
+        'external_modules_metadata',
         'pr_path',
         'robot_path',
         'valid_module_classes',
