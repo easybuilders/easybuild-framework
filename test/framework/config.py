@@ -577,9 +577,25 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_external_modules_metadata(self):
         """Test --external-modules-metadata."""
-        # empty list by default
+        # by default, provided external module metadata cfg files are used
         cfg = init_config()
-        self.assertEqual(cfg.external_modules_metadata, [])
+        # just a selection
+        for mod in ['cray-libsci/13.2.0', 'cray-netcdf/4.3.2', 'fftw/3.3.4.3']:
+            self.assertTrue(mod in cfg.external_modules_metadata)
+
+        netcdf = {
+            'name': ['netCDF', 'netCDF-Fortran'],
+            'version': ['4.3.2', '4.3.2'],
+            'prefix': 'NETCDF_DIR',
+        }
+        self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
+
+        libsci = {
+            'name': ['LIBSCI'],
+            'version': ['13.2.0'],
+            'prefix': 'CRAY_LIBSCI_PREFIX_DIR',
+        }
+        self.assertEqual(cfg.external_modules_metadata['cray-libsci/13.2.0'], libsci)
 
         testcfgtxt = EXTERNAL_MODULES_METADATA
         testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
@@ -587,11 +603,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         cfg = init_config(args=['--external-modules-metadata=%s' % testcfg])
 
-        netcdf = {
-            'name': ['netCDF', 'netCDF-Fortran'],
-            'version': ['4.3.2', '4.3.2'],
-            'prefix': 'NETCDF_DIR',
-        }
         self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
         hdf5 = {
             'name': ['HDF5'],
