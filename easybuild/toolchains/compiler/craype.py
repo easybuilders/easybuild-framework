@@ -1,11 +1,11 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -59,7 +59,7 @@ class CrayPECompiler(Compiler):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = {
-        'dynamic': (False, "Generate dynamically linked executable"),
+        'dynamic': (True, "Generate dynamically linked executable"),
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
@@ -105,7 +105,7 @@ class CrayPECompiler(Compiler):
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
-            if self.modules_tool.exist([craype_mod_name])[0]:
+            if self.modules_tool.exist([craype_mod_name], skip_avail=True)[0]:
                 self.modules_tool.load([craype_mod_name])
             else:
                 raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",

@@ -1,11 +1,11 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -354,25 +354,41 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
-    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s:\s*$'):
+    def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
         """
         Check if modules with specified names exists.
+
+        @param mod_names: list of module names
+        @param mod_exists_regex_template: template regular expression to search 'module show' output with
+        @param skip_avail: skip checking through 'module avail', only check via 'module show'
         """
-        avail_mod_names = self.available()
+        def mod_exists_via_show(mod_name):
+            """
+            Helper function to check whether specified module name exists through 'module show'.
+
+            @param mod_name: module name
+            """
+            mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
+            txt = self.show(mod_name)
+            return bool(re.search(mod_exists_regex, txt, re.M))
+
+        if skip_avail:
+            avail_mod_names = []
+        else:
+            avail_mod_names = self.available()
+
         # differentiate between hidden and visible modules
         mod_names = [(mod_name, not os.path.basename(mod_name).startswith('.')) for mod_name in mod_names]
 
         mods_exist = []
         for (mod_name, visible) in mod_names:
             if visible:
-                mods_exist.append(mod_name in avail_mod_names)
+                # module name may be partial, so also check via 'module show' as fallback
+                mods_exist.append(mod_name in avail_mod_names or mod_exists_via_show(mod_name))
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
-                modtype = ('hidden', 'visible (not hidden)')[visible]
-                self.log.debug("checking whether %s module %s exists via 'show'..." % (modtype, mod_name))
-                txt = self.show(mod_name)
-                mod_exists_regex = re.compile(mod_exists_regex_template % re.escape(mod_name), re.M)
-                mods_exist.append(bool(mod_exists_regex.search(txt)))
+                self.log.debug("checking whether hidden module %s exists via 'show'..." % mod_name)
+                mods_exist.append(mod_exists_via_show(mod_name))
 
         return mods_exist
 
@@ -392,11 +408,13 @@ class ModulesTool(object):
         if mod_paths is None:
             mod_paths = []
 
-        # purge all loaded modules if desired
+        # purge all loaded modules if desired by restoring initial environment
+        # actually running 'module purge' is futile (and wrong/broken on some systems, e.g. Cray)
         if purge:
-            self.purge()
             # restore initial environment if provided
-            if init_env is not None:
+            if init_env is None:
+                raise EasyBuildError("Initial environment required when purging before loading, but not available")
+            else:
                 restore_env(init_env)
 
         # make sure $MODULEPATH is set correctly after purging
@@ -439,7 +457,7 @@ class ModulesTool(object):
         @param mod_name: module name
         @param regex: (compiled) regular expression, with one group
         """
-        if self.exist([mod_name])[0]:
+        if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
             self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)
@@ -851,12 +869,18 @@ class Lmod(ModulesTool):
         self.use(path)
         self.set_mod_paths()
 
-    def exist(self, mod_names):
-        """Check if modules with specified names exists."""
+    def exist(self, mod_names, skip_avail=False):
+        """
+        Check if modules with specified names exists.
+
+        @param mod_names: list of module names
+        @param skip_avail: skip checking through 'module avail', only check via 'module show'
+        """
         # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
         # the current configuration for matters little, since the module may have been installed with a different cfg;
         # Lmod may pick up both Tcl and Lua module files, regardless of the EasyBuild configuration
-        return super(Lmod, self).exist(mod_names, r'^\s*\S*/%s(.lua)?:\s*$')
+        return super(Lmod, self).exist(mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*(\.lua)?:\s*$',
+                                       skip_avail=skip_avail)
 
 
 def get_software_root_env_var_name(name):

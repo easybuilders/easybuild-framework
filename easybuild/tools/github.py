@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -337,7 +337,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = read_file(diff_filepath)
     os.remove(diff_filepath)
 
-    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True)
+    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
@@ -351,18 +351,24 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # obtain most recent version of patched files
     for patched_file in patched_files:
-        fn = os.path.basename(patched_file)
+        # path to patch file, incl. subdir it is in
+        fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
         sha = last_commit['sha']
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
         download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
 
-    all_files = [os.path.basename(x) for x in patched_files]
-    tmp_files = os.listdir(path)
+    # sanity check: make sure all patched files are downloaded
+    all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
+
+    tmp_files = []
+    for (dirpath, _, filenames) in os.walk(path):
+        tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
+
     if not sorted(tmp_files) == sorted(all_files):
         raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
 
-    ec_files = [os.path.join(path, filename) for filename in tmp_files]
+    ec_files = [os.path.join(path, f) for f in tmp_files]
 
     return ec_files
 
@@ -408,6 +414,59 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
+def setup_repo(git_repo, github_url, target_account, branch_name):
+    """
+    Set up repository by checking out specified branch from repo at specified URL.
+
+    @param git_repo: git.Repo instance
+    @param github_url: URL to GitHub repo
+    @param target_account: name of GitHub account that owns GitHub repo
+    @param branch_name: name of branch to check out
+    """
+    _log.debug("Cloning from %s", github_url)
+
+    # salt to use for names of remotes/branches that are created
+    salt = ''.join(random.choice(string.letters) for _ in range(5))
+
+    remote_name = 'pr_target_account_%s_%s' % (target_account, salt)
+
+    origin = git_repo.create_remote(remote_name, github_url)
+    if not origin.exists():
+        raise EasyBuildError("%s does not exist?", github_url)
+
+    # git fetch
+    # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
+    print_msg("fetching branch '%s' from %s..." % (branch_name, github_url))
+    try:
+        res = origin.fetch()
+    except GitCommandError as err:
+        raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", branch_name, github_url, err)
+    if res:
+        if res[0].flags & res[0].ERROR:
+            raise EasyBuildError("Fetching branch '%s' from remote %s failed: %s", branch_name, origin, res[0].note)
+        else:
+            _log.debug("Fetched branch '%s' from remote %s (note: %s)", branch_name, origin, res[0].note)
+    else:
+        raise EasyBuildError("Fetching branch '%s' from remote %s failed: empty result", branch_name, origin)
+
+    # git checkout -b <branch>; git pull
+    if hasattr(origin.refs, branch_name):
+        origin_branch = getattr(origin.refs, branch_name)
+    else:
+        raise EasyBuildError("Branch '%s' not found at %s", branch_name, github_url)
+
+    _log.debug("Checking out branch '%s' from remote %s", branch_name, github_url)
+    try:
+        origin_branch.checkout(b=branch_name)
+    except GitCommandError as err:
+        alt_branch = 'pr_start_branch_%s_%s' % (branch_name, salt)
+        _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
+        try:
+            origin_branch.checkout(b=alt_branch)
+        except GitCommandError as err:
+            raise EasyBuildError("Failed to check out branch '%s' from repo at %s: %s", alt_branch, github_url, err)
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
@@ -425,9 +484,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     @target_account: name of target GitHub account for PR
     @commit_msg: commit message to use
     """
-    # salt to use names of remotes/branches that are created
-    salt = ''.join(random.choice(string.letters) for _ in range(5))
-
     # we need files to create the PR with
     if paths:
         non_existing_paths = []
@@ -455,52 +511,33 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             except OSError as err:
                 raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, tmp_git_working_dir, err)
 
-    git_repo = git.Repo.init(tmp_git_working_dir)
+    try:
+        git_repo = git.Repo.init(tmp_git_working_dir)
+    except GitCommandError as err:
+        raise EasyBuildError("Failed to init git repo at %s: %s", tmp_git_working_dir, err)
 
     _log.debug("temporary git working directory ready at %s", tmp_git_working_dir)
 
     if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
-    # add remote to pull from
-    github_url = 'https://github.com/%s/%s.git' % (target_account, pr_target_repo)
-    _log.debug("Cloning from %s", github_url)
-
-    origin = git_repo.create_remote('pr_target_account_%s_%s' % (target_account, salt), github_url)
-    if not origin.exists():
-        raise EasyBuildError("%s does not exist?", github_url)
-
     if start_branch is None:
         start_branch = build_option('pr_target_branch')
 
-    # git fetch
-    # can't use --depth to only fetch a shallow copy, since pushing to another repo from a shallow copy doesn't work
-    print_msg("fetching branch '%s' from %s..." % (start_branch, github_url))
+    # set up repository
+    github_url = 'https://github.com/%s/%s.git' % (target_account, pr_target_repo)
     try:
-        res = origin.fetch()
-    except GitCommandError as err:
-        raise EasyBuildError("Failed to fetch branch '%s' from %s: %s", start_branch, github_url, err)
-    if res:
-        if res[0].flags & res[0].ERROR:
-            raise EasyBuildError("Fetching branch '%s' from remote %s failed: %s", start_branch, origin, res[0].note)
-        else:
-            _log.debug("Fetched branch '%s' from remote %s (note: %s)", start_branch, origin, res[0].note)
-    else:
-        raise EasyBuildError("Fetching branch '%s' from remote %s failed: empty result", start_branch, origin)
+        setup_repo(git_repo, github_url, target_account, start_branch)
 
-    # git checkout -b <branch>; git pull
-    if hasattr(origin.refs, start_branch):
-        origin_start_branch = getattr(origin.refs, start_branch)
-    else:
-        raise EasyBuildError("Branch '%s' not found at %s", start_branch, github_url)
+    except EasyBuildError as err:
+        # if checking out repository over https fails, fall back to trying with git/SSH
+        alt_github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
 
-    _log.debug("Checking out branch '%s' from remote %s", start_branch, github_url)
-    try:
-        origin_start_branch.checkout(b=start_branch)
-    except GitCommandError as err:
-        alt_branch = 'pr_start_branch_%s_%s' % (start_branch, salt)
-        _log.debug("Trying to work around checkout error ('%s') by using different branch name '%s'", err, alt_branch)
-        origin_start_branch.checkout(b=alt_branch)
+        _log.warning("Checking out branch '%s' from %s failed (%s); falling back to %s",
+                     start_branch, github_url, err, alt_github_url)
+
+        setup_repo(git_repo, alt_github_url, target_account, start_branch)
+
     _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
@@ -528,24 +565,30 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # commit
     if commit_msg:
         _log.debug("Committing all %d new/modified easyconfigs at once", len(file_info['paths_in_repo']))
-        git_repo.index.commit(commit_msg)
     else:
         commit_msg_parts = []
         for path, new in zip(file_info['paths_in_repo'], file_info['new']):
             commit_msg_parts.append("%s easyconfig %s" % (('modify', 'add')[new], os.path.basename(path)))
         commit_msg = ', '.join(commit_msg_parts)
-        git_repo.index.commit(commit_msg)
+
+    git_repo.index.commit(commit_msg)
 
     # push to GitHub
     github_user = build_option('github_user')
     github_url = 'git@github.com:%s/%s.git' % (github_user, pr_target_repo)
+    salt = ''.join(random.choice(string.letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (github_user, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if not dry_run:
-        my_remote = git_repo.create_remote(remote_name, github_url)
-        res = my_remote.push(pr_branch)
+        _log.debug("Pushing branch '%s' to remote '%s' (%s)", pr_branch, remote_name, github_url)
+        try:
+            my_remote = git_repo.create_remote(remote_name, github_url)
+            res = my_remote.push(pr_branch)
+        except GitCommandError as err:
+            raise EasyBuildError("Failed to push branch '%s' to GitHub (%s): %s", pr_branch, github_url, err)
+
         if res:
             if res[0].ERROR & res[0].flags:
                 raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: %s",
@@ -651,6 +694,9 @@ def update_pr(pr, paths, commit_msg=None):
     _log.experimental("Updating pull request #%s with %s", pr, paths)
 
     github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to use --new-pr")
+
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 

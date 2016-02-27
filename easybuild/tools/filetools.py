@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -320,7 +320,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
     """
     Search for a particular file (only prints)
     """
@@ -340,7 +340,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     for path in paths:
         hits = []
         hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
+        if not terse:
+            print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
@@ -349,7 +350,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
                         var = "CFGS%d" % var_index
                         var_index += 1
                         hit_in_path = True
-                    hits.append(os.path.join(dirpath, filename))
+                    if filename_only:
+                        hits.append(filename)
+                    else:
+                        hits.append(os.path.join(dirpath, filename))
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
@@ -359,7 +363,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
 
         hits = sorted(hits)
 
-        if hits:
+        if hits and not terse:
             common_prefix = det_common_path_prefix(hits)
             if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
                 var_lines.append("%s=%s" % (var, common_prefix))
@@ -367,8 +371,12 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             else:
                 hit_lines.extend([" * %s" % fn for fn in hits])
 
-    for line in var_lines + hit_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
+    if terse:
+        for line in hits:
+            print(line)
+    else:
+        for line in var_lines + hit_lines:
+            print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
@@ -535,7 +543,7 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
     It searches for "+++ path/to/patched/file" lines to determine
@@ -544,6 +552,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
     @param txt: the contents of the diff (either path or txt should be give)
     @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
     @param github: only consider lines that start with 'diff --git' to determine list of patched files
+    @param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
         patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
@@ -562,8 +571,12 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
 
+        delete_regex = re.compile(r"%s\ndeleted file" % re.escape(os.path.basename(patched_file)), re.M)
         if patched_file in ['/dev/null']:
-            _log.debug("Ignoring patched file %s" % patched_file)
+            _log.debug("Ignoring patched file %s", patched_file)
+
+        elif filter_deleted and delete_regex.search(txt):
+            _log.debug("Filtering out deleted file %s", patched_file)
         else:
             patched_files.append(patched_file)
 

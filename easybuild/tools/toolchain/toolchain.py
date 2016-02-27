@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -298,7 +298,7 @@ class Toolchain(object):
             if self.mod_short_name is None:
                 raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
             # check whether a matching module exists if self.mod_short_name contains a module name
-            return self.modules_tool.exist([self.mod_full_name])[0]
+            return self.modules_tool.exist([self.mod_full_name], skip_avail=True)[0]
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -423,7 +423,7 @@ class Toolchain(object):
             dry_run_msg("Loading toolchain module...\n", silent=silent)
 
             # load toolchain module, or simulate load of toolchain components if it is not available
-            if self.modules_tool.exist([tc_mod])[0]:
+            if self.modules_tool.exist([tc_mod], skip_avail=True)[0]:
                 self.modules_tool.load([tc_mod])
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
@@ -549,7 +549,7 @@ class Toolchain(object):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
-                                 "(%s vs %s)", self.toolchain_dep_mods, toolchain_definition)
+                                 "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
     def prepare(self, onlymod=None, silent=False):
         """
