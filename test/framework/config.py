@@ -591,7 +591,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
 
         libsci = {
-            'name': ['LIBSCI'],
+            'name': ['LibSci'],
             'version': ['13.2.0'],
             'prefix': 'CRAY_LIBSCI_PREFIX_DIR',
         }
