@@ -1096,7 +1096,7 @@ def parse_external_modules_metadata(cfgs):
 
     parsed_metadata = ConfigObj()
     for cfg in cfgs:
-        if os.path.exists(cfg):
+        if os.path.isfile(cfg):
             _log.debug("Parsing %s with external modules metadata", cfg)
             try:
                 parsed_metadata.merge(ConfigObj(cfg))
