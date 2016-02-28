@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -47,24 +47,6 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
-EXTERNAL_MODULES_METADATA = """[cray-netcdf/4.3.2]
-name = netCDF,netCDF-Fortran
-version = 4.3.2,4.3.2
-prefix = NETCDF_DIR
- 
-[cray-hdf5/1.8.13]
-name = HDF5
-version = 1.8.13
-prefix = HDF5_DIR
-
-[foo]
-name = Foo
-prefix = /foo
-
-[bar/1.2.3]
-name = bar
-version = 1.2.3
-"""
 
 class EasyBuildConfigTest(EnhancedTestCase):
     """Test cases for EasyBuild configuration."""
@@ -574,41 +556,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(eb_go.options.robot_paths, ['/first', '/foo/bar', tmp_ecs_dir, '/baz'])
 
         sys.path[:] = orig_sys_path
-
-    def test_external_modules_metadata(self):
-        """Test --external-modules-metadata."""
-        # empty list by default
-        cfg = init_config()
-        self.assertEqual(cfg.external_modules_metadata, [])
-
-        testcfgtxt = EXTERNAL_MODULES_METADATA
-        testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
-        write_file(testcfg, testcfgtxt)
-
-        cfg = init_config(args=['--external-modules-metadata=%s' % testcfg])
-
-        netcdf = {
-            'name': ['netCDF', 'netCDF-Fortran'],
-            'version': ['4.3.2', '4.3.2'],
-            'prefix': 'NETCDF_DIR',
-        }
-        self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
-        hdf5 = {
-            'name': ['HDF5'],
-            'version': ['1.8.13'],
-            'prefix': 'HDF5_DIR',
-        }
-        self.assertEqual(cfg.external_modules_metadata['cray-hdf5/1.8.13'], hdf5)
-
-        # impartial metadata is fine
-        self.assertEqual(cfg.external_modules_metadata['foo'], {'name': ['Foo'], 'prefix': '/foo'})
-        self.assertEqual(cfg.external_modules_metadata['bar/1.2.3'], {'name': ['bar'], 'version': ['1.2.3']})
-
-        # if both names and versions are specified, lists must have same lengths
-        write_file(testcfg, '\n'.join(['[foo/1.2.3]', 'name = foo,bar', 'version = 1.2.3']))
-        args = ['--external-modules-metadata=%s' % testcfg]
-        err_msg = "Different length for lists of names/versions in metadata for external module"
-        self.assertErrorRegex(EasyBuildError, err_msg, init_config, args=args)
 
     def test_strict(self):
         """Test use of --strict."""

@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -162,6 +162,16 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
+        """
+        Generate swap statement for specified module names.
+
+        @param mod_name_out: name of module to unload (swap out)
+        @param mod_name_in: name of module to load (swap in)
+        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        raise NotImplementedError
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -215,7 +225,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         whatis = self.app.cfg['whatis']
         if whatis is None:
             # default: include single 'whatis' statement with description as contents
-            whatis = [description]
+            whatis = ["Description: %s" % description]
 
         lines = [
             "proc ModulesHelp { } {",
@@ -280,6 +290,23 @@ class ModuleGeneratorTcl(ModuleGenerator):
         @param mod_name: name of module to generate unload statement for
         """
         return '\n'.join(['', "module unload %s" % mod_name])
+
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
+        """
+        Generate swap statement for specified module names.
+
+        @param mod_name_out: name of module to unload (swap out)
+        @param mod_name_in: name of module to load (swap in)
+        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        body = "module swap %s %s" % (mod_name_out, mod_name_in)
+        if guarded:
+            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
+            swap_statement = [self.conditional_statement("is-loaded %s" % mod_name_out, body, else_body=alt_body)]
+        else:
+            swap_statement = [body, '']
+
+        return '\n'.join([''] + swap_statement)
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -435,7 +462,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         whatis = self.app.cfg['whatis']
         if whatis is None:
             # default: include single 'whatis' statement with description as contents
-            whatis = [description]
+            whatis = ["Description: %s" % description]
 
         lines = [
             "help([[%(description)s]])",
@@ -493,6 +520,23 @@ class ModuleGeneratorLua(ModuleGenerator):
         @param mod_name: name of module to generate unload statement for
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
+
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
+        """
+        Generate swap statement for specified module names.
+
+        @param mod_name_out: name of module to unload (swap out)
+        @param mod_name_in: name of module to load (swap in)
+        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
+        if guarded:
+            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
+            swap_statement = [self.conditional_statement('isloaded("%s")' % mod_name_out, body, else_body=alt_body)]
+        else:
+            swap_statement = [body, '']
+
+        return '\n'.join([''] + swap_statement)
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
