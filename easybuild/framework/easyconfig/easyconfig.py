@@ -206,7 +206,6 @@ def get_toolchain_hierarchy(parent_toolchain):
             else:
                 raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
                                      subtoolchain_name, current_tc_name)
-
         else:
             if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
                 # Don't care about multiple versions of dummy, take whatever comes first
