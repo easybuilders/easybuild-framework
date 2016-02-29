@@ -283,7 +283,7 @@ class Toolchain(object):
     def det_short_module_name(self):
         """Determine module name for this toolchain."""
         if self.mod_short_name is None:
-            raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
+            raise EasyBuildError("Toolchain module name was not set yet")
         return self.mod_short_name
 
     def _toolchain_exists(self):
@@ -296,7 +296,7 @@ class Toolchain(object):
             return True
         else:
             if self.mod_short_name is None:
-                raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
+                raise EasyBuildError("Toolchain module name was not set yet")
             # check whether a matching module exists if self.mod_short_name contains a module name
             return self.modules_tool.exist([self.mod_full_name], skip_avail=True)[0]
 
