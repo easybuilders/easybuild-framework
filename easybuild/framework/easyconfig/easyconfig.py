@@ -210,7 +210,7 @@ def get_toolchain_hierarchy(parent_toolchain):
             if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
                 # Don't care about multiple versions of dummy, take whatever comes first
                 _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
-                subtoolchain_version = dep_tcs[0]['version']
+                subtoolchain_version = ''
             else:
                 raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
                                      subtoolchain_name, current_tc_name, unique_dep_tc_versions)
