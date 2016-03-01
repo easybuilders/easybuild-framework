@@ -50,7 +50,7 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
@@ -448,6 +448,11 @@ class RobotTest(EnhancedTestCase):
             'valid_module_classes': module_classes(),
             'validate': False,
         })
+
+        impi_txt = read_file(os.path.join(test_easyconfigs, 'impi-4.1.3.049.eb'))
+        self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': ''}", impi_txt, re.M))
+        gzip_txt = read_file(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
+        self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': 'dummy'}", gzip_txt, re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
         barec_lines = [
