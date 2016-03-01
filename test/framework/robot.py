@@ -434,6 +434,48 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue('SQLite/3.8.10.2-goolf-1.4.10' in mods)
         self.assertFalse('SQLite/3.8.10.2-GCC-4.7.2' in mods)
 
+        # Check whether having 2 version of dummy toolchain is ok
+        # Clear easyconfig and toolchain caches
+        ecec._easyconfigs_cache.clear()
+        get_toolchain_hierarchy.clear()
+
+        init_config(build_options={
+            'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'add_dummy_to_minimal_toolchains': True,
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': test_easyconfigs,
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+
+        barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
+        barec_lines = [
+            "easyblock = 'ConfigureMake'",
+            "name = 'bar'",
+            "version = '1.2.3'",
+            "homepage = 'http://example.com'",
+            "description = 'foo'",
+            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
+            # to test resolving of dependencies with minimal toolchain
+            # for each of these, we know test easyconfigs are available (which are required here)
+            "dependencies = [",
+            "   ('impi', '4.1.3.049'),",  # has toolchain ('dummy', '')
+            "   ('gzip', '1.4'),",  # has toolchain ('dummy', 'dummy')
+            "]",
+            # toolchain as list line, for easy modification later
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+        ]
+        write_file(barec, '\n'.join(barec_lines))
+        bar = process_easyconfig(barec)[0]
+
+        res = resolve_dependencies([bar], retain_all_deps=True)
+        self.assertEqual(len(res), 11)
+        mods = [x['full_mod_name'] for x in res]
+        self.assertTrue('impi/4.1.3.049' in mods)
+        self.assertTrue('gzip/1.4' in mods)
+
+
     def test_det_easyconfig_paths(self):
         """Test det_easyconfig_paths function (without --from-pr)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
