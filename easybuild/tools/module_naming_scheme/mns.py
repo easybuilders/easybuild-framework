@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -158,7 +158,7 @@ class ModuleNamingScheme(object):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
             <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^%s/\S+$' % re.escape(name))
+        modname_regex = re.compile('^%s(/\S+)?$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",

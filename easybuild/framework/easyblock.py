@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -1364,7 +1364,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if self.modules_tool.exist([self.full_mod_name])[0]:
+            if self.modules_tool.exist([self.full_mod_name], skip_avail=True)[0]:
                 self.skip = True
                 self.log.info("Module %s found." % self.full_mod_name)
                 self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
@@ -2296,6 +2296,8 @@ def build_and_install_one(ecdict, init_env):
     # successful (non-dry-run) build
     if result and not dry_run:
 
+        ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
         if app.cfg['stop']:
             ended = 'STOPPED'
             if app.builddir is not None:
@@ -2313,8 +2315,6 @@ def build_and_install_one(ecdict, init_env):
 
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
-
-            ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
 
             if build_option("minimal_toolchains"):
                 # for reproducability we dump out the parsed easyconfig since the contents are affected when

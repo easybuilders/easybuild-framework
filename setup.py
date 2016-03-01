@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -89,10 +89,13 @@ implement support for installing particular (groups of) software packages.""",
     keywords="software build building installation installing compilation HPC scientific",
     url="http://hpcugent.github.com/easybuild",
     packages=easybuild_packages,
-    package_dir={'test.framework': "test/framework"},
-    package_data={"test.framework": find_rel_test()},
+    package_dir={'test.framework': 'test/framework'},
+    package_data={'test.framework': find_rel_test(),},
     scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash", "eb_bash_completion.bash"],
-    data_files=[('easybuild/scripts', glob.glob('easybuild/scripts/*'))],
+    data_files=[
+        ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
+        ('etc', glob.glob('etc/*')),
+    ],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -100,7 +103,7 @@ implement support for installing particular (groups of) software packages.""",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 2.4",
+        "Programming Language :: Python :: 2.6",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",

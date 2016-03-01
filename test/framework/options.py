@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -52,11 +52,30 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import EasyBuildOptions, set_tmpdir
+from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
+
+EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
+name = foo, bar
+version = 1.2.3, 3.2.1
+prefix = FOOBAR_DIR
+ 
+[foobar/2.0]
+name = foobar
+version = 2.0
+prefix = FOOBAR_PREFIX
+
+[foo]
+name = Foo
+prefix = /foo
+
+[bar/1.2.3]
+name = bar
+version = 1.2.3
+"""
 
 # test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
@@ -2392,6 +2411,73 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().strip()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
+
+    def test_stop(self):
+        """Test use of --stop."""
+        args = ['toy-0.0.eb', '--force', '--stop=configure']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        regex = re.compile("COMPLETED: Installation STOPPED successfully", re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_parse_external_modules_metadata(self):
+        """Test parse_external_modules_metadata function."""
+        # by default, provided external module metadata cfg files are picked up
+        metadata = parse_external_modules_metadata(None)
+
+        # just a selection
+        for mod in ['cray-libsci/13.2.0', 'cray-netcdf/4.3.2', 'fftw/3.3.4.3']:
+            self.assertTrue(mod in metadata)
+
+        netcdf = {
+            'name': ['netCDF', 'netCDF-Fortran'],
+            'version': ['4.3.2', '4.3.2'],
+            'prefix': 'NETCDF_DIR',
+        }
+        self.assertEqual(metadata['cray-netcdf/4.3.2'], netcdf)
+
+        libsci = {
+            'name': ['LibSci'],
+            'version': ['13.2.0'],
+            'prefix': 'CRAY_LIBSCI_PREFIX_DIR',
+        }
+        self.assertEqual(metadata['cray-libsci/13.2.0'], libsci)
+
+        testcfgtxt = EXTERNAL_MODULES_METADATA
+        testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
+        write_file(testcfg, testcfgtxt)
+
+        metadata = parse_external_modules_metadata([testcfg])
+
+        # default metadata is overruled, and not available anymore
+        for mod in ['cray-libsci/13.2.0', 'cray-netcdf/4.3.2', 'fftw/3.3.4.3']:
+            self.assertFalse(mod in metadata)
+
+        foobar1 = {
+            'name': ['foo', 'bar'],
+            'version': ['1.2.3', '3.2.1'],
+            'prefix': 'FOOBAR_DIR',
+        }
+        self.assertEqual(metadata['foobar/1.2.3'], foobar1)
+
+        foobar2 = {
+            'name': ['foobar'],
+            'version': ['2.0'],
+            'prefix': 'FOOBAR_PREFIX',
+        }
+        self.assertEqual(metadata['foobar/2.0'], foobar2)
+
+        # impartial metadata is fine
+        self.assertEqual(metadata['foo'], {'name': ['Foo'], 'prefix': '/foo'})
+        self.assertEqual(metadata['bar/1.2.3'], {'name': ['bar'], 'version': ['1.2.3']})
+
+        # if both names and versions are specified, lists must have same lengths
+        write_file(testcfg, '\n'.join(['[foo/1.2.3]', 'name = foo,bar', 'version = 1.2.3']))
+        err_msg = "Different length for lists of names/versions in metadata for external module"
+        self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
 
 def suite():

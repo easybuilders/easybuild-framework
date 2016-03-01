@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -127,7 +127,9 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
                 _log.debug("Retaining new dep %s in 'retain all deps' mode", dep)
                 deps.append(dep)
 
-            elif full_mod_name not in avail_modules and not (dep['hidden'] and modtool.exist([full_mod_name])[0]):
+            # fallback to checking with modtool.exist is required,
+            # for hidden modules and external modules where module name may be partial
+            elif full_mod_name not in avail_modules and not modtool.exist([full_mod_name], skip_avail=True)[0]:
                 # no module available (yet) => retain dependency as one to be resolved
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)

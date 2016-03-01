@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,8 +26,9 @@
 Unit tests for talking to GitHub.
 
 @author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 import random
 import re
@@ -130,7 +131,7 @@ class GithubTest(EnhancedTestCase):
         try:
             ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
             self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
-            self.assertEqual(all_ecs, sorted(os.listdir(tmpdir)))
+            self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in glob.glob(os.path.join(tmpdir, '*', '*'))]))
 
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"

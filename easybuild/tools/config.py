@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -93,7 +93,6 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
-        'external_modules_metadata',
         'filter_deps',
         'hide_deps',
         'from_pr',
@@ -178,6 +177,7 @@ BUILD_OPTIONS_OTHER = {
     None: [
         'build_specs',
         'command_line',
+        'external_modules_metadata',
         'pr_path',
         'robot_path',
         'valid_module_classes',
