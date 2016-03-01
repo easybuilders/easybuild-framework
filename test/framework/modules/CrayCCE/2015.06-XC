@@ -1,0 +1,43 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr { Toolchain using Cray compiler wrapper, using PrgEnv-cray module (PE release: November 2015).
+ - Homepage: http://docs.cray.com/books/S-9407-1511
+    }
+}
+
+module-whatis {Description: Toolchain using Cray compiler wrapper, using PrgEnv-cray module (PE release: November 2015).
+ - Homepage: http://docs.cray.com/books/S-9407-1511}
+
+set root /test/software/CrayCCE/2015.06-XC
+
+conflict CrayCCE
+
+module unload PrgEnv-gnu
+module unload PrgEnv-intel
+module unload PrgEnv-pgi
+
+if { ![ is-loaded PrgEnv-cray ] } {
+    module load PrgEnv-cray
+}
+
+if { [ is-loaded cce ] } {
+    module swap cce cce/8.3.12
+} else {
+    module load cce/8.3.12
+}
+
+if { [ is-loaded cray-libsci ] } {
+    module swap cray-libsci cray-libsci/13.0.4
+} else {
+    module load cray-libsci/13.0.4
+}
+
+if { [ is-loaded cray-mpich ] } {
+    module swap cray-mpich cray-mpich/7.2.2
+} else {
+    module load cray-mpich/7.2.2
+}
+
+setenv  EBROOTCRAYCCE       "$root"
+setenv  EBVERSIONCRAYCCE        "2015.06-XC"
+setenv  EBDEVELCRAYCCE      "$root/easybuild/CrayCCE-2015.06-XC-easybuild-devel"
