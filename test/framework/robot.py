@@ -334,6 +334,66 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
 
+    def test_resolve_dependencies_existing_modules(self):
+        """Test order in case modules already being available."""
+        def mkdepspec(name, version):
+            """Create a dep spec with given name/version."""
+            dep = {
+                'name': name,
+                'version': version,
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'dummy': True,
+                'hidden': False,
+                'short_mod_name': '%s/%s' % (name, version),
+                'full_mod_name': '%s/%s' % (name, version),
+            }
+            return dep
+
+        def mkspec(name, version, deps):
+            """Create a spec with given name/version/deps."""
+            spec = {
+                'ec': {
+                    'name': name,
+                    'version': version,
+                    'versionsuffix': '',
+                    'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                },
+                'spec': '_',
+                'short_mod_name': '%s/%s' % (name, version),
+                'full_mod_name': '%s/%s' % (name, version),
+                'dependencies': [],
+                'parsed': True,
+            }
+            for depname, depver in deps:
+                spec['dependencies'].append(mkdepspec(depname, depver))
+
+            return spec
+
+        ecs = [
+            mkspec('three', '3.0', [('twoone', '2.1'), ('one', '1.0')]),
+            mkspec('four', '4.0', [('three', '3.0'), ('twoone', '2.1')]),
+            mkspec('twoone', '2.1', [('one', '1.0'), ('two', '2.0')]),
+            mkspec('two', '2.0', [('one', '1.0')]),
+            mkspec('one', '1.0', []),
+        ]
+        expected = ['one/1.0', 'two/2.0', 'twoone/2.1', 'three/3.0', 'four/4.0']
+
+        # order is correct if modules are not available yet
+        res = resolve_dependencies(ecs)
+        self.assertEqual([x['full_mod_name'] for x in res], expected)
+
+        # precreate matching modules
+        modpath = os.path.join(self.test_prefix, 'modules')
+        mods = ['four/4.0', 'one/1.0', 'three/3.0', 'two/2.0', 'twooone/2.1']
+        for mod in mods:
+            write_file(os.path.join(modpath, mod), '#%Module\n')
+        self.reset_modulepath([modpath])
+
+        # order is correct even if modules are already available
+        res = resolve_dependencies(ecs)
+        self.assertEqual([x['full_mod_name'] for x in res], expected)
+
     def test_resolve_dependencies_minimal(self):
         """Test resolved dependencies with minimal toolchain."""
 
@@ -619,12 +679,12 @@ class RobotTest(EnhancedTestCase):
             'spec': 'onedep-3.14-goolf-1.4.10.eb',
         }
         threedeps = {
-            'name': 'twodeps',
+            'name': 'threedeps',
             'version': '9.8.7',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
             'dependencies': [dep1, dep2, nodeps],
-            'full_mod_name': 'twodeps/9.8.7-goolf-1.4.10',
-            'spec': 'twodeps-9.8.7-goolf-1.4.10.eb',
+            'full_mod_name': 'threedeps/9.8.7-goolf-1.4.10',
+            'spec': 'threedeps-9.8.7-goolf-1.4.10.eb',
         }
         ecs = [
             nodeps,
@@ -646,7 +706,7 @@ class RobotTest(EnhancedTestCase):
 
         # threedeps has available dependencies (foo, nodeps) filtered out
         self.assertEqual(len(new_easyconfigs), 1)
-        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'twodeps/9.8.7-goolf-1.4.10')
+        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'threedeps/9.8.7-goolf-1.4.10')
         self.assertEqual(len(new_easyconfigs[0]['dependencies']), 1)
         self.assertEqual(new_easyconfigs[0]['dependencies'][0]['name'], 'bar')
 
