@@ -57,6 +57,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
@@ -1111,8 +1112,14 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
-        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE), ('hidden/.1.2.3', EXTERNAL_MODULE)]"
+        ectxt += "\ndependencies += ["
+        ectxt += "  ('foobar/1.2.3', EXTERNAL_MODULE), "
+        ectxt += "  ('test/9.7.5', EXTERNAL_MODULE), "
+        ectxt += "  ('pi/3.14', EXTERNAL_MODULE), "
+        ectxt += "  ('hidden/.1.2.3', EXTERNAL_MODULE), "
+        ectxt += "]"
         ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        ectxt += "\ntoolchain = {'name': 'GCC', 'version': '4.7.2'}"
         write_file(toy_ec, ectxt)
 
         ec = EasyConfig(toy_ec)
@@ -1124,19 +1131,32 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(builddeps[0]['external_module'], True)
 
         deps = ec.dependencies()
-        self.assertEqual(len(deps), 5)
-        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'hidden/.1.2.3', 'somebuilddep/0.1']
+        self.assertEqual(len(deps), 7)
+        correct_deps = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'test/9.7.5', 'pi/3.14', 'hidden/.1.2.3',
+                        'somebuilddep/0.1']
         self.assertEqual([d['short_mod_name'] for d in deps], correct_deps)
         self.assertEqual([d['full_mod_name'] for d in deps], correct_deps)
-        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True, True])
-        self.assertEqual([d['hidden'] for d in deps], [False, False, False, True, False])
+        self.assertEqual([d['external_module'] for d in deps], [False, True, True, True, True, True, True])
+        self.assertEqual([d['hidden'] for d in deps], [False, False, False, False, False, True, False])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
-        metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
+        metadatatxt = '\n'.join([
+            '[pi/3.14]',
+            'name = PI',
+            'version = 3.14',
+            'prefix = PI_PREFIX',
+            '[test/9.7.5]',
+            'name = test',
+            'version = 9.7.5',
+            'prefix = TEST_INC/..',
+            '[foobar/1.2.3]',
+            'name = foo,bar',
+            'version = 1.2.3, 3.2.1',
+            'prefix = /foo/bar',
+        ])
         write_file(metadata, metadatatxt)
-        cfg = init_config(args=['--external-modules-metadata=%s' % metadata])
         build_options = {
-            'external_modules_metadata': cfg.external_modules_metadata,
+            'external_modules_metadata': parse_external_modules_metadata([metadata]),
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -1149,6 +1169,42 @@ class EasyConfigTest(EnhancedTestCase):
             'prefix': '/foo/bar',
         }
         self.assertEqual(ec.dependencies()[2]['external_module_metadata'], metadata)
+
+        self.assertEqual(ec.dependencies()[3]['short_mod_name'], 'test/9.7.5')
+        self.assertEqual(ec.dependencies()[3]['external_module'], True)
+        metadata = {
+            'name': ['test'],
+            'version': ['9.7.5'],
+            'prefix': 'TEST_INC/..',
+        }
+        self.assertEqual(ec.dependencies()[3]['external_module_metadata'], metadata)
+
+        self.assertEqual(ec.dependencies()[4]['short_mod_name'], 'pi/3.14')
+        self.assertEqual(ec.dependencies()[4]['external_module'], True)
+        metadata = {
+            'name': ['PI'],
+            'version': ['3.14'],
+            'prefix': 'PI_PREFIX',
+        }
+        self.assertEqual(ec.dependencies()[4]['external_module_metadata'], metadata)
+
+        # check whether $EBROOT*/$EBVERSION* environment variables are defined correctly for external modules
+        os.environ['PI_PREFIX'] = '/test/prefix/PI'
+        os.environ['TEST_INC'] = '/test/prefix/test/include'
+        ec.toolchain.dry_run = True
+        ec.toolchain.add_dependencies(ec.dependencies())
+        ec.toolchain.prepare(silent=True)
+
+        self.assertEqual(os.environ.get('EBROOTBAR'), '/foo/bar')
+        self.assertEqual(os.environ.get('EBROOTFOO'), '/foo/bar')
+        self.assertEqual(os.environ.get('EBROOTHIDDEN'), None)
+        self.assertEqual(os.environ.get('EBROOTPI'), '/test/prefix/PI')
+        self.assertEqual(os.environ.get('EBROOTTEST'), '/test/prefix/test/include/../')
+        self.assertEqual(os.environ.get('EBVERSIONBAR'), '3.2.1')
+        self.assertEqual(os.environ.get('EBVERSIONFOO'), '1.2.3')
+        self.assertEqual(os.environ.get('EBVERSIONHIDDEN'), None)
+        self.assertEqual(os.environ.get('EBVERSIONPI'), '3.14')
+        self.assertEqual(os.environ.get('EBVERSIONTEST'), '9.7.5')
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""
@@ -1606,7 +1662,6 @@ class EasyConfigTest(EnhancedTestCase):
         ec3 = EasyConfig(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
         self.assertFalse(ec1 == ec3)
         self.assertTrue(ec1 != ec3)
-
 
     def test_copy_easyconfigs(self):
         """Test copy_easyconfigs function."""

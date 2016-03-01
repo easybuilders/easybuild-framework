@@ -37,6 +37,8 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
+import copy
+
 import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
@@ -98,6 +100,9 @@ class CrayPECompiler(Compiler):
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
 
+        # copy unique option map, since we fiddle with it later
+        self.COMPILER_UNIQUE_OPTION_MAP = copy.deepcopy(self.COMPILER_UNIQUE_OPTION_MAP)
+
     def _set_optimal_architecture(self):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
@@ -105,7 +110,7 @@ class CrayPECompiler(Compiler):
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
-            if self.modules_tool.exist([craype_mod_name])[0]:
+            if self.modules_tool.exist([craype_mod_name], skip_avail=True)[0]:
                 self.modules_tool.load([craype_mod_name])
             else:
                 raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",

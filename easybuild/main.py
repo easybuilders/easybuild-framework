@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import new_pr, update_pr
-from easybuild.tools.options import process_software_build_specs
+from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
@@ -209,6 +209,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     build_options = {
         'build_specs': build_specs,
         'command_line': eb_cmd_line,
+        'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
         'silent': testing,
