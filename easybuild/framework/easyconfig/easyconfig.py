@@ -208,7 +208,7 @@ def get_toolchain_hierarchy(parent_toolchain):
                                      subtoolchain_name, current_tc_name)
         else:
             if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
-                # Don't care about multiple versions of dummy, take whatever comes first
+                # Don't care about multiple versions of dummy
                 _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
                 subtoolchain_version = ''
             else:
