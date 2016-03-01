@@ -345,6 +345,8 @@ class RobotTest(EnhancedTestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'dummy': True,
                 'hidden': False,
+                'short_mod_name': '%s/%s' % (name, version),
+                'full_mod_name': '%s/%s' % (name, version),
             }
             return dep
 
@@ -386,9 +388,7 @@ class RobotTest(EnhancedTestCase):
         mods = ['four/4.0', 'one/1.0', 'three/3.0', 'two/2.0', 'twooone/2.1']
         for mod in mods:
             write_file(os.path.join(modpath, mod), '#%Module\n')
-        print os.listdir(modpath)
         self.reset_modulepath([modpath])
-        print os.environ['MODULEPATH']
 
         # order is correct even if modules are already available
         res = resolve_dependencies(ecs)
@@ -679,12 +679,12 @@ class RobotTest(EnhancedTestCase):
             'spec': 'onedep-3.14-goolf-1.4.10.eb',
         }
         threedeps = {
-            'name': 'twodeps',
+            'name': 'threedeps',
             'version': '9.8.7',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
             'dependencies': [dep1, dep2, nodeps],
-            'full_mod_name': 'twodeps/9.8.7-goolf-1.4.10',
-            'spec': 'twodeps-9.8.7-goolf-1.4.10.eb',
+            'full_mod_name': 'threedeps/9.8.7-goolf-1.4.10',
+            'spec': 'threedeps-9.8.7-goolf-1.4.10.eb',
         }
         ecs = [
             nodeps,
@@ -706,7 +706,7 @@ class RobotTest(EnhancedTestCase):
 
         # threedeps has available dependencies (foo, nodeps) filtered out
         self.assertEqual(len(new_easyconfigs), 1)
-        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'twodeps/9.8.7-goolf-1.4.10')
+        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'threedeps/9.8.7-goolf-1.4.10')
         self.assertEqual(len(new_easyconfigs[0]['dependencies']), 1)
         self.assertEqual(new_easyconfigs[0]['dependencies'][0]['name'], 'bar')
 
