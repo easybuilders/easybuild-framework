@@ -175,6 +175,9 @@ def get_toolchain_hierarchy(parent_toolchain):
 
             # find easyconfig file for this dep and parse it
             ecfile = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+            if ecfile is None:
+                raise EasyBuildError("Could not find easyconfig for dependency %s with version %s",
+                                     dep['name'], det_full_ec_version(dep))
             easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
 
             # include deps and toolchains of deps of this dep
@@ -204,8 +207,13 @@ def get_toolchain_hierarchy(parent_toolchain):
                 raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
                                      subtoolchain_name, current_tc_name)
         else:
-            raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                 subtoolchain_name, current_tc_name, uniq_subtc_versions)
+            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                # Don't care about multiple versions of dummy
+                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
+                subtoolchain_version = ''
+            else:
+                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                     subtoolchain_name, current_tc_name, unique_dep_tc_versions)
 
         if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
             # we're done

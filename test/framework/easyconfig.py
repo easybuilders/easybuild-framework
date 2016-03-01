@@ -304,7 +304,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "a5464d79c2c8d4935e383ebd070b305e",',  # MD5 checksum for source (gzip-1.4.eb)
+            '           "9e9485921c6afe15f62aedfead2c8f6e",',  # MD5 checksum for source (gzip-1.4.eb)
             '           "fad34da3432ee2fd4d6554b86c8df4bf",',  # MD5 checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
