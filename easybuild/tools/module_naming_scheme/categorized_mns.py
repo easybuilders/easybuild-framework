@@ -1,3 +1,34 @@
+##
+# Copyright 2016 Ghent University
+#
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# http://github.com/hpcugent/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+##
+"""
+Implementation of a categorized module naming scheme using module classes.
+
+@author: Maxime Schmitt (University of Luxembourg)
+@author: Xavier Besseron (University of Luxembourg)
+"""
+
 import os
 import re
 
@@ -5,7 +36,7 @@ from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 class CategorizedModuleNamingScheme(ModuleNamingScheme):
-    """Class implementing the thematic module naming scheme."""
+    """Class implementing the categorized module naming scheme."""
 
     REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
 
@@ -17,16 +48,7 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
 
         @return: string representing full module name, e.g.: 'biology/ABySS/1.3.4-goolf-1.4.10'
         """
-        
         return os.path.join(ec['moduleclass'], ec['name'], det_full_ec_version(ec))
-
-# Maybe, can be usefull to still have the moduleclass when using module list (since it supports regex)
-#    def det_short_module_name(self, ec):
-#        """
-#        Determine short module name, i.e. the name under which modules will be exposed to users.
-#        Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5
-#        """
-#        return os.path.join(ec['name'], det_full_ec_version(ec))
 
     def is_short_modname_for(self, short_modname, name):
         """
@@ -34,7 +56,6 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
         <name>/<version>[-<toolchain>]
         """
-        
         modname_regex = re.compile('^\S+/%s/\S+$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
