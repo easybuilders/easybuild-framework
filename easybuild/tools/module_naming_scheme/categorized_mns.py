@@ -4,7 +4,7 @@ import re
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
-class ThematicMNS(ModuleNamingScheme):
+class CategorizedModuleNamingScheme(ModuleNamingScheme):
     """Class implementing the thematic module naming scheme."""
 
     REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
