@@ -118,8 +118,8 @@ github_clone_branch "easybuild-framework"   "develop"
 github_clone_branch "easybuild-easyblocks"  "develop"
 github_clone_branch "easybuild-easyconfigs" "develop"
 
-# Clone base repository with the 'master' branch
-github_clone_branch "easybuild" "master"
+# Clone base repository with the 'develop' branch
+github_clone_branch "easybuild" "develop"
 
 # Clone wiki repository with the 'master' branch
 github_clone_branch "easybuild-wiki" "master"
