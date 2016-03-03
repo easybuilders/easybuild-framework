@@ -160,9 +160,11 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False):
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
             res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
-            more_ecs, easyconfigs, avail_modules = res
-            for ec in more_ecs:
-                if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
+            resolved_ecs, easyconfigs, avail_modules = res
+            ordered_ec_mod_names = [x['full_mod_name'] for x in ordered_ecs]
+            for ec in resolved_ecs:
+                # only add easyconfig if it's not included yet (based on module name)
+                if not ec['full_mod_name'] in ordered_ec_mod_names:
                     ordered_ecs.append(ec)
 
         # dependencies marked as external modules should be resolved via available modules at this point
