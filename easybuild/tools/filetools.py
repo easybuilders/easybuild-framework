@@ -1221,20 +1221,20 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
         for value in values:
 
+            # license files to consider
             lic_files = None
-
-            if server_port_regex.match(value):
-                valid_lic_specs.append(value)
-
-            elif os.path.isfile(value):
+            if os.path.isfile(value):
                 lic_files = [value]
-
             elif os.path.isdir(value):
                 # consider all *.dat and *.lic files in specified directory
                 lic_files = sorted(glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic')))
 
+            # valid license server spec
+            elif server_port_regex.match(value):
+                valid_lic_specs.append(value)
+
+            # check whether license files are readable before retaining them
             if lic_files:
-                # check whether license files are readable before retaining them
                 for lic_file in lic_files:
                     try:
                         open(lic_file, 'r')
