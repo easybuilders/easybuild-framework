@@ -70,6 +70,7 @@ conflict    EasyBuild
 prepend-path    PATH            "\$root/easybuild-framework"
 
 prepend-path    PYTHONPATH      "\$root/vsc-base/lib"
+prepend-path    PYTHONPATH      "\$root/vsc-install/lib"
 prepend-path    PYTHONPATH      "\$root/easybuild-framework"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyblocks"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyconfigs"
@@ -109,7 +110,8 @@ cd "${INSTALL_DIR}"
 INSTALL_DIR="${PWD}" # get the full path
 
 # Clone repository for vsc-base dependency with 'master' branch
-github_clone_branch "vsc-base"   "master"
+github_clone_branch "vsc-base"    "master"
+github_clone_branch "vsc-install" "master"
 
 # Clone code repositories with the 'develop' branch
 github_clone_branch "easybuild-framework"   "develop"
