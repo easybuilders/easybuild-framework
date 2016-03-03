@@ -1193,13 +1193,11 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     server_port_regex = re.compile(r'^[0-9]+@\S+$')
 
     # always consider $LM_LICENSE_FILE
-    default_lic_env_var = 'LM_LICENSE_FILE'
-    if custom_env_vars is None:
-        lic_env_vars = [default_lic_env_var]
-    elif isinstance(custom_env_vars, basestring):
-        lic_env_vars = [custom_env_vars, default_lic_env_var]
-    else:
-        lic_env_vars = custom_env_vars + [default_lic_env_var]
+    lic_env_vars = ['LM_LICENSE_FILE']
+    if isinstance(custom_env_vars, basestring):
+        lic_env_vars.insert(0, custom_env_vars)
+    elif custom_env_vars is not None:
+        lic_env_vars = custom_env_vars + lic_env_vars
 
     # grab values for defined environment variables
     cand_lic_specs = {}
@@ -1208,6 +1206,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
             cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
 
     # also consider provided license spec (last)
+    # use None as key to indicate that these license specs do not have an environment variable associated with them
     if lic_specs:
         cand_lic_specs[None] = lic_specs
 
@@ -1215,19 +1214,33 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
     # check for valid license specs
     # order matters, so loop over original list of environment variables to consider
+    valid_lic_specs = []
     for env_var in lic_env_vars + [None]:
         values = cand_lic_specs.get(env_var, None) or []
         _log.info("Considering %s to find FlexLM license specs: %s", env_var, values)
 
         for value in values:
-            if server_port_regex.match(value) or os.path.isfile(value):
+
+            lic_files = None
+
+            if server_port_regex.match(value):
                 valid_lic_specs.append(value)
+
+            elif os.path.isfile(value):
+                lic_files = [value]
 
             elif os.path.isdir(value):
                 # consider all *.dat and *.lic files in specified directory
-                lic_files = glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic'))
-                if lic_files:
-                    valid_lic_specs = sorted(lic_files)
+                lic_files = sorted(glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic')))
+
+            if lic_files:
+                # check whether license files are readable before retaining them
+                for lic_file in lic_files:
+                    try:
+                        open(lic_file, 'r')
+                        valid_lic_specs.append(lic_file)
+                    except IOError as err:
+                        _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
 
         # stop after finding valid license specs
         if valid_lic_specs:
