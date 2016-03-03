@@ -512,35 +512,40 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
         except GitCommandError as err:
             raise EasyBuildError("Failed to check out branch '%s' from repo at %s: %s", alt_branch, github_url, err)
 
-    return True
+    return remote_name
 
 
-def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False):
+def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False, git_only=False):
     """
-    Set up repository by checking out specified branch for specfied GitHub accont/repository.
+    Set up repository by checking out specified branch for specfied GitHub account/repository.
 
     @param git_repo: git.Repo instance
     @param target_account: name of GitHub account that owns GitHub repository
     @param target_repo: name of GitHib repository
     @param branch_name: name of branch to check out
     @param silent: keep quiet (don't print any messages)
+    @param git_only: only use git@github.com repo URL, skip trying https://github.com first
     """
     tmpl_github_urls = [
-        'https://github.com/%s/%s.git',
         'git@github.com:%s/%s.git',
     ]
-    repo = None
+    if not git_only:
+        tmpl_github_urls.insert(0, 'https://github.com/%s/%s.git')
+
+    res = None
     errors = []
     for tmpl_github_url in tmpl_github_urls:
         github_url = tmpl_github_url % (target_account, target_repo)
         try:
-            repo = setup_repo_from(git_repo, github_url, target_account, branch_name, silent=silent)
+            res = setup_repo_from(git_repo, github_url, target_account, branch_name, silent=silent)
             break
 
         except EasyBuildError as err:
             errors.append("Checking out branch '%s' from %s failed: %s" % (branch_name, github_url, err))
 
-    if not repo:
+    if res:
+        return res
+    else:
         raise EasyBuildError('\n'.join(errors))
 
 
@@ -793,9 +798,12 @@ def check_github():
 
     # check whether we're online; if not, half of the checks are going to fail...
     try:
+        print_msg("Making sure we're online...", log=_log, prefix=False, newline=False)
         urllib2.urlopen(GITHUB_URL, timeout=5)
+        print_msg("OK\n", log=_log, prefix=False)
     except urllib2.URLError as err:
-        raise EasyBuildError("ERROR: checking status of GitHub integration must be done online.")
+        print_msg("FAIL")
+        raise EasyBuildError("checking status of GitHub integration must be done online")
 
     # GitHub user
     print_msg("* GitHub user...", log=_log, prefix=False, newline=False)
@@ -868,15 +876,16 @@ def check_github():
     msg = "* push access to %s/%s repo @ GitHub..." % (github_user, GITHUB_EASYCONFIGS_REPO)
     print_msg(msg, log=_log, prefix=False, newline=False)
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
-    git_repo, res = None, None
+    git_repo, res, push_err = None, None, None
     branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
-        setup_repo(git_repo, github_user, GITHUB_EASYCONFIGS_REPO, 'master', silent=True)
+        remote_name = setup_repo(git_repo, github_user, GITHUB_EASYCONFIGS_REPO, 'master', silent=True, git_only=True)
         git_repo.create_head(branch_name)
-        res = git_repo.remotes.origin.push(branch_name)
+        res = getattr(git_repo.remotes, remote_name).push(branch_name)
     except Exception as err:
         _log.warning("Exception when testing push access to %s/%s: %s", github_user, GITHUB_EASYCONFIGS_REPO, err)
+        push_err = err
 
     if res:
         if res[0].flags & res[0].ERROR:
@@ -884,8 +893,10 @@ def check_github():
             check_res = "FAIL (error occured)"
         else:
             check_res = "OK"
+    elif github_user:
+        check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
-        check_res = "FAIL (unexpected exception)"
+        check_res = "FAIL (no GitHub user specified)"
 
     if 'FAIL' in check_res:
         status['--new-pr'] = status['--update-pr'] = False
@@ -895,7 +906,8 @@ def check_github():
     # cleanup: delete test branch that was pushed to GitHub
     if git_repo:
         try:
-            git_repo.remotes.origin.push(branch_name, delete=True)
+            if git_repo and hasattr(git_repo, 'remotes') and hasattr(git_repo.remotes, 'origin'):
+                git_repo.remotes.origin.push(branch_name, delete=True)
         except GitCommandError as err:
             sys.stderr.write("WARNNIG: failed to delete test branch from GitHub: %s\n" % err)
 
