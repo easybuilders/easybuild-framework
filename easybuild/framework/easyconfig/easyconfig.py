@@ -63,7 +63,7 @@ from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdi
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name, modules_tool
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -310,9 +310,6 @@ class EasyConfig(object):
                                        auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
-        # handle allowed system dependencies
-        self.handle_allowed_system_deps()
-
         # perform validations
         self.validation = build_option('validate') and validate
         if self.validation:
@@ -443,14 +440,6 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
-
-    def handle_allowed_system_deps(self):
-        """Handle allowed system dependencies."""
-        for (name, version) in self['allow_system_deps']:
-            # root is set to name, not an actual path
-            env.setvar(get_software_root_env_var_name(name), name)
-            # version is expected to be something that makes sense
-            env.setvar(get_software_version_env_var_name(name), version)
 
     def validate(self, check_osdeps=True):
         """
