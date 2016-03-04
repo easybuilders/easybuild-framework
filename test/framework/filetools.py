@@ -627,6 +627,12 @@ class FileToolsTest(EnhancedTestCase):
         expected = (['1234@lic1.test', '4567@lic2.test', '7890@lic3.test'], 'INTEL_LICENSE_FILE')
         self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
 
+        # make sure find_flexlm_license is robust against None input;
+        # this occurs if license_file is left unspecified
+        del os.environ['INTEL_LICENSE_FILE']
+        del os.environ['LM_LICENSE_FILE']
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
+
 
 def suite():
     """ returns all the testcases in this module """

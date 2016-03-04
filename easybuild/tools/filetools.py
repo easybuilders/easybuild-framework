@@ -1216,7 +1216,9 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     # order matters, so loop over original list of environment variables to consider
     valid_lic_specs = []
     for env_var in lic_env_vars + [None]:
-        values = cand_lic_specs.get(env_var, None) or []
+        # obtain list of values to consider
+        # take into account that some keys may be missing, and that individual values may be None
+        values = [val for val in cand_lic_specs.get(env_var, None) or [] if val]
         _log.info("Considering %s to find FlexLM license specs: %s", env_var, values)
 
         for value in values:
