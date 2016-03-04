@@ -169,7 +169,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
 
 # set format for logger
-LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(pathname)s:%(lineno)s %(levelname)s %(message)s'
+LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
 # set the default LoggerClass to EasyBuildLog
