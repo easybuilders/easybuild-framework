@@ -111,25 +111,32 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
     avail_modules = avail_modules[:]
     _log.debug("Finding resolved modules for %s (available modules: %s)", easyconfigs, avail_modules)
 
+    ec_mod_names = [ec['full_mod_name'] for ec in easyconfigs]
     for easyconfig in easyconfigs:
         new_ec = easyconfig.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
+            dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
             # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
             # since no corresponding easyconfig can be found for them
             if retain_all_deps and dep.get('external_module', False):
-                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep_mod_name)
 
-            elif retain_all_deps and full_mod_name not in avail_modules:
+            elif retain_all_deps and dep_mod_name not in avail_modules:
                 # if all dependencies should be retained, include dep unless it has been already
-                _log.debug("Retaining new dep %s in 'retain all deps' mode", dep)
+                _log.debug("Retaining new dep %s in 'retain all deps' mode", dep_mod_name)
                 deps.append(dep)
 
+            # retain dep if it is (still) in the list of easyconfigs
+            elif dep_mod_name in ec_mod_names:
+                _log.debug("Dep %s is (still) in list of easyconfigs, retaining it", dep_mod_name)
+                deps.append(dep)
+
+            # retain dep if corresponding module is not available yet;
             # fallback to checking with modtool.exist is required,
             # for hidden modules and external modules where module name may be partial
-            elif full_mod_name not in avail_modules and not modtool.exist([full_mod_name], skip_avail=True)[0]:
+            elif dep_mod_name not in avail_modules and not modtool.exist([dep_mod_name], skip_avail=True)[0]:
                 # no module available (yet) => retain dependency as one to be resolved
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)
@@ -141,7 +148,10 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
         if not new_ec['dependencies']:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            avail_modules.append(easyconfig['full_mod_name'])
+            mod_name = easyconfig['full_mod_name']
+            avail_modules.append(mod_name)
+            # remove module name from list, so dependencies can be marked as resolved
+            ec_mod_names.remove(mod_name)
 
         else:
             new_easyconfigs.append(new_ec)

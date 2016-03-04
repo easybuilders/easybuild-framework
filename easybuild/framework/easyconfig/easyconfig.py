@@ -63,7 +63,7 @@ from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdi
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name, modules_tool
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -175,6 +175,9 @@ def get_toolchain_hierarchy(parent_toolchain):
 
             # find easyconfig file for this dep and parse it
             ecfile = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+            if ecfile is None:
+                raise EasyBuildError("Could not find easyconfig for dependency %s with version %s",
+                                     dep['name'], det_full_ec_version(dep))
             easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
 
             # include deps and toolchains of deps of this dep
@@ -204,8 +207,13 @@ def get_toolchain_hierarchy(parent_toolchain):
                 raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
                                      subtoolchain_name, current_tc_name)
         else:
-            raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                 subtoolchain_name, current_tc_name, uniq_subtc_versions)
+            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                # Don't care about multiple versions of dummy
+                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
+                subtoolchain_version = ''
+            else:
+                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                     subtoolchain_name, current_tc_name, unique_dep_tc_versions)
 
         if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
             # we're done
@@ -301,9 +309,6 @@ class EasyConfig(object):
         self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
                                        auto_convert_value_types=auto_convert_value_types)
         self.parse()
-
-        # handle allowed system dependencies
-        self.handle_allowed_system_deps()
 
         # perform validations
         self.validation = build_option('validate') and validate
@@ -435,14 +440,6 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
-
-    def handle_allowed_system_deps(self):
-        """Handle allowed system dependencies."""
-        for (name, version) in self['allow_system_deps']:
-            # root is set to name, not an actual path
-            env.setvar(get_software_root_env_var_name(name), name)
-            # version is expected to be something that makes sense
-            env.setvar(get_software_version_env_var_name(name), version)
 
     def validate(self, check_osdeps=True):
         """
