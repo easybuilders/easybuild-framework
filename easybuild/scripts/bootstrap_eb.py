@@ -400,7 +400,18 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     if distribute_egg_dir is None:
         preinstallopts = ''
     else:
-        preinstallopts = 'PYTHONPATH=%s:$PYTHONPATH' % distribute_egg_dir
+        preinstallopts = "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
+
+        # also add location to easy_install provided through stage0 to $PATH
+        curr_path = os.environ.get('PATH', '').split(os.pathsep)
+        os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
+        debug("$PATH: %s" % os.environ['PATH'])
+
+    # ensure that (latest) distribute is installed as well alongside EasyBuild,
+    # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
+    # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
+    preinstallopts += "easy_install -U --prefix %(installdir)s distribute && "
+
     templates.update({
         'preinstallopts': preinstallopts,
     })
