@@ -301,17 +301,29 @@ def stage1(tmpdir, sourcepath):
     cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
     cmd.append('--prefix=%s' % targetdir_stage1)
 
+    post_cmd = []
     if source_tarballs:
         # install provided source tarballs (order matters)
         cmd.extend([source_tarballs[pkg] for pkg in EASYBUILD_PACKAGES if pkg in source_tarballs])
+        # add vsc-base again at the end, to avoid that the one available on the system is used instead
+        if VSC_BASE in source_tarballs:
+            cmd.append(source_tarballs[VSC_BASE])
     else:
         # install meta-package easybuild from PyPI
         cmd.append('easybuild')
+
+        # install vsc-base again at the end, to avoid that the one available on the system is used instead
+        post_cmd = cmd[:]
+        post_cmd[-1] = VSC_BASE
 
     if not print_debug:
         cmd.insert(0, '--quiet')
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
     easy_install.main(cmd)
+
+    if post_cmd:
+        info("running post install command 'easy_install %s'" % (' '.join(post_cmd)))
+        easy_install.main(post_cmd)
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
