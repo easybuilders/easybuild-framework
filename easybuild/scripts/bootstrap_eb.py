@@ -412,18 +412,17 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     else:
         # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
         # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
-        # include it *last*, to ensure that newer distribute is picked up when installing EasyBuild (and vsc-*)
-        preinstallopts = "export PYTHONPATH=$PYTHONPATH:%s && " % distribute_egg_dir
+        preinstallopts = "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
 
         # also add location to easy_install provided through stage0 to $PATH
         curr_path = os.environ.get('PATH', '').split(os.pathsep)
         os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
         debug("$PATH: %s" % os.environ['PATH'])
 
-    # ensure that (latest) distribute is installed as well alongside EasyBuild,
+    # ensure that (latest) setuptools is installed as well alongside EasyBuild,
     # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
     # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
-    preinstallopts += "easy_install -U --prefix %(installdir)s distribute && "
+    preinstallopts += "easy_install -U --prefix %(installdir)s setuptools && "
 
     templates.update({
         'preinstallopts': preinstallopts,
