@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -1171,3 +1171,89 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
+
+
+def find_flexlm_license(custom_env_vars=None, lic_specs=None):
+    """
+    Find FlexLM license.
+
+    Considered specified list of environment variables;
+    checks for path to existing license file or valid license server specification.
+
+    If no license is found through environment variables, also consider 'lic_specs'.
+
+    @param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
+    @param lic_specs: list of license specifications
+    @return: tuple with list of valid license specs found and name of first valid environment variable
+    """
+    valid_lic_specs = []
+    lic_env_var = None
+
+    # regex for license server spec; format: <port>@<server>
+    server_port_regex = re.compile(r'^[0-9]+@\S+$')
+
+    # always consider $LM_LICENSE_FILE
+    lic_env_vars = ['LM_LICENSE_FILE']
+    if isinstance(custom_env_vars, basestring):
+        lic_env_vars.insert(0, custom_env_vars)
+    elif custom_env_vars is not None:
+        lic_env_vars = custom_env_vars + lic_env_vars
+
+    # grab values for defined environment variables
+    cand_lic_specs = {}
+    for env_var in lic_env_vars:
+        if env_var in os.environ:
+            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+
+    # also consider provided license spec (last)
+    # use None as key to indicate that these license specs do not have an environment variable associated with them
+    if lic_specs:
+        cand_lic_specs[None] = lic_specs
+
+    _log.debug("Candidate license specs: %s", cand_lic_specs)
+
+    # check for valid license specs
+    # order matters, so loop over original list of environment variables to consider
+    valid_lic_specs = []
+    for env_var in lic_env_vars + [None]:
+        # obtain list of values to consider
+        # take into account that some keys may be missing, and that individual values may be None
+        values = [val for val in cand_lic_specs.get(env_var, None) or [] if val]
+        _log.info("Considering %s to find FlexLM license specs: %s", env_var, values)
+
+        for value in values:
+
+            # license files to consider
+            lic_files = None
+            if os.path.isfile(value):
+                lic_files = [value]
+            elif os.path.isdir(value):
+                # consider all *.dat and *.lic files in specified directory
+                lic_files = sorted(glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic')))
+
+            # valid license server spec
+            elif server_port_regex.match(value):
+                valid_lic_specs.append(value)
+
+            # check whether license files are readable before retaining them
+            if lic_files:
+                for lic_file in lic_files:
+                    try:
+                        open(lic_file, 'r')
+                        valid_lic_specs.append(lic_file)
+                    except IOError as err:
+                        _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
+
+        # stop after finding valid license specs
+        if valid_lic_specs:
+            lic_env_var = env_var
+            break
+
+    if lic_env_var:
+        via_msg = '$%s' % lic_env_var
+    else:
+        via_msg = "provided license spec"
+
+    _log.info("Found valid license specs via %s: %s", via_msg, valid_lic_specs)
+
+    return (valid_lic_specs, lic_env_var)

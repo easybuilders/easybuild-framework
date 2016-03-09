@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -83,7 +83,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "    }",
                 "}",
                 '',
-                "module-whatis {%s}" % gzip_txt,
+                "module-whatis {Description: %s}" % gzip_txt,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -95,7 +95,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 'help([[%s]])' % gzip_txt,
                 '',
-                "whatis([[%s]])" % gzip_txt,
+                "whatis([[Description: %s]])" % gzip_txt,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -620,6 +620,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
             ('apps/blacs/1.1', 'BLACS', False),
             ('lib/math/BLACS-stable/1.1', 'BLACS', False),
+            # required so PrgEnv can be listed versionless as external module in Cray toolchains
+            ('PrgEnv', 'PrgEnv', True),
         ]
         for modname, softname, res in test_cases:
             if res:
@@ -722,6 +724,19 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'
+        init_config(build_options=build_options)
+
+        test_ecs = {
+            'GCC-4.7.2.eb':               ('compiler/GCC/4.7.2',          '', [], [], []),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('mpi/OpenMPI/1.6.4-GCC-4.7.2', '', [], [], []),
+            'gzip-1.5-goolf-1.4.10.eb':   ('tools/gzip/1.5-goolf-1.4.10', '', [], [], []),
+            'goolf-1.4.10.eb':            ('toolchain/goolf/1.4.10',      '', [], [], []),
+            'impi-4.1.3.049.eb':          ('mpi/impi/4.1.3.049',          '', [], [], []),
+        }
+        for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)

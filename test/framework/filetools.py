@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -554,6 +554,84 @@ class FileToolsTest(EnhancedTestCase):
         ])
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
+
+    def test_find_flexlm_license(self):
+        """Test find_flexlm_license function."""
+        lic_file1 = os.path.join(self.test_prefix, 'one.lic')
+        ft.write_file(lic_file1, "This is a license file (no, really!)")
+
+        lic_file2 = os.path.join(self.test_prefix, 'two.dat')
+        ft.write_file(lic_file2, "This is another license file (sure it is!)")
+
+        lic_server = '1234@example.license.server'
+
+        # make test robust against environment in which $LM_LICENSE_FILE is defined
+        if 'LM_LICENSE_FILE' in os.environ:
+            del os.environ['LM_LICENSE_FILE']
+
+        # default return value
+        self.assertEqual(ft.find_flexlm_license(), ([], None))
+
+        # provided license spec
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[lic_file1]), ([lic_file1], None))
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[lic_server, lic_file2]), ([lic_server, lic_file2], None))
+
+        # non-existing license file
+        os.environ['LM_LICENSE_FILE'] = '/no/such/file/unless/you/aim/to/break/this/check'
+        self.assertEqual(ft.find_flexlm_license(), ([], None))
+
+        # existing license file
+        os.environ['LM_LICENSE_FILE'] = lic_file2
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file2], 'LM_LICENSE_FILE'))
+
+        # directory with existing license files
+        os.environ['LM_LICENSE_FILE'] = self.test_prefix
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_file2], 'LM_LICENSE_FILE'))
+
+        # server spec
+        os.environ['LM_LICENSE_FILE'] = lic_server
+        self.assertEqual(ft.find_flexlm_license(), ([lic_server], 'LM_LICENSE_FILE'))
+
+        # invalid server spec (missing port)
+        os.environ['LM_LICENSE_FILE'] = 'test.license.server'
+        self.assertEqual(ft.find_flexlm_license(), ([], None))
+
+        # env var wins of provided lic spec
+        os.environ['LM_LICENSE_FILE'] = lic_file2
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[lic_server]), ([lic_file2], 'LM_LICENSE_FILE'))
+
+        # custom env var wins over $LM_LICENSE_FILE
+        os.environ['INTEL_LICENSE_FILE'] = lic_file1
+        expected = ([lic_file1], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars='INTEL_LICENSE_FILE'), expected)
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['NOSUCHENVVAR', 'INTEL_LICENSE_FILE']), expected)
+
+        # $LM_LICENSE_FILE is always considered
+        os.environ['LM_LICENSE_FILE'] = lic_server
+        os.environ['INTEL_LICENSE_FILE'] = '/no/such/file/unless/you/aim/to/break/this/check'
+        expected = ([lic_server], 'LM_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+
+        # license server *and* file spec; order is preserved
+        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file2, lic_server, lic_file1])
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file2, lic_server, lic_file1], 'LM_LICENSE_FILE'))
+
+        # typical usage
+        os.environ['LM_LICENSE_FILE'] = lic_server
+        os.environ['INTEL_LICENSE_FILE'] = '/not/a/valid/license/path:%s:/another/bogus/license/file' % lic_file2
+        expected = ([lic_file2], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars='INTEL_LICENSE_FILE'), expected)
+
+        os.environ['INTEL_LICENSE_FILE'] = '1234@lic1.test:4567@lic2.test:7890@lic3.test'
+        expected = (['1234@lic1.test', '4567@lic2.test', '7890@lic3.test'], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+
+        # make sure find_flexlm_license is robust against None input;
+        # this occurs if license_file is left unspecified
+        del os.environ['INTEL_LICENSE_FILE']
+        del os.environ['LM_LICENSE_FILE']
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
 
 
 def suite():

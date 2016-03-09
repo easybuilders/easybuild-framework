@@ -6,7 +6,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -301,17 +301,29 @@ def stage1(tmpdir, sourcepath):
     cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
     cmd.append('--prefix=%s' % targetdir_stage1)
 
+    post_cmd = []
     if source_tarballs:
         # install provided source tarballs (order matters)
         cmd.extend([source_tarballs[pkg] for pkg in EASYBUILD_PACKAGES if pkg in source_tarballs])
+        # add vsc-base again at the end, to avoid that the one available on the system is used instead
+        if VSC_BASE in source_tarballs:
+            cmd.append(source_tarballs[VSC_BASE])
     else:
         # install meta-package easybuild from PyPI
         cmd.append('easybuild')
+
+        # install vsc-base again at the end, to avoid that the one available on the system is used instead
+        post_cmd = cmd[:]
+        post_cmd[-1] = VSC_BASE
 
     if not print_debug:
         cmd.insert(0, '--quiet')
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
     easy_install.main(cmd)
+
+    if post_cmd:
+        info("running post install command 'easy_install %s'" % (' '.join(post_cmd)))
+        easy_install.main(post_cmd)
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
@@ -400,7 +412,18 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     if distribute_egg_dir is None:
         preinstallopts = ''
     else:
-        preinstallopts = 'PYTHONPATH=%s:$PYTHONPATH' % distribute_egg_dir
+        preinstallopts = "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
+
+        # also add location to easy_install provided through stage0 to $PATH
+        curr_path = os.environ.get('PATH', '').split(os.pathsep)
+        os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
+        debug("$PATH: %s" % os.environ['PATH'])
+
+    # ensure that (latest) distribute is installed as well alongside EasyBuild,
+    # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
+    # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
+    preinstallopts += "easy_install -U --prefix %(installdir)s distribute && "
+
     templates.update({
         'preinstallopts': preinstallopts,
     })

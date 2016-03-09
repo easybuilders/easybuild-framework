@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -50,7 +50,7 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
@@ -334,6 +334,66 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
 
+    def test_resolve_dependencies_existing_modules(self):
+        """Test order in case modules already being available."""
+        def mkdepspec(name, version):
+            """Create a dep spec with given name/version."""
+            dep = {
+                'name': name,
+                'version': version,
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'dummy': True,
+                'hidden': False,
+                'short_mod_name': '%s/%s' % (name, version),
+                'full_mod_name': '%s/%s' % (name, version),
+            }
+            return dep
+
+        def mkspec(name, version, deps):
+            """Create a spec with given name/version/deps."""
+            spec = {
+                'ec': {
+                    'name': name,
+                    'version': version,
+                    'versionsuffix': '',
+                    'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                },
+                'spec': '_',
+                'short_mod_name': '%s/%s' % (name, version),
+                'full_mod_name': '%s/%s' % (name, version),
+                'dependencies': [],
+                'parsed': True,
+            }
+            for depname, depver in deps:
+                spec['dependencies'].append(mkdepspec(depname, depver))
+
+            return spec
+
+        ecs = [
+            mkspec('three', '3.0', [('twoone', '2.1'), ('one', '1.0')]),
+            mkspec('four', '4.0', [('three', '3.0'), ('twoone', '2.1')]),
+            mkspec('twoone', '2.1', [('one', '1.0'), ('two', '2.0')]),
+            mkspec('two', '2.0', [('one', '1.0')]),
+            mkspec('one', '1.0', []),
+        ]
+        expected = ['one/1.0', 'two/2.0', 'twoone/2.1', 'three/3.0', 'four/4.0']
+
+        # order is correct if modules are not available yet
+        res = resolve_dependencies(ecs)
+        self.assertEqual([x['full_mod_name'] for x in res], expected)
+
+        # precreate matching modules
+        modpath = os.path.join(self.test_prefix, 'modules')
+        mods = ['four/4.0', 'one/1.0', 'three/3.0', 'two/2.0', 'twooone/2.1']
+        for mod in mods:
+            write_file(os.path.join(modpath, mod), '#%Module\n')
+        self.reset_modulepath([modpath])
+
+        # order is correct even if modules are already available
+        res = resolve_dependencies(ecs)
+        self.assertEqual([x['full_mod_name'] for x in res], expected)
+
     def test_resolve_dependencies_minimal(self):
         """Test resolved dependencies with minimal toolchain."""
 
@@ -433,6 +493,53 @@ class RobotTest(EnhancedTestCase):
         mods = [x['full_mod_name'] for x in res]
         self.assertTrue('SQLite/3.8.10.2-goolf-1.4.10' in mods)
         self.assertFalse('SQLite/3.8.10.2-GCC-4.7.2' in mods)
+
+        # Check whether having 2 version of dummy toolchain is ok
+        # Clear easyconfig and toolchain caches
+        ecec._easyconfigs_cache.clear()
+        get_toolchain_hierarchy.clear()
+
+        init_config(build_options={
+            'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'add_dummy_to_minimal_toolchains': True,
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': test_easyconfigs,
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+
+        impi_txt = read_file(os.path.join(test_easyconfigs, 'impi-4.1.3.049.eb'))
+        self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': ''}", impi_txt, re.M))
+        gzip_txt = read_file(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
+        self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': 'dummy'}", gzip_txt, re.M))
+
+        barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
+        barec_lines = [
+            "easyblock = 'ConfigureMake'",
+            "name = 'bar'",
+            "version = '1.2.3'",
+            "homepage = 'http://example.com'",
+            "description = 'foo'",
+            # deliberately listing components of toolchain as dependencies without specifying subtoolchains,
+            # to test resolving of dependencies with minimal toolchain
+            # for each of these, we know test easyconfigs are available (which are required here)
+            "dependencies = [",
+            "   ('impi', '4.1.3.049'),",  # has toolchain ('dummy', '')
+            "   ('gzip', '1.4'),",  # has toolchain ('dummy', 'dummy')
+            "]",
+            # toolchain as list line, for easy modification later
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+        ]
+        write_file(barec, '\n'.join(barec_lines))
+        bar = process_easyconfig(barec)[0]
+
+        res = resolve_dependencies([bar], retain_all_deps=True)
+        self.assertEqual(len(res), 11)
+        mods = [x['full_mod_name'] for x in res]
+        self.assertTrue('impi/4.1.3.049' in mods)
+        self.assertTrue('gzip/1.4' in mods)
+
 
     def test_det_easyconfig_paths(self):
         """Test det_easyconfig_paths function (without --from-pr)."""
@@ -619,12 +726,12 @@ class RobotTest(EnhancedTestCase):
             'spec': 'onedep-3.14-goolf-1.4.10.eb',
         }
         threedeps = {
-            'name': 'twodeps',
+            'name': 'threedeps',
             'version': '9.8.7',
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
             'dependencies': [dep1, dep2, nodeps],
-            'full_mod_name': 'twodeps/9.8.7-goolf-1.4.10',
-            'spec': 'twodeps-9.8.7-goolf-1.4.10.eb',
+            'full_mod_name': 'threedeps/9.8.7-goolf-1.4.10',
+            'spec': 'threedeps-9.8.7-goolf-1.4.10.eb',
         }
         ecs = [
             nodeps,
@@ -646,7 +753,7 @@ class RobotTest(EnhancedTestCase):
 
         # threedeps has available dependencies (foo, nodeps) filtered out
         self.assertEqual(len(new_easyconfigs), 1)
-        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'twodeps/9.8.7-goolf-1.4.10')
+        self.assertEqual(new_easyconfigs[0]['full_mod_name'], 'threedeps/9.8.7-goolf-1.4.10')
         self.assertEqual(len(new_easyconfigs[0]['dependencies']), 1)
         self.assertEqual(new_easyconfigs[0]['dependencies'][0]['name'], 'bar')
 

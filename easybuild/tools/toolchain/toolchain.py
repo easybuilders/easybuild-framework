@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -284,7 +284,7 @@ class Toolchain(object):
     def det_short_module_name(self):
         """Determine module name for this toolchain."""
         if self.mod_short_name is None:
-            raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
+            raise EasyBuildError("Toolchain module name was not set yet")
         return self.mod_short_name
 
     def _toolchain_exists(self):
@@ -297,9 +297,9 @@ class Toolchain(object):
             return True
         else:
             if self.mod_short_name is None:
-                raise EasyBuildError("Toolchain module name was not set yet (using set_module_info).")
+                raise EasyBuildError("Toolchain module name was not set yet")
             # check whether a matching module exists if self.mod_short_name contains a module name
-            return self.modules_tool.exist([self.mod_full_name])[0]
+            return self.modules_tool.exist([self.mod_full_name], skip_avail=True)[0]
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -403,13 +403,23 @@ class Toolchain(object):
         # define $EBROOT env var for install prefix, picked up by get_software_root
         prefix = metadata.get('prefix')
         if prefix is not None:
-            if prefix in os.environ:
-                val = os.environ[prefix]
-                self.log.debug("Using value of $%s as prefix for software named %s: %s", prefix, name, val)
+            # the prefix can be specified in a number of ways
+            # * name of environment variable (+ optional relative path to combine it with; format: <name>/<relpath>
+            # * filepath (assumed if environment variable is not defined)
+            parts = prefix.split(os.path.sep)
+            env_var = parts[0]
+            if env_var in os.environ:
+                prefix = os.environ[env_var]
+                rel_path = os.path.sep.join(parts[1:])
+                if rel_path:
+                    prefix = os.path.join(prefix, rel_path, '')
+
+                self.log.debug("Derived prefix for software named %s from $%s (rel path: %s): %s",
+                               name, env_var, rel_path, prefix)
             else:
-                val = prefix
-                self.log.debug("Using specified prefix for software named %s: %s", name, val)
-            setvar(get_software_root_env_var_name(name), val, verbose=verbose)
+                self.log.debug("Using specified path as prefix for software named %s: %s", name, prefix)
+
+            setvar(get_software_root_env_var_name(name), prefix, verbose=verbose)
 
         # define $EBVERSION env var for software version, picked up by get_software_version
         if version is not None:
@@ -424,7 +434,7 @@ class Toolchain(object):
             dry_run_msg("Loading toolchain module...\n", silent=silent)
 
             # load toolchain module, or simulate load of toolchain components if it is not available
-            if self.modules_tool.exist([tc_mod])[0]:
+            if self.modules_tool.exist([tc_mod], skip_avail=True)[0]:
                 self.modules_tool.load([tc_mod])
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
@@ -473,9 +483,9 @@ class Toolchain(object):
                 else:
                     dry_run_msg("module load %s [SIMULATED]" % mod_name, silent=silent)
                     # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
-                    deproot = '$%s' % get_software_root_env_var_name(dep['name'])
-                    self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
-
+                    if not dep['external_module']:
+                        deproot = '$%s' % get_software_root_env_var_name(dep['name'])
+                        self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
         else:
             # load modules for all dependencies
             self.log.debug("Loading modules for dependencies: %s" % dep_mods)
@@ -556,7 +566,7 @@ class Toolchain(object):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
-                                 "(%s vs %s)", self.toolchain_dep_mods, toolchain_definition)
+                                 "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
     def prepare(self, onlymod=None, silent=False):
         """
