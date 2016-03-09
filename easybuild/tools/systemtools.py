@@ -333,7 +333,7 @@ def get_os_version():
             # SLES subversions can only be told apart based on kernel version,
             # see http://wiki.novell.com/index.php/Kernel_versions
             version_suffixes = {
-                "11": [
+                '11': [
                     ('2.6.27', ''),
                     ('2.6.32', '_SP1'),
                     ('3.0.101-63', '_SP4'),
@@ -343,9 +343,9 @@ def get_os_version():
                     ('3.0', '_SP2'),
                 ],
 
-                # Once SLES 12 SP1 comes out we'll need to make this stricter
-                "12": [
-                    ('3.12', ''),
+                '12': [
+                    ('3.12.28', ''),
+                    ('3.12.49', '_SP1'),
                 ],
             }
 
