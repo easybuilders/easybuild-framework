@@ -54,6 +54,7 @@ from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
+from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
@@ -2411,6 +2412,63 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().strip()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
+
+    def test_dump_env_config(self):
+        """Test for --dump-env-config."""
+
+        fftw = 'FFTW-3.3.3-gompi-1.4.10'
+        gcc = 'GCC-4.9.2'
+        openmpi = 'OpenMPI-1.6.4-GCC-4.7.2'
+        args = ['%s.eb' % ec for ec in [fftw, gcc, openmpi]] + ['--dump-env-script']
+
+        os.chdir(self.test_prefix)
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+
+        for name in [fftw, gcc, openmpi]:
+            # check stdout
+            regex = re.compile("^Script to set up build environment for %s.eb dumped to %s.env" % (name, name), re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+            # check whether scripts were dumped
+            env_script = os.path.join(self.test_prefix, '%s.env' % name)
+            self.assertTrue(os.path.exists(env_script))
+
+        # existing .env files are not overwritten, unless forced
+        os.chdir(self.test_prefix)
+        args = ['%s.eb' % openmpi, '--dump-env-script']
+        error_msg = r"Script\(s\) already exists, not overwriting them \(unless --force is used\): %s.env" % openmpi
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
+
+        os.chdir(self.test_prefix)
+        args.append('--force')
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.mock_stdout(False)
+
+        # check contents of script
+        env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
+        txt = read_file(env_script)
+        patterns = [
+            "module load GCC/4.7.2",  # loading of toolchain module
+            "module load hwloc/1.6.2-GCC-4.7.2",  # loading of dependency module
+            # defining build env
+            "export FC='gfortran'",
+            "export CFLAGS='-O2 -march=native'",
+        ]
+        for pattern in patterns:
+            regex = re.compile("^%s$" % pattern, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        out, ec = run_cmd("function module { echo $@; } && source %s && echo FC: $FC" % env_script, simple=False)
+        expected_out = '\n'.join([
+            "load GCC/4.7.2",
+            "load hwloc/1.6.2-GCC-4.7.2",
+            "FC: gfortran",
+        ])
+        self.assertEqual(out.strip(), expected_out)
 
     def test_stop(self):
         """Test use of --stop."""

@@ -1511,9 +1511,11 @@ class EasyBlock(object):
             if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
                 raise EasyBuildError("Applying patch %s failed", patch['name'])
 
-    def prepare_step(self):
+    def prepare_step(self, start_dir=True):
         """
         Pre-configure step. Set's up the builddir just before starting configure
+
+        @param start_dir: guess start directory based on unpacked sources
         """
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
@@ -1532,7 +1534,8 @@ class EasyBlock(object):
             env.setvar(get_software_version_env_var_name(name), version)
 
         # guess directory to start configure/build/install process in, and move there
-        self.guess_start_dir()
+        if start_dir:
+            self.guess_start_dir()
 
     def configure_step(self):
         """Configure build  (abstract method)."""
