@@ -387,7 +387,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_gcc_version_native(self):
         """Test getting gcc version."""
         gcc_version = get_gcc_version()
-        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == UNKNOWN)
+        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == UNKNOWN or gcc_version is None)
 
     def test_gcc_version_linux(self):
         """Test getting gcc version (mocked for Linux)."""

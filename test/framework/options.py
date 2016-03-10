@@ -33,7 +33,6 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 from urllib2 import URLError
@@ -56,6 +55,7 @@ from easybuild.tools.options import EasyBuildOptions, parse_external_modules_met
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
+from test.framework.utilities import EnhancedTestCase, init_config
 from vsc.utils import fancylogger
 
 
@@ -1787,6 +1787,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
+        sys.path = self.orig_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
         # include extra test easyblocks
         foo_txt = '\n'.join([
@@ -1859,6 +1864,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
         os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
+        sys.path = self.orig_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
 
         error_msg = "Failed to obtain class for FooBar easyblock"

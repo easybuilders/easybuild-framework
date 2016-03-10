@@ -738,12 +738,6 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""
-        # install test module naming scheme dynamically
-        test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        sys.path.append(test_mns_parent_dir)
-        reload(easybuild)
-        reload(easybuild.tools)
-        reload(easybuild.tools.module_naming_scheme)
         mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
         __import__(mns_path, globals(), locals(), [''])
 
