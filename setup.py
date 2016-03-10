@@ -111,7 +111,7 @@ implement support for installing particular (groups of) software packages.""",
     test_suite="test.framework.suite",
     zip_safe=False,
     install_requires=[
-        'setuptools',
+        'setuptools >= 0.6',
         "vsc-base >= 2.4.18",
     ],
     extras_require = {
