@@ -717,7 +717,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test independency of toolchain instances."""
 
         # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
-        init_config(args=['--experimental'], build_options={'optarch': 'test'})
+        init_config(build_options={'optarch': 'test'})
 
         tc_cflags = {
             'CrayCCE': "-craype-verbose -O2",
