@@ -995,7 +995,6 @@ class ToyBuildTest(EnhancedTestCase):
         pkgpath = os.path.join(self.test_prefix, 'pkgs')
 
         extra_args = [
-            '--experimental',
             '--package',
             '--package-release=321',
             '--package-tool=fpm',
@@ -1016,7 +1015,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
 
-        self.test_toy_build(extra_args=['--experimental', '--package', '--skip'], verify=False)
+        self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)

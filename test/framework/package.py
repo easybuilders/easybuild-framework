@@ -154,9 +154,6 @@ class PackageTest(EnhancedTestCase):
 
     def test_check_pkg_support(self):
         """Test check_pkg_support()."""
-        # hard enable experimental
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
-        easybuild.tools.build_log.EXPERIMENTAL = True
 
         # clear $PATH to make sure fpm/rpmbuild can not be found
         os.environ['PATH'] = ''
@@ -171,9 +168,6 @@ class PackageTest(EnhancedTestCase):
 
         # no errors => support check passes
         check_pkg_support()
-
-        # restore
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
