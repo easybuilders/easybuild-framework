@@ -34,6 +34,7 @@ import re
 import shutil
 import sys
 import tempfile
+from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
@@ -134,15 +135,29 @@ class EnhancedTestCase(_EnhancedTestCase):
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
                 sys.path.remove(path)
 
-        # add test easyblocks to Python search path and (re)import and reload easybuild modules
         import easybuild
+        # try to import easybuild.easyblocks(.generic) packages
+        # it's OK if it fails here, but important to import first before fiddling with sys.path
+        try:
+            import easybuild.easyblocks
+            import easybuild.easyblocks.generic
+        except ImportError:
+            pass
+
+        # add sandbox to Python search path, update namespace packages
         sys.path.append(os.path.join(testdir, 'sandbox'))
-        reload(easybuild)
+        fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
+
+        # hard inject location to (generic) test easyblocks into Python search path
+        # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
+        test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+        easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+        test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
+        easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
         modtool = modules_tool()
         # purge out any loaded modules with original $MODULEPATH before running each test
@@ -163,6 +178,10 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # restore original Python search path
         sys.path = self.orig_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
         # remove any log handlers that were added (so that log files can be effectively removed)
         log = fancylogger.getLogger(fname=False)

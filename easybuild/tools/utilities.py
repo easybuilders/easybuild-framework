@@ -142,7 +142,7 @@ def only_if_module_is_available(modname, pkgname=None, url=None):
                     msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
                 elif url:
                     msg += " (available from %s)" % url
-                raise ImportError(msg)
+                raise EasyBuildError("ImportError: %s", msg)
             return error
 
     return wrap

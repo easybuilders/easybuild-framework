@@ -28,13 +28,12 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-from pkgutil import extend_path
+import pkg_resources
 
 # required for backward compatibility
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+pkg_resources.declare_namespace(__name__)
 
 # suffix for devel module filename
 DEVEL_MODULE_SUFFIX = '-easybuild-devel'

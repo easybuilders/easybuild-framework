@@ -45,7 +45,7 @@ from easybuild.tools.options import set_tmpdir
 try:
     import keyring
     keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
-except ImportError:
+except (ImportError, AttributeError):
     pass
 
 # disable all logging to significantly speed up tests

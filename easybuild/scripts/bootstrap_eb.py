@@ -91,19 +91,19 @@ def debug(msg):
     """Print debug message."""
 
     if print_debug:
-        print "[[DEBUG]]", msg
+        print("[[DEBUG]] " + msg)
 
 
 def info(msg):
     """Print info message."""
 
-    print "[[INFO]]", msg
+    print("[[INFO]] " + msg)
 
 
 def error(msg, exit=True):
     """Print error message and exit."""
 
-    print "[[ERROR]]", msg
+    print("[[ERROR]] " + msg)
     sys.exit(1)
 
 
@@ -301,17 +301,29 @@ def stage1(tmpdir, sourcepath):
     cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
     cmd.append('--prefix=%s' % targetdir_stage1)
 
+    post_cmd = []
     if source_tarballs:
         # install provided source tarballs (order matters)
         cmd.extend([source_tarballs[pkg] for pkg in EASYBUILD_PACKAGES if pkg in source_tarballs])
+        # add vsc-base again at the end, to avoid that the one available on the system is used instead
+        if VSC_BASE in source_tarballs:
+            cmd.append(source_tarballs[VSC_BASE])
     else:
         # install meta-package easybuild from PyPI
         cmd.append('easybuild')
+
+        # install vsc-base again at the end, to avoid that the one available on the system is used instead
+        post_cmd = cmd[:]
+        post_cmd[-1] = VSC_BASE
 
     if not print_debug:
         cmd.insert(0, '--quiet')
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
     easy_install.main(cmd)
+
+    if post_cmd:
+        info("running post install command 'easy_install %s'" % (' '.join(post_cmd)))
+        easy_install.main(post_cmd)
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
@@ -356,7 +368,7 @@ def stage1(tmpdir, sourcepath):
     version_re = re.compile(pattern)
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
     eb_version_cmd = 'from easybuild.tools.version import this_is_easybuild; print(this_is_easybuild())'
-    cmd = "python -c '%s' > %s 2>&1" % (eb_version_cmd, version_out_file)
+    cmd = "%s -c '%s' > %s 2>&1" % (sys.executable, eb_version_cmd, version_out_file)
     debug("Determining EasyBuild version using command '%s'" % cmd)
     os.system(cmd)
     txt = open(version_out_file, "r").read()
@@ -395,26 +407,37 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
 
-    # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
-    # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH
     if distribute_egg_dir is None:
         preinstallopts = ''
     else:
-        preinstallopts = 'PYTHONPATH=%s:$PYTHONPATH' % distribute_egg_dir
+        # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
+        # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
+        preinstallopts = "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
+
+        # also add location to easy_install provided through stage0 to $PATH
+        curr_path = os.environ.get('PATH', '').split(os.pathsep)
+        os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
+        debug("$PATH: %s" % os.environ['PATH'])
+
+    # ensure that (latest) setuptools is installed as well alongside EasyBuild,
+    # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
+    # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
+    preinstallopts += "easy_install -U --prefix %(installdir)s setuptools && "
+
     templates.update({
         'preinstallopts': preinstallopts,
     })
 
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
-    f = open(ebfile, "w")
+    handle = open(ebfile, 'w')
     templates.update({
         'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
         'sources': "%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
         'pythonpath': distribute_egg_dir,
     })
-    f.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
-    f.close()
+    handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
+    handle.close()
 
     # unset $MODULEPATH, we don't care about already installed modules
     os.environ['MODULEPATH'] = ''
@@ -590,6 +613,13 @@ sanity_check_paths = {
 
 moduleclass = 'tools'
 """
+
+# check Python version
+if sys.version_info[0] != 2 or sys.version_info[1] < 6:
+    pyver = sys.version.split(' ')[0]
+    sys.stderr.write("ERROR: Incompatible Python version: %s (should be Python 2 >= 2.6)\n" % pyver)
+    sys.stderr.write("Please try again using 'python2 %s <prefix>'\n" % os.path.basename(__file__))
+    sys.exit(1)
 
 # distribute_setup.py script (https://pypi.python.org/pypi/distribute)
 #

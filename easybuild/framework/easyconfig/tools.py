@@ -46,9 +46,10 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
@@ -56,6 +57,7 @@ from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -477,3 +479,64 @@ def review_pr(pr, colored=True, branch='develop'):
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
     return '\n'.join(lines)
+
+
+def dump_env_script(easyconfigs):
+    """
+    Dump source scripts that set up build environment for specified easyconfigs.
+
+    @param easyconfigs: list of easyconfigs to generate scripts for
+    """
+    ecs_and_script_paths = []
+    for easyconfig in easyconfigs:
+        script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
+        ecs_and_script_paths.append((easyconfig['ec'], script_path))
+
+    # don't just overwrite existing scripts
+    existing_scripts = [s for (_, s) in ecs_and_script_paths if os.path.exists(s)]
+    if existing_scripts:
+        if build_option('force'):
+            _log.info("Found existing scripts, overwriting them: %s", ' '.join(existing_scripts))
+        else:
+            raise EasyBuildError("Script(s) already exists, not overwriting them (unless --force is used): %s",
+                                 ' '.join(existing_scripts))
+
+    orig_env = copy.deepcopy(os.environ)
+
+    for ec, script_path in ecs_and_script_paths:
+        # obtain EasyBlock instance
+        app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        app = app_class(ec)
+
+        # mimic dry run, and keep quiet
+        app.dry_run = app.silent = app.toolchain.dry_run = True
+
+        # prepare build environment (in dry run mode)
+        app.check_readiness_step()
+        app.prepare_step(start_dir=False)
+
+        # compose script
+        ecfile = os.path.basename(ec.path)
+        script_lines = [
+            "#!/bin/bash",
+            "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
+            "# usage: source %s" % os.path.basename(script_path),
+        ]
+
+        script_lines.extend(['', "# toolchain & dependency modules"])
+        if app.toolchain.modules:
+            script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+        else:
+            script_lines.append("# (no modules loaded)")
+
+        script_lines.extend(['', "# build environment"])
+        if app.toolchain.vars:
+            env_vars = sorted(app.toolchain.vars.items())
+            script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+        else:
+            script_lines.append("# (no build environment defined)")
+
+        write_file(script_path, '\n'.join(script_lines))
+        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
+
+        restore_env(orig_env)

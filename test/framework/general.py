@@ -35,6 +35,7 @@ from unittest import TestLoader, main
 import vsc
 
 import easybuild.framework
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -84,7 +85,7 @@ class GeneralTest(EnhancedTestCase):
             pass
 
         err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
-        self.assertErrorRegex(ImportError, err_pat, bar)
+        self.assertErrorRegex(EasyBuildError, err_pat, bar)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')
@@ -92,7 +93,7 @@ class GeneralTest(EnhancedTestCase):
                 pass
 
         err_pat = r"required module 'thisdoesnotexist' is not available \(available from http://example.com\)"
-        self.assertErrorRegex(ImportError, err_pat, Foo().foobar)
+        self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
 
 
 def suite():

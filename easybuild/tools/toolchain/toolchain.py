@@ -99,6 +99,7 @@ class Toolchain(object):
             raise EasyBuildError("Toolchain init: no version provided")
         self.version = version
 
+        self.modules = []
         self.vars = None
 
         self._init_class_constants(class_constants)
@@ -461,14 +462,17 @@ class Toolchain(object):
             self.log.debug("Loading module for toolchain: %s" % tc_mod)
             self.modules_tool.load([tc_mod])
 
+        # append toolchain module to list of modules
+        self.modules.append(tc_mod)
+
     def _load_dependencies_modules(self, silent=False):
         """Load modules for dependencies, and handle special cases like external modules."""
+        dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
 
         if self.dry_run:
             dry_run_msg("\nLoading modules for dependencies...\n", silent=silent)
 
-            mod_names = [dep['short_mod_name'] for dep in self.dependencies]
-            mods_exist = self.modules_tool.exist(mod_names)
+            mods_exist = self.modules_tool.exist(dep_mods)
 
             # load available modules for dependencies, simulate load for others
             for dep, dep_mod_exists in zip(self.dependencies, mods_exist):
@@ -484,9 +488,11 @@ class Toolchain(object):
                         self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
         else:
             # load modules for all dependencies
-            dep_mods = [dep['short_mod_name'] for dep in self.dependencies]
             self.log.debug("Loading modules for dependencies: %s" % dep_mods)
             self.modules_tool.load(dep_mods)
+
+        # append dependency modules to list of modules
+        self.modules.extend(dep_mods)
 
         # define $EBROOT* and $EBVERSION* for external modules, if metadata is available
         for dep in [d for d in self.dependencies if d['external_module']]:
