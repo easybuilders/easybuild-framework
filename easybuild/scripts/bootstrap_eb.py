@@ -423,6 +423,9 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
     # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
     preinstallopts += "easy_install -U --prefix %(installdir)s setuptools && "
+    # vsc-install is a runtime dependency for the EasyBuild unit test suite,
+    # and is easily picked up from stage1 rather than being actually installed, so force it
+    preinstallopts += "easy_install -U --prefix %(installdir)s vsc-install && "
 
     templates.update({
         'preinstallopts': preinstallopts,
