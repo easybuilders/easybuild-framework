@@ -145,6 +145,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'EasyBuild crashed with an error', log.error, 'foo')
         self.assertErrorRegex(EasyBuildError, 'EasyBuild encountered an exception', log.exception, 'bar')
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(BuildLogTest)

@@ -431,10 +431,12 @@ class EasyBuildOptions(GeneralOption):
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
+            'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
-            'github-user': ("GitHub username", None, 'store', None),
+            'github-user': ("GitHub username", str, 'store', None),
+            'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
                                str, 'store', None),

@@ -332,7 +332,7 @@ class EnhancedTestCase(_EnhancedTestCase):
 
 def cleanup():
     """Perform cleanup of singletons and caches."""
-    # clear Singelton instances, to start afresh
+    # clear Singleton instances, to start afresh
     Singleton._instances.clear()
 
     # empty caches

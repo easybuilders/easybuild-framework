@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import new_pr, update_pr
+from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -152,6 +152,36 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
+def handle_github_options(options, ec_paths):
+    """
+    Handle options related to GitHub integration, if any are set.
+
+    @param options: parsed EasyBuild options
+    @param ec_paths: list of paths to easyconfig files
+    """
+    done = True
+
+    if options.check_github:
+        check_github()
+
+    elif options.install_github_token:
+        install_github_token(options.github_user, silent=build_option('silent'))
+
+    elif options.new_pr:
+        new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+
+    elif options.review_pr:
+        print review_pr(options.review_pr, colored=options.color)
+
+    elif options.update_pr:
+        update_pr(options.update_pr, ec_paths, commit_msg=options.pr_commit_msg)
+
+    else:
+        done = False
+
+    return done
+
+
 def main(args=None, logfile=None, do_build=None, testing=False):
     """
     Main function: parse command line options, and act accordingly.
@@ -231,28 +261,17 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
-    # GitHub integration
-    if options.review_pr or options.new_pr or options.update_pr:
-        if options.review_pr:
-            print review_pr(options.review_pr, colored=options.color)
-
-        elif options.new_pr:
-            new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
-
-        elif options.update_pr:
-            update_pr(options.update_pr, orig_paths, commit_msg=options.pr_commit_msg)
-
-        cleanup(logfile, eb_tmpdir, testing)
-        sys.exit(0)
-
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_filename or options.search_short
     if query:
         search_easyconfigs(query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
-    # non-verbose cleanup and exit after printing terse info
-    if options.terse:
+    # GitHub integration
+    cleanup_and_exit = handle_github_options(options, orig_paths)
+
+    # non-verbose cleanup and exit after handling GitHub integration stuff or printing terse info
+    if cleanup_and_exit or options.terse:
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 
