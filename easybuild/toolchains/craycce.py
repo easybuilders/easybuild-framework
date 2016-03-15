@@ -40,6 +40,5 @@ class CrayCCE(CrayPECray, CrayMPICH, LibSci):
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
 
     def prepare(self, *args, **kwargs):
-        """Prepare to use this toolchain; marked as experimental."""
-        self.log.experimental("Using %s toolchain", self.NAME)
+        """Prepare to use this toolchain."""
         super(CrayCCE, self).prepare(*args, **kwargs)
