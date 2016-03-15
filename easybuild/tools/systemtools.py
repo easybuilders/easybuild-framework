@@ -110,23 +110,31 @@ def get_core_count():
 def get_total_memory():
     """
     Try to ascertain this node's total memory
-    
+
     @return: total memory as an integer, specifically a number of megabytes
     """
     memtotal = None
     os_type = get_os_type()
 
     if os_type == LINUX and os.path.exists(PROC_MEMINFO_FP):
-        with open(PROC_MEMINFO_FP, 'r') as meminfo:
-            for memline in meminfo:
-                mem_mo = re.match(r'MemTotal:\s*(\d+)\s*kB$', memline)
-                if mem_mo:
-                    memtotal = int(mem_mo.group(1)) / 1024
+        _log.debug("Trying to determine total memory size on Linux via %s", PROC_MEMINFO_FP)
+        meminfo = read_file(PROC_MEMINFO_FP)
+        mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
+        if mem_mo:
+            memtotal = int(mem_mo.group(1)) / 1024
+
+    elif os_type == DARWIN:
+        cmd = "sysctl -n hw.memsize"
+        _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
+        out, ec = run_cmd(cmd, force_in_dry_run=True)
+        if ec == 0:
+            memtotal = int(out.strip()) / (1024**2)
 
     if memtotal is None:
-        raise SystemToolsException('Can not determine total memory on this system')
-    else:
-        return memtotal
+        memtotal = UNKNOWN
+        _log.warning("Failed to determine total memory, returning %s", memtotal)
+
+    return memtotal
 
 
 def get_cpu_vendor():
