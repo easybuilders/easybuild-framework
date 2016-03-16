@@ -35,6 +35,7 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+import setuptools
 import vsc
 
 import easybuild.framework
@@ -50,11 +51,12 @@ class ScriptsTest(EnhancedTestCase):
         """Test setup."""
         super(ScriptsTest, self).setUp()
 
-        # make sure both vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
+        # make sure setuptools, vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
+        setuptools_loc = os.path.dirname(os.path.dirname(setuptools.__file__))
         vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
         pythonpath = os.environ.get('PYTHONPATH', '')
-        os.environ['PYTHONPATH'] = os.pathsep.join([vsc_loc, framework_loc, pythonpath])
+        os.environ['PYTHONPATH'] = os.pathsep.join([setuptools_loc, vsc_loc, framework_loc, pythonpath])
 
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""
