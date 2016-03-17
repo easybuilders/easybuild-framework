@@ -2445,6 +2445,9 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
     build_stopped = {}
     apploginfo = lambda x, y: x.log.info(y)
 
+    # sanitize environment before initialising easyblocks
+    sanitize_env()
+
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""
         if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
