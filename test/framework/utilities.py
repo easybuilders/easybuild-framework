@@ -130,11 +130,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         init_config()
 
-        # remove any entries in Python search path that seem to provide easyblocks
-        for path in sys.path[:]:
-            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                sys.path.remove(path)
-
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
         # it's OK if it fails here, but important to import first before fiddling with sys.path
@@ -146,7 +141,23 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # add sandbox to Python search path, update namespace packages
         sys.path.append(os.path.join(testdir, 'sandbox'))
+
+        # workaround for bug in recent setuptools version (19.4 and newer, atleast until 20.3.1)
+        # injecting <prefix>/easybuild is required to avoid a ValueError being thrown by fixup_namespace_packages
+        # cfr. https://bitbucket.org/pypa/setuptools/issues/520/fixup_namespace_packages-may-trigger
+        for path in sys.path[:]:
+            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
+                # keep track of 'easybuild' paths to inject into sys.path later
+                sys.path.append(os.path.join(path, 'easybuild'))
+
+        # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
         fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
+
+        # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
+        for path in sys.path[:]:
+            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
+                if not os.path.samefile(path, os.path.join(testdir, 'sandbox')):
+                    sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py

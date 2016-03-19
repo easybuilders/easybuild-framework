@@ -30,7 +30,6 @@ Support for including additional Python modules, for easyblocks, module naming s
 """
 import os
 import sys
-from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
@@ -172,7 +171,6 @@ def include_easyblocks(tmpdir, paths):
 
     # prepend new location to Python search path
     sys.path.insert(0, easyblocks_path)
-    fixup_namespace_packages(easyblocks_path)
 
     # make sure easybuild.easyblocks(.generic)
     import easybuild.easyblocks
@@ -213,7 +211,6 @@ def include_module_naming_schemes(tmpdir, paths):
 
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, mns_path)
-    fixup_namespace_packages(mns_path)
 
     # hard inject location to included module naming schemes into Python search path
     # only prepending to sys.path is not enough due to 'declare_namespace' in module_naming_scheme/__init__.py
@@ -259,7 +256,6 @@ def include_toolchains(tmpdir, paths):
 
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, toolchains_path)
-    fixup_namespace_packages(toolchains_path)
 
     # reload toolchain modules and hard inject location to included toolchains into Python search path
     # only prepending to sys.path is not enough due to 'declare_namespace' in toolchains/*/__init__.py

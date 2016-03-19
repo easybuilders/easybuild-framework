@@ -33,7 +33,6 @@ import re
 import shutil
 import sys
 import tempfile
-from pkg_resources import fixup_namespace_packages
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
@@ -628,19 +627,9 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_get_easyblock_instance(self):
         """Test get_easyblock_instance function."""
-        # adjust PYTHONPATH such that test easyblocks are found
-        testdir = os.path.abspath(os.path.dirname(__file__))
-        import easybuild
-        eb_blocks_path = os.path.join(testdir, 'sandbox')
-        if eb_blocks_path not in sys.path:
-            sys.path.append(eb_blocks_path)
-            fixup_namespace_packages(eb_blocks_path)
-            easybuild = reload(easybuild)
-
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-
         from easybuild.easyblocks.toy import EB_toy
+        testdir = os.path.abspath(os.path.dirname(__file__))
+
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
