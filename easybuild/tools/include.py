@@ -174,12 +174,9 @@ def include_easyblocks(tmpdir, paths):
     sys.path.insert(0, easyblocks_path)
     fixup_namespace_packages(easyblocks_path)
 
-    # make sure easybuild.easyblocks(.generic) are imported;
-    # reload them to pick up all possible paths they may be in
+    # make sure easybuild.easyblocks(.generic)
     import easybuild.easyblocks
-    reload(easybuild.easyblocks)
     import easybuild.easyblocks.generic
-    reload(easybuild.easyblocks.generic)
 
     # hard inject location to included (generic) easyblocks into Python search path
     # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
@@ -217,7 +214,6 @@ def include_module_naming_schemes(tmpdir, paths):
     # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
     sys.path.insert(0, mns_path)
     fixup_namespace_packages(mns_path)
-    reload(easybuild.tools.module_naming_scheme)
 
     # hard inject location to included module naming schemes into Python search path
     # only prepending to sys.path is not enough due to 'declare_namespace' in module_naming_scheme/__init__.py
@@ -267,11 +263,9 @@ def include_toolchains(tmpdir, paths):
 
     # reload toolchain modules and hard inject location to included toolchains into Python search path
     # only prepending to sys.path is not enough due to 'declare_namespace' in toolchains/*/__init__.py
-    reload(easybuild.toolchains)
     easybuild.toolchains.__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains'))
     for subpkg in toolchain_subpkgs:
         tcpkg = 'easybuild.toolchains.%s' % subpkg
-        reload(sys.modules[tcpkg])
         sys.modules[tcpkg].__path__.insert(0, os.path.join(toolchains_path, 'easybuild', 'toolchains', subpkg))
 
     # sanity check: verify that included toolchain modules can be imported (from expected location)
