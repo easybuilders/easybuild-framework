@@ -42,8 +42,12 @@ feature + bugfix release
     - raise EasyBuildError rather than ImportError in only_if_module_is_available decorator (#1662)
 - various bug fixes, including:
     - fix Lmod spider output in generated modules (#1583)
-    - correctly define 'easybuild' namespaces (#1593, #1666)
+    - correctly define 'easybuild' namespaces (#1593, #1666, #1680)
         - this change requires that the setuptools Python package is available (at runtime)
+        - using custom easyblocks by adding them in the Python search path ($PYTHONPATH) may require adjustments,
+          i.e. also using pkg_resources.declare_namespace in the __init__.py files;
+          we highly recommend to use --include-easyblocks instead,
+          see http://easybuild.readthedocs.org/en/latest/Including_additional_Python_modules.html
         - note: this has the side-effect of not being able anymore to reliably use 'eb' in the parent directory of
           the easybuild-framework repository (#1667)
     - fix template for savannah.gnu.org source URL (#1601)
@@ -61,6 +65,7 @@ feature + bugfix release
     - remove --experimental for tests related to --package (#1665)
     - ensure path to setuptools is included in $PYTHONPATH being used to test scripts (#1671)
     - sanitize environment before initializing easyblocks (#1676)
+    - remove reload statements in include.py, since they are not required and break --include-toolchains (#1679)
 
 
 v2.6.0 (January 26th 2016)
