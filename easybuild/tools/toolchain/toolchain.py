@@ -108,6 +108,7 @@ class Toolchain(object):
 
         # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
         self.dry_run = build_option('extended_dry_run', default=False)
+        self.hide_deps = build_option('hide_deps', default=None)
 
         self.modules_tool = modules_tool()
         self.mns = mns
@@ -269,6 +270,10 @@ class Toolchain(object):
             name = self.name
         if version is None:
             version = self.version
+        if self.hide_deps:
+            hidden = name in self.hide_deps
+        else:
+            hidden = False
         return {
             'name': name,
             'version': version,
@@ -276,7 +281,7 @@ class Toolchain(object):
             'versionsuffix': '',
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
-            'hidden': False,
+            'hidden': hidden,
             'full_mod_name': self.mod_full_name,
             'short_mod_name': self.mod_short_name,
         }
