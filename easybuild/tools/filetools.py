@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -320,7 +320,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
     """
     Search for a particular file (only prints)
     """
@@ -340,7 +340,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     for path in paths:
         hits = []
         hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
+        if not terse:
+            print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
@@ -349,7 +350,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
                         var = "CFGS%d" % var_index
                         var_index += 1
                         hit_in_path = True
-                    hits.append(os.path.join(dirpath, filename))
+                    if filename_only:
+                        hits.append(filename)
+                    else:
+                        hits.append(os.path.join(dirpath, filename))
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
@@ -359,7 +363,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
 
         hits = sorted(hits)
 
-        if hits:
+        if hits and not terse:
             common_prefix = det_common_path_prefix(hits)
             if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
                 var_lines.append("%s=%s" % (var, common_prefix))
@@ -367,8 +371,12 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             else:
                 hit_lines.extend([" * %s" % fn for fn in hits])
 
-    for line in var_lines + hit_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
+    if terse:
+        for line in hits:
+            print(line)
+    else:
+        for line in var_lines + hit_lines:
+            print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
@@ -535,7 +543,7 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
     It searches for "+++ path/to/patched/file" lines to determine
@@ -544,6 +552,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
     @param txt: the contents of the diff (either path or txt should be give)
     @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
     @param github: only consider lines that start with 'diff --git' to determine list of patched files
+    @param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
         patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
@@ -562,8 +571,12 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
 
+        delete_regex = re.compile(r"%s\ndeleted file" % re.escape(os.path.basename(patched_file)), re.M)
         if patched_file in ['/dev/null']:
-            _log.debug("Ignoring patched file %s" % patched_file)
+            _log.debug("Ignoring patched file %s", patched_file)
+
+        elif filter_deleted and delete_regex.search(txt):
+            _log.debug("Filtering out deleted file %s", patched_file)
         else:
             patched_files.append(patched_file)
 
@@ -1158,3 +1171,89 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
+
+
+def find_flexlm_license(custom_env_vars=None, lic_specs=None):
+    """
+    Find FlexLM license.
+
+    Considered specified list of environment variables;
+    checks for path to existing license file or valid license server specification.
+
+    If no license is found through environment variables, also consider 'lic_specs'.
+
+    @param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
+    @param lic_specs: list of license specifications
+    @return: tuple with list of valid license specs found and name of first valid environment variable
+    """
+    valid_lic_specs = []
+    lic_env_var = None
+
+    # regex for license server spec; format: <port>@<server>
+    server_port_regex = re.compile(r'^[0-9]+@\S+$')
+
+    # always consider $LM_LICENSE_FILE
+    lic_env_vars = ['LM_LICENSE_FILE']
+    if isinstance(custom_env_vars, basestring):
+        lic_env_vars.insert(0, custom_env_vars)
+    elif custom_env_vars is not None:
+        lic_env_vars = custom_env_vars + lic_env_vars
+
+    # grab values for defined environment variables
+    cand_lic_specs = {}
+    for env_var in lic_env_vars:
+        if env_var in os.environ:
+            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+
+    # also consider provided license spec (last)
+    # use None as key to indicate that these license specs do not have an environment variable associated with them
+    if lic_specs:
+        cand_lic_specs[None] = lic_specs
+
+    _log.debug("Candidate license specs: %s", cand_lic_specs)
+
+    # check for valid license specs
+    # order matters, so loop over original list of environment variables to consider
+    valid_lic_specs = []
+    for env_var in lic_env_vars + [None]:
+        # obtain list of values to consider
+        # take into account that some keys may be missing, and that individual values may be None
+        values = [val for val in cand_lic_specs.get(env_var, None) or [] if val]
+        _log.info("Considering %s to find FlexLM license specs: %s", env_var, values)
+
+        for value in values:
+
+            # license files to consider
+            lic_files = None
+            if os.path.isfile(value):
+                lic_files = [value]
+            elif os.path.isdir(value):
+                # consider all *.dat and *.lic files in specified directory
+                lic_files = sorted(glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic')))
+
+            # valid license server spec
+            elif server_port_regex.match(value):
+                valid_lic_specs.append(value)
+
+            # check whether license files are readable before retaining them
+            if lic_files:
+                for lic_file in lic_files:
+                    try:
+                        open(lic_file, 'r')
+                        valid_lic_specs.append(lic_file)
+                    except IOError as err:
+                        _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
+
+        # stop after finding valid license specs
+        if valid_lic_specs:
+            lic_env_var = env_var
+            break
+
+    if lic_env_var:
+        via_msg = '$%s' % lic_env_var
+    else:
+        via_msg = "provided license spec"
+
+    _log.info("Found valid license specs via %s: %s", via_msg, valid_lic_specs)
+
+    return (valid_lic_specs, lic_env_var)

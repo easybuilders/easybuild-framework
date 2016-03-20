@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -142,7 +142,7 @@ def only_if_module_is_available(modname, pkgname=None, url=None):
                     msg += " (provided by Python package %s, available from %s)" % (pkgname, url)
                 elif url:
                     msg += " (available from %s)" % url
-                raise ImportError(msg)
+                raise EasyBuildError("ImportError: %s", msg)
             return error
 
     return wrap

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -34,6 +34,7 @@ import re
 import shutil
 import sys
 import tempfile
+from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
@@ -84,6 +85,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
 
+        # make sure option parser doesn't pick up any cmdline arguments/options
+        while len(sys.argv) > 1:
+            sys.argv.pop()
+
         # keep track of log handlers
         log = fancylogger.getLogger(fname=False)
         self.orig_log_handlers = log.handlers[:]
@@ -125,20 +130,45 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         init_config()
 
-        # remove any entries in Python search path that seem to provide easyblocks
+        import easybuild
+        # try to import easybuild.easyblocks(.generic) packages
+        # it's OK if it fails here, but important to import first before fiddling with sys.path
+        try:
+            import easybuild.easyblocks
+            import easybuild.easyblocks.generic
+        except ImportError:
+            pass
+
+        # add sandbox to Python search path, update namespace packages
+        sys.path.append(os.path.join(testdir, 'sandbox'))
+
+        # workaround for bug in recent setuptools version (19.4 and newer, atleast until 20.3.1)
+        # injecting <prefix>/easybuild is required to avoid a ValueError being thrown by fixup_namespace_packages
+        # cfr. https://bitbucket.org/pypa/setuptools/issues/520/fixup_namespace_packages-may-trigger
         for path in sys.path[:]:
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                sys.path.remove(path)
+                # keep track of 'easybuild' paths to inject into sys.path later
+                sys.path.append(os.path.join(path, 'easybuild'))
 
-        # add test easyblocks to Python search path and (re)import and reload easybuild modules
-        import easybuild
-        sys.path.append(os.path.join(testdir, 'sandbox'))
-        reload(easybuild)
+        # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
+        fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
+
+        # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
+        for path in sys.path[:]:
+            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
+                if not os.path.samefile(path, os.path.join(testdir, 'sandbox')):
+                    sys.path.remove(path)
+
+        # hard inject location to (generic) test easyblocks into Python search path
+        # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
+        test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+        easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+        test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
+        easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
         modtool = modules_tool()
         # purge out any loaded modules with original $MODULEPATH before running each test
@@ -159,6 +189,10 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # restore original Python search path
         sys.path = self.orig_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
         # remove any log handlers that were added (so that log files can be effectively removed)
         log = fancylogger.getLogger(fname=False)
@@ -309,7 +343,7 @@ class EnhancedTestCase(_EnhancedTestCase):
 
 def cleanup():
     """Perform cleanup of singletons and caches."""
-    # clear Singelton instances, to start afresh
+    # clear Singleton instances, to start afresh
     Singleton._instances.clear()
 
     # empty caches

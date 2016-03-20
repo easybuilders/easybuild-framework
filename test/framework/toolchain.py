@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -32,20 +32,21 @@ import os
 import re
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
 
+import easybuild.tools.build_log
 import easybuild.tools.modules as modules
+import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.toolchain.utilities import search_toolchain
-from test.framework.utilities import find_full_path
+from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
-from easybuild.tools import systemtools as st
-import easybuild.tools.toolchain.compiler
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
+
 
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
@@ -711,6 +712,40 @@ class ToolchainTest(EnhancedTestCase):
         shutil.rmtree(tmpdir2)
         write_file(imkl_module_path1, imkl_module_txt1)
         write_file(imkl_module_path2, imkl_module_txt2)
+
+    def test_independence(self):
+        """Test independency of toolchain instances."""
+
+        # tweaking --optarch is required for Cray toolchains (craypre-<optarch> module must be available)
+        init_config(build_options={'optarch': 'test'})
+
+        tc_cflags = {
+            'CrayCCE': "-craype-verbose -O2",
+            'CrayGNU': "-craype-verbose -O2",
+            'CrayIntel': "-craype-verbose -O2 -ftz -fp-speculation=safe -fp-model source",
+            'GCC': "-O2 -test",
+            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source",
+        }
+
+        toolchains = [
+            ('CrayCCE', '2015.06-XC'),
+            ('CrayGNU', '2015.06-XC'),
+            ('CrayIntel', '2015.06-XC'),
+            ('GCC', '4.7.2'),
+            ('iccifort', '2011.13.367'),
+        ]
+
+        # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
+        for _ in range(3):
+            for tcname, tcversion in toolchains:
+                tc = get_toolchain({'name': tcname, 'version': tcversion}, {}, mns=ActiveMNS())
+                tc.set_options({})
+                tc.prepare()
+                expected_cflags = tc_cflags[tcname]
+                msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
+                self.assertEqual(str(tc.variables['CFLAGS']), expected_cflags, msg)
+                self.assertEqual(os.environ['CFLAGS'], expected_cflags, msg)
+
 
 def suite():
     """ return all the tests"""

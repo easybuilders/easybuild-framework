@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -72,6 +72,7 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
@@ -1364,7 +1365,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if self.modules_tool.exist([self.full_mod_name])[0]:
+            if self.modules_tool.exist([self.full_mod_name], skip_avail=True)[0]:
                 self.skip = True
                 self.log.info("Module %s found." % self.full_mod_name)
                 self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
@@ -1510,9 +1511,11 @@ class EasyBlock(object):
             if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
                 raise EasyBuildError("Applying patch %s failed", patch['name'])
 
-    def prepare_step(self):
+    def prepare_step(self, start_dir=True):
         """
         Pre-configure step. Set's up the builddir just before starting configure
+
+        @param start_dir: guess start directory based on unpacked sources
         """
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
@@ -1523,8 +1526,16 @@ class EasyBlock(object):
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
 
+        # handle allowed system dependencies
+        for (name, version) in self.cfg['allow_system_deps']:
+            # root is set to name, not an actual path
+            env.setvar(get_software_root_env_var_name(name), name)
+            # version is expected to be something that makes sense
+            env.setvar(get_software_version_env_var_name(name), version)
+
         # guess directory to start configure/build/install process in, and move there
-        self.guess_start_dir()
+        if start_dir:
+            self.guess_start_dir()
 
     def configure_step(self):
         """Configure build  (abstract method)."""
@@ -2296,6 +2307,8 @@ def build_and_install_one(ecdict, init_env):
     # successful (non-dry-run) build
     if result and not dry_run:
 
+        ec_filename = '%s-%s.eb' % (app.name, det_full_ec_version(app.cfg))
+
         if app.cfg['stop']:
             ended = 'STOPPED'
             if app.builddir is not None:
@@ -2314,6 +2327,20 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
+            if build_option("minimal_toolchains"):
+                # for reproducability we dump out the parsed easyconfig since the contents are affected when
+                # --minimal-toolchains (and --use-existing-modules) is used
+                _log.debug("Dumping parsed easyconfig rather than original easyconfig to install dir")
+
+                # add the parsed file to the reproducability directory
+                # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
+                repo_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+                app.cfg.dump(repo_spec)
+
+            else:
+                _log.debug("Dumping original easyconfig to install dir")
+                repo_spec = spec
+
             try:
                 # upload spec to central repository
                 currentbuildstats = app.cfg['buildstats']
@@ -2321,7 +2348,7 @@ def build_and_install_one(ecdict, init_env):
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                repo.add_easyconfig(repo_spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
@@ -2333,7 +2360,7 @@ def build_and_install_one(ecdict, init_env):
         move_logs(app.logfile, application_log)
 
         try:
-            newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
+            newspec = os.path.join(new_log_dir, ec_filename)
             # only copy if the files are not the same file already (yes, it happens)
             if os.path.exists(newspec) and os.path.samefile(spec, newspec):
                 _log.debug("Not copying easyconfig file %s to %s since files are identical" % (spec, newspec))
@@ -2417,6 +2444,9 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
     build_stopped = {}
     apploginfo = lambda x, y: x.log.info(y)
+
+    # sanitize environment before initialising easyblocks
+    sanitize_env()
 
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""

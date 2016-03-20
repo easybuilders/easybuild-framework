@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -738,12 +738,6 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""
-        # install test module naming scheme dynamically
-        test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        sys.path.append(test_mns_parent_dir)
-        reload(easybuild)
-        reload(easybuild.tools)
-        reload(easybuild.tools.module_naming_scheme)
         mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
         __import__(mns_path, globals(), locals(), [''])
 
@@ -798,7 +792,7 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
-                r'whatis\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -830,7 +824,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis {Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
@@ -1001,7 +995,6 @@ class ToyBuildTest(EnhancedTestCase):
         pkgpath = os.path.join(self.test_prefix, 'pkgs')
 
         extra_args = [
-            '--experimental',
             '--package',
             '--package-release=321',
             '--package-tool=fpm',
@@ -1022,7 +1015,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
 
-        self.test_toy_build(extra_args=['--experimental', '--package', '--skip'], verify=False)
+        self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
@@ -1037,6 +1030,15 @@ class ToyBuildTest(EnhancedTestCase):
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         self.assertTrue(os.path.exists(toy_module), msg)
+
+    def test_minimal_toolchains(self):
+        """Test toy build with --minimal-toolchains."""
+        # this test doesn't check for anything specific to using minimal toolchains, only side-effects
+        self.test_toy_build(extra_args=['--minimal-toolchains'])
+
+        # also check whether easyconfig is dumped to reprod/ subdir
+        reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(reprod_ec))
 
 
 def suite():

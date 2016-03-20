@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -50,13 +50,13 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths, dump_env_script
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import new_pr, update_pr
-from easybuild.tools.options import process_software_build_specs
+from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
+from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
@@ -152,6 +152,36 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
+def handle_github_options(options, ec_paths):
+    """
+    Handle options related to GitHub integration, if any are set.
+
+    @param options: parsed EasyBuild options
+    @param ec_paths: list of paths to easyconfig files
+    """
+    done = True
+
+    if options.check_github:
+        check_github()
+
+    elif options.install_github_token:
+        install_github_token(options.github_user, silent=build_option('silent'))
+
+    elif options.new_pr:
+        new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+
+    elif options.review_pr:
+        print review_pr(options.review_pr, colored=options.color)
+
+    elif options.update_pr:
+        update_pr(options.update_pr, ec_paths, commit_msg=options.pr_commit_msg)
+
+    else:
+        done = False
+
+    return done
+
+
 def main(args=None, logfile=None, do_build=None, testing=False):
     """
     Main function: parse command line options, and act accordingly.
@@ -178,7 +208,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.last_log)
+    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.terse)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -209,6 +239,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     build_options = {
         'build_specs': build_specs,
         'command_line': eb_cmd_line,
+        'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'pr_path': pr_path,
         'robot_path': robot_path,
         'silent': testing,
@@ -223,14 +254,26 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         # print location to last log file, and exit
         last_log = find_last_log(logfile) or '(none)'
         print_msg(last_log, log=_log, prefix=False)
-        cleanup(logfile, eb_tmpdir, testing, silent=True)
-        sys.exit(0)
 
     # check whether packaging is supported when it's being used
     if options.package:
         check_pkg_support()
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
+
+    # search for easyconfigs, if a query is specified
+    query = options.search or options.search_filename or options.search_short
+    if query:
+        search_easyconfigs(query, short=options.search_short, filename_only=options.search_filename,
+                           terse=options.terse)
+
+    # GitHub integration
+    cleanup_and_exit = handle_github_options(options, orig_paths)
+
+    # non-verbose cleanup and exit after handling GitHub integration stuff or printing terse info
+    if cleanup_and_exit or options.terse:
+        cleanup(logfile, eb_tmpdir, testing, silent=True)
+        sys.exit(0)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
@@ -239,33 +282,14 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
-    # GitHub integration
-    if options.review_pr or options.new_pr or options.update_pr:
-        if options.review_pr:
-            print review_pr(options.review_pr, colored=options.color)
-
-        elif options.new_pr:
-            new_pr(orig_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
-
-        elif options.update_pr:
-            update_pr(options.update_pr, orig_paths, commit_msg=options.pr_commit_msg)
-
-        cleanup(logfile, eb_tmpdir, testing)
-        sys.exit(0)
-
-    # search for easyconfigs, if a query is specified
-    query = options.search or options.search_short
-    if query:
-        search_easyconfigs(query, short=not options.search)
-
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search, options.search_short,
-                  options.regtest, options.update_pr]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search,
+                  options.search_filename, options.search_short, options.regtest, options.update_pr]
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
@@ -305,8 +329,12 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         txt = dry_run(easyconfigs, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
+    # dump source script to set up build environment
+    if options.dump_env_script:
+        dump_env_script(easyconfigs)
+
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.dry_run, options.dry_run_short]):
+    if any(no_ec_opts + [options.dry_run, options.dry_run_short, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
@@ -322,8 +350,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs, minimal_toolchains=build_option('minimal_toolchains'),
-                                               use_existing_modules=build_option('use_existing_modules'))
+            ordered_ecs = resolve_dependencies(easyconfigs)
         else:
             ordered_ecs = easyconfigs
     else:
