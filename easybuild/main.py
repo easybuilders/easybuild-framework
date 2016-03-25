@@ -237,9 +237,27 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if options.umask is not None:
         _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
-    # sanity check
-    if options.daemonize and options.logtostdout:
-        raise EasyBuildError("Option `--daemonize` is incompatible with `--logtostdout`. Please use only one of the two.")
+    if options.daemonize:
+        # check that we're not daemonizing with other options whose
+        # primary purpose is to produce output that should be read!
+        # (But note: all the `--list-*` and `--avail-*` have already
+        # been taken care of in EasyBuildOptions.postprocess() and
+        # main() is never called in those cases, so no need to check
+        # for them here.)
+        incompatible_options = [
+            'dry_run',
+            'extended_dry_run',
+            'logtostdout',
+            'review_pr',
+            'search',
+            'show_config',
+        ]
+        for opt in incompatible_options:
+            if getattr(options, opt):
+                optname = opt.replace('_', '-')
+                raise EasyBuildError(
+                    "Option `--daemonize` is incompatible with `--{optname}`."
+                    " Please use only one of the two.".format(optname=optname))
 
     if options.daemonize:
         main_continued = main_daemonize
