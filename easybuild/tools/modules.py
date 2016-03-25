@@ -459,9 +459,6 @@ class ModulesTool(object):
         """
         self.log.debug("Swapping module %s for module %s" % (mod_name1,mod_name1))
         self.run_module('swap', mod_name1, mod_name2)
-        lm=self.loaded_modules()
-        for m in lm:
-            print self.log.debug("loaded module %s" % m)
 
     def get_value_from_modulefile(self, mod_name, regex):
         """
