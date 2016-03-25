@@ -458,7 +458,7 @@ class ModulesTool(object):
         :return: 0 if the module that should be swapped to is loaded after the swap
         """
         self.log.debug("Swapping module %s for module %s" % (mod_name1,mod_name1))
-        self.run_module('swap', '%s(mod_name1)', '%s(mod_name2)')
+        self.run_module('swap', mod_name1, mod_name2)
         lm=self.loaded_modules()
         for m in lm:
             print self.log.debug("loaded module %s" % m)
@@ -481,6 +481,19 @@ class ModulesTool(object):
                                      regex.pattern, modinfo)
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
+
+    def get_conflicts_from_modfile(self,mod_name):
+        conflicts_re = re.compile('^conflict\s*(\S+).*$',re.M)
+        if self.exist([mod_name])[0]:
+            modinfo = self.show(mod_name)
+        self.log.debug("modinfo: %s" % modinfo)
+        res = re.findall(conflicts_re,modinfo)
+        if res:
+            self.log.debug("Conflicting modules found %s " %res)
+            return res
+        else:
+            raise EasyBuildError("Failed to determine conflicts from 'show' (pattern: '%s') in %s",
+                                 conflicts_re.pattern, modinfo)
 
     def modulefile_path(self, mod_name):
         """Get the path of the module file for the specified module."""
