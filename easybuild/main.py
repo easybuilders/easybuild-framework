@@ -44,7 +44,7 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, init_logging, print_msg, print_error, stop_logging
+from easybuild.tools.build_log import EasyBuildError, NonTerminatingLoggerProxy, init_logging, print_msg, print_error, stop_logging
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions

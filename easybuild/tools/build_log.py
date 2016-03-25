@@ -168,6 +168,21 @@ class EasyBuildLog(fancylogger.FancyLogger):
         raise EasyBuildError(ebmsg, *args)
 
 
+class NonTerminatingLoggerProxy(object):
+    """
+    Monkeypatch an existing `EasyBuildLog` object so that calling
+    `.error()` does not raise an exception and terminate the program.
+    """
+    def __init__(self, logger):
+        self._logger = logger
+
+    def error(self, *args, **kwargs):
+        self._logger._error_no_raise(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._logger, name)
+
+
 # set format for logger
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
