@@ -172,7 +172,7 @@ def handle_github_options(options, ec_paths):
         new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
 
     elif options.review_pr:
-        print review_pr(options.review_pr, colored=options.color)
+        print review_pr(options.review_pr, colored=_use_color(options.color))
 
     elif options.update_pr:
         update_pr(options.update_pr, ec_paths, commit_msg=options.pr_commit_msg)
@@ -181,6 +181,25 @@ def handle_github_options(options, ec_paths):
         done = False
 
     return done
+
+
+def _use_color(colorize, stream=sys.stdout):
+    """
+    Return ``True`` or ``False`` depending on whether ANSI color
+    escapes are to be used when printing to `stream`.
+
+    The `colorize` argument can take the three string values
+    ``'auto'``/``'always'``/``'never'``, see the ``--color`` option
+    for their meaning.
+    """
+    # turn color=auto/yes/no into a boolean value
+    if options.color == 'auto':
+        return terminal_supports_colors(stream)
+    elif options.color == 'always':
+        return True
+    else:
+        return False
+
 
 
 def main(args=None, logfile=None, do_build=None, testing=False):
@@ -203,14 +222,6 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if options.umask is not None:
         new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
-
-    # turn color=auto/yes/no into a boolean value
-    if options.color == 'auto':
-        options.color = terminal_supports_colors(sys.stdout)
-    elif options.color == 'always':
-        options.color = True
-    else:
-        options.color = False
 
     # set by option parsers via set_tmpdir
     eb_tmpdir = tempfile.gettempdir()
