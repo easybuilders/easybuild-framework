@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -56,7 +56,7 @@ class Repository(object):
         """
         Initialize a repository. self.repo and self.subdir will be set.
         self.wc will be set to None.
-        Then, setupRepo and createWorkingCopy will be called (in that order)
+        Then, setup_repo and create_working_copy will be called (in that order)
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.subdir = subdir

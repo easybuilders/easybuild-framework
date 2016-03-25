@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -46,12 +46,14 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
+from easybuild.tools.utilities import only_if_module_is_available
+
 
 _log = fancylogger.getLogger('svnrepo', fname=False)
 
+
 # optional Python packages, these might be missing
 # failing imports are just ignored
-# a NameError should be catched where these are used
 
 # PySVN
 try:
@@ -59,7 +61,7 @@ try:
     from pysvn import ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
     HAVE_PYSVN = True
 except ImportError:
-    _log.debug('Failed to import pysvn module')
+    _log.debug("Failed to import pysvn module")
     HAVE_PYSVN = False
 
 
@@ -74,9 +76,10 @@ class SvnRepository(FileRepository):
 
     USABLE = HAVE_PYSVN
 
+    @only_if_module_is_available('pysvn', url='http://pysvn.tigris.org/')
     def __init__(self, *args):
         """
-        Set self.client to None. Real logic is in setupRepo and createWorkingCopy
+        Set self.client to None. Real logic is in setup_repo and create_working_copy
         """
         self.client = None
         FileRepository.__init__(self, *args)
@@ -86,11 +89,6 @@ class SvnRepository(FileRepository):
         Set up SVN repository.
         """
         self.repo = os.path.join(self.repo, self.subdir)
-        try:
-            pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
-        except NameError, err:
-            raise EasyBuildError("pysvn not available (%s). Make sure it is installed properly. "
-                                 "Run 'python -c \"import pysvn\"' to test.", err)
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -155,9 +153,9 @@ class SvnRepository(FileRepository):
         """
         Commit working copy to SVN repository
         """
-        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
-                                                                              time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              getpass.getuser(), msg)
+        tup = (socket.gethostname(), time.strftime("%Y-%m-%d_%H-%M-%S"), getpass.getuser(), msg)
+        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % tup
+
         try:
             self.client.checkin(self.wc, completemsg, recurse=True)
         except ClientError, err:

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -34,6 +34,7 @@ import re
 import shutil
 import sys
 import tempfile
+from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
@@ -46,12 +47,13 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import module_classes, set_tmpdir
+from easybuild.tools.config import module_classes
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions
+from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -83,9 +85,15 @@ class EnhancedTestCase(_EnhancedTestCase):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
 
+        # make sure option parser doesn't pick up any cmdline arguments/options
+        while len(sys.argv) > 1:
+            sys.argv.pop()
+
         # keep track of log handlers
         log = fancylogger.getLogger(fname=False)
         self.orig_log_handlers = log.handlers[:]
+
+        log.info("setting up test %s" % self.id())
 
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
@@ -122,38 +130,69 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         init_config()
 
-        # remove any entries in Python search path that seem to provide easyblocks
+        import easybuild
+        # try to import easybuild.easyblocks(.generic) packages
+        # it's OK if it fails here, but important to import first before fiddling with sys.path
+        try:
+            import easybuild.easyblocks
+            import easybuild.easyblocks.generic
+        except ImportError:
+            pass
+
+        # add sandbox to Python search path, update namespace packages
+        sys.path.append(os.path.join(testdir, 'sandbox'))
+
+        # workaround for bug in recent setuptools version (19.4 and newer, atleast until 20.3.1)
+        # injecting <prefix>/easybuild is required to avoid a ValueError being thrown by fixup_namespace_packages
+        # cfr. https://bitbucket.org/pypa/setuptools/issues/520/fixup_namespace_packages-may-trigger
         for path in sys.path[:]:
             if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                sys.path.remove(path)
+                # keep track of 'easybuild' paths to inject into sys.path later
+                sys.path.append(os.path.join(path, 'easybuild'))
 
-        # add test easyblocks to Python search path and (re)import and reload easybuild modules
-        import easybuild
-        sys.path.append(os.path.join(testdir, 'sandbox'))
-        reload(easybuild)
+        # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
+        fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
+
+        # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
+        for path in sys.path[:]:
+            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
+                if not os.path.samefile(path, os.path.join(testdir, 'sandbox')):
+                    sys.path.remove(path)
+
+        # hard inject location to (generic) test easyblocks into Python search path
+        # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
+        test_easyblocks_path = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+        easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+        test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
+        easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
         modtool = modules_tool()
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
         # purge out any loaded modules with original $MODULEPATH before running each test
         modtool.purge()
+        self.reset_modulepath([os.path.join(testdir, 'modules')])
 
     def tearDown(self):
         """Clean up after running testcase."""
         super(EnhancedTestCase, self).tearDown()
 
+        self.log.info("Cleaning up for test %s", self.id())
+
         # go back to where we were before
         os.chdir(self.cwd)
 
         # restore original environment
-        modify_env(os.environ, self.orig_environ)
+        modify_env(os.environ, self.orig_environ, verbose=False)
 
         # restore original Python search path
         sys.path = self.orig_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
         # remove any log handlers that were added (so that log files can be effectively removed)
         log = fancylogger.getLogger(fname=False)
@@ -188,7 +227,7 @@ class EnhancedTestCase(_EnhancedTestCase):
             modtool.add_module_path(modpath)
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True):
+                reset_env=True, raise_systemexit=False, testing=True):
         """Helper method to call EasyBuild main function."""
         cleanup()
 
@@ -196,22 +235,27 @@ class EnhancedTestCase(_EnhancedTestCase):
         if logfile is None:
             logfile = self.logfile
         # clear log file
-        f = open(logfile, 'w')
-        f.write('')
-        f.close()
+        if logfile:
+            f = open(logfile, 'w')
+            f.write('')
+            f.close()
 
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main((args, logfile, do_build))
+            main(args=args, logfile=logfile, do_build=do_build, testing=testing)
         except SystemExit:
-            pass
+            if raise_systemexit:
+                raise err
         except Exception, err:
             myerr = err
             if verbose:
                 print "err: %s" % err
 
-        logtxt = read_file(logfile)
+        if logfile and os.path.exists(logfile):
+            logtxt = read_file(logfile)
+        else:
+            logtxt = None
 
         os.chdir(self.cwd)
 
@@ -299,7 +343,7 @@ class EnhancedTestCase(_EnhancedTestCase):
 
 def cleanup():
     """Perform cleanup of singletons and caches."""
-    # clear Singelton instances, to start afresh
+    # clear Singleton instances, to start afresh
     Singleton._instances.clear()
 
     # empty caches
@@ -308,6 +352,8 @@ def cleanup():
     easyconfig._easyconfig_files_cache.clear()
     mns_toolchain._toolchain_details_cache.clear()
 
+    # reset to make sure tempfile picks up new temporary directory to use
+    tempfile.tempdir = None
 
 def init_config(args=None, build_options=None):
     """(re)initialize configuration"""
@@ -321,6 +367,8 @@ def init_config(args=None, build_options=None):
     # initialize build options
     if build_options is None:
         build_options = {
+            'extended_dry_run': False,
+            'external_modules_metadata': ConfigObj(),
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }

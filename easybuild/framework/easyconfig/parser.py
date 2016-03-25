@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -35,6 +35,8 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
+from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
@@ -51,7 +53,6 @@ REPLACED_PARAMETERS = {
     'premakeopts': 'prebuildopts',
 }
 
-
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
 
 
@@ -63,7 +64,7 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     param_values = []
     for param in params:
-        regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        regex = re.compile(r"^\s*%s\s*(=|: )\s*(?P<param>\S.*?)\s*$" % param, re.M)
         res = regex.search(rawtxt)
         if res:
             param_values.append(res.group('param').strip("'\""))
@@ -78,31 +79,63 @@ class EasyConfigParser(object):
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None, format_version=None, rawcontent=None):
-        """Initialise the EasyConfigParser class"""
+    def __init__(self, filename=None, format_version=None, rawcontent=None,
+                 auto_convert_value_types=True):
+        """
+        Initialise the EasyConfigParser class
+        @param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
+        @param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
+        @param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
+        @param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
+                                         in case they are wrong
+        """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.rawcontent = None  # the actual unparsed content
+
+        self.auto_convert = auto_convert_value_types
 
         self.get_fn = None  # read method and args
         self.set_fn = None  # write method and args
 
         self.format_version = format_version
         self._formatter = None
-
         if rawcontent is not None:
             self.rawcontent = rawcontent
-            self._set_formatter()
+            self._set_formatter(filename)
         elif filename is not None:
             self._check_filename(filename)
             self.process()
         else:
             raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
+        self._formatter.extract_comments(self.rawcontent)
+
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)
-        self._set_formatter()
+        self._set_formatter(filename)
+
+    def check_values_types(self, cfg):
+        """
+        Check types of easyconfig parameter values.
+
+        @param cfg: dictionary with easyconfig parameter values (result of get_config_dict())
+        """
+        wrong_type_msgs = []
+        for key in cfg:
+            type_ok, newval = check_type_of_param_value(key, cfg[key], self.auto_convert)
+            if not type_ok:
+                wrong_type_msgs.append("value for '%s' should be of type '%s'" % (key, PARAMETER_TYPES[key].__name__))
+            elif newval != cfg[key]:
+                self.log.warning("Value for '%s' easyconfig parameter was converted from %s (type: %s) to %s (type: %s)",
+                                 key, cfg[key], type(cfg[key]), newval, type(newval))
+                cfg[key] = newval
+
+        if wrong_type_msgs:
+            raise EasyBuildError("Type checking of easyconfig parameter values failed: %s", ', '.join(wrong_type_msgs))
+        else:
+            self.log.info("Type checking of easyconfig parameter values passed!")
 
     def _check_filename(self, fn):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""
@@ -152,11 +185,14 @@ class EasyConfigParser(object):
             raise EasyBuildError("More than one format class found matching version %s in %s",
                                  self.format_version, found_classes)
 
-    def _set_formatter(self):
+    def _set_formatter(self, filename):
         """Obtain instance of the formatter"""
         if self._formatter is None:
-            klass = self._get_format_version_class()
-            self._formatter = klass()
+            if is_yeb_format(filename, self.rawcontent):
+                self._formatter = FormatYeb()
+            else:
+                klass = self._get_format_version_class()
+                self._formatter = klass()
         self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):
@@ -183,4 +219,12 @@ class EasyConfigParser(object):
         # allows to bypass the validation step, typically for testing
         if validate:
             self._formatter.validate()
-        return self._formatter.get_config_dict()
+
+        cfg = self._formatter.get_config_dict()
+        self.check_values_types(cfg)
+
+        return cfg
+
+    def dump(self, ecfg, default_values, templ_const, templ_val):
+        """Dump easyconfig in format it was parsed from."""
+        return self._formatter.dump(ecfg, default_values, templ_const, templ_val)

@@ -1,11 +1,11 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -31,7 +31,8 @@ MPI support for the Cray Programming Environment (craype).
 from easybuild.toolchains.compiler.craype import CrayPECompiler
 from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH, TC_CONSTANT_MPI_TYPE_MPICH
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
+from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, MPI_COMPILER_VARIABLES
+from easybuild.tools.toolchain.constants import SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.mpi import Mpi
 
 
@@ -47,14 +48,10 @@ class CrayMPICH(Mpi):
     MPI_COMPILER_MPICXX = CrayPECompiler.COMPILER_CXX
     MPI_COMPILER_MPIF77 = CrayPECompiler.COMPILER_F77
     MPI_COMPILER_MPIF90 = CrayPECompiler.COMPILER_F90
+    MPI_COMPILER_MPIFC = CrayPECompiler.COMPILER_FC
 
     # no MPI wrappers, so no need to specify serial compiler
-    MPI_SHARED_OPTION_MAP = {
-        '_opt_MPICC': '',
-        '_opt_MPICXX': '',
-        '_opt_MPIF77': '',
-        '_opt_MPIF90': '',
-    }
+    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""

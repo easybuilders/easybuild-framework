@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -45,9 +45,7 @@ from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 
-
 _log = fancylogger.getLogger('tools.robot', fname=False)
-
 
 def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
     """Determine robot path."""
@@ -65,12 +63,15 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
     return robot_path
 
 
-def dry_run(easyconfigs, short=False, build_specs=None):
+def dry_run(easyconfigs, short=False):
     """
-    Compose dry run overview for supplied easyconfigs ([ ] for unavailable, [x] for available, [F] for forced)
+    Compose dry run overview for supplied easyconfigs:
+    * [ ] for unavailable
+    * [x] for available
+    * [F] for forced
+    * [R] for rebuild
     @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
     @param short: use short format for overview: use a variable for common prefixes
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     lines = []
     if build_option('robot_path') is None:
@@ -78,7 +79,7 @@ def dry_run(easyconfigs, short=False, build_specs=None):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs, retain_all_deps=True)
 
     unbuilt_specs = skip_available(all_specs)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
@@ -94,6 +95,8 @@ def dry_run(easyconfigs, short=False, build_specs=None):
             ans = ' '
         elif build_option('force') and spec['spec'] in listed_ec_paths:
             ans = 'F'
+        elif build_option('rebuild') and spec['spec'] in listed_ec_paths:
+            ans = 'R'
         else:
             ans = 'x'
 
@@ -114,75 +117,73 @@ def dry_run(easyconfigs, short=False, build_specs=None):
     return '\n'.join(lines)
 
 
-def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
+def resolve_dependencies(easyconfigs, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
-    @param unprocessed: list of easyconfigs
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param easyconfigs: list of easyconfigs
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
-
     robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 
+    avail_modules = modules_tool().available()
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
-        # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = modules_tool().available()
-
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
-    being_installed = [p['full_mod_name'] for p in unprocessed]
+    being_installed = [p['full_mod_name'] for p in easyconfigs]
     avail_modules = [m for m in avail_modules if not m in being_installed]
 
-    _log.debug('unprocessed before resolving deps: %s' % unprocessed)
+    _log.debug('easyconfigs before resolving deps: %s' % easyconfigs)
 
     # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
     irresolvable = []
     loopcnt = 0
     maxloopcnt = 10000
-    while unprocessed:
+    while easyconfigs:
         # make sure this stops, we really don't want to get stuck in an infinite loop
         loopcnt += 1
         if loopcnt > maxloopcnt:
-            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)",
-                                 maxloopcnt, unprocessed, irresolvable)
+            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (easyconfigs: %s, irresolvable: %s)",
+                                 maxloopcnt, easyconfigs, irresolvable)
 
         # first try resolving dependencies without using external dependencies
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
-            res = find_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps)
-            more_ecs, unprocessed, avail_modules = res
-            for ec in more_ecs:
-                if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
+            res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
+            resolved_ecs, easyconfigs, avail_modules = res
+            ordered_ec_mod_names = [x['full_mod_name'] for x in ordered_ecs]
+            for ec in resolved_ecs:
+                # only add easyconfig if it's not included yet (based on module name)
+                if not ec['full_mod_name'] in ordered_ec_mod_names:
                     ordered_ecs.append(ec)
 
         # dependencies marked as external modules should be resolved via available modules at this point
-        missing_external_modules = [d['full_mod_name'] for ec in unprocessed for d in ec['dependencies']
+        missing_external_modules = [d['full_mod_name'] for ec in easyconfigs for d in ec['dependencies']
                                     if d.get('external_module', False)]
         if missing_external_modules:
             raise EasyBuildError("Missing modules for one or more dependencies marked as external modules: %s",
                                  missing_external_modules)
 
         # robot: look for existing dependencies, add them
-        if robot and unprocessed:
+        if robot and easyconfigs:
 
             # rely on EasyBuild module naming scheme when resolving dependencies, since we know that will
             # generate sensible module names that include the necessary information for the resolution to work
             # (name, version, toolchain, versionsuffix)
-            being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
+            being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in easyconfigs]
 
             additional = []
-            for entry in unprocessed:
+            for entry in easyconfigs:
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
@@ -216,7 +217,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                                                  path, dep_mod_name, mods)
 
                         for ec in processed_ecs:
-                            if not ec in unprocessed + additional:
+                            if not ec in easyconfigs + additional:
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
@@ -224,12 +225,12 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
             # add additional (new) easyconfigs to list of stuff to process
-            unprocessed.extend(additional)
-            _log.debug("Unprocessed dependencies: %s", unprocessed)
+            easyconfigs.extend(additional)
+            _log.debug("Unprocessed dependencies: %s", easyconfigs)
 
         elif not robot:
             # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
-            irresolvable = [dep for x in unprocessed for dep in x['dependencies']]
+            irresolvable = [dep for x in easyconfigs for dep in x['dependencies']]
             break
 
     if irresolvable:
@@ -243,7 +244,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False):
+def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     """Search for easyconfigs, if a query is provided."""
     robot_path = build_option('robot_path')
     if robot_path:
@@ -252,4 +253,5 @@ def search_easyconfigs(query, short=False):
         search_path = [os.getcwd()]
     ignore_dirs = build_option('ignore_dirs')
     silent = build_option('silent')
-    search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent)
+    search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent, filename_only=filename_only,
+                terse=terse)

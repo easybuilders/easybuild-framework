@@ -1,11 +1,11 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -50,6 +50,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     'icc,ifort': ('intel', '%(icc)s'),
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+    'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
 
 
@@ -93,7 +94,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             # no compiler in toolchain, dummy toolchain
             res = None
         elif len(tc_comps) == 1:
-            res = (tc_comps[0]['name'], tc_comps[0]['version'])
+            res = (tc_comps[0]['name'], self.det_full_version(tc_comps[0]))
         else:
             comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
             comp_names = comp_versions.keys()

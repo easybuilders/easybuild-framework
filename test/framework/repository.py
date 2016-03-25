@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -37,6 +37,7 @@ from unittest import TestLoader, main
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.gitrepo import GitRepository
+from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
@@ -122,6 +123,23 @@ class RepositoryTest(EnhancedTestCase):
         repo = SvnRepository(test_repo_url)
         repo.init()
         self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
+        shutil.rmtree(repo.wc)
+
+    def test_hgrepo(self):
+        """Test using HgRepository."""
+        # only run this test if pysvn Python module is available
+        try:
+            import hglib
+        except ImportError:
+            print "(skipping HgRepository test)"
+            return
+
+        # GitHub also supports SVN
+        test_repo_url = 'https://kehoste@bitbucket.org/kehoste/testrepository'
+
+        repo = HgRepository(test_repo_url)
+        repo.init()
+        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README')))
         shutil.rmtree(repo.wc)
 
     def test_init_repository(self):

@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,34 +30,24 @@ Support for MPICH2 as toolchain MPI library.
 @author: Jens Timmerman (Ghent University)
 """
 
-from easybuild.tools.toolchain.mpi import Mpi
-from easybuild.tools.toolchain.variables import CommandFlagList
+from easybuild.toolchains.mpi.mpich import Mpich
 
 TC_CONSTANT_MPICH2 = "MPICH2"
 TC_CONSTANT_MPI_TYPE_MPICH = "MPI_TYPE_MPICH"
 
 
-class Mpich2(Mpi):
+class Mpich2(Mpich):
     """MPICH2 MPI class"""
     MPI_MODULE_NAME = ["MPICH2"]
     MPI_FAMILY = TC_CONSTANT_MPICH2
     MPI_TYPE = TC_CONSTANT_MPI_TYPE_MPICH
 
-    MPI_LIBRARY_NAME = 'mpich'
-
-    # clear MPI wrapper command options
-    MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': '',
-                             '_opt_MPICXX': '',
-                             '_opt_MPIF77': '',
-                             '_opt_MPIF90': '',
-                             }
-
     def _set_mpi_compiler_variables(self):
-        """Set the MPICH_{CC, CXX, F77, F90} variables."""
+        """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
 
-        # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
-        for var in ["CC", "CXX", "F77", "F90"]:
-            self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+        # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
+        self.MPI_COMPILER_MPIF77 = 'mpif77'
+        self.MPI_COMPILER_MPIF90 = 'mpif90'
+        self.MPI_COMPILER_MPIFC = 'mpif90'
 
         super(Mpich2, self)._set_mpi_compiler_variables()

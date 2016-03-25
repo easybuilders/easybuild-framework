@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -28,13 +28,13 @@ EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogi
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.iiqmpi import Iiqmpi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Iqacml(IntelIccIfort, QLogicMPI, Acml, ScaLAPACK, Fftw):
+class Iqacml(Iiqmpi, Acml, ScaLAPACK, Fftw):
     """Compiler toolchain with Intel compilers, QLogic MPI, ACML, ScaLAPACK and FFTW."""
     NAME = 'iqacml'
+    SUBTOOLCHAIN = Iiqmpi.NAME

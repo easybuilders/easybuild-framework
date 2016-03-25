@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -112,7 +112,7 @@ def search_toolchain(name):
     return None, found_tcs
 
 
-def get_toolchain(tc, tcopts, mns):
+def get_toolchain(tc, tcopts, mns=None, tcdeps=None):
     """
     Return an initialized toolchain for the given specifications.
     If none is available in the toolchain instances cache, a new one is created.
@@ -124,9 +124,9 @@ def get_toolchain(tc, tcopts, mns):
     else:
         tc_class, all_tcs = search_toolchain(tc['name'])
         if not tc_class:
-            all_tcs_names = ",".join([x.NAME for x in all_tcs])
+            all_tcs_names = ','.join([x.NAME for x in all_tcs])
             raise EasyBuildError("Toolchain %s not found, available toolchains: %s", tc['name'], all_tcs_names)
-        tc_inst = tc_class(version=tc['version'], mns=mns)
+        tc_inst = tc_class(version=tc['version'], mns=mns, tcdeps=tcdeps)
         tc_dict = tc_inst.as_dict()
         _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
 

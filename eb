@@ -6,7 +6,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -44,43 +44,47 @@ REQ_MAJ_PYVER=2
 REQ_MIN_PYVER=6
 REQ_PYVER=${REQ_MAJ_PYVER}.${REQ_MIN_PYVER}
 
+PYTHON=python$REQ_MAJ_PYVER
+which $PYTHON &> /dev/null
+if [ $? -ne 0 ]
+then
+    PYTHON=python
+    which $PYTHON &> /dev/null
+    if [ $? -ne 0 ]
+    then
+        echo "ERROR: $PYTHON not available in \$PATH?"
+        exit 1
+    fi
+fi
+
 # make sure Python version being used is compatible
-pyver=`python -V 2>&1 | cut -f2 -d' '`
+pyver=`$PYTHON -V 2>&1 | cut -f2 -d' '`
 pyver_maj=`echo $pyver | cut -f1 -d'.'`
 pyver_min=`echo $pyver | cut -f2 -d'.'`
 
 if [ $pyver_maj -ne $REQ_MAJ_PYVER ]
 then
     echo "ERROR: EasyBuild is currently only compatible with Python v${REQ_MAJ_PYVER}.x, found v${pyver}" 1>&2
-    exit 1
-fi
-if [ $pyver_min -lt $REQ_MIN_PYVER ]
-then
-    echo "ERROR: EasyBuild requires Python v${REQ_PYVER} or a more recent v${REQ_MAJ_PYVER}.x, found v${pyver}." 1>&2
     exit 2
 fi
 
-
-main_script_base_path="easybuild/main.py"
-python_search_path_cmd="python -c \"import sys; print ' '.join(sys.path)\""
-
-easybuild_main=
-for path in `eval $python_search_path_cmd`;
-do
-    test_path="$path/$main_script_base_path"
-    if [ -f $test_path ]
-    then
-        easybuild_main=$test_path
-        break;
-    fi
-done
-
-if [ -z $easybuild_main ]
+if [ $pyver_min -lt $REQ_MIN_PYVER ]
 then
-    echo "ERROR: Failed to locate EasyBuild's main script $main_script_base_path" \
-         "in Python's search path, obtained with '$python_search_path_cmd' ."
-    echo "Make sure you PYTHONPATH setting is correct."
-    exit 1
-else
-    python $easybuild_main $@
+    echo "ERROR: EasyBuild requires Python v${REQ_PYVER} or a more recent v${REQ_MAJ_PYVER}.x, found v${pyver}." 1>&2
+    exit 3
 fi
+
+# enable optimization, unless $PYTHONOPTIMIZE is defined (use "export PYTHONOPTIMIZE=0" to disable optimization)
+if [ -z $PYTHONOPTIMIZE ]
+then
+    # instruct Python to turn on basic optimizations (equivalent to using 'python -O')
+    export PYTHONOPTIMIZE=1
+fi
+
+if [ -z $FANCYLOGGER_IGNORE_MPI4PY ]
+then
+    # avoid that fancylogger tries to import mpi4py to determine MPI rank
+    export FANCYLOGGER_IGNORE_MPI4PY=1
+fi
+
+$PYTHON -m easybuild.main "$@"

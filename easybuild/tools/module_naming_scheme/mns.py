@@ -1,11 +1,11 @@
 ##
-# Copyright 2011-2015 Ghent University
+# Copyright 2011-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -126,6 +126,18 @@ class ModuleNamingScheme(object):
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
 
+    def det_user_modpath_extensions(self, ec):
+        """
+        Determine list of subdirectories relative to the user-specific modules directory for which to extend
+        $MODULEPATH with when this module is loaded (if any).
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+        @return: A list of $MODULEPATH subdirectories.
+        """
+        # by default: use "system" module path extensions of naming scheme
+        return self.det_modpath_extensions(ec)
+
     def det_init_modulepaths(self, ec):
         """
         Determine initial module paths, where the modules that are top of the hierarchy (if any) live.
@@ -146,7 +158,7 @@ class ModuleNamingScheme(object):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
             <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^%s/\S+$' % re.escape(name))
+        modname_regex = re.compile('^%s(/\S+)?$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",

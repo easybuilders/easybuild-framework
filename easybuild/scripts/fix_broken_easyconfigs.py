@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,14 +30,13 @@ Script to fix easyconfigs that broke due to support for deprecated functionality
 import os
 import re
 import sys
-import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import SimpleOption
 
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import init_build_options
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, fetch_parameters_from_easyconfig
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import init_build_options
 from easybuild.tools.filetools import find_easyconfigs, read_file, write_file
 
 
@@ -119,7 +118,7 @@ try:
     log = go.log
 
     fancylogger.logToScreen(enable=True, stdout=True)
-    log.setLevel('INFO')
+    fancylogger.setLogLevel('WARNING')
 
     try:
         import easybuild.easyblocks.generic.configuremake
@@ -136,7 +135,11 @@ try:
 
     log.info("Processing %d easyconfigs" % len(ec_files))
     for ec_file in ec_files:
-        process_easyconfig_file(ec_file)
+        try:
+            process_easyconfig_file(ec_file)
+        except EasyBuildError, err:
+            log.warning("Ignoring issue when processing %s: %s", ec_file, err)
 
 except EasyBuildError, err:
+    sys.stderr.write("ERROR: %s\n" % err)
     sys.exit(1)

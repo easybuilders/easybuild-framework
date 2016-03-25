@@ -18,7 +18,7 @@ homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
 
 # test toolchain specification
-toolchain = {'name':'dummy','version':'dummy'}
+toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 # source tarball filename
 sources = [SOURCE_TAR_GZ]
@@ -35,3 +35,6 @@ sanity_check_paths = {
 # run 'gzip -h' and 'gzip --version' after installation
 sanity_check_commands = [True, ('gzip', '--version')]
 
+software_license = GPLv3
+
+moduleclass = 'tools'

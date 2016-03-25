@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -39,12 +39,14 @@ COMPILER_VARIABLES = [
     ('CXX', 'C++ compiler'),
     ('F77', 'Fortran 77 compiler'),
     ('F90', 'Fortran 90 compiler'),
+    ('FC', 'Fortran compiler'),
 ]
 
 COMPILER_FLAGS = [
     ('CFLAGS', 'C compiler flags'),
     ('CXXFLAGS', 'C++ compiler flags'),
-    ('FFLAGS', 'Fortran compiler flags'),
+    ('FCFLAGS', 'Fortran 77/90 compiler flags'),
+    ('FFLAGS', 'Fortran 77 compiler flags'),
     ('F90FLAGS', 'Fortran 90 compiler flags'),
 ]
 
@@ -70,13 +72,15 @@ CO_COMPILER_MAP_CLASS = {
     CommandFlagList: [
         ('CUDA_CC', 'CUDA C compiler command'),
         ('CUDA_CXX', 'CUDA C++ compiler command'),
-        ('CUDA_F77', 'CUDA Fortran77 compiler command'),
-        ('CUDA_F90', 'CUDA Fortran90 compiler command'),
+        ('CUDA_F77', 'CUDA Fortran 77 compiler command'),
+        ('CUDA_F90', 'CUDA Fortran 90 compiler command'),
+        ('CUDA_FC', 'CUDA Fortran 77/90 compiler command'),
     ],
     FlagList: [
         ('CUDA_CFLAGS', 'CUDA C compiler flags'),
         ('CUDA_CXXFLAGS', 'CUDA C++ compiler flags'),
-        ('CUDA_FFLAGS', 'CUDA Fortran compiler flags'),
+        ('CUDA_FCFLAGS', 'CUDA Fortran 77/90 compiler flags'),
+        ('CUDA_FFLAGS', 'CUDA Fortran 77 compiler flags'),
         ('CUDA_F90FLAGS', 'CUDA Fortran 90 compiler flags'),
     ],
 }

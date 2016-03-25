@@ -1,11 +1,11 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,6 +26,7 @@
 Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import re
 from os.path import exists as orig_os_path_exists
@@ -39,7 +40,7 @@ from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, L
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import get_system_info, get_gcc_version
 
 
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
@@ -146,14 +147,17 @@ def mocked_read_file(fp):
     else:
         return read_file(fp)
 
+
 def mocked_os_path_exists(mocked_fp, fp):
     """Mocked version of os.path.exists, returns True for a particular specified filepath."""
     return fp == mocked_fp
 
+
 def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
-        "ldd --version" : "ldd (GNU libc) 2.12",
+        "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
+        "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
@@ -240,8 +244,8 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_speed_native(self):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
-        self.assertTrue(isinstance(cpu_speed, float))
-        self.assertTrue(cpu_speed > 0.0)
+        self.assertTrue(isinstance(cpu_speed, float) or cpu_speed is None)
+        self.assertTrue(cpu_speed > 0.0 or cpu_speed is None)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
@@ -380,6 +384,23 @@ class SystemToolsTest(EnhancedTestCase):
         os_version = get_os_version()
         self.assertTrue(isinstance(os_version, basestring) or os_version == UNKNOWN)
 
+    def test_gcc_version_native(self):
+        """Test getting gcc version."""
+        gcc_version = get_gcc_version()
+        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == UNKNOWN or gcc_version is None)
+
+    def test_gcc_version_linux(self):
+        """Test getting gcc version (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_gcc_version(), '5.1.1')
+
+    def test_gcc_version_darwin(self):
+        """Test getting gcc version (mocked for Darwin)."""
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = lambda *args, **kwargs: ("Apple LLVM version 7.0.0 (clang-700.1.76)", 0)
+        self.assertEqual(get_gcc_version(), None)
+
     def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
@@ -403,14 +424,14 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_det_parallelism_native(self):
         """Test det_parallelism function (native calls)."""
-        self.assertTrue(det_parallelism(None, None) > 0)
+        self.assertTrue(det_parallelism() > 0)
         # specified parallellism
-        self.assertEqual(det_parallelism(5, None), 5)
+        self.assertEqual(det_parallelism(par=5), 5)
         # max parallellism caps
-        self.assertEqual(det_parallelism(None, 1), 1)
+        self.assertEqual(det_parallelism(maxpar=1), 1)
         self.assertEqual(det_parallelism(16, 1), 1)
-        self.assertEqual(det_parallelism(5, 2), 2)
-        self.assertEqual(det_parallelism(5, 10), 5)
+        self.assertEqual(det_parallelism(par=5, maxpar=2), 2)
+        self.assertEqual(det_parallelism(par=5, maxpar=10), 5)
 
     def test_det_parallelism_mocked(self):
         """Test det_parallelism function (with mocked ulimit/get_avail_core_count)."""
@@ -418,14 +439,21 @@ class SystemToolsTest(EnhancedTestCase):
 
         # mock number of available cores to 8
         st.get_avail_core_count = lambda: 8
-        self.assertTrue(det_parallelism(None, None), 8)
+        self.assertTrue(det_parallelism(), 8)
         # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
         st.run_cmd = mocked_run_cmd
-        self.assertTrue(det_parallelism(None, None), 4)
-        self.assertTrue(det_parallelism(6, None), 4)
-        self.assertTrue(det_parallelism(2, None), 2)
+        self.assertTrue(det_parallelism(), 4)
+        self.assertTrue(det_parallelism(par=6), 4)
+        self.assertTrue(det_parallelism(maxpar=2), 2)
 
         st.get_avail_core_count = orig_get_avail_core_count
+
+    def test_det_terminal_size(self):
+        """Test det_terminal_size function."""
+        (height, width) = st.det_terminal_size()
+        self.assertTrue(isinstance(height, int) and height > 0)
+        self.assertTrue(isinstance(width, int) and width > 0)
+
 
 def suite():
     """ returns all the testcases in this module """

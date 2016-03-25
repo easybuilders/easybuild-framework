@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,6 +30,7 @@ Support for Intel MPI as toolchain MPI library.
 """
 
 from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.tools.toolchain.constants import COMPILER_FLAGS, COMPILER_VARIABLES
 from easybuild.tools.toolchain.variables import CommandFlagList
 
 
@@ -53,8 +54,8 @@ class IntelMPI(Mpich2):
         """Add I_MPI_XXX variables to set."""
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
-        for var in ["CC", "CXX", "F77", "F90"]:
-            self.variables.nappend("I_MPI_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+        for var, _ in COMPILER_VARIABLES:
+            self.variables.nappend('I_MPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
         super(IntelMPI, self)._set_mpi_compiler_variables()
 
@@ -66,5 +67,5 @@ class IntelMPI(Mpich2):
         # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
         if self.options.get('openmp', None) and self.options.get('usempi', None):
             mt_mpi_option = ['mt_mpi']
-            for flags_var in ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']:
+            for flags_var, _ in COMPILER_FLAGS:
                 self.variables.nappend(flags_var, mt_mpi_option)

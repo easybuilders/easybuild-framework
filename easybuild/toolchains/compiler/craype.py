@@ -103,6 +103,7 @@ class CrayPECompiler(Compiler):
         # copy unique option map, since we fiddle with it later
         self.COMPILER_UNIQUE_OPTION_MAP = copy.deepcopy(self.COMPILER_UNIQUE_OPTION_MAP)
 
+<<<<<<< HEAD
     # this is specific to the semantics of craype-modules. There are craype modules for steering the compiler's backend code gen,
     # while others define run time behaviour like the use of hugepages.    
     def load_or_swap_module(self, mod_name_prefix, mod_name):
@@ -128,6 +129,8 @@ class CrayPECompiler(Compiler):
                                  mod_name, optarch)
 
 
+=======
+>>>>>>> f89e3dee8c6cda49842ce4d6a273fc852a297993
     def _set_optimal_architecture(self):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
@@ -135,7 +138,15 @@ class CrayPECompiler(Compiler):
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
+<<<<<<< HEAD
             self.load_or_swap_module("craype-",craype_mod_name)
+=======
+            if self.modules_tool.exist([craype_mod_name], skip_avail=True)[0]:
+                self.modules_tool.load([craype_mod_name])
+            else:
+                raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
+                                     craype_mod_name, optarch)
+>>>>>>> f89e3dee8c6cda49842ce4d6a273fc852a297993
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -29,13 +29,13 @@ EasyBuild support for goalf compiler toolchain (includes GCC, OpenMPI, ATLAS, BL
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gompi import Gompi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.atlas import Atlas
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Goalf(Gcc, OpenMPI, Atlas, ScaLAPACK, Fftw):
+class Goalf(Gompi, Atlas, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, ATLAS, ScaLAPACK and FFTW."""
     NAME = 'goalf'
+    SUBTOOLCHAIN = Gompi.NAME

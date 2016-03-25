@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -36,49 +36,49 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 @author: Ward Poelmans (Ghent University)
 """
-
+import copy
+import glob
 import os
+import re
 import sys
+import tempfile
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
+
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
+from easybuild.tools.environment import restore_env
+from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
+from easybuild.tools.modules import modules_tool
+from easybuild.tools.multidiff import multidiff
+from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
-# a NameError should be catched where these are used
+# a NameError should be caught where these are used
 
-# PyGraph (used for generating dependency graphs)
-graph_errors = []
 try:
+    # PyGraph (used for generating dependency graphs)
+    # https://pypi.python.org/pypi/python-graph-core
     from pygraph.classes.digraph import digraph
-except ImportError, err:
-    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
-
-try:
+    # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
-except ImportError, err:
-    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
-
-# graphviz (used for creating dependency graph images)
-try:
+    # graphviz (used for creating dependency graph images)
     sys.path.append('..')
     sys.path.append('/usr/lib/graphviz/python/')
     sys.path.append('/usr/lib64/graphviz/python/')
+    # https://pypi.python.org/pypi/pygraphviz
+    # graphviz-python (yum) or python-pygraphviz (apt-get)
+    # or brew install graphviz --with-bindings (OS X)
     import gv
-except ImportError, err:
-    graph_errors.append("Failed to import graphviz: try yum install graphviz-python,"
-                        "or apt-get install python-pygraphviz,"
-                        "or brew install graphviz --with-bindings")
-
-from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr
-from easybuild.tools.modules import modules_tool
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import quote_str
-
+except ImportError:
+    pass
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -98,55 +98,74 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
+def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
+
+    @param easyconfigs: list of parsed easyconfigs
+    @param avail_modules: list of available modules
+    @param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
     """
     ordered_ecs = []
-    new_avail_modules = avail_modules[:]
-    new_unprocessed = []
+    new_easyconfigs = []
     modtool = modules_tool()
+    # copy, we don't want to modify the origin list of available modules
+    avail_modules = avail_modules[:]
+    _log.debug("Finding resolved modules for %s (available modules: %s)", easyconfigs, avail_modules)
 
-    for ec in unprocessed:
-        new_ec = ec.copy()
+    ec_mod_names = [ec['full_mod_name'] for ec in easyconfigs]
+    for easyconfig in easyconfigs:
+        new_ec = easyconfig.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = dep.get('full_mod_name', None)
-            if full_mod_name is None:
-                full_mod_name = ActiveMNS().det_full_module_name(dep)
+            dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
-            dep_resolved = full_mod_name in new_avail_modules
-            if not retain_all_deps:
-                # hidden modules need special care, since they may not be included in list of available modules
-                dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+            # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
+            # since no corresponding easyconfig can be found for them
+            if retain_all_deps and dep.get('external_module', False):
+                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep_mod_name)
 
-            if not dep_resolved:
-                # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
-                # since no corresponding easyconfig can be found for them
-                if retain_all_deps and dep.get('external_module', False):
-                    _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
-                else:
-                    # no module available (yet) => retain dependency as one to be resolved
-                    deps.append(dep)
+            elif retain_all_deps and dep_mod_name not in avail_modules:
+                # if all dependencies should be retained, include dep unless it has been already
+                _log.debug("Retaining new dep %s in 'retain all deps' mode", dep_mod_name)
+                deps.append(dep)
 
+            # retain dep if it is (still) in the list of easyconfigs
+            elif dep_mod_name in ec_mod_names:
+                _log.debug("Dep %s is (still) in list of easyconfigs, retaining it", dep_mod_name)
+                deps.append(dep)
+
+            # retain dep if corresponding module is not available yet;
+            # fallback to checking with modtool.exist is required,
+            # for hidden modules and external modules where module name may be partial
+            elif dep_mod_name not in avail_modules and not modtool.exist([dep_mod_name], skip_avail=True)[0]:
+                # no module available (yet) => retain dependency as one to be resolved
+                _log.debug("No module available for dep %s, retaining it", dep)
+                deps.append(dep)
+
+        # update list of dependencies with only those unresolved
         new_ec['dependencies'] = deps
 
-        if len(new_ec['dependencies']) == 0:
+        # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
+        if not new_ec['dependencies']:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            new_avail_modules.append(ec['full_mod_name'])
+            mod_name = easyconfig['full_mod_name']
+            avail_modules.append(mod_name)
+            # remove module name from list, so dependencies can be marked as resolved
+            ec_mod_names.remove(mod_name)
 
         else:
-            new_unprocessed.append(new_ec)
+            new_easyconfigs.append(new_ec)
 
-    return ordered_ecs, new_unprocessed, new_avail_modules
+    return ordered_ecs, new_easyconfigs, avail_modules
 
 
-def _dep_graph(fn, specs, silent=False):
+@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+def dep_graph(filename, specs):
     """
     Create a dependency graph for the given easyconfigs.
     """
-
     # check whether module names are unique
     # if so, we can omit versions in the graph
     names = set()
@@ -169,37 +188,47 @@ def _dep_graph(fn, specs, silent=False):
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
         all_nodes.add(spec['module'])
-        spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
-        all_nodes.update(spec['unresolved_deps'])
+        spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
+        all_nodes.update(spec['ec'].all_dependencies)
+        
+        # Get the build dependencies for each spec so we can distinguish them later
+        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
+        all_nodes.update(spec['ec'].build_dependencies)
 
     # build directed graph
     dgr = digraph()
     dgr.add_nodes(all_nodes)
     for spec in specs:
-        for dep in spec['unresolved_deps']:
+        for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
+            if dep in spec['ec'].build_dependencies:
+                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
 
+    _dep_graph_dump(dgr, filename)
+
+    if not build_option('silent'):
+        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+
+
+@only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
+def _dep_graph_dump(dgr, filename):
+    """Dump dependency graph to file, in specified format."""
     # write to file
     dottxt = dot.write(dgr)
-    if fn.endswith(".dot"):
+    if os.path.splitext(filename)[-1] == '.dot':
         # create .dot file
-        write_file(fn, dottxt)
+        write_file(filename, dottxt)
     else:
-        # try and render graph in specified file format
-        gvv = gv.readstring(dottxt)
-        gv.layout(gvv, 'dot')
-        gv.render(gvv, fn.split('.')[-1], fn)
-
-    if not silent:
-        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
+        _dep_graph_gv(dottxt, filename)
 
 
-def dep_graph(*args, **kwargs):
-    try:
-        _dep_graph(*args, **kwargs)
-    except NameError, err:
-        raise EasyBuildError("An optional Python packages required to generate dependency graphs is missing: %s, %s",
-                             '\n'.join(graph_errors), err)
+@only_if_module_is_available('gv', pkgname='graphviz')
+def _dep_graph_gv(dottxt, filename):
+    """Render dependency graph to file using graphviz."""
+    # try and render graph in specified file format
+    gvv = gv.readstring(dottxt)
+    gv.layout(gvv, 'dot')
+    gv.render(gvv, os.path.splitext(filename)[-1], filename)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
@@ -319,7 +348,7 @@ def det_easyconfig_paths(orig_paths):
     return ec_files
 
 
-def parse_easyconfigs(paths):
+def parse_easyconfigs(paths, validate=True):
     """
     Parse easyconfig files
     @params paths: paths to easyconfigs
@@ -336,7 +365,7 @@ def parse_easyconfigs(paths):
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
                 # only pass build specs when not generating easyconfig files
-                kwargs = {}
+                kwargs = {'validate': validate}
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
                 ecs = process_easyconfig(ec_file, **kwargs)
@@ -360,3 +389,154 @@ def stats_to_str(stats):
         txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
     txt += "}"
     return txt
+
+
+def find_related_easyconfigs(path, ec):
+    """
+    Find related easyconfigs for provided parsed easyconfig in specified path.
+
+    A list of easyconfigs for the same software (name) is returned,
+    matching the 1st criterion that yields a non-empty list.
+
+    The following criteria are considered (in this order) next to common software version criterion, i.e.
+    exact version match, a major/minor version match, a major version match, or no version match (in that order).
+
+    (i)   matching versionsuffix and toolchain name/version
+    (ii)  matching versionsuffix and toolchain name (any toolchain version)
+    (iii) matching versionsuffix (any toolchain name/version)
+    (iv)  matching toolchain name/version (any versionsuffix)
+    (v)   matching toolchain name (any versionsuffix, toolchain version)
+    (vi)  no extra requirements (any versionsuffix, toolchain name/version)
+
+    If no related easyconfigs with a matching software name are found, an empty list is returned.
+    """
+    name = ec.name
+    version = ec.version
+    versionsuffix = ec['versionsuffix']
+    toolchain_name = ec['toolchain']['name']
+    toolchain_name_pattern = r'-%s-\S+' % toolchain_name
+    toolchain_pattern = '-%s-%s' % (toolchain_name, ec['toolchain']['version'])
+    if toolchain_name == DUMMY_TOOLCHAIN_NAME:
+        toolchain_name_pattern = ''
+        toolchain_pattern = ''
+
+    potential_paths = [glob.glob(ec_path) for ec_path in create_paths(path, name, '*')]
+    potential_paths = sum(potential_paths, [])  # flatten
+    _log.debug("found these potential paths: %s" % potential_paths)
+
+    parsed_version = LooseVersion(version).version
+    version_patterns = [version]  # exact version match
+    if len(parsed_version) >= 2:
+        version_patterns.append(r'%s\.%s\.\w+' % tuple(parsed_version[:2]))  # major/minor version match
+    if parsed_version != parsed_version[0]:
+        version_patterns.append(r'%s\.[\d-]+\.\w+' % parsed_version[0])  # major version match
+    version_patterns.append(r'[\w.]+')  # any version
+
+    regexes = []
+    for version_pattern in version_patterns:
+        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (name, version_pattern)
+        regexes.extend([
+            common_pattern % (toolchain_pattern + versionsuffix),
+            common_pattern % (toolchain_name_pattern + versionsuffix),
+            common_pattern % (r'\S*%s' % versionsuffix),
+            common_pattern % toolchain_pattern,
+            common_pattern % toolchain_name_pattern,
+            common_pattern % r'\S*',
+        ])
+
+    for regex in regexes:
+        res = [p for p in potential_paths if re.match(regex, p)]
+        if res:
+            _log.debug("Related easyconfigs found using '%s': %s" % (regex, res))
+            break
+        else:
+            _log.debug("No related easyconfigs in potential paths using '%s'" % regex)
+
+    return sorted(res)
+
+
+def review_pr(pr, colored=True, branch='develop'):
+    """
+    Print multi-diff overview between easyconfigs in specified PR and specified branch.
+    @param pr: pull request number in easybuild-easyconfigs repo to review
+    @param colored: boolean indicating whether a colored multi-diff should be generated
+    @param branch: easybuild-easyconfigs branch to compare with
+    """
+    tmpdir = tempfile.mkdtemp()
+
+    download_repo_path = download_repo(branch=branch, path=tmpdir)
+    repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+
+    lines = []
+    ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
+    for ec in ecs:
+        files = find_related_easyconfigs(repo_path, ec['ec'])
+        _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
+        if files:
+            lines.append(multidiff(ec['spec'], files, colored=colored))
+        else:
+            lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
+
+    return '\n'.join(lines)
+
+
+def dump_env_script(easyconfigs):
+    """
+    Dump source scripts that set up build environment for specified easyconfigs.
+
+    @param easyconfigs: list of easyconfigs to generate scripts for
+    """
+    ecs_and_script_paths = []
+    for easyconfig in easyconfigs:
+        script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
+        ecs_and_script_paths.append((easyconfig['ec'], script_path))
+
+    # don't just overwrite existing scripts
+    existing_scripts = [s for (_, s) in ecs_and_script_paths if os.path.exists(s)]
+    if existing_scripts:
+        if build_option('force'):
+            _log.info("Found existing scripts, overwriting them: %s", ' '.join(existing_scripts))
+        else:
+            raise EasyBuildError("Script(s) already exists, not overwriting them (unless --force is used): %s",
+                                 ' '.join(existing_scripts))
+
+    orig_env = copy.deepcopy(os.environ)
+
+    for ec, script_path in ecs_and_script_paths:
+        # obtain EasyBlock instance
+        app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        app = app_class(ec)
+
+        # mimic dry run, and keep quiet
+        app.dry_run = app.silent = app.toolchain.dry_run = True
+
+        # prepare build environment (in dry run mode)
+        app.check_readiness_step()
+        app.prepare_step(start_dir=False)
+
+        # compose script
+        ecfile = os.path.basename(ec.path)
+        script_lines = [
+            "#!/bin/bash",
+            "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
+            "# usage: source %s" % os.path.basename(script_path),
+        ]
+
+        script_lines.extend(['', "# toolchain & dependency modules"])
+        if app.toolchain.modules:
+            script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+        else:
+            script_lines.append("# (no modules loaded)")
+
+        script_lines.extend(['', "# build environment"])
+        if app.toolchain.vars:
+            env_vars = sorted(app.toolchain.vars.items())
+            script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+        else:
+            script_lines.append("# (no build environment defined)")
+
+        write_file(script_path, '\n'.join(script_lines))
+        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
+
+        restore_env(orig_env)

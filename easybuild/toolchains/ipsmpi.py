@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -27,13 +27,13 @@ EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, i
 
 """
 
-from easybuild.toolchains.impich import Impich
+from easybuild.toolchains.iccifort import IccIfort
+from easybuild.toolchains.mpi.psmpi import Psmpi
 
 
-class Ipsmpi(Impich):
+class Ipsmpi(IccIfort, Psmpi):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
     """
     NAME = 'ipsmpi'
-    # Use Parastation naming
-    MPI_MODULE_NAME = ["psmpi"]
+    SUBTOOLCHAIN = IccIfort.NAME

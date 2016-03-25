@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -35,12 +35,10 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import copy
 import os
-import re
 import sys
 from datetime import datetime
 from time import gmtime, strftime
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
@@ -117,31 +115,15 @@ def regtest(easyconfig_paths, build_specs=None):
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        resolved = resolve_dependencies(easyconfigs)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
+        build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
 
-        print "List of submitted jobs:"
-        for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
-        print "(%d jobs submitted)" % len(jobs)
-
-        # determine leaf nodes in dependency graph, and report them
-        all_deps = set()
-        for job in jobs:
-            all_deps = all_deps.union(job.deps)
-
-        leaf_nodes = []
-        for job in jobs:
-            if job.jobid not in all_deps:
-                leaf_nodes.append(str(job.jobid).split('.')[0])
-
-        _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success
@@ -279,8 +261,9 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     # post comment to report test result
     system_info = init_session_state['system_info']
-    short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+    short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
         'cpu_model': system_info['cpu_model'],
+        'hostname': system_info['hostname'],
         'os_name': system_info['os_name'],
         'os_type': system_info['os_type'],
         'os_version': system_info['os_version'],

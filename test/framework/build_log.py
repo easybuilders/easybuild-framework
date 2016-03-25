@@ -1,11 +1,11 @@
 # #
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -49,6 +49,7 @@ class BuildLogTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup after test."""
+        super(BuildLogTest, self).tearDown()
         # restore default logging format
         setLogFormat(LOGGING_FORMAT)
 
@@ -143,6 +144,7 @@ class BuildLogTest(EnhancedTestCase):
         log.warning("No raise for warnings")
         self.assertErrorRegex(EasyBuildError, 'EasyBuild crashed with an error', log.error, 'foo')
         self.assertErrorRegex(EasyBuildError, 'EasyBuild encountered an exception', log.exception, 'bar')
+
 
 def suite():
     """ returns all the testcases in this module """

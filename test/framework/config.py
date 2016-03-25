@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -38,32 +38,15 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
+from easybuild.tools import run
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_path, source_paths, install_path, get_repositorypath
-from easybuild.tools.config import set_tmpdir, BuildOptions, ConfigurationVariables
+from easybuild.tools.config import build_option, build_path, source_paths, install_path, get_repositorypath
+from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
-EXTERNAL_MODULES_METADATA = """[cray-netcdf/4.3.2]
-name = netCDF,netCDF-Fortran
-version = 4.3.2,4.3.2
-prefix = NETCDF_DIR
- 
-[cray-hdf5/1.8.13]
-name = HDF5
-version = 1.8.13
-prefix = HDF5_DIR
-
-[foo]
-name = Foo
-prefix = /foo
-
-[bar/1.2.3]
-name = bar
-version = 1.2.3
-"""
 
 class EasyBuildConfigTest(EnhancedTestCase):
     """Test cases for EasyBuild configuration."""
@@ -79,7 +62,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
         for var in os.environ.keys():
-            if var.startswith('EASYBUILD_'):
+            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
                 del os.environ[var]
 
     def tearDown(self):
@@ -336,35 +320,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
         del os.environ['EASYBUILD_CONFIGFILES']
         sys.path[:] = orig_sys_path
 
-    def test_set_tmpdir(self):
-        """Test set_tmpdir config function."""
-        self.purge_environment()
-
-        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
-            parent = tmpdir
-            if parent is None:
-                parent = tempfile.gettempdir()
-
-            mytmpdir = set_tmpdir(tmpdir=tmpdir)
-
-            for var in ['TMPDIR', 'TEMP', 'TMP']:
-                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
-                self.assertEqual(os.environ[var], mytmpdir)
-            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
-            tempfile_tmpdir = tempfile.mkdtemp()
-            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
-            fd, tempfile_tmpfile = tempfile.mkstemp()
-            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
-
-            # tmp_logdir follows tmpdir
-            self.assertEqual(get_build_log_path(), mytmpdir)
-
-            # cleanup
-            os.close(fd)
-            shutil.rmtree(mytmpdir)
-            modify_env(os.environ, self.orig_environ)
-            tempfile.tempdir = None
-
     def test_configuration_variables(self):
         """Test usage of ConfigurationVariables."""
         # delete instance of ConfigurationVariables
@@ -453,7 +408,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
         mkdir(os.path.join(dir3, 'easybuild.d'), parents=True)
         write_file(os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'), cfg_template % '/foobarbaz')
 
-        # only $XDG_CONFIG_HOME set
+        # set $XDG_CONFIG_DIRS to non-existing dir to isolate ourselves from possible system-wide config files
+        os.environ['XDG_CONFIG_DIRS'] = '/there/should/be/no/such/directory/we/hope'
+
+        # only $XDG_CONFIG_HOME set (to existing path)
         os.environ['XDG_CONFIG_HOME'] = homedir
         cfg_files = [os.path.join(homedir, 'easybuild', 'config.cfg')]
         reload(eboptions)
@@ -599,40 +557,15 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         sys.path[:] = orig_sys_path
 
-    def test_external_modules_metadata(self):
-        """Test --external-modules-metadata."""
-        # empty list by default
-        cfg = init_config()
-        self.assertEqual(cfg.external_modules_metadata, [])
+    def test_strict(self):
+        """Test use of --strict."""
+        # check default
+        self.assertEqual(build_option('strict'), run.WARN)
 
-        testcfgtxt = EXTERNAL_MODULES_METADATA
-        testcfg = os.path.join(self.test_prefix, 'test_external_modules_metadata.cfg')
-        write_file(testcfg, testcfgtxt)
-
-        cfg = init_config(args=['--external-modules-metadata=%s' % testcfg])
-
-        netcdf = {
-            'name': ['netCDF', 'netCDF-Fortran'],
-            'version': ['4.3.2', '4.3.2'],
-            'prefix': 'NETCDF_DIR',
-        }
-        self.assertEqual(cfg.external_modules_metadata['cray-netcdf/4.3.2'], netcdf)
-        hdf5 = {
-            'name': ['HDF5'],
-            'version': ['1.8.13'],
-            'prefix': 'HDF5_DIR',
-        }
-        self.assertEqual(cfg.external_modules_metadata['cray-hdf5/1.8.13'], hdf5)
-
-        # impartial metadata is fine
-        self.assertEqual(cfg.external_modules_metadata['foo'], {'name': ['Foo'], 'prefix': '/foo'})
-        self.assertEqual(cfg.external_modules_metadata['bar/1.2.3'], {'name': ['bar'], 'version': ['1.2.3']})
-
-        # if both names and versions are specified, lists must have same lengths
-        write_file(testcfg, '\n'.join(['[foo/1.2.3]', 'name = foo,bar', 'version = 1.2.3']))
-        args = ['--external-modules-metadata=%s' % testcfg]
-        err_msg = "Different length for lists of names/versions in metadata for external module"
-        self.assertErrorRegex(EasyBuildError, err_msg, init_config, args=args)
+        for strict_str, strict_val in [('error', run.ERROR), ('ignore', run.IGNORE), ('warn', run.WARN)]:
+            options = init_config(args=['--strict=%s' % strict_str])
+            init_config(build_options={'strict': options.strict})
+            self.assertEqual(build_option('strict'), strict_val)
 
 
 def suite():

@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -41,12 +41,38 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 
 
+INDENT_4SPACES = ' ' * 4
+
 # format is mandatory major.minor
 FORMAT_VERSION_KEYWORD = "EASYCONFIGFORMAT"
 FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"
 FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_VERSION_TEMPLATE)  # must end in newline
 FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
 FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
+
+DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
+
+# values for these keys will not be templated in dump()
+EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'homepage', 'name', 'toolchain', 'version'] \
+                                  + DEPENDENCY_PARAMETERS
+
+# ordered groups of keys to obtain a nice looking easyconfig file
+GROUPED_PARAMS = [
+    ['easyblock'],
+    ['name', 'version', 'versionprefix', 'versionsuffix'],
+    ['homepage', 'description'],
+    ['toolchain', 'toolchainopts'],
+    ['sources', 'source_urls'],
+    ['patches'],
+    DEPENDENCY_PARAMETERS,
+    ['osdependencies'],
+    ['preconfigopts', 'configopts'],
+    ['prebuildopts', 'buildopts'],
+    ['preinstallopts', 'installopts'],
+    ['parallel', 'maxparallel'],
+]
+LAST_PARAMS = ['sanity_check_paths', 'moduleclass']
+
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
 
@@ -580,6 +606,7 @@ class EasyConfigFormat(object):
             raise EasyBuildError('Invalid version number %s (incorrect length)', self.VERSION)
 
         self.rawtext = None  # text version of the easyconfig
+        self.comments = {}  # comments in easyconfig file
         self.header = None  # easyconfig header (e.g., format version, license, ...)
         self.docstring = None  # easyconfig docstring (e.g., author, maintainer, ...)
 
@@ -602,8 +629,12 @@ class EasyConfigFormat(object):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
-    def dump(self):
+    def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump easyconfig according to this format. This is higly version specific"""
+        raise NotImplementedError
+
+    def extract_comments(self, rawtxt):
+        """Extract comments from raw content."""
         raise NotImplementedError
 
 
