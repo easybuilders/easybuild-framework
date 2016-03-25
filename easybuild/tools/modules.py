@@ -455,7 +455,6 @@ class ModulesTool(object):
         Run 'module swap' for mod_name1 to mod_name2
         :param mod_name1: The module that should be swapped
         :param mod_name2: to the module that should be swapped with
-        :return: 0 if the module that should be swapped to is loaded after the swap
         """
         self.log.debug("Swapping module %s for module %s" % (mod_name1,mod_name1))
         self.run_module('swap', mod_name1, mod_name2)
