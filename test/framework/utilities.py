@@ -171,8 +171,6 @@ class EnhancedTestCase(_EnhancedTestCase):
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
         modtool = modules_tool()
-        # purge out any loaded modules with original $MODULEPATH before running each test
-        modtool.purge()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
 
     def tearDown(self):
