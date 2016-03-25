@@ -103,12 +103,11 @@ class CrayPECompiler(Compiler):
         # copy unique option map, since we fiddle with it later
         self.COMPILER_UNIQUE_OPTION_MAP = copy.deepcopy(self.COMPILER_UNIQUE_OPTION_MAP)
 
-    # this is specific to the semantics of craype-modules. There are craype modules for steering the compiler's backend code gen,
-    # while others define run time behaviour like the use of hugepages.    
-    def load_or_swap_module(self, mod_name_prefix, mod_name):
-	self.log.debug("Using load or swap")
-        if self.modules_tool.exist([mod_name], skip_avail=True)[0]:
-            if any(mod.startswith(mod_name_prefix) for mod in self.modules_tool.loaded_modules()):
+    # this is specific to the semantics of craype-modules.
+    def load_or_swap_craype_target(self):
+      craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
+        if self.modules_tool.exist([craype_mod_name], skip_avail=True)[0]:
+            if any(mod.startswith(self.CRAYPE_MODULE_NAME_TEMPLATE) for mod in self.modules_tool.loaded_modules()):
                 loaded_mods_same_prefix = [mod for mod in self.modules_tool.loaded_modules() if
                                       mod.startswith(mod_name_prefix)]
                 self.log.debug("Loaded modules of same prefix %s " % loaded_mods_same_prefix)
@@ -117,9 +116,7 @@ class CrayPECompiler(Compiler):
                     if mod_name in conflicts:
                         self.log.debug("List of relevant conflicts is %s" % conflicts)
                         #special case for craype-<cpu-target> modules as they contain themselfs as conflicts
-                        if loaded_mod == mod_name:
-                            pass
-                        else:
+                        if loaded_mod != mod_name:
                             self.modules_tool.swap(loaded_mod, mod_name)
                 else:
                     self.modules_tool.load([mod_name])
@@ -134,8 +131,7 @@ class CrayPECompiler(Compiler):
         if optarch is None:
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
-            craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
-            self.load_or_swap_module("craype-",craype_mod_name)
+            self.load_or_swap_craype_target()
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
