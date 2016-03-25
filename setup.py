@@ -112,7 +112,7 @@ implement support for installing particular (groups of) software packages.""",
     zip_safe=False,
     install_requires=[
         'setuptools >= 0.6',
-        "vsc-base >= 2.4.18",
+        "vsc-base >= 2.5.0",
         'humanfriendly',  # determine whether terminal supports ANSI color
     ],
     extras_require = {
