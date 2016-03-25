@@ -45,7 +45,7 @@ import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.main import main
+from easybuild.main import main_init
 from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
@@ -243,7 +243,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing)
+            main_init(args=args, logfile=logfile, do_build=do_build, testing=testing)
         except SystemExit:
             if raise_systemexit:
                 raise err

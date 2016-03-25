@@ -477,7 +477,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     sys.argv = eb_args
 
     # install EasyBuild with EasyBuild
-    from easybuild.main import main as easybuild_main
+    from easybuild.main import main_init as easybuild_main
     easybuild_main()
 
 
