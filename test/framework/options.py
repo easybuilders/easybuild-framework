@@ -1766,6 +1766,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
+        orig_local_sys_path = sys.path[:]
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1787,7 +1789,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
-        sys.path = self.orig_sys_path
+        sys.path = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
@@ -1826,6 +1828,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_generic_easyblocks(self):
         """Test --include-easyblocks with a generic easyblock."""
+        orig_local_sys_path = sys.path[:]
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1864,7 +1867,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
         os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
-        sys.path = self.orig_sys_path
+        sys.path = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
