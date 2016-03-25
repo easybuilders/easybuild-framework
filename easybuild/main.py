@@ -182,7 +182,7 @@ def handle_github_options(options, ec_paths):
     return done
 
 
-def main_init(args=None, logfile=None, do_build=None, testing=False):
+def main(args=None, logfile=None, do_build=None, testing=False):
     """
     Set up environment, possibly daemonize and give control to main function.
 
@@ -466,6 +466,6 @@ def main_body(init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
 
 if __name__ == "__main__":
     try:
-        main_init()
+        main()
     except EasyBuildError, e:
         print_error(e.msg)
