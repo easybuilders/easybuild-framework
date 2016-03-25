@@ -258,7 +258,7 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
-            'color': ("Allow color output", None, 'store_true', True),
+            'color': ("Colorize output", 'choice', 'store', 'auto', ['auto', 'always', 'never'], {'metavar':'WHEN'}),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",

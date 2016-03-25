@@ -64,6 +64,7 @@ from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
 from easybuild.tools.version import this_is_easybuild
 
+from humanfriendly.terminal import terminal_supports_colors
 
 _log = None
 
@@ -203,12 +204,21 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
 
+    # turn color=auto/yes/no into a boolean value
+    if options.color == 'auto':
+        options.color = terminal_supports_colors(sys.stdout)
+    elif options.color == 'always':
+        options.color = True
+    else:
+        options.color = False
+
     # set by option parsers via set_tmpdir
     eb_tmpdir = tempfile.gettempdir()
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.terse)
+    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
+                                 silent=(testing or options.terse)), color=options.color)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:

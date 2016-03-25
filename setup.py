@@ -113,6 +113,7 @@ implement support for installing particular (groups of) software packages.""",
     install_requires=[
         'setuptools >= 0.6',
         "vsc-base >= 2.4.18",
+        'humanfriendly',  # determine whether terminal supports ANSI color
     ],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
