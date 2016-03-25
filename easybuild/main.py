@@ -44,7 +44,8 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, NonTerminatingLoggerProxy, init_logging, print_msg, print_error, stop_logging
+from easybuild.tools.build_log import (EasyBuildError, NonTerminatingLoggerProxy,
+                                       init_logging, print_msg, print_error, stop_logging)
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
@@ -227,18 +228,14 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # sanity check
     if options.daemonize and options.logtostdout:
-        raise EasyBuildError(
-            "Option `--daemonize` is incompatible with `--logtostdout`."
-            " Please use only one of the two.")
+        raise EasyBuildError("Option `--daemonize` is incompatible with `--logtostdout`. Please use only one of the two.")
 
     if options.daemonize:
-        main_daemonize(
-            # local state
-            init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
-            # original `main` args
-            args, logfile, do_build, testing)
+        main_continued = main_daemonize
     else:
-        main_body(
+        main_continued = main_body
+
+    main_continued(
             # local state
             init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
             # original `main` args
@@ -271,7 +268,7 @@ def main_body(init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
     """
     Main function: parse command line options, and act accordingly.
 
-    @param init_session_state: Part of the context set up by `main1`
+    @param init_session_state: Part of the context set up by `main_init`
     @param eb_go: Part of the context set up by `main1`
     @param eb_tmpdir: Part of the context set up by `main1`
     @param eb_cmd_line: Part of the context set up by `main1`
