@@ -1,11 +1,11 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -37,13 +37,14 @@ Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 @author: Petar Forai (IMP/IMBA, Austria)
 @author: Kenneth Hoste (Ghent University)
 """
+import copy
+
 import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
-import re
 
 
 TC_CONSTANT_CRAYPE = "CrayPE"
@@ -60,7 +61,7 @@ class CrayPECompiler(Compiler):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = {
-        'dynamic': (False, "Generate dynamically linked executable"),
+        'dynamic': (True, "Generate dynamically linked executable"),
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
@@ -81,6 +82,7 @@ class CrayPECompiler(Compiler):
 
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
+    COMPILER_FC = 'ftn'
 
     # suffix for PrgEnv module that matches this toolchain
     # e.g. 'gnu' => 'PrgEnv-gnu/<version>'
@@ -98,6 +100,34 @@ class CrayPECompiler(Compiler):
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
 
+        # copy unique option map, since we fiddle with it later
+        self.COMPILER_UNIQUE_OPTION_MAP = copy.deepcopy(self.COMPILER_UNIQUE_OPTION_MAP)
+
+    # this is specific to the semantics of craype-modules. There are craype modules for steering the compiler's backend code gen,
+    # while others define run time behaviour like the use of hugepages.    
+    def load_or_swap_module(self, mod_name_prefix, mod_name):
+	self.log.debug("Using load or swap")
+        if self.modules_tool.exist([mod_name], skip_avail=True)[0]:
+            if any(mod.startswith(mod_name_prefix) for mod in self.modules_tool.loaded_modules()):
+                loaded_mods_same_prefix = [mod for mod in self.modules_tool.loaded_modules() if
+                                      mod.startswith(mod_name_prefix)]
+                self.log.debug("Loaded modules of same prefix %s " % loaded_mods_same_prefix)
+                for loaded_mod in loaded_mods_same_prefix:
+                    conflicts = self.modules_tool.get_conflicts_from_modfile(loaded_mod)
+                    if mod_name in conflicts:
+                        self.log.debug("List of relevant conflicts is %s" % conflicts)
+                        #special case for craype-<cpu-target> modules as they contain themselfs as conflicts
+                        if loaded_mod == mod_name:
+                            pass
+                        else:
+                            self.modules_tool.swap(loaded_mod, mod_name)
+                else:
+                    self.modules_tool.load([mod_name])
+        else:
+            raise EasyBuildError("Necessary module with name '%s' is not available (optarch: '%s')",
+                                 mod_name, optarch)
+
+
     def _set_optimal_architecture(self):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
@@ -105,22 +135,7 @@ class CrayPECompiler(Compiler):
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
-            if self.modules_tool.exist([craype_mod_name])[0]:
-                if any(mod.startswith('craype-') for mod in self.modules_tool.loaded_modules()):
-                    loaded_craype_mod = [mod for mod in self.modules_tool.loaded_modules() if mod.startswith("craype-")]
-                    self.log.debug("Loaded craype modules %s " % loaded_craype_mod)
-                    conflicts_re = re.compile('^conflict\s*(\S+).*$',re.M)
-                    #todo: the loaded craype mods could be a list, we just take the frist one?!
-                    conflicts=self.modules_tool.get_value_from_modulefile(loaded_craype_mod[0],conflicts_re)
-
-                    if craype_mod_name in conflicts:
-                        self.log.debug("Conflicts are %s" % conflicts)
-                        self.modules_tool.swap(loaded_craype_mod,craype_mod_name)
-                    else:
-                        self.modules_tool.load(craype_mod_name)
-            else:
-                raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
-                                     craype_mod_name, optarch)
+            self.load_or_swap_module("craype-",craype_mod_name)
 
         # no compiler flag when optarch toolchain option is enabled
         self.options.options_map['optarch'] = ''
