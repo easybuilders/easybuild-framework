@@ -64,7 +64,12 @@ from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
 from easybuild.tools.version import this_is_easybuild
 
-from humanfriendly.terminal import terminal_supports_colors
+try:
+    from humanfriendly.terminal import terminal_supports_colors
+except ImportError:
+    # provide an approximation that should work in most cases
+    def terminal_supports_colors(stream):
+        return os.isatty(stream.fileno)
 
 _log = None
 
