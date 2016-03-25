@@ -63,7 +63,18 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
+from easybuild.tools.utilities import only_if_module_is_available
 from easybuild.tools.version import this_is_easybuild
+
+try:
+    from daemonize import Daemonize
+except ImportError:
+    # ideally we would log this at a WARNING level, but the logger has
+    # not been initialized yet so just silently ignore the error.
+    # Decorator `only_if_module_is_available` will take care of
+    # printing a sensible error message to users in case daemonization
+    # features are ever used.
+    pass
 
 
 _log = None
@@ -242,12 +253,15 @@ def main(args=None, logfile=None, do_build=None, testing=False):
             args, logfile, do_build, testing)
 
 
+@only_if_module_is_available('daemonize', pkgname='daemonize')
 def main_daemonize(init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
                    args=None, logfile=None, do_build=None, testing=False):
+    """
+    Daemonize the EB process then continue with `main_body`.
+    """
     pidfile = os.path.join(eb_tmpdir, 'easybuild.pid')
     print_msg("Backgrounding EasyBuild process,"
               " will record PID in file '%s' ..." % (pidfile,))
-    from daemonize import Daemonize
     daemon = Daemonize(
         app='EasyBuild',
         pid=pidfile,
