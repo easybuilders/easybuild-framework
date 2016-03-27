@@ -90,11 +90,6 @@ class FileToolsTest(EnhancedTestCase):
         name = ft.convert_name("test+test-test.mpi", True)
         self.assertEqual(name, "TESTPLUSTESTMINTESTMPI")
 
-    def test_cwd(self):
-        """tests should be run from the base easybuild directory"""
-        # used to be part of test_parse_log_error
-        self.assertEqual(os.getcwd(), ft.find_base_dir())
-
     def test_find_base_dir(self):
         """test if we find the correct base dir"""
         tmpdir = tempfile.mkdtemp()
