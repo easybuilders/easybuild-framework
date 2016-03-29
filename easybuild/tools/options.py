@@ -80,6 +80,17 @@ from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 
+try:
+    from humanfriendly.terminal import terminal_supports_colors
+except ImportError:
+    # provide an approximation that should work in most cases
+    def terminal_supports_colors(stream):
+        try:
+            return os.isatty(stream.fileno())
+        except Exception:
+            # in case of errors do not bother and just return the safe default
+            return False
+
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
@@ -140,6 +151,24 @@ def pretty_print_opts(opts_dict):
         lines.append("{0:<{nwopt}} ({1:}) = {2:}".format(opt, loc, opt_val, nwopt=nwopt))
 
     print '\n'.join(lines)
+
+
+def use_color(colorize, stream=sys.stdout):
+    """
+    Return ``True`` or ``False`` depending on whether ANSI color
+    escapes are to be used when printing to `stream`.
+
+    The `colorize` argument can take the three string values
+    ``'auto'``/``'always'``/``'never'``, see the ``--color`` option
+    for their meaning.
+    """
+    # turn color=auto/yes/no into a boolean value
+    if options.color == 'auto':
+        return terminal_supports_colors(stream)
+    elif options.color == 'always':
+        return True
+    else:
+        return False
 
 
 class EasyBuildOptions(GeneralOption):

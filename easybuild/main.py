@@ -56,20 +56,13 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
-from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
+from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
 from easybuild.tools.version import this_is_easybuild
-
-try:
-    from humanfriendly.terminal import terminal_supports_colors
-except ImportError:
-    # provide an approximation that should work in most cases
-    def terminal_supports_colors(stream):
-        return os.isatty(stream.fileno)
 
 _log = None
 
@@ -177,7 +170,7 @@ def handle_github_options(options, ec_paths):
         new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
 
     elif options.review_pr:
-        print review_pr(options.review_pr, colored=_use_color(options.color))
+        print review_pr(options.review_pr, colored=use_color(options.color))
 
     elif options.update_pr:
         update_pr(options.update_pr, ec_paths, commit_msg=options.pr_commit_msg)
@@ -186,25 +179,6 @@ def handle_github_options(options, ec_paths):
         done = False
 
     return done
-
-
-def _use_color(colorize, stream=sys.stdout):
-    """
-    Return ``True`` or ``False`` depending on whether ANSI color
-    escapes are to be used when printing to `stream`.
-
-    The `colorize` argument can take the three string values
-    ``'auto'``/``'always'``/``'never'``, see the ``--color`` option
-    for their meaning.
-    """
-    # turn color=auto/yes/no into a boolean value
-    if options.color == 'auto':
-        return terminal_supports_colors(stream)
-    elif options.color == 'always':
-        return True
-    else:
-        return False
-
 
 
 def main(args=None, logfile=None, do_build=None, testing=False):
