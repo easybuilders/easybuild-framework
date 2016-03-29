@@ -450,6 +450,15 @@ class ModulesTool(object):
         """
         return self.run_module('show', mod_name, return_output=True)
 
+    def swap(self, mod_name1, mod_name2):
+        """
+        Run 'module swap' for mod_name1 to mod_name2
+        :param mod_name1: The module that should be swapped
+        :param mod_name2: to the module that should be swapped with
+        """
+        self.log.debug("Swapping module %s for module %s" % (mod_name1,mod_name1))
+        self.run_module('swap', mod_name1, mod_name2)
+
     def get_value_from_modulefile(self, mod_name, regex):
         """
         Get info from the module file for the specified module.
@@ -468,6 +477,19 @@ class ModulesTool(object):
                                      regex.pattern, modinfo)
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
+
+    def get_conflicts_from_modfile(self,mod_name):
+        conflicts_re = re.compile('^conflict\s*(\S+).*$',re.M)
+        if self.exist([mod_name])[0]:
+            modinfo = self.show(mod_name)
+        self.log.debug("modinfo: %s" % modinfo)
+        res = re.findall(conflicts_re,modinfo)
+        if res:
+            self.log.debug("Conflicting modules found %s " %res)
+            return res
+        else:
+            raise EasyBuildError("Failed to determine conflicts from 'show' (pattern: '%s') in %s",
+                                 conflicts_re.pattern, modinfo)
 
     def modulefile_path(self, mod_name):
         """Get the path of the module file for the specified module."""
