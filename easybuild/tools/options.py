@@ -163,11 +163,12 @@ def use_color(colorize, stream=sys.stdout):
     for their meaning.
     """
     # turn color=auto/yes/no into a boolean value
-    if options.color == 'auto':
+    if colorize == 'auto':
         return terminal_supports_colors(stream)
-    elif options.color == 'always':
+    elif colorize == 'always':
         return True
     else:
+        assert colorize == 'never', "Argument `colorize` must be one of 'auto', 'always', or 'never'."
         return False
 
 
