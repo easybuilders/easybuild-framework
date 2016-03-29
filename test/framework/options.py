@@ -63,7 +63,7 @@ EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
 name = foo, bar
 version = 1.2.3, 3.2.1
 prefix = FOOBAR_DIR
- 
+
 [foobar/2.0]
 name = foobar
 version = 2.0
@@ -217,8 +217,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # clear log file
         write_file(self.logfile, '')
-        
-        # check that --force and --rebuild work 
+
+        # check that --force and --rebuild work
         for arg in ['--force', '--rebuild']:
             outtxt = self.eb_main([eb_file, '--debug', arg])
             self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with %s" % arg)
@@ -2050,7 +2050,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --review-pr."""
         self.mock_stdout(True)
         # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
-        self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
+        self.eb_main(['--review-pr=1484', '--color=never'], raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
