@@ -208,7 +208,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # initialise logging for main
     global _log
     _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
-                                 silent=(testing or options.terse)), color=options.color)
+                                 silent=(testing or options.terse), colorize=options.color)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
