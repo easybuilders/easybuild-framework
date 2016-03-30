@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -31,6 +31,7 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -38,17 +39,17 @@ import sys
 from datetime import datetime
 from time import gmtime, strftime
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies
+from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file
+from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
+from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 from vsc.utils import fancylogger
@@ -73,19 +74,17 @@ def regtest(easyconfig_paths, build_specs=None):
         _log.info("aggregated xml files inside %s, output written to: %s" % (aggregate_regtest, output_file))
         sys.exit(0)
 
-    # create base directory, which is used to place
-    # all log files and the test output as xml
-    basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
-
+    # create base directory, which is used to place all log files and the test output as xml
     regtest_output_dir = build_option('regtest_output_dir')
+    testoutput = build_option('testoutput')
     if regtest_output_dir is not None:
         output_dir = regtest_output_dir
-    elif var in os.environ:
-        output_dir = os.path.abspath(os.environ[var])
+    elif testoutput is not None:
+        output_dir = os.path.abspath(testoutput)
     else:
         # default: current dir + easybuild-test-[timestamp]
-        output_dir = os.path.join(cur_dir, basename)
+        dirname = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
+        output_dir = os.path.join(cur_dir, dirname)
 
     mkdir(output_dir, parents=True)
 
@@ -95,7 +94,7 @@ def regtest(easyconfig_paths, build_specs=None):
         for path in easyconfig_paths:
             ecfiles += find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
     else:
-        _log.error("No easyconfig paths specified.")
+        raise EasyBuildError("No easyconfig paths specified.")
 
     test_results = []
 
@@ -116,31 +115,15 @@ def regtest(easyconfig_paths, build_specs=None):
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        resolved = resolve_dependencies(easyconfigs)
 
-        cmd = "eb %(spec)s --regtest --sequential -ld"
+        cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
+        build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
 
-        print "List of submitted jobs:"
-        for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
-        print "(%d jobs submitted)" % len(jobs)
-
-        # determine leaf nodes in dependency graph, and report them
-        all_deps = set()
-        for job in jobs:
-            all_deps = all_deps.union(job.deps)
-
-        leaf_nodes = []
-        for job in jobs:
-            if not job.jobid in all_deps:
-                leaf_nodes.append(str(job.jobid).split('.')[0])
-
-        _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success
@@ -155,9 +138,9 @@ def session_state():
     }
 
 
-def session_module_list():
+def session_module_list(testing=False):
     """Get list of loaded modules ('module list')."""
-    modtool = modules_tool()
+    modtool = modules_tool(testing=testing)
     return modtool.list()
 
 
@@ -183,7 +166,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     build_overview = []
     for (ec, ec_res) in ecs_with_res:
         test_log = ''
-        if ec_res['success']:
+        if ec_res.get('success', False):
             test_result = 'SUCCESS'
         else:
             # compose test result string
@@ -240,7 +223,15 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     test_report.extend(["#### List of loaded modules"] + module_list + [""])
 
     environ_dump = init_session_state['environment']
-    environment = ["%s = %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
+    environment = []
+    env_filter = build_option('test_report_env_filter')
+
+    for key in sorted(environ_dump.keys()):
+        if env_filter is not None and env_filter.search(key):
+            continue
+        else:
+            environment += ["%s = %s" % (key, environ_dump[key])]
+
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
     return '\n'.join(test_report)
@@ -258,6 +249,7 @@ def upload_test_report_as_gist(test_report, descr=None, fn=None):
     gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user)
     return gist_url
 
+
 def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs PR."""
     user = build_option('github_user')
@@ -269,8 +261,9 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     # post comment to report test result
     system_info = init_session_state['system_info']
-    short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+    short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
         'cpu_model': system_info['cpu_model'],
+        'hostname': system_info['hostname'],
         'os_name': system_info['os_name'],
         'os_type': system_info['os_type'],
         'os_version': system_info['os_version'],
@@ -288,3 +281,38 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     msg = "Test report uploaded to %s and mentioned in a comment in easyconfigs PR#%s" % (gist_url, pr_nr)
     return msg
+
+
+def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state):
+    """
+    Upload/dump overall test report
+    @param ecs_with_res: processed easyconfigs with build result (success/failure)
+    @param orig_cnt: number of original easyconfig paths
+    @param success: boolean indicating whether all builds were successful
+    @param msg: message to be included in test report
+    @param init_session_state: initial session state info to include in test report
+    """
+    dump_path = build_option('dump_test_report')
+    pr_nr = build_option('from_pr')
+    upload = build_option('upload_test_report')
+
+    if upload:
+        msg = msg + " (%d easyconfigs in this PR)" % orig_cnt
+        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
+        if pr_nr:
+            # upload test report to gist and issue a comment in the PR to notify
+            txt = post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success)
+        else:
+            # only upload test report as a gist
+            gist_url = upload_test_report_as_gist(test_report)
+            txt = "Test report uploaded to %s" % gist_url
+    else:
+        test_report = create_test_report(msg, ecs_with_res, init_session_state)
+        txt = None
+    _log.debug("Test report: %s" % test_report)
+
+    if dump_path is not None:
+        write_file(dump_path, test_report)
+        _log.info("Test report dumped to %s" % dump_path)
+
+    return txt

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -31,6 +31,7 @@ Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT librar
 
 from distutils.version import LooseVersion
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.fft import Fft
 
 
@@ -44,7 +45,7 @@ class Fftw(Fft):
         suffix = ''
         version = self.get_software_version(self.FFT_MODULE_NAME)[0]
         if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
-            self.log.raiseException("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)" % version)
+            raise EasyBuildError("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)", version)
         elif LooseVersion(version) > LooseVersion('2'):
             suffix = '3'
 

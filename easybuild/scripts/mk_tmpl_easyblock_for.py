@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -95,7 +95,7 @@ tmpl = """##
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -121,7 +121,7 @@ import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 %(parent_import)s
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.run import run_cmd
 
 
 class %(class_name)s(%(parent)s):
@@ -136,11 +136,10 @@ class %(class_name)s(%(parent)s):
     @staticmethod
     def extra_options():
         \"\"\"Custom easyconfig parameters for %(name)s.\"\"\"
-
-        extra_vars = [
-                      ('mandatory_extra_param', ['default value', "short description", MANDATORY]),
-                      ('optional_extra_param', ['default value', "short description", CUSTOM]),
-                     ]
+        extra_vars = {
+            'mandatory_extra_param': ['default value', "short description", MANDATORY],
+            'optional_extra_param': ['default value', "short description", CUSTOM],
+         }
         return %(parent)s.extra_options(extra_vars)
 
     def configure_step(self):
@@ -208,8 +207,8 @@ class %(class_name)s(%(parent)s):
 
         txt = super(%(class_name)s, self).make_module_extra()
 
-        txt += self.moduleGenerator.set_environment("VARIABLE", 'value')
-        txt += self.moduleGenerator.prepend_paths("PATH_VAR", ['path1', 'path2'])
+        txt += self.module_generator.set_environment("VARIABLE", 'value')
+        txt += self.module_generator.prepend_paths("PATH_VAR", ['path1', 'path2'])
 
         return txt
 """

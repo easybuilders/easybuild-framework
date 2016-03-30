@@ -1,0 +1,34 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   C and C++ compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/
+    }
+}
+
+module-whatis {Description: C and C++ compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/}
+
+set root    /tmp/software/Core/icc/2013.5.192-GCC-4.8.3
+
+conflict icc
+module use /tmp/modules/all/Compiler/intel/2013.5.192-GCC-4.8.3
+
+if { ![is-loaded GCC/4.8.3] } {
+    module load GCC/4.8.3
+}
+
+prepend-path	IDB_HOME		$root/bin/intel64
+prepend-path	LD_LIBRARY_PATH		$root/compiler/lib
+prepend-path	LD_LIBRARY_PATH		$root/compiler/lib/intel64
+prepend-path	MANPATH		$root/man
+prepend-path	MANPATH		$root/man/en_US
+prepend-path	PATH		$root/bin
+prepend-path	PATH		$root/bin/intel64
+
+setenv	EBROOTICC		"$root"
+setenv	EBVERSIONICC		"2013.5.192"
+setenv	EBDEVELICC		"$root/easybuild/Core-icc-2013.5.192-GCC-4.8.3-easybuild-devel"
+
+prepend-path	INTEL_LICENSE_FILE		/tmp/license.lic
+prepend-path	NLSPATH		$root/idb/intel64/locale/%l_%t/%N
+
+# Built with EasyBuild version 1.16.0dev

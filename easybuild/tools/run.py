@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -43,7 +43,8 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
+from easybuild.tools.config import build_option
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -59,43 +60,38 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
-
-def adjust_cmd(func):
-    """Make adjustments to given command, if required."""
-
-    def inner(cmd, *args, **kwargs):
-        # SuSE hack
-        # - profile is not resourced, and functions (e.g. module) is not inherited
-        if 'PROFILEREAD' in os.environ and (len(os.environ['PROFILEREAD']) > 0):
-            filepaths = ['/etc/profile.d/modules.sh']
-            extra = ''
-            for fp in filepaths:
-                if os.path.exists(fp):
-                    extra = ". %s &&%s" % (fp, extra)
-                else:
-                    _log.warning("Can't find file %s" % fp)
-
-            cmd = "%s %s" % (extra, cmd)
-
-        return func(cmd, *args, **kwargs)
-
-    return inner
-
-
-@adjust_cmd
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
+def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
+            force_in_dry_run=False, verbose=True):
     """
-    Executes a command cmd
-    - returns exitcode and stdout+stderr (mixed)
-    - no input though stdin
-    - if log_ok or log_all are set -> will log.error if non-zero exit-code
-    - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
-    - inp is the input given to the command
-    - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
-    - if log_output is True -> all output of command will be logged to a tempfile
-    - path is the path run_cmd should chdir to before doing anything
+    Run specified command (in a subshell)
+    @param cmd: command to run
+    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    @param log_all: always log command output and exit code
+    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    @param inp: the input given to the command via stdin
+    @param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    @param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
+    @param path: path to execute the command in; current working directory is used if unspecified
+    @param force_in_dry_run: force running the command during dry run
+    @param verbose: include message on running the command in dry run output
     """
     cwd = os.getcwd()
+
+    # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        if path is None:
+            path = cwd
+        if verbose:
+            dry_run_msg("  running command \"%s\"" % cmd, silent=build_option('silent'))
+            dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+
+        # make sure we get the type of the return value right
+        if simple:
+            return True
+        else:
+            # output, exit code
+            return ('', 0)
+
     try:
         if path:
             os.chdir(path)
@@ -119,14 +115,14 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
-        _log.error("run_cmd init cmd %s failed:%s" % (cmd, err))
+        raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
         p.stdin.write(inp)
     p.stdin.close()
 
     ec = p.poll()
     stdouterr = ''
-    while ec < 0:
+    while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         output = p.stdout.read(readSize)
@@ -148,26 +144,38 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     try:
         os.chdir(cwd)
     except OSError, err:
-        _log.error("Failed to return to %s after executing command: %s" % (cwd, err))
+        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
-@adjust_cmd
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
+def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None, maxhits=50):
     """
-    Executes a command cmd
-    - looks for questions and tries to answer based on qa dictionary
-    - provided answers can be either strings or lists of strings (which will be used iteratively)
-    - returns exitcode and stdout+stderr (mixed)
-    - no input though stdin
-    - if log_ok or log_all are set -> will log.error if non-zero exit-code
-    - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
-    - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
-    - if log_output is True -> all output of command will be logged to a tempfile
-    - path is the path run_cmd should chdir to before doing anything
+    Run specified interactive command (in a subshell)
+    @param cmd: command to run
+    @param qa: dictionary which maps question to answers
+    @param no_qa: list of patters that are not questions
+    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    @param log_all: always log command output and exit code
+    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    @param std_qa: dictionary which maps question regex patterns to answers
+    @param path: path to execute the command is; current working directory is used if unspecified
     """
     cwd = os.getcwd()
+
+    # early exit in 'dry run' mode, after printing the command that would be run
+    if build_option('extended_dry_run'):
+        if path is None:
+            path = cwd
+        dry_run_msg("  running interactive command \"%s\"" % cmd, silent=build_option('silent'))
+        dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
+        if simple:
+            return True
+        else:
+            # output, exit code
+            return ('', 0)
+
     try:
         if path:
             os.chdir(path)
@@ -200,15 +208,15 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if regQ.search(q):
             return (a_s, regQ)
         else:
-            _log.error("runqanda: Question %s converted in %s does not match itself" % (q, regQtxt))
+            raise EasyBuildError("runqanda: Question %s converted in %s does not match itself", q, regQtxt)
 
     def check_answers_list(answers):
         """Make sure we have a list of answers (as strings)."""
         if isinstance(answers, basestring):
             answers = [answers]
         elif not isinstance(answers, list):
-            msg = "Invalid type for answer on %s, no string or list: %s (%s)" % (question, type(answers), answers)
-            _log.error(msg)
+            raise EasyBuildError("Invalid type for answer on %s, no string or list: %s (%s)",
+                                 question, type(answers), answers)
         # list is manipulated when answering matching question, so return a copy
         return answers[:]
 
@@ -247,23 +255,21 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             _log.debug('run_cmd_qa: Command output will be logged to %s' % runLog.name)
             runLog.write(cmd + "\n\n")
         except IOError, err:
-            _log.error("Opening log file for Q&A failed: %s" % err)
+            raise EasyBuildError("Opening log file for Q&A failed: %s", err)
     else:
         runLog = None
-
-    maxHitCount = 50
 
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
-        _log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
+        raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
     ec = p.poll()
     stdoutErr = ''
     oldLenOut = -1
     hitCount = 0
 
-    while ec < 0:
+    while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
@@ -320,7 +326,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         else:
             hitCount = 0
 
-        if hitCount > maxHitCount:
+        if hitCount > maxhits:
             # explicitly kill the child process before exiting
             try:
                 os.killpg(p.pid, signal.SIGKILL)
@@ -328,8 +334,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError, err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
-            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" %
-                       (cmd, maxHitCount, stdoutErr[-500:]))
+            raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
+                                 cmd, maxhits, stdoutErr[-500:])
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -351,14 +357,21 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     try:
         os.chdir(cwd)
     except OSError, err:
-        _log.error("Failed to return to %s after executing command: %s" % (cwd, err))
+        raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
     return parse_cmd_output(cmd, stdoutErr, ec, simple, log_all, log_ok, regexp)
 
 
 def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
-    will parse and perform error checks based on strictness setting
+    Parse command output and construct return value.
+    @param cmd: executed command
+    @param stdouterr: combined stdout/stderr of executed command
+    @param ec: exit code of executed command
+    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    @param log_all: always log command output and exit code
+    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False
@@ -370,24 +383,23 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         check_ec = True
         use_regexp = True
     else:
-        _log.error("invalid strictness setting: %s" % strictness)
+        raise EasyBuildError("invalid strictness setting: %s", strictness)
 
     # allow for overriding the regexp setting
     if not regexp:
         use_regexp = False
 
+    _log.debug('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
         if check_ec:
-            _log.error('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+            raise EasyBuildError('cmd "%s" exited with exitcode %s and output:\n%s', cmd, ec, stdouterr)
         else:
             _log.warn('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-
-    if not ec:
+    elif not ec:
         if log_all:
             _log.info('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-        else:
-            _log.debug('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
     if use_regexp or regexp:
@@ -395,7 +407,7 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         if len(res) > 0:
             message = "Found %s errors in command output (output: %s)" % (len(res), ", ".join([r[0] for r in res]))
             if use_regexp:
-                _log.error(message)
+                raise EasyBuildError(message)
             else:
                 _log.warn(message)
 
@@ -425,7 +437,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     elif type(regExp) == str:
         pass
     else:
-        _log.error("parse_log_for_error no valid regExp used: %s" % regExp)
+        raise EasyBuildError("parse_log_for_error no valid regExp used: %s", regExp)
 
     reg = re.compile(regExp, re.I)
 

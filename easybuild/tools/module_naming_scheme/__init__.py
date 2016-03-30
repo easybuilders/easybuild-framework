@@ -1,11 +1,11 @@
 ##
-# Copyright 2011-2014 Ghent University
+# Copyright 2011-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -28,27 +28,15 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-from pkgutil import extend_path
-from vsc.utils import fancylogger
+import pkg_resources
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+# required for backward compatibility
+from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 
+pkg_resources.declare_namespace(__name__)
 
-class ModuleNamingScheme(object):
-    """Abstract class for a module naming scheme implementation."""
+# suffix for devel module filename
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
-    def __init__(self, *args, **kwargs):
-        """Initialize logger."""
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-
-    def det_full_module_name(self, ec):
-        """
-        Determine full module name from given easyconfig, according to module naming scheme.
-
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
-                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-
-        @return: string with full module name, e.g.: '<name>/<compiler>/<mpi_lib>/<version>'
-        """
-        return NotImplementedError
+# general module class
+GENERAL_CLASS = 'all'

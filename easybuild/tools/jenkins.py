@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -34,6 +34,7 @@ import xml.dom.minidom as xml
 from datetime import datetime
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
@@ -93,14 +94,14 @@ def write_to_xml(succes, failed, filename):
     for (obj, fase, error, _) in failed:
         # try to pretty print
         try:
-            el = create_failure(obj.mod_name, fase, error)
+            el = create_failure(obj.full_mod_name, fase, error)
         except AttributeError:
             el = create_failure(obj, fase, error)
 
         root.firstChild.appendChild(el)
 
     for (obj, stats) in succes:
-        el = create_success(obj.mod_name, stats)
+        el = create_success(obj.full_mod_name, stats)
         root.firstChild.appendChild(el)
 
     try:
@@ -108,7 +109,7 @@ def write_to_xml(succes, failed, filename):
         root.writexml(output_file)
         output_file.close()
     except IOError, err:
-        _log.error("Failed to write out XML file %s: %s" % (filename, err))
+        raise EasyBuildError("Failed to write out XML file %s: %s", filename, err)
 
 
 def aggregate_xml_in_dirs(base_dir, output_filename):
@@ -142,14 +143,14 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     total = 0
 
     for d in dirs:
-        xml_file = glob.glob(os.path.join(d, "*.xml"))
+        xml_file = sorted(glob.glob(os.path.join(d, "*.xml")))
         if xml_file:
             # take the first one (should be only one present)
             xml_file = xml_file[0]
             try:
                 dom = xml.parse(xml_file)
             except IOError, err:
-                _log.error("Failed to read/parse XML file %s: %s" % (xml_file, err))
+                raise EasyBuildError("Failed to read/parse XML file %s: %s", xml_file, err)
             # only one should be present, we are just discarding the rest
             testcase = dom.getElementsByTagName("testcase")[0]
             root.firstChild.appendChild(testcase)
@@ -165,6 +166,6 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
         root.writexml(output_file, addindent="\t", newl="\n")
         output_file.close()
     except IOError, err:
-        _log.error("Failed to write out XML file %s: %s" % (output_filename, err))
+        raise EasyBuildError("Failed to write out XML file %s: %s", output_filename, err)
 
     print "Aggregate regtest results written to %s" % output_filename

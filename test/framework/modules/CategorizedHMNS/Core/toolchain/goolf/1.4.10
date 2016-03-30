@@ -1,0 +1,39 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   GNU Compiler Collection (GCC) based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)
+    }
+}
+
+module-whatis {Description: GNU Compiler Collection (GCC) based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)}
+
+set root    /tmp/software/Core/toolchain/gompi/1.4.10
+
+conflict    gompi
+
+if { ![is-loaded GCC/4.7.2] } {
+    module load GCC/4.7.2
+}
+
+if { ![is-loaded OpenMPI/1.6.4] } {
+    module load OpenMPI/1.6.4
+}
+
+if { ![is-loaded FFTW/3.3.3] } {
+    module load FFTW/3.3.3
+}
+
+if { ![is-loaded OpenBLAS/0.2.6-LAPACK-3.4.2] } {
+    module load OpenBLAS/0.2.6-LAPACK-3.4.2
+}
+
+if { ![is-loaded ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2] } {
+    module load ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2
+}
+
+setenv	EBROOTGOMPI		"$root"
+setenv	EBVERSIONGOMPI		"1.4.10"
+setenv	EBDEVELGOMPI		"$root/easybuild/Core-gompi-1.4.10-easybuild-devel"
+

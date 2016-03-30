@@ -1,11 +1,10 @@
-#
-# Copyright 2014-2014 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,6 +29,7 @@ and allow for reproducable builds
 @author: Stijn De Weirdt (Ghent University)
 """
 import time
+from easybuild.tools.filetools import det_size
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
@@ -48,7 +48,7 @@ def get_build_stats(app, start_time, command_line):
         ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
         ('timestamp', int(time_now)),
         ('build_time', build_time),
-        ('install_size', app.det_installsize()),
+        ('install_size', det_size(app.installdir)),
         ('command_line', command_line),
         ('modules_tool', app.modules_tool.buildstats()),
     ])

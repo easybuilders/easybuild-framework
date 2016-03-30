@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -28,11 +28,16 @@ Support for Intel MKL as toolchain linear algebra library.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
 from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.toolchains.mpi.intelmpi import TC_CONSTANT_INTELMPI
+from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH
+from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
+from easybuild.toolchains.mpi.mvapich2 import TC_CONSTANT_MVAPICH2
+from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -63,10 +68,16 @@ class IntelMKL(LinAlg):
     SCALAPACK_MODULE_NAME = ['imkl']
     SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
     SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
-    SCALAPACK_LIB_MAP = {"lp64_sc":"_lp64"}
+    SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
     SCALAPACK_LIB_GROUP = True
     SCALAPACK_LIB_STATIC = True
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        class_constants = kwargs.setdefault('class_constants', [])
+        class_constants.extend(['BLAS_LIB_MAP', 'SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
+        super(IntelMKL, self).__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -79,8 +90,8 @@ class IntelMKL(LinAlg):
                 "interface": interfacemap[self.COMPILER_FAMILY],
             })
         except:
-            self.log.raiseException(("_set_blas_variables: interface unsupported combination"
-                                     " with MPI family %s") % self.COMPILER_FAMILY)
+            raise EasyBuildError("_set_blas_variables: interface unsupported combination with MPI family %s",
+                                 self.COMPILER_FAMILY)
 
         interfacemap_mt = {
             TC_CONSTANT_INTELCOMP: 'intel',
@@ -89,8 +100,8 @@ class IntelMKL(LinAlg):
         try:
             self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})
         except:
-            self.log.raiseException(("_set_blas_variables: interface_mt unsupported combination "
-                                     "with compiler family %s") % self.COMPILER_FAMILY)
+            raise EasyBuildError("_set_blas_variables: interface_mt unsupported combination with compiler family %s",
+                                 self.COMPILER_FAMILY)
 
 
         if self.options.get('32bit', None):
@@ -112,8 +123,8 @@ class IntelMKL(LinAlg):
             self.BLAS_INCLUDE_DIR = ['include']
         else:
             if self.options.get('32bit', None):
-                self.log.raiseException(("_set_blas_variables: 32-bit libraries not supported yet "
-                                        "for IMKL v%s (> v10.3)") % found_version)
+                raise EasyBuildError("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)",
+                                     found_version)
             else:
                 self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
 
@@ -123,16 +134,20 @@ class IntelMKL(LinAlg):
 
     def _set_blacs_variables(self):
         mpimap = {
-            "OpenMPI": '_openmpi',
-            "IntelMPI": '_intelmpi',
-            "MVAPICH2": '_intelmpi',
-            "MPICH2":'',
+            TC_CONSTANT_OPENMPI: '_openmpi',
+            TC_CONSTANT_INTELMPI: '_intelmpi',
+            TC_CONSTANT_MVAPICH2: '_intelmpi',
+            # use intelmpi MKL blacs library for both MPICH v2 and v3
+            # cfr. https://software.intel.com/en-us/articles/intel-mkl-link-line-advisor
+            # note: MKL link advisor uses 'MPICH' for MPICH v1
+            TC_CONSTANT_MPICH2: '_intelmpi',
+            TC_CONSTANT_MPICH: '_intelmpi',
         }
         try:
             self.BLACS_LIB_MAP.update({'mpi': mpimap[self.MPI_FAMILY]})
         except:
-            self.log.raiseException(("_set_blacs_variables: mpi unsupported combination with"
-                                     " MPI family %s") % self.MPI_FAMILY)
+            raise EasyBuildError("_set_blacs_variables: mpi unsupported combination with MPI family %s",
+                                 self.MPI_FAMILY)
 
         self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
         self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
@@ -153,5 +168,7 @@ class IntelMKL(LinAlg):
             # ilp64/i8
             self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_ilp64'})
 
-        super(IntelMKL, self)._set_scalapack_variables()
+        self.SCALAPACK_LIB_DIR = self.BLAS_LIB_DIR
+        self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
+        super(IntelMKL, self)._set_scalapack_variables()

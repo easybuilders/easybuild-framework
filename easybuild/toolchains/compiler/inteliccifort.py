@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -32,6 +32,7 @@ Support for Intel compilers (icc, ifort) as toolchain compilers.
 from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -56,7 +57,7 @@ class IntelIccIfort(Compiler):
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
-        'optarch': 'xHOST',
+        'optarch': 'xHost',
         'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
@@ -68,9 +69,15 @@ class IntelIccIfort(Compiler):
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHOST',
-        systemtools.AMD : 'msse3',
+        systemtools.INTEL : 'xHost',
+        systemtools.AMD : 'xHost',
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.INTEL : 'xSSE2',
+        systemtools.AMD : 'xSSE2',
     }
 
     COMPILER_CC = 'icc'
@@ -79,6 +86,7 @@ class IntelIccIfort(Compiler):
 
     COMPILER_F77 = 'ifort'
     COMPILER_F90 = 'ifort'
+    COMPILER_FC = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
@@ -86,21 +94,29 @@ class IntelIccIfort(Compiler):
         'dynamic':'-Bdynamic',
     }
 
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
+    LIB_MULTITHREAD = ['iomp5', 'pthread']  # iomp5 is OpenMP related
+
+    def __init__(self, *args, **kwargs):
+        """Toolchain constructor."""
+        class_constants = kwargs.setdefault('class_constants', [])
+        class_constants.append('LIB_MULTITHREAD')
+
+        super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
         super(IntelIccIfort, self)._set_compiler_vars()
 
         if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
-            self.log.raiseException("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
+            raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
+                                 self.COMPILER_MODULE_NAME)
 
         icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
         icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
 
         if not ifort_version == icc_version:
-            msg = "_set_compiler_vars: mismatch between icc version %s and ifort version %s"
-            self.log.raiseException(msg % (icc_version, ifort_version))
+            raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
+                                 icc_version, ifort_version)
 
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")

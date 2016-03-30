@@ -1,11 +1,11 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -23,20 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH2,
+EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH,
 Intel Math Kernel Library (MKL) , and Intel FFTW wrappers.
 
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.impich import Impich
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.mpich2 import Mpich2
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
-class Impmkl(IntelIccIfort, Mpich2, IntelMKL, IntelFFTW):
+class Impmkl(Impich, IntelMKL, IntelFFTW):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), MPICH2,
+    Compiler toolchain with Intel compilers (icc/ifort), MPICH,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'impmkl'
+    SUBTOOLCHAIN = Impich.NAME
