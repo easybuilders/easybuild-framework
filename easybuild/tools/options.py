@@ -158,17 +158,18 @@ def use_color(colorize, stream=sys.stdout):
     Return ``True`` or ``False`` depending on whether ANSI color
     escapes are to be used when printing to `stream`.
 
-    The `colorize` argument can take the three string values
-    ``'auto'``/``'always'``/``'never'``, see the ``--color`` option
-    for their meaning.
+    The `colorize` argument can take the three values
+    ``fancylogger.Colorize.AUTO``/``.ALWAYS``/``.NEVER``,
+    see the ``--color`` option for their meaning.
     """
     # turn color=auto/yes/no into a boolean value
-    if colorize == 'auto':
+    if colorize == fancylogger.Colorize.AUTO:
         return terminal_supports_colors(stream)
-    elif colorize == 'always':
+    elif colorize == fancylogger.Colorize.ALWAYS:
         return True
     else:
-        assert colorize == 'never', "Argument `colorize` must be one of 'auto', 'always', or 'never'."
+        assert colorize == fancylogger.Colorize.NEVER, \
+            "Argument `colorize` must be one of 'auto', 'always', or 'never'."
         return False
 
 
@@ -288,7 +289,9 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
-            'color': ("Colorize output", 'choice', 'store', 'auto', ['auto', 'always', 'never'], {'metavar':'WHEN'}),
+            'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO,
+                      [fancylogger.Colorize.AUTO, fancylogger.Colorize.ALWAYS, fancylogger.Colorize.NEVER],
+                      {'metavar':'WHEN'}),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",

@@ -186,7 +186,7 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize='auto'):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO):
     """Initialize logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
