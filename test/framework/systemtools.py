@@ -203,7 +203,7 @@ def mocked_run_cmd(cmd, **kwargs):
         "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
-        "sysctl -n hw.meminfo": '8589934592',
+        "sysctl -n hw.memsize": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
