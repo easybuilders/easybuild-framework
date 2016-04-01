@@ -1918,7 +1918,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--avail-module-naming-schemes',
         ]
-        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _= run_cmd("cd %s; EB %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
@@ -1936,7 +1936,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--avail-module-naming-schemes',
             '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
         ]
-        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _= run_cmd("cd %s; EB %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
 
     def test_use_included_module_naming_scheme(self):
@@ -1992,7 +1992,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--list-toolchains',
         ]
-        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _= run_cmd("cd %s; EB %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
@@ -2015,7 +2015,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
             '--list-toolchains',
         ]
-        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        logtxt, _= run_cmd("cd %s; EB %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
 
     def test_cleanup_tmpdir(self):
