@@ -76,7 +76,7 @@ class Pgi(Compiler):
     COMPILER_CC = 'pgcc'
     COMPILER_CXX = 'pgc++'
 
-    COMPILER_F77 = 'pgfortran'
+    COMPILER_F77 = 'pgf77'
     COMPILER_F90 = 'pgfortran'
     COMPILER_FC = 'pgfortran'
 
