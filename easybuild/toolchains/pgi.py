@@ -32,8 +32,12 @@ EasyBuild support for PGI compiler toolchain.
 """
 
 from easybuild.toolchains.compiler.pgi import Pgi
+from easybuild.toolchains.gcccore import GCCcore
 
 
 class PgiToolchain(Pgi):
     """Simple toolchain with just the PGI compilers."""
     NAME = 'PGI'
+    # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
+    # in particular in a hierarchical module naming scheme
+    SUBTOOLCHAIN = GCCcore.NAME
