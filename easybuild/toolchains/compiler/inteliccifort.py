@@ -58,7 +58,7 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
-        'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
+        'openmp': 'fopenmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
