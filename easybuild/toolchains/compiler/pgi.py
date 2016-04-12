@@ -49,7 +49,11 @@ class Pgi(Compiler):
 
     COMPILER_FAMILY = TC_CONSTANT_PGI
 
-    # Reference: https://www.pgroup.com/doc/pgiref.pdf
+    # References:
+    # http://www.pgroup.com/doc/pgiref.pdf
+    # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mflushz
+    # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfprelaxed
+    # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfpapprox
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
