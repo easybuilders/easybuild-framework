@@ -947,6 +947,9 @@ def rmtree2(path, n=3):
         except OSError, err:
             _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
             time.sleep(2)
+
+            # make sure write permissions are enabled on entire directory
+            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
     if not ok:
         raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
     else:
