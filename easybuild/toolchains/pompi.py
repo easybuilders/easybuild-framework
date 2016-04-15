@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for iompi compiler toolchain (includes PGI compilers and OpenMPI).
+EasyBuild support for pompi compiler toolchain (includes PGI compilers and OpenMPI).
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
