@@ -129,3 +129,12 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+
+    def set_variables(self):
+        """Set the variables."""
+        # -fopenmp is not supported in old versions (11.x)
+        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)
+        if LooseVersion(icc_version) < LooseVersion('12'):
+            self.options.options_map['openmp'] = 'openmp'
+
+        super(IntelIccIfort, self).set_variables()
