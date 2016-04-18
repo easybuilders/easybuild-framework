@@ -1598,6 +1598,13 @@ class EasyConfigTest(EnhancedTestCase):
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
 
+        # no problem with special characters in software name
+        ec['name'] = 'nosuchsoftware++'
+        testplusplus = os.path.join(self.test_prefix, '%s-1.2.3.eb' % ec['name'])
+        write_file(testplusplus, "name = %s" % ec['name'])
+        res = find_related_easyconfigs(self.test_prefix, ec)
+        self.assertTrue(res and os.path.samefile(res[0], testplusplus))
+
     def test_modaltsoftname(self):
         """Test specifying an alternative name for the software name, to use when determining module name."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb')

@@ -434,7 +434,7 @@ def find_related_easyconfigs(path, ec):
 
     regexes = []
     for version_pattern in version_patterns:
-        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (name, version_pattern)
+        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (re.escape(name), version_pattern)
         regexes.extend([
             common_pattern % (toolchain_pattern + versionsuffix),
             common_pattern % (toolchain_name_pattern + versionsuffix),
