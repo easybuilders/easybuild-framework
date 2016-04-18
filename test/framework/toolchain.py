@@ -508,11 +508,15 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
-        self.assertTrue('-mt_mpi' in tc.get_variable('CFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('CXXFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('FCFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('FFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))
+        for flag in ['-mt_mpi', '-fopenmp']:
+            for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                self.assertTrue(flag in tc.get_variable(var))
+
+        # -openmp is deprecated for new Intel compiler versions
+        self.assertFalse('-openmp' in tc.get_variable('CFLAGS'))
+        self.assertFalse('-openmp' in tc.get_variable('CXXFLAGS'))
+        self.assertFalse('-openmp' in tc.get_variable('FFLAGS'))
+
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
@@ -522,7 +526,23 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        write_file(imkl_module_path, imkl_module_txt)
+
+        # different flag for OpenMP with old Intel compilers (11.x)
+        modules.modules_tool().purge()
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        opts = {'openmp': True}
+        tc.set_options(opts)
+        tc.prepare()
         self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        write_file(imkl_module_path, imkl_module_txt)
+
+        for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+            self.assertTrue('-openmp' in tc.get_variable(var))
 
         # cleanup
         shutil.rmtree(tmpdir)
