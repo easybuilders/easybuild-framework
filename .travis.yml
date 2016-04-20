@@ -1,0 +1,64 @@
+language: python
+python: 2.6
+env:
+  global:
+    - TEST_MODULE_CMD_TIMINGS=1
+  matrix:
+    # purposely specifying slowest builds first, to gain time overall
+    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
+    - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - ENV_MOD_VERSION=3.2.10
+    - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+matrix:
+  include:
+    # also test default configuration with Python 2.7
+    - python: 2.7
+      env: ENV_MOD_VERSION=3.2.10
+addons:
+  apt:
+    packages:
+      # for environment modules/Lmod
+      - tcl8.5
+      # for EasyBuild
+      - python-setuptools
+      # for GitPython
+      - git
+      # for GC3Pie (optional dep for EasyBuild)
+      - time
+before_install:
+    # keyring is required to provide GitHub token to EasyBuild;
+    # keyring v5.7.1 is last version to be compatible with both py2.6 and py2.7
+    - pip install keyring==5.7.1
+    # optional Python packages for EasyBuild
+    - pip install autopep8 GC3Pie GitPython python-graph-dot python-hglib PyYAML
+    # git config is required to make actual git commits (cfr. tests for GitRepository)
+    - git config --global user.name "Travis CI"
+    - git config --global user.email "travis@travis-ci.org"
+install:
+    # install vsc-base (& vsc-install) dependencies for EasyBuild
+    - easy_install vsc-base
+    # install environment modules or Lmod
+    - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
+    - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
+    - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
+    - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
+    - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
+script:
+    # set up environment for modules tool (if $MOD_INIT is defined)
+    - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
+    # set up environment for EasyBuild framework tests
+    - export PATH=$TRAVIS_BUILD_DIR:$PATH
+    - export PYTHONPATH=$TRAVIS_BUILD_DIR
+    # install GitHub token
+    - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
+                 keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
+    # run test suite
+    - python -O -m test.framework.suite
+    # test bootstrap script
+    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
+    - # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
+    - cd $HOME
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
