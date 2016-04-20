@@ -603,7 +603,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
 
-    git_repo.create_head(pr_branch).checkout()
+    # create branch to commit to and push;
+    # use force to avoid errors if branch already exists (OK since this is a local temporary copy of the repo)
+    git_repo.create_head(pr_branch, force=True).checkout()
     _log.info("New branch '%s' created to commit files to", pr_branch)
 
     # stage
