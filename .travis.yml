@@ -1,8 +1,6 @@
 language: python
 python: 2.6
 env:
-  global:
-    - TEST_MODULE_CMD_TIMINGS=1
   matrix:
     # purposely specifying slowest builds first, to gain time overall
     - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
