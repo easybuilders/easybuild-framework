@@ -337,14 +337,18 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, pkg)
         if pkg_egg_dir is None:
+            debug("Failed to find pkg egg dir for %s" % pkg)
             if pkg == VSC_BASE:
                 # vsc-base is optional in older EasyBuild versions
                 continue
+        else:
+            debug("Found pkg egg dir for %s: %s" % (pkg, pkg_egg_dir))
 
         # prepend EasyBuild egg dirs to Python search path, so we know which EasyBuild we're using
         sys.path.insert(0, pkg_egg_dir)
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([pkg_egg_dir] + pythonpaths)
+        debug("$PYTHONPATH: %s" % os.environ['PYTHONPATH'])
 
         if source_tarballs:
             if pkg in source_tarballs:
