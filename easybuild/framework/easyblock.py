@@ -1999,9 +1999,12 @@ class EasyBlock(object):
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
             # add read permissions for everybody on all files
-            perms = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+            perms = (stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+            if build_option('umask') is not None:
+                perms &= build_option('umask')
+                self.log.debug("Taking umask into account %s when adding read permissions to all files.")
             adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully added read permissions recursively for everybody on install dir.")
+            self.log.info("Successfully added read permissions %s recursively for everybody on install dir.", perms)
 
     def test_cases_step(self):
         """
