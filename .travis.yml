@@ -58,5 +58,5 @@ script:
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     - # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
     - cd $HOME
-    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
     - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
