@@ -306,7 +306,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
         '--prefix=%s' % targetdir_stage1,
     ]
 
-    post_cmd = []
+    post_vsc_base = []
     if source_tarballs:
         # install provided source tarballs (order matters)
         cmd.extend([source_tarballs[pkg] for pkg in EASYBUILD_PACKAGES if pkg in source_tarballs])
@@ -318,19 +318,28 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
         cmd.append('easybuild')
 
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
-        post_cmd = cmd[:]
-        # if vsc-base available on system is the same version as the one being installed, *copy* it
-        post_cmd.insert(0, '--always-copy')
-        post_cmd[-1] = VSC_BASE
+        post_vsc_base = cmd[:]
+        post_vsc_base[-1] = VSC_BASE
 
     if not print_debug:
         cmd.insert(0, '--quiet')
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
     easy_install.main(cmd)
 
-    if post_cmd:
-        info("running post install command 'easy_install %s'" % (' '.join(post_cmd)))
-        easy_install.main(post_cmd)
+    if post_vsc_base:
+        info("running post install command 'easy_install %s'" % (' '.join(post_vsc_base)))
+        easy_install.main(post_vsc_base)
+
+        pkg_egg_dir = find_egg_dir_for(targetdir_stage1, VSC_BASE)
+        if pkg_egg_dir is None:
+            # if vsc-base available on system is the same version as the one being installed,
+            # the .egg directory may not get installed...
+            # in that case, try to have it *copied* by also including --always-copy;
+            # using --always-copy should be used as a last resort, since it can result in all kinds of problems
+            info(".egg dir for vsc-base not found, trying again with --always-copy...")
+            post_vsc_base.insert(0, '--always-copy')
+            info("running post install command 'easy_install %s'" % (' '.join(post_vsc_base)))
+            easy_install.main(post_vsc_base)
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
