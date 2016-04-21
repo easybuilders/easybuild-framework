@@ -292,14 +292,19 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
     from setuptools.command import easy_install
 
+    if print_debug:
+        debug("$ easy_install --help")
+        easy_install.main(['--help'])
+
     # prepare install dir
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
     prep(targetdir_stage1)  # set PATH, Python search path
 
     # install latest EasyBuild with easy_install from PyPi
-    cmd = []
-    cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
-    cmd.append('--prefix=%s' % targetdir_stage1)
+    cmd = [
+        '--upgrade',  # make sure the latest version is pulled from PyPi
+        '--prefix=%s' % targetdir_stage1,
+    ]
 
     post_cmd = []
     if source_tarballs:
@@ -314,6 +319,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
         post_cmd = cmd[:]
+        # if vsc-base available on system is the same version as the one being installed, *copy* it
+        post_cmd.insert(0, '--always-copy')
         post_cmd[-1] = VSC_BASE
 
     if not print_debug:
@@ -345,6 +352,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
         sys.path.insert(0, pkg_egg_dir)
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([pkg_egg_dir] + pythonpaths)
+        debug("$PYTHONPATH: %s" % os.environ['PYTHONPATH'])
 
         if source_tarballs:
             if pkg in source_tarballs:
