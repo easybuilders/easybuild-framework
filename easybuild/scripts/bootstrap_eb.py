@@ -320,7 +320,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
         post_cmd = cmd[:]
         # if vsc-base available on system is the same version as the one being installed, *copy* it
-        post_cmd.append('--always-copy')
+        post_cmd.insert(0, '--always-copy')
         post_cmd[-1] = VSC_BASE
 
     if not print_debug:
