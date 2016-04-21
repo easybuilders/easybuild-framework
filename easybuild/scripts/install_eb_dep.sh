@@ -24,7 +24,6 @@ elif [ x$PKG_NAME == 'xlua' ]; then
 
 elif [ x$PKG_NAME == 'xLmod' ]; then
     PKG_URL="https://github.com/TACC/Lmod/archive/${PKG_VERSION}.tar.gz"
-    export PATH=$PREFIX/lmod/$PKG_VERSION/libexec:$PATH
     export MOD_INIT=$HOME/lmod/$PKG_VERSION/init/bash
 
 elif [ x$PKG_NAME == 'xmodules-tcl' ]; then
