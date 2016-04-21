@@ -4,8 +4,8 @@ env:
   matrix:
     # purposely specifying slowest builds first, to gain time overall
     - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
-    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
-    - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
     - ENV_MOD_VERSION=3.2.10
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
 matrix:
@@ -49,8 +49,9 @@ script:
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
-    - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
-                 keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
+    - if [ ! -z $GITHUB_TOKEN ]; then
+        python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
+                   keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"; fi
     # run test suite
     - python -O -m test.framework.suite
     # test bootstrap script
