@@ -292,14 +292,19 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
     from setuptools.command import easy_install
 
+    if print_debug:
+        debug("$ easy_install --help")
+        easy_install.main(['--help'])
+
     # prepare install dir
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
     prep(targetdir_stage1)  # set PATH, Python search path
 
     # install latest EasyBuild with easy_install from PyPi
-    cmd = []
-    cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
-    cmd.append('--prefix=%s' % targetdir_stage1)
+    cmd = [
+        '--upgrade',  # make sure the latest version is pulled from PyPi
+        '--prefix=%s' % targetdir_stage1,
+    ]
 
     post_cmd = []
     if source_tarballs:
@@ -314,6 +319,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
         # install vsc-base again at the end, to avoid that the one available on the system is used instead
         post_cmd = cmd[:]
+        # if vsc-base available on system is the same version as the one being installed, *copy* it
+        post_cmd.append('--always-copy')
         post_cmd[-1] = VSC_BASE
 
     if not print_debug:
@@ -337,12 +344,9 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, pkg)
         if pkg_egg_dir is None:
-            debug("Failed to find pkg egg dir for %s" % pkg)
             if pkg == VSC_BASE:
                 # vsc-base is optional in older EasyBuild versions
                 continue
-        else:
-            debug("Found pkg egg dir for %s: %s" % (pkg, pkg_egg_dir))
 
         # prepend EasyBuild egg dirs to Python search path, so we know which EasyBuild we're using
         sys.path.insert(0, pkg_egg_dir)
