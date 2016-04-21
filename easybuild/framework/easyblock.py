@@ -1998,6 +1998,10 @@ class EasyBlock(object):
             perms = stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
+            # add read permissions for everybody on all files
+            perms = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+            adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully added read permissions recursively for everybody on install dir.")
 
     def test_cases_step(self):
         """
