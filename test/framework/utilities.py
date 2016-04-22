@@ -150,6 +150,10 @@ class EnhancedTestCase(_EnhancedTestCase):
                 # keep track of 'easybuild' paths to inject into sys.path later
                 sys.path.append(os.path.join(path, 'easybuild'))
 
+        # required to make sure the 'easybuild' dir in the sandbox is picked up;
+        # this relates to the other 'reload' statements below
+        reload(easybuild)
+
         # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
         fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
 
