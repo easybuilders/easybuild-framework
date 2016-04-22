@@ -73,7 +73,7 @@ from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.modules import get_software_root, modules_tool
+from easybuild.tools.modules import get_software_root
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -154,11 +154,6 @@ class EasyBlock(object):
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
-        # modules interface with default MODULEPATH
-        self.modules_tool = modules_tool()
-        # module generator
-        self.module_generator = module_generator(self, fake=True)
-
         # modules footer/header
         self.modules_footer = None
         modules_footer_path = build_option('modules_footer')
@@ -175,6 +170,11 @@ class EasyBlock(object):
             self.cfg = ec
         else:
             raise EasyBuildError("Value of incorrect type passed to EasyBlock constructor: %s ('%s')", type(ec), ec)
+
+        # modules interface with default MODULEPATH
+        self.modules_tool = self.cfg.modules_tool
+        # module generator
+        self.module_generator = module_generator(self, fake=True)
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
