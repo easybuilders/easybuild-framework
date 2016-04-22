@@ -272,6 +272,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
+
     def test_job(self):
         """Test submitting build as a job."""
 
@@ -1281,6 +1282,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--module-syntax=Tcl',  # Lua would require Lmod
             '--debug',
         ]
+        # trigger that main() creates new instance of ModulesTool
+        self.modtool = None
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
         found_regex = re.compile("DEBUG Found pattern .* in defined 'module' function")
