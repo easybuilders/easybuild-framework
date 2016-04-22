@@ -55,8 +55,8 @@ script:
             then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
             else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
         fi;
-        python -c "import keyring; $SET_KEYRING;
-                   keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"; fi
+        python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+      fi
     # run test suite
     - python -O -m test.framework.suite
     # configure EasyBuild before running bootstrap (modules tool/syntax to use)
