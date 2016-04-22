@@ -51,7 +51,11 @@ script:
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
     - if [ ! -z $GITHUB_TOKEN ]; then
-        python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
+        if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
+            then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
+            else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
+        fi;
+        python -c "import keyring; $SET_KEYRING;
                    keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"; fi
     # run test suite
     - python -O -m test.framework.suite
