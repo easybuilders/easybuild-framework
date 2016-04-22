@@ -90,7 +90,7 @@ class MockModule(modules.ModulesTool):
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
-    return MockModule(mod_paths=mod_paths)
+    return MockModule(mod_paths=mod_paths, testing=True)
 
 
 class RobotTest(EnhancedTestCase):
