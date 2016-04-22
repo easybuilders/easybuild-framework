@@ -1244,6 +1244,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure MockModulesTool is available
         from test.framework.modulestool import MockModulesTool
 
+        # trigger that main() creates new instance of ModulesTool
+        self.modtool = None
+
         ec_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
 
         # keep track of original module definition so we can restore it
@@ -1282,8 +1285,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--module-syntax=Tcl',  # Lua would require Lmod
             '--debug',
         ]
-        # trigger that main() creates new instance of ModulesTool
-        self.modtool = None
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
         found_regex = re.compile("DEBUG Found pattern .* in defined 'module' function")
