@@ -167,31 +167,40 @@ def check_module_command(tmpdir):
     global easybuild_modules_tool
 
     if easybuild_modules_tool is not None:
-        debug("Using modules tools specified by $EASYBUILD_MODULES_TOOL: %s" % easybuild_modules_tool)
+        info("Using modules tools specified by $EASYBUILD_MODULES_TOOL: %s" % easybuild_modules_tool)
         return easybuild_modules_tool
 
-    # order matters, so we can't use the keys from modules_tools which are unordered
-    known_module_commands = ['modulecmd', 'lmod', 'modulecmd.tcl']
-    modules_tools = {
-        'modulecmd': 'EnvironmentModulesC',
-        'lmod': 'Lmod',
-        'modulecmd.tcl': 'EnvironmentModulesTcl',
-    }
-    out = os.path.join(tmpdir, 'module_command.out')
-    modtool = None
-    for modcmd in known_module_commands:
+    def check_cmd_help(modcmd):
+        """Check 'help' output for specified command."""
+        modcmd_re = re.compile(r'module\s.*command\s')
         cmd = "%s python help" % modcmd
         os.system("%s > %s 2>&1" % (cmd, out))
-        modcmd_re = re.compile('module\s.*command\s')
-        txt = open(out, "r").read()
+        txt = open(out, 'r').read()
         debug("Output from %s: %s" % (cmd, txt))
-        if modcmd_re.search(txt):
-            modtool = modules_tools[modcmd]
+        return modcmd_re.search(txt)
+
+    # order matters, which is why we don't use a dict
+    known_module_commands = [
+        ('modulecmd', 'EnvironmentModulesC'),
+        ('lmod', 'Lmod'),
+        ('modulecmd.tcl', 'EnvironmentModulesTcl'),
+    ]
+    out = os.path.join(tmpdir, 'module_command.out')
+    modtool = None
+    for modcmd, modtool in known_module_commands:
+        if check_cmd_help(modcmd):
             easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
+        elif modcmd == 'lmod':
+            # check value of $LMOD_CMD as fallback
+            modcmd = os.environ.get('LMOD_CMD')
+            if modcmd and check_cmd_help(modcmd):
+                easybuild_modules_tool = modtool
+                info("Found module command '%s' via $LMOD_CMD (%s), so using it." % (modcmd, modtool))
+                break
 
-    if modtool is None:
+    if easybuild_modules_tool is None:
         msg = [
             "Could not find any module command, make sure one available in your $PATH.",
             "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
