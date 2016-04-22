@@ -20,8 +20,9 @@ addons:
       - tcl8.5
       # for EasyBuild
       - python-setuptools
-      # for GitPython
+      # for GitPython, python-hglib
       - git
+      - mercurial
       # for GC3Pie (optional dep for EasyBuild)
       - time
 before_install:
