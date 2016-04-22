@@ -145,6 +145,10 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
+        if self.github_token is None:
+            print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
+            return
+
         sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
         sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
@@ -152,6 +156,10 @@ class GithubTest(EnhancedTestCase):
 
     def test_download_repo(self):
         """Test download_repo function."""
+        if self.github_token is None:
+            print "Skipping test_download_repo, no GitHub token available?"
+            return
+
         # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix)
         repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')

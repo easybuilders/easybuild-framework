@@ -2040,6 +2040,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_review_pr(self):
         """Test --review-pr."""
+        if self.github_token is None:
+            print "Skipping test_review_pr, no GitHub token available?"
+            return
+
         self.mock_stdout(True)
         # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
         self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
