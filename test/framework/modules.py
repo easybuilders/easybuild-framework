@@ -52,11 +52,6 @@ TEST_MODULES_COUNT = 76
 class ModulesTest(EnhancedTestCase):
     """Test cases for modules."""
 
-    def setUp(self):
-        """set up everything for a unit test."""
-        super(ModulesTest, self).setUp()
-        self.modtool.testing = True
-
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
         if test_modules_paths is None:
