@@ -38,6 +38,8 @@ This python module implements the environment modules functionality:
 import os
 import re
 import subprocess
+import sys
+import time
 from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
@@ -114,6 +116,8 @@ output_matchers = {
 
 _log = fancylogger.getLogger('modules', fname=False)
 
+MODULE_SUBCMD_TIMINGS = {}
+
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
@@ -174,6 +178,9 @@ class ModulesTool(object):
 
         # version of modules tool
         self.version = None
+
+        # this can/should be set to True during testing
+        self.testing = False
 
         # some initialisation/verification
         self.check_cmd_avail()
@@ -489,7 +496,8 @@ class ModulesTool(object):
         else:
             args = list(args)
 
-        if args[0] in ('available', 'avail', 'list',):
+        subcmd = args[0]
+        if subcmd in ('available', 'avail', 'list',):
             # run these in terse mode for easier machine reading
             args.insert(*self.TERSE_OPTION)
 
@@ -520,10 +528,16 @@ class ModulesTool(object):
 
         full_cmd = ' '.join(cmdlist + args)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
+
+        if self.testing:
+            start = time.time()
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
+        if self.testing:
+            end = time.time()
+            MODULE_SUBCMD_TIMINGS.setdefault(subcmd, []).append(end - start)
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
 
         if kwargs.get('return_output', False):
@@ -837,6 +851,7 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
+
         if build_option('update_modules_tool_cache'):
             spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
             cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
