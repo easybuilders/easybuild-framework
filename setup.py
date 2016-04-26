@@ -122,6 +122,7 @@ implement support for installing particular (groups of) software packages.""",
     install_requires=[
         'setuptools >= 0.6',
         "vsc-base >= 2.4.18",
+        'daemonize >= 2.4.6',
     ],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],

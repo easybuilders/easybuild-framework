@@ -44,7 +44,8 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, init_logging, print_msg, print_error, stop_logging
+from easybuild.tools.build_log import (EasyBuildError, NonTerminatingLoggerProxy,
+                                       init_logging, print_msg, print_error, stop_logging)
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
@@ -62,7 +63,18 @@ from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
+from easybuild.tools.utilities import only_if_module_is_available
 from easybuild.tools.version import this_is_easybuild
+
+try:
+    from daemonize import Daemonize
+except ImportError:
+    # ideally we would log this at a WARNING level, but the logger has
+    # not been initialized yet so just silently ignore the error.
+    # Decorator `only_if_module_is_available` will take care of
+    # printing a sensible error message to users in case daemonization
+    # features are ever used.
+    pass
 
 
 _log = None
@@ -184,7 +196,10 @@ def handle_github_options(options, ec_paths):
 
 def main(args=None, logfile=None, do_build=None, testing=False):
     """
-    Main function: parse command line options, and act accordingly.
+    Set up environment, possibly daemonize and give control to main function.
+
+    Any arguments will be forwarded unchanged to `main_body`.
+
     @param args: command line arguments to use
     @param logfile: log file to use
     @param do_build: whether or not to actually perform the build
@@ -196,7 +211,6 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # initialise options
     eb_go = eboptions.parse_options(args=args)
     options = eb_go.options
-    orig_paths = eb_go.args
 
     # set umask (as early as possible)
     if options.umask is not None:
@@ -219,8 +233,84 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
     log_start(eb_cmd_line, eb_tmpdir)
 
+    # report on umask here so we don't have to forward this info to `main`
     if options.umask is not None:
         _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
+
+    if options.daemonize:
+        # check that we're not daemonizing with other options whose
+        # primary purpose is to produce output that should be read!
+        # (But note: all the `--list-*` and `--avail-*` have already
+        # been taken care of in EasyBuildOptions.postprocess() and
+        # main() is never called in those cases, so no need to check
+        # for them here.)
+        incompatible_options = [
+            'dry_run',
+            'extended_dry_run',
+            'logtostdout',
+            'review_pr',
+            'search',
+            'show_config',
+        ]
+        for opt in incompatible_options:
+            if getattr(options, opt):
+                optname = opt.replace('_', '-')
+                raise EasyBuildError(
+                    "Option `--daemonize` is incompatible with `--{optname}`."
+                    " Please use only one of the two.".format(optname=optname))
+
+    if options.daemonize:
+        main_continued = main_daemonize
+    else:
+        main_continued = main_body
+
+    main_continued(
+            # local state
+            init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
+            # original `main` args
+            args, logfile, do_build, testing)
+
+
+@only_if_module_is_available('daemonize', pkgname='daemonize')
+def main_daemonize(init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
+                   args=None, logfile=None, do_build=None, testing=False):
+    """
+    Daemonize the EB process then continue with `main_body`.
+    """
+    pidfile = os.path.join(eb_tmpdir, 'easybuild.pid')
+    print_msg("Backgrounding EasyBuild process,"
+              " will record PID in file '%s' ..." % (pidfile,))
+    daemon = Daemonize(
+        app='EasyBuild',
+        pid=pidfile,
+        chdir=os.getcwd(),
+        auto_close_fds=False,
+        logger=NonTerminatingLoggerProxy(_log),
+        verbose=True,
+        action=(lambda: main_body(
+            # local state
+            init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
+            # original `main` args
+            args, logfile, do_build, testing)))
+    daemon.start()
+
+
+def main_body(init_session_state, eb_go, eb_tmpdir, eb_cmd_line,
+              args=None, logfile=None, do_build=None, testing=False):
+    """
+    Main function: parse command line options, and act accordingly.
+
+    @param init_session_state: Part of the context set up by `main_init`
+    @param eb_go: Part of the context set up by `main1`
+    @param eb_tmpdir: Part of the context set up by `main1`
+    @param eb_cmd_line: Part of the context set up by `main1`
+    @param args: command line arguments to use
+    @param logfile: log file to use
+    @param do_build: whether or not to actually perform the build
+    @param testing: enable testing mode
+    """
+    options = eb_go.options
+    orig_paths = eb_go.args
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
