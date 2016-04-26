@@ -116,6 +116,12 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
     """
     Return an initialized toolchain for the given specifications.
     If none is available in the toolchain instances cache, a new one is created.
+
+    @param tc: dictionary specifying toolchain name/version
+    @param tcopts: dictionary specifying toolchain options
+    @param mns: module naming scheme to use
+    @param tcdeps: toolchain dependencies (i.e. toolchain components)
+    @param modtool: ModulesTool instance to use
     """
     key = (tc['name'], tc['version'])
     if key in _initial_toolchain_instances:

@@ -70,6 +70,7 @@ def dry_run(easyconfigs, modtool, short=False):
     * [F] for forced
     * [R] for rebuild
     @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
+    @param modtool: ModulesTool instance to use
     @param short: use short format for overview: use a variable for common prefixes
     """
     lines = []
@@ -120,6 +121,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param easyconfigs: list of easyconfigs
+    @param modtool: ModulesTool instance to use
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
@@ -127,7 +129,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 
-    avail_modules = modtool.available()  # FIXME
+    avail_modules = modtool.available()
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []

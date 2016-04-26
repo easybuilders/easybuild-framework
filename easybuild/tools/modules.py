@@ -115,7 +115,7 @@ output_matchers = {
 _log = fancylogger.getLogger('modules', fname=False)
 
 
-MODULE_VERSIONS = {}
+MODULE_VERSION_CACHE = {}
 
 
 class ModulesTool(object):
@@ -196,9 +196,9 @@ class ModulesTool(object):
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
-        if self.COMMAND in MODULE_VERSIONS:
-            self.version = MODULE_VERSIONS[self.COMMAND]
-            self.log.info("Found cached version for %s: %s", self.COMMAND, self.version)
+        if self.COMMAND in MODULE_VERSION_CACHE:
+            self.version = MODULE_VERSION_CACHE[self.COMMAND]
+            self.log.debug("Found cached version for %s: %s", self.COMMAND, self.version)
             return
 
         if self.VERSION_REGEXP is None:
@@ -235,7 +235,7 @@ class ModulesTool(object):
             else:
                 self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
 
-        MODULE_VERSIONS[self.COMMAND] = self.version
+        MODULE_VERSION_CACHE[self.COMMAND] = self.version
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
@@ -282,7 +282,11 @@ class ModulesTool(object):
             self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
 
     def set_mod_paths(self, mod_paths=None):
-        """Set mod_paths, based on $MODULEPATH unless a list of module paths is specified."""
+        """
+        Set mod_paths, based on $MODULEPATH unless a list of module paths is specified.
+
+        @param mod_paths: list of entries for $MODULEPATH to use
+        """
         # make sure we don't have the same path twice, using nub
         if mod_paths is None:
             # no paths specified, so grab list of (existing) module paths from $MODULEPATH
@@ -305,7 +309,12 @@ class ModulesTool(object):
         self.run_module(['unuse', path])
 
     def add_module_path(self, path, set_mod_paths=True):
-        """Add specified module path (using 'module use') if it's not there yet."""
+        """
+        Add specified module path (using 'module use') if it's not there yet.
+
+        @param path: path to add to $MODULEPATH via 'use'
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         if path not in curr_module_paths():
             # add module path via 'module use' and make sure self.mod_paths is synced
             self.use(path)
@@ -313,7 +322,12 @@ class ModulesTool(object):
                 self.set_mod_paths()
 
     def remove_module_path(self, path, set_mod_paths=True):
-        """Remove specified module path (using 'module unuse')."""
+        """
+        Remove specified module path (using 'module unuse').
+
+        @param path: path to remove from $MODULEPATH via 'unuse'
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         # remove module path via 'module unuse' and make sure self.mod_paths is synced
         if path in curr_module_paths():
             self.unuse(path)
@@ -322,7 +336,12 @@ class ModulesTool(object):
                 self.set_mod_paths()
 
     def prepend_module_path(self, path, set_mod_paths=True):
-        """Prepend given module path to list of module paths, or bump it to 1st place."""
+        """
+        Prepend given module path to list of module paths, or bump it to 1st place.
+
+        @param path: path to prepend to $MODULEPATH
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         # generic approach: remove the path first (if it's there), then add it again (to the front)
         modulepath = curr_module_paths()
         if not modulepath:
@@ -802,7 +821,12 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         return clean_mods
 
     def remove_module_path(self, path, set_mod_paths=True):
-        """Remove specified module path (using 'module unuse')."""
+        """
+        Remove specified module path (using 'module unuse').
+
+        @param path: path to remove from $MODULEPATH via 'unuse'
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         # remove module path via 'module use' and make sure self.mod_paths is synced
         # modulecmd.tcl keeps track of how often a path was added via 'module use',
         # so we need to check to make sure it's really removed
@@ -891,8 +915,13 @@ class Lmod(ModulesTool):
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
     def prepend_module_path(self, path, set_mod_paths=True):
-        """Prepend given module path to list of module paths, or bump it to 1st place."""
-        # Lmod pushes a path to the front on 'module use'
+        """
+        Prepend given module path to list of module paths, or bump it to 1st place.
+
+        @param path: path to prepend to $MODULEPATH
+        @param set_mod_paths: (re)set self.mod_paths
+        """
+        # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
         if not modulepath or modulepath[0] != path:
             self.use(path)

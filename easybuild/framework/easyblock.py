@@ -154,17 +154,6 @@ class EasyBlock(object):
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
-        # modules footer/header
-        self.modules_footer = None
-        modules_footer_path = build_option('modules_footer')
-        if modules_footer_path is not None:
-            self.modules_footer = read_file(modules_footer_path)
-
-        self.modules_header = None
-        modules_header_path = build_option('modules_header')
-        if modules_header_path is not None:
-            self.modules_header = read_file(modules_header_path)
-
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
             self.cfg = ec
@@ -175,6 +164,17 @@ class EasyBlock(object):
         self.modules_tool = self.cfg.modules_tool
         # module generator
         self.module_generator = module_generator(self, fake=True)
+
+        # modules footer/header
+        self.modules_footer = None
+        modules_footer_path = build_option('modules_footer')
+        if modules_footer_path is not None:
+            self.modules_footer = read_file(modules_footer_path)
+
+        self.modules_header = None
+        modules_header_path = build_option('modules_header')
+        if modules_header_path is not None:
+            self.modules_header = read_file(modules_header_path)
 
         # determine install subdirectory, based on module name
         self.install_subdir = None

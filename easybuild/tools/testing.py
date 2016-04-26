@@ -61,6 +61,7 @@ def regtest(easyconfig_paths, modtool, build_specs=None):
     """
     Run regression test, using easyconfigs available in given path
     @param easyconfig_paths: path of easyconfigs to run regtest on
+    @param modtool: ModulesTool instance to use
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 

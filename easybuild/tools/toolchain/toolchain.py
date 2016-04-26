@@ -80,7 +80,16 @@ class Toolchain(object):
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
     def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None):
-        """Toolchain constructor."""
+        """
+        Toolchain constructor.
+
+        @param name: toolchain name
+        @param version: toolchain version
+        @param mns: module naming scheme to use
+        @param class_constants: toolchain 'constants' to define
+        @param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
+        @param modtool: ModulesTool instance to use
+        """
 
         self.base_init()
 
