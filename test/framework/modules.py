@@ -241,7 +241,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_wrong_modulepath(self):
         """Test whether modules tool can deal with a broken $MODULEPATH."""
-        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        test_modules_path = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
         modules_test_installpath = os.path.join(self.test_installpath, 'modules', 'all')
         os.environ['MODULEPATH'] = '/some/non-existing/path:/this/doesnt/exists/anywhere:%s' % test_modules_path
         init_config()
