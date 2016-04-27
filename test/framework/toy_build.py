@@ -1040,6 +1040,41 @@ class ToyBuildTest(EnhancedTestCase):
         reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(reprod_ec))
 
+    def test_toy_toy(self):
+        """Test building two easyconfigs in a single go, with one depending on the other."""
+        toy_ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        ec1 = os.path.join(self.test_prefix, 'toy1.eb')
+        ec1_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-one'",
+        ])
+        write_file(ec1, ec1_txt)
+
+        ec2 = os.path.join(self.test_prefix, 'toy2.eb')
+        ec2_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-two'",
+            "dependencies = [('toy', '0.0', '-one')]",
+        ])
+        write_file(ec2, ec2_txt)
+
+        self.test_toy_build(ec_file=self.test_prefix, verify=False)
+
+        mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
+        mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
+        self.assertTrue(os.path.exists(mod1) or os.path.exists('%s.lua' % mod1))
+        self.assertTrue(os.path.exists(mod2) or os.path.exists('%s.lua' % mod2))
+
+        if os.path.exists(mod2):
+            mod2_txt = read_file(mod2)
+        else:
+            mod2_txt = read_file('%s.lua' % mod2)
+
+        load1_regex = re.compile('load.*toy/0.0-one', re.M)
+        self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
+
 
 def suite():
     """ return all the tests in this file """
