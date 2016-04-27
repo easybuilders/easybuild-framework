@@ -40,7 +40,7 @@ from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version, get_software_version_env_var_name, modules_tool
+from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -79,8 +79,17 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None):
-        """Toolchain constructor."""
+    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None):
+        """
+        Toolchain constructor.
+
+        @param name: toolchain name
+        @param version: toolchain version
+        @param mns: module naming scheme to use
+        @param class_constants: toolchain 'constants' to define
+        @param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
+        @param modtool: ModulesTool instance to use
+        """
 
         self.base_init()
 
@@ -109,7 +118,8 @@ class Toolchain(object):
         # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
         self.dry_run = build_option('extended_dry_run', default=False)
 
-        self.modules_tool = modules_tool()
+        self.modules_tool = modtool
+
         self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
@@ -545,7 +555,7 @@ class Toolchain(object):
         """Verify toolchain: check toolchain definition against dependencies of toolchain module."""
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
-        self.toolchain_dep_mods = dependencies_for(mod_name, depth=0)
+        self.toolchain_dep_mods = dependencies_for(mod_name, self.modules_tool, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name

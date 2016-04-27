@@ -1522,7 +1522,7 @@ class EasyConfigTest(EnhancedTestCase):
             ecs, _ = parse_easyconfigs(ec_files)
 
             dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, retain_all_deps=True)
+            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
             dep_graph(dot_file, ordered_ecs)
 
             # hard check for expect .dot file contents

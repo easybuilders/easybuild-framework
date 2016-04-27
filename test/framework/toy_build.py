@@ -46,7 +46,6 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -709,7 +708,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # building a toolchain module should also work
         args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
-        modules_tool().purge()
+        self.modtool.purge()
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
         gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
         if get_module_syntax() == 'Lua':
@@ -872,13 +871,13 @@ class ToyBuildTest(EnhancedTestCase):
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
-        self.reset_modulepath([modulepath])
-        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True)
+        self.reset_modulepath([modulepath, os.path.join(self.test_installpath, 'modules', 'all')])
+        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
-        modules_tool().load(['toy/0.0-external-deps'])
+        self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
         mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
-        self.assertEqual([x['mod_name'] for x in modules_tool().list()], mods)
+        self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
         err_msg = "Missing modules for one or more dependencies marked as external modules:"
@@ -972,6 +971,7 @@ class ToyBuildTest(EnhancedTestCase):
         lmod_abspath = which('lmod')
         if lmod_abspath is not None:
             args = common_args[:-1] + [
+                '--allow-modules-tool-mismatch',
                 '--module-only',
                 '--module-syntax=Lua',
                 '--modules-tool=Lmod',
