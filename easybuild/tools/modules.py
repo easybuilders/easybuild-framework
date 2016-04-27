@@ -116,6 +116,7 @@ _log = fancylogger.getLogger('modules', fname=False)
 
 
 MODULE_VERSION_CACHE = {}
+MODULE_AVAIL_CACHE = {}
 
 
 class ModulesTool(object):
@@ -184,9 +185,6 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
-
-        # cache for 'avail' subcommand
-        self.avail_cache = {}
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -391,9 +389,9 @@ class ModulesTool(object):
             mod_name = ''
 
         # cache 'avail' calls without an argument, since these are particularly expensive...
-        key = 'MODULEPATH=%s' % os.environ.get('MODULEPATH', '')
-        if not mod_name and key in self.avail_cache:
-            ans = self.avail_cache[key]
+        key = ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), ';'.join(extra_args))
+        if not mod_name and key in MODULE_AVAIL_CACHE:
+            ans = MODULE_AVAIL_CACHE[key]
             self.log.debug("Found cached result for 'module avail' with $%s: %s", key, ans)
         else:
             args = ['avail'] + extra_args + [mod_name]
@@ -405,7 +403,7 @@ class ModulesTool(object):
             self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
 
             if not mod_name:
-                self.avail_cache[key] = ans
+                MODULE_AVAIL_CACHE[key] = ans
                 self.log.debug("Cached result for 'module avail' with $%s: %s", key, ans)
 
         return ans
