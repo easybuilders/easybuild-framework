@@ -185,6 +185,9 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
 
+        # cache for 'avail' subcommand
+        self.avail_cache = {}
+
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
@@ -386,14 +389,25 @@ class ModulesTool(object):
             extra_args = []
         if mod_name is None:
             mod_name = ''
-        args = ['avail'] + extra_args + [mod_name]
-        mods = self.run_module(*args)
 
-        # sort list of modules in alphabetical order
-        mods.sort(key=lambda m: m['mod_name'])
-        ans = nub([mod['mod_name'] for mod in mods])
+        # cache 'avail' calls without an argument, since these are particularly expensive...
+        key = 'MODULEPATH=%s' % os.environ.get('MODULEPATH', '')
+        if not mod_name and key in self.avail_cache:
+            ans = self.avail_cache[key]
+            self.log.debug("Found cached result for 'module avail' with $%s: %s", key, ans)
+        else:
+            args = ['avail'] + extra_args + [mod_name]
+            mods = self.run_module(*args)
 
-        self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
+            # sort list of modules in alphabetical order
+            mods.sort(key=lambda m: m['mod_name'])
+            ans = nub([mod['mod_name'] for mod in mods])
+            self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
+
+            if not mod_name:
+                self.avail_cache[key] = ans
+                self.log.debug("Cached result for 'module avail' with $%s: %s", key, ans)
+
         return ans
 
     def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
