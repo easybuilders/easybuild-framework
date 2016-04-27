@@ -119,6 +119,11 @@ MODULE_VERSION_CACHE = {}
 MODULE_AVAIL_CACHE = {}
 
 
+def reset_avail_cache():
+    """Reset 'avail' cache."""
+    MODULE_AVAIL_CACHE.clear()
+
+
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
     # position and optionname
