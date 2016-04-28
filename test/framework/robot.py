@@ -76,7 +76,7 @@ class MockModule(modules.ModulesTool):
 
     avail_modules = []
 
-    def available(self, *args):
+    def available(self, *args, **kwargs):
         """Dummy implementation of available."""
         return self.avail_modules
 
