@@ -72,8 +72,8 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.modules import get_software_root
+from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
+from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -1951,10 +1951,13 @@ class EasyBlock(object):
 
         else:
             write_file(mod_filepath, txt)
-
             self.log.info("Module file %s written: %s", mod_filepath, txt)
 
-             # only update after generating final module file
+            # invalid relevant 'module avail'/'module show' cache entries
+            for mod_name in [self.short_mod_name, self.full_mod_name]:
+                invalidate_module_caches_for(mod_filepath[:-len(mod_name)])
+
+            # only update after generating final module file
             if not fake:
                 self.modules_tool.update()
 

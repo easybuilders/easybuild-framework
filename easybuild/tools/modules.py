@@ -124,6 +124,18 @@ def reset_avail_cache():
     MODULE_AVAIL_CACHE.clear()
 
 
+def invalidate_module_caches_for(path):
+    """Invalidate cache entries related to specified path."""
+    for key in MODULE_AVAIL_CACHE.keys():
+        paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
+        for path_in_key in paths_in_key:
+            if os.path.samefile(path, path_in_key):
+                _log.debug("Entry '%s' in 'module avail' cache is evicted, marked as invalid via path '%s': %s",
+                           key, path, MODULE_AVAIL_CACHE[key])
+                del MODULE_AVAIL_CACHE[key]
+                break
+
+
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
     # position and optionname
