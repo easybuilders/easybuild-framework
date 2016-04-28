@@ -433,6 +433,9 @@ class ModulesTool(object):
 
         if skip_avail:
             avail_mod_names = []
+        elif len(mod_names) == 1:
+            # optimize for case of single module name ('avail' without arguments can be expensive)
+            avail_mod_names = self.available(mod_name=mod_names[0])
         else:
             avail_mod_names = self.available()
 
