@@ -37,12 +37,14 @@ import shutil
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
+import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir, modules_tool
+from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir
+from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
 
 
 # number of modules included for testing purposes
@@ -400,6 +402,65 @@ class ModulesTest(EnhancedTestCase):
             load_err_msg = "Unable to locate a modulefile"
 
         self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['OpenMPI/1.6.4'])
+
+    def test_mk_module_cache_key(self):
+        """Test mk_module_cache_key method."""
+        os.environ['MODULEPATH'] = '%s:/tmp/test' % self.test_prefix
+        res = self.modtool.mk_module_cache_key('thisisapartialkey')
+        self.assertTrue(isinstance(res, tuple))
+        self.assertEqual(res, ('MODULEPATH=%s:/tmp/test' % self.test_prefix, self.modtool.COMMAND, 'thisisapartialkey'))
+
+        del os.environ['MODULEPATH']
+        res = self.modtool.mk_module_cache_key('thisisapartialkey')
+        self.assertEqual(res, ('MODULEPATH=', self.modtool.COMMAND, 'thisisapartialkey'))
+
+    def test_module_caches(self):
+        """Test module caches and invalidate_module_caches_for function."""
+        self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
+
+        # purposely extending $MODULEPATH with non-existing path, should be handled fine
+        nonpath = os.path.join(self.test_prefix, 'nosuchfileordirectory')
+        self.modtool.use(nonpath)
+        self.assertTrue(nonpath in os.environ['MODULEPATH'])
+        shutil.rmtree(nonpath)
+
+        # no caching for 'avail' commands with an argument
+        self.assertTrue(self.modtool.available('GCC'))
+        self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
+
+        # run 'avail' without argument, result should get cached
+        res = self.modtool.available()
+
+        # just a single cache entry
+        self.assertEqual(len(mod.MODULE_AVAIL_CACHE), 1)
+
+        # fetch cache entry
+        avail_cache_key = mod.MODULE_AVAIL_CACHE.keys()[0]
+        cached_res = mod.MODULE_AVAIL_CACHE[avail_cache_key]
+        self.assertTrue(cached_res == res)
+
+        # running avail again results in getting cached result, exactly the same result as before
+        # depending on the modules tool being used, it may not be the same list instance, because of post-processing
+        self.assertTrue(self.modtool.available() == res)
+
+        # run 'show', should be all cached
+        show_res_gcc = self.modtool.show('GCC/4.7.2')
+        show_res_fftw = self.modtool.show('FFTW')
+        self.assertEqual(len(mod.MODULE_SHOW_CACHE), 2)
+        self.assertTrue(show_res_gcc in mod.MODULE_SHOW_CACHE.values())
+        self.assertTrue(show_res_fftw in mod.MODULE_SHOW_CACHE.values())
+        self.assertTrue(self.modtool.show('GCC/4.7.2') is show_res_gcc)
+        self.assertTrue(self.modtool.show('FFTW') is show_res_fftw)
+
+        # invalidate caches with correct path
+        modpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        self.assertTrue(modpath in os.environ.get('MODULEPATH', ''))
+        self.assertTrue(modpath in avail_cache_key[0])
+
+        # verify cache invalidation, caches should be empty again
+        invalidate_module_caches_for(modpath)
+        self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
+        self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 
 
 def suite():

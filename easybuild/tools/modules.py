@@ -60,7 +60,7 @@ DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 LD_ENV_VAR_KEYS = ['LD_LIBRARY_PATH', 'LD_PRELOAD']
 
-output_matchers = {
+OUTPUT_MATCHES = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
     # matches errors such as "cmdTrace.c(713):ERROR:104: 'asdfasdf' is an unrecognized subcommand"
@@ -111,36 +111,19 @@ output_matchers = {
         \s*$                          # ignore whitespace at the end of the line
         """, re.VERBOSE),
 }
-
-_log = fancylogger.getLogger('modules', fname=False)
-
-
+# cache for result of module subcommands
+# key: tuple with $MODULEPATH and (stringified) list of extra arguments/options for module subcommand
+# value: result of module subcommand
 MODULE_AVAIL_CACHE = {}
 MODULE_SHOW_CACHE = {}
+
+# cache for modules tool version
+# cache key: module command
+# value: corresponding (validated) module version
 MODULE_VERSION_CACHE = {}
 
 
-def reset_module_caches():
-    """Reset module caches."""
-    MODULE_AVAIL_CACHE.clear()
-    MODULE_SHOW_CACHE.clear()
-
-
-def invalidate_module_caches_for(path):
-    """Invalidate cache entries related to specified path."""
-    if not os.path.exists(path):
-        raise EasyBuildError("Non-existing path specified to invalidate module caches: %s", path)
-
-    _log.debug("Invallidating module cache entries for path '%s'", path)
-    for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
-        for key in cache.keys():
-            paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
-            _log.debug("Paths for 'module %s' key '%s': %s", subcmd, key, paths_in_key)
-            for path_in_key in paths_in_key:
-                if path == path_in_key or (os.path.exists(path_in_key) and os.path.samefile(path, path_in_key)):
-                    _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
-                               key, subcmd, path, cache[key])
-                    del cache[key]
+_log = fancylogger.getLogger('modules', fname=False)
 
 
 class ModulesTool(object):
@@ -306,6 +289,10 @@ class ModulesTool(object):
             # module function may not be defined (weird, but fine)
             self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
 
+    def mk_module_cache_key(self, partial_key):
+        """Create a module cache key, using the specified partial key, by combining it with the current $MODULEPATH."""
+        return ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), self.COMMAND, partial_key)
+
     def set_mod_paths(self, mod_paths=None):
         """
         Set mod_paths, based on $MODULEPATH unless a list of module paths is specified.
@@ -413,7 +400,7 @@ class ModulesTool(object):
             mod_name = ''
 
         # cache 'avail' calls without an argument, since these are particularly expensive...
-        key = ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), ';'.join(extra_args))
+        key = self.mk_module_cache_key(';'.join(extra_args))
         if not mod_name and key in MODULE_AVAIL_CACHE:
             ans = MODULE_AVAIL_CACHE[key]
             self.log.debug("Found cached result for 'module avail' with key '%s': %s", key, ans)
@@ -529,7 +516,7 @@ class ModulesTool(object):
         """
         Run 'module show' for the specified module.
         """
-        key = ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), mod_name)
+        key = self.mk_module_cache_key(mod_name)
         if key in MODULE_SHOW_CACHE:
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module avail' with key '%s': %s", key, ans)
@@ -649,14 +636,14 @@ class ModulesTool(object):
             # Process stderr
             result = []
             for line in stderr.split('\n'):  # IGNORE:E1103
-                if output_matchers['whitespace'].search(line):
+                if OUTPUT_MATCHES['whitespace'].search(line):
                     continue
 
-                error = output_matchers['error'].search(line)
+                error = OUTPUT_MATCHES['error'].search(line)
                 if error:
                     raise EasyBuildError(line)
 
-                modules = output_matchers['available'].finditer(line)
+                modules = OUTPUT_MATCHES['available'].finditer(line)
                 for module in modules:
                     result.append(module.groupdict())
             return result
@@ -1110,6 +1097,29 @@ def modules_tool(mod_paths=None, testing=False):
         return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
+
+
+def reset_module_caches():
+    """Reset module caches."""
+    MODULE_AVAIL_CACHE.clear()
+    MODULE_SHOW_CACHE.clear()
+
+
+def invalidate_module_caches_for(path):
+    """Invalidate cache entries related to specified path."""
+    if not os.path.exists(path):
+        raise EasyBuildError("Non-existing path specified to invalidate module caches: %s", path)
+
+    _log.debug("Invallidating module cache entries for path '%s'", path)
+    for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
+        for key in cache.keys():
+            paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
+            _log.debug("Paths for 'module %s' key '%s': %s", subcmd, key, paths_in_key)
+            for path_in_key in paths_in_key:
+                if path == path_in_key or (os.path.exists(path_in_key) and os.path.samefile(path, path_in_key)):
+                    _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
+                               key, subcmd, path, cache[key])
+                    del cache[key]
 
 
 class Modules(EnvironmentModulesC):
