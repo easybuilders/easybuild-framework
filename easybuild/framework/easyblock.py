@@ -1953,9 +1953,16 @@ class EasyBlock(object):
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
 
-            # invalid relevant 'module avail'/'module show' cache entries
-            for mod_name in [self.short_mod_name, self.full_mod_name]:
-                invalidate_module_caches_for(mod_filepath[:-len(mod_name)])
+            # invalidate relevant 'module avail'/'module show' cache entries
+            modpath = self.module_generator.get_modules_path(fake=fake)
+            # consider both paths: for short module name, and subdir indicated by long module name
+            paths = [modpath]
+            mod_subdir = self.full_mod_name[:-len(self.short_mod_name)]
+            if mod_subdir:
+                paths.append(os.path.join(modpath, mod_subdir))
+
+            for path in paths:
+                invalidate_module_caches_for(path)
 
             # only update after generating final module file
             if not fake:
