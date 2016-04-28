@@ -52,7 +52,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
-from easybuild.tools.modules import curr_module_paths, modules_tool, reset_avail_cache
+from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
@@ -177,7 +177,7 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
-        reset_avail_cache()
+        reset_module_caches()
 
     def tearDown(self):
         """Clean up after running testcase."""

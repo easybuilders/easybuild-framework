@@ -115,25 +115,29 @@ output_matchers = {
 _log = fancylogger.getLogger('modules', fname=False)
 
 
-MODULE_VERSION_CACHE = {}
 MODULE_AVAIL_CACHE = {}
+MODULE_SHOW_CACHE = {}
+MODULE_VERSION_CACHE = {}
 
 
-def reset_avail_cache():
-    """Reset 'avail' cache."""
+def reset_module_caches():
+    """Reset module caches."""
     MODULE_AVAIL_CACHE.clear()
+    MODULE_SHOW_CACHE.clear()
 
 
 def invalidate_module_caches_for(path):
     """Invalidate cache entries related to specified path."""
-    for key in MODULE_AVAIL_CACHE.keys():
-        paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
-        for path_in_key in paths_in_key:
-            if os.path.samefile(path, path_in_key):
-                _log.debug("Entry '%s' in 'module avail' cache is evicted, marked as invalid via path '%s': %s",
-                           key, path, MODULE_AVAIL_CACHE[key])
-                del MODULE_AVAIL_CACHE[key]
-                break
+    _log.debug("Invallidating module cache entries for path '%s'", path)
+    for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
+        for key in cache.keys():
+            paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
+            _log.debug("Paths for 'module %s' key '%s': %s", subcmd, key, paths_in_key)
+            for path_in_key in paths_in_key:
+                if os.path.samefile(path, path_in_key):
+                    _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
+                               key, subcmd, path, cache[key])
+                    del cache[key]
 
 
 class ModulesTool(object):
@@ -409,7 +413,7 @@ class ModulesTool(object):
         key = ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), ';'.join(extra_args))
         if not mod_name and key in MODULE_AVAIL_CACHE:
             ans = MODULE_AVAIL_CACHE[key]
-            self.log.debug("Found cached result for 'module avail' with $%s: %s", key, ans)
+            self.log.debug("Found cached result for 'module avail' with key '%s': %s", key, ans)
         else:
             args = ['avail'] + extra_args + [mod_name]
             mods = self.run_module(*args)
@@ -421,7 +425,7 @@ class ModulesTool(object):
 
             if not mod_name:
                 MODULE_AVAIL_CACHE[key] = ans
-                self.log.debug("Cached result for 'module avail' with $%s: %s", key, ans)
+                self.log.debug("Cached result for 'module avail' with key '%s': %s", key, ans)
 
         return ans
 
@@ -522,7 +526,16 @@ class ModulesTool(object):
         """
         Run 'module show' for the specified module.
         """
-        return self.run_module('show', mod_name, return_output=True)
+        key = ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), mod_name)
+        if key in MODULE_SHOW_CACHE:
+            ans = MODULE_SHOW_CACHE[key]
+            self.log.debug("Found cached result for 'module avail' with key '%s': %s", key, ans)
+        else:
+            ans = self.run_module('show', mod_name, return_output=True)
+            MODULE_SHOW_CACHE[key] = ans
+            self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
+
+        return ans
 
     def get_value_from_modulefile(self, mod_name, regex):
         """
