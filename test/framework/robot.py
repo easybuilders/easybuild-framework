@@ -42,7 +42,7 @@ import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig
-from easybuild.framework.easyconfig.tools import find_resolved_modules
+from easybuild.framework.easyconfig.tools import find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
 from easybuild.framework.easyconfig.tools import skip_available
@@ -54,7 +54,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.robot import check_conflicts, resolve_dependencies
 from test.framework.utilities import find_full_path
 
 
@@ -906,6 +906,43 @@ class RobotTest(EnhancedTestCase):
         bar = EasyConfig(barec) # Re-parse the parent easyconfig
         sqlite = bar.dependencies()[3]
         self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-goolf-1.4.10')
+
+    def test_check_conflicts(self):
+        """Test check_conflicts function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config(build_options={
+            'robot_path': test_easyconfigs,
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+
+        gzip_ec = os.path.join(test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb')
+        gompi_ec = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
+        ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
+
+        # no conflicts found, no output to stderr
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertFalse(conflicts)
+        self.assertEqual(stderr, '')
+
+        # change GCC version in gompi dependency, to inject a conflict
+        gompi_ec_txt = read_file(gompi_ec)
+        new_gompi_ec = os.path.join(self.test_prefix, 'gompi.eb')
+        write_file(new_gompi_ec, gompi_ec_txt.replace('4.7.2', '4.6.4'))
+
+        ecs, _ = parse_easyconfigs([(new_gompi_ec, False), (gzip_ec, False)])
+
+        # conflicts are found and reported to stderr
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(conflicts)
+        self.assertTrue("Conflict found for dependencies of goolf-1.4.10: GCC-4.6.4 vs GCC-4.7.2" in stderr)
 
 
 def suite():
