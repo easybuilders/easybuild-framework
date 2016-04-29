@@ -519,7 +519,7 @@ class ModulesTool(object):
         key = self.mk_module_cache_key(mod_name)
         if key in MODULE_SHOW_CACHE:
             ans = MODULE_SHOW_CACHE[key]
-            self.log.debug("Found cached result for 'module avail' with key '%s': %s", key, ans)
+            self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
             ans = self.run_module('show', mod_name, return_output=True)
             MODULE_SHOW_CACHE[key] = ans
