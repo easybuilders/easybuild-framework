@@ -421,7 +421,7 @@ class ModulesTest(EnhancedTestCase):
         # purposely extending $MODULEPATH with non-existing path, should be handled fine
         nonpath = os.path.join(self.test_prefix, 'nosuchfileordirectory')
         self.modtool.use(nonpath)
-        modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
+        modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
         self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
         shutil.rmtree(nonpath)
 
@@ -455,9 +455,9 @@ class ModulesTest(EnhancedTestCase):
 
         # invalidate caches with correct path
         modpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
-        modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
+        modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
         self.assertTrue(any([os.path.exists(mp) and os.path.samefile(modpath, mp) for mp in modulepaths]))
-        paths_in_key = avail_cache_key[0].split('=')[1].split(os.pathsep)
+        paths_in_key = [p for p in avail_cache_key[0].split('=')[1].split(os.pathsep) if p]
         self.assertTrue(any([os.path.exists(p) and os.path.samefile(modpath, p) for p in paths_in_key]))
 
         # verify cache invalidation, caches should be empty again
