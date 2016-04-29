@@ -58,7 +58,7 @@ from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
-from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
@@ -307,7 +307,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
-                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+                        log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s" % paths)
 
     # run regtest
@@ -333,12 +333,19 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
+    if options.check_conflicts:
+        if check_conflicts(easyconfigs, modtool):
+            print_error("One or more conflicts detected!")
+            sys.exit(1)
+        else:
+            print_msg("No conflicts detected.")
+
     # dump source script to set up build environment
     if options.dump_env_script:
         dump_env_script(easyconfigs)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.dry_run, options.dry_run_short, options.dump_env_script]):
+    if any(no_ec_opts + [options.check_conflicts, options.dry_run, options.dry_run_short, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

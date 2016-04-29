@@ -317,7 +317,8 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        auto_ignore_osdeps_options = [cmdline_options.dep_graph, cmdline_options.dry_run, cmdline_options.dry_run_short,
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
+                                      cmdline_options.dry_run, cmdline_options.dry_run_short,
                                       cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
         if any(auto_ignore_osdeps_options):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
