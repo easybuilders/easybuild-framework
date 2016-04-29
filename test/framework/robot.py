@@ -53,6 +53,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.modules import invalidate_module_caches_for
 from easybuild.tools.robot import resolve_dependencies
 from test.framework.utilities import find_full_path
 
@@ -76,7 +77,7 @@ class MockModule(modules.ModulesTool):
 
     avail_modules = []
 
-    def available(self, *args):
+    def available(self, *args, **kwargs):
         """Dummy implementation of available."""
         return self.avail_modules
 
@@ -883,6 +884,7 @@ class RobotTest(EnhancedTestCase):
         ])
         write_file(module_file, module_txt)
         os.environ['MODULEPATH'] = module_parent # Add the parent directory to the MODULEPATH
+        invalidate_module_caches_for(module_parent)
 
         # Reinitialize the environment for the updated MODULEPATH and use_existing_modules
         init_config(build_options={
@@ -900,6 +902,7 @@ class RobotTest(EnhancedTestCase):
         # Add the goolf version as an available version and check that gets precedence over the gompi version
         module_file = os.path.join(module_parent, 'SQLite', '3.8.10.2-goolf-1.4.10')
         write_file(module_file, module_txt)
+        invalidate_module_caches_for(module_parent)
         bar = EasyConfig(barec) # Re-parse the parent easyconfig
         sqlite = bar.dependencies()[3]
         self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-goolf-1.4.10')
