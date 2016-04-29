@@ -421,7 +421,8 @@ class ModulesTest(EnhancedTestCase):
         # purposely extending $MODULEPATH with non-existing path, should be handled fine
         nonpath = os.path.join(self.test_prefix, 'nosuchfileordirectory')
         self.modtool.use(nonpath)
-        self.assertTrue(nonpath in os.environ['MODULEPATH'])
+        modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
+        self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
         shutil.rmtree(nonpath)
 
         # no caching for 'avail' commands with an argument
@@ -454,8 +455,10 @@ class ModulesTest(EnhancedTestCase):
 
         # invalidate caches with correct path
         modpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
-        self.assertTrue(modpath in os.environ.get('MODULEPATH', ''))
-        self.assertTrue(modpath in avail_cache_key[0])
+        modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
+        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(modpath, mp) for mp in modulepaths]))
+        paths_in_key = avail_cache_key[0].split('=')[1].split(os.pathsep)
+        self.assertTrue(any([os.path.exists(p) and os.path.samefile(modpath, p) for p in paths_in_key]))
 
         # verify cache invalidation, caches should be empty again
         invalidate_module_caches_for(modpath)
