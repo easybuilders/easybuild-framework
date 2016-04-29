@@ -67,7 +67,7 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
 
 def check_conflicts(easyconfigs, modtool):
     """Check for conflicts in dependency graphs for specified easyconfigs."""
-    ordered_ecs = resolve_dependencies(easyconfigs, modtool)
+    ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
     def mk_key(spec):
         """Create key for dictionary with all dependencies."""
@@ -114,16 +114,16 @@ def check_conflicts(easyconfigs, modtool):
         return conflict
 
     # for each of the easyconfigs, check whether the dependencies (incl. build deps) contain any conflicts
-    conflicts = False
+    res = False
     for (key, (build_deps, runtime_deps)) in deps_for.items():
         # also check whether module itself clashes with any of its dependencies
         for i, dep1 in enumerate(build_deps + runtime_deps + [key]):
             for dep2 in (build_deps + runtime_deps)[i+1:]:
                 # don't worry about conflicts between module itself and any of its build deps
                 if dep1 != key or dep2 not in build_deps:
-                    conflicts |= is_conflict(key, dep1, dep2)
+                    res |= is_conflict(key, dep1, dep2)
 
-    return conflicts
+    return res
 
 
 def dry_run(easyconfigs, modtool, short=False):
