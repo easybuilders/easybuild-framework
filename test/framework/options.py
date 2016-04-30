@@ -2407,6 +2407,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
 
+        # reset possible earlier import of toy easyblock
+        if 'easybuild.easyblocks.toy' in sys.modules:
+            del sys.modules['easybuild.easyblocks.toy']
+
         # --show-config should not break including of easyblocks via $EASYBUILD_INCLUDE_EASYBLOCKS (see bug #1696)
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyblock = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
@@ -2417,7 +2421,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout().strip()
         self.mock_stdout(False)
-        regex = re.compile('^include-easyblocks \(E\) = .*/test/framework/sandbox/easybuild/easyblocks/t/toy.py$', re.M)
+        regex = re.compile(r'^include-easyblocks \(E\) = .*test/framework/sandbox/easybuild/easyblocks/t/toy.py$', re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_dump_env_config(self):
