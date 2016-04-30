@@ -52,7 +52,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
@@ -77,6 +77,7 @@ for key in os.environ.keys():
         del os.environ[key]
         newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
         os.environ[newkey] = val
+
 
 class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
@@ -150,6 +151,10 @@ class EnhancedTestCase(_EnhancedTestCase):
                 # keep track of 'easybuild' paths to inject into sys.path later
                 sys.path.append(os.path.join(path, 'easybuild'))
 
+        # required to make sure the 'easybuild' dir in the sandbox is picked up;
+        # this relates to the other 'reload' statements below
+        reload(easybuild)
+
         # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
         fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
 
@@ -170,8 +175,9 @@ class EnhancedTestCase(_EnhancedTestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
-        modtool = modules_tool()
+        self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
+        reset_module_caches()
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -214,15 +220,15 @@ class EnhancedTestCase(_EnhancedTestCase):
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
-        modtool = modules_tool()
-        for modpath in os.environ.get('MODULEPATH', '').split(os.pathsep):
-            modtool.remove_module_path(modpath)
+        for modpath in curr_module_paths():
+            self.modtool.remove_module_path(modpath, set_mod_paths=False)
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
         os.environ['MODULEPATH'] = ''
         for modpath in modpaths:
-            modtool.add_module_path(modpath)
+            self.modtool.add_module_path(modpath, set_mod_paths=False)
+        self.modtool.set_mod_paths()
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
                 reset_env=True, raise_systemexit=False, testing=True):
@@ -241,7 +247,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing)
+            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
         except SystemExit:
             if raise_systemexit:
                 raise err

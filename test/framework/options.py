@@ -50,7 +50,6 @@ from easybuild.tools.config import find_last_log, get_build_log_path, get_module
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
@@ -239,7 +238,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--debug',
         ]
         self.eb_main(args, do_build=True)
-        modules_tool().purge()
 
         args.append('--skip')
         outtxt = self.eb_main(args, do_build=True, verbose=True)
@@ -251,10 +249,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # cleanup for next test
         write_file(self.logfile, '')
         os.chdir(self.cwd)
-        modules_tool().purge()
-        # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
-        os.environ['MODULEPATH'] = ''
-        modules_tool()
 
         # check log message with --skip for non-existing module
         args = [
@@ -278,10 +272,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
-        modules_tool().purge()
-        # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
-        modify_env(os.environ, self.orig_environ)
-        modules_tool()
 
     def test_job(self):
         """Test submitting build as a job."""
@@ -1254,6 +1244,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure MockModulesTool is available
         from test.framework.modulestool import MockModulesTool
 
+        # trigger that main() creates new instance of ModulesTool
+        self.modtool = None
+
         ec_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
 
         # keep track of original module definition so we can restore it
@@ -2051,6 +2044,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_review_pr(self):
         """Test --review-pr."""
+        if self.github_token is None:
+            print "Skipping test_review_pr, no GitHub token available?"
+            return
+
         self.mock_stdout(True)
         # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
         self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)

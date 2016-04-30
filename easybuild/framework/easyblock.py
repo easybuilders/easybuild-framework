@@ -72,8 +72,8 @@ from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.modules import get_software_root, modules_tool
+from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
+from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -154,8 +154,14 @@ class EasyBlock(object):
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
+        # easyconfig for this application
+        if isinstance(ec, EasyConfig):
+            self.cfg = ec
+        else:
+            raise EasyBuildError("Value of incorrect type passed to EasyBlock constructor: %s ('%s')", type(ec), ec)
+
         # modules interface with default MODULEPATH
-        self.modules_tool = modules_tool()
+        self.modules_tool = self.cfg.modules_tool
         # module generator
         self.module_generator = module_generator(self, fake=True)
 
@@ -169,12 +175,6 @@ class EasyBlock(object):
         modules_header_path = build_option('modules_header')
         if modules_header_path is not None:
             self.modules_header = read_file(modules_header_path)
-
-        # easyconfig for this application
-        if isinstance(ec, EasyConfig):
-            self.cfg = ec
-        else:
-            raise EasyBuildError("Value of incorrect type passed to EasyBlock constructor: %s ('%s')", type(ec), ec)
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
@@ -1951,10 +1951,20 @@ class EasyBlock(object):
 
         else:
             write_file(mod_filepath, txt)
-
             self.log.info("Module file %s written: %s", mod_filepath, txt)
 
-             # only update after generating final module file
+            # invalidate relevant 'module avail'/'module show' cache entries
+            modpath = self.module_generator.get_modules_path(fake=fake)
+            # consider both paths: for short module name, and subdir indicated by long module name
+            paths = [modpath]
+            mod_subdir = self.full_mod_name[:-len(self.short_mod_name)]
+            if mod_subdir:
+                paths.append(os.path.join(modpath, mod_subdir))
+
+            for path in paths:
+                invalidate_module_caches_for(path)
+
+            # only update after generating final module file
             if not fake:
                 self.modules_tool.update()
 

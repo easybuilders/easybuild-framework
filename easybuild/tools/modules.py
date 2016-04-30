@@ -60,7 +60,7 @@ DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 LD_ENV_VAR_KEYS = ['LD_LIBRARY_PATH', 'LD_PRELOAD']
 
-output_matchers = {
+OUTPUT_MATCHES = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
     # matches errors such as "cmdTrace.c(713):ERROR:104: 'asdfasdf' is an unrecognized subcommand"
@@ -111,6 +111,17 @@ output_matchers = {
         \s*$                          # ignore whitespace at the end of the line
         """, re.VERBOSE),
 }
+# cache for result of module subcommands
+# key: tuple with $MODULEPATH and (stringified) list of extra arguments/options for module subcommand
+# value: result of module subcommand
+MODULE_AVAIL_CACHE = {}
+MODULE_SHOW_CACHE = {}
+
+# cache for modules tool version
+# cache key: module command
+# value: corresponding (validated) module version
+MODULE_VERSION_CACHE = {}
+
 
 _log = fancylogger.getLogger('modules', fname=False)
 
@@ -145,9 +156,6 @@ class ModulesTool(object):
         self.testing = testing
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.mod_paths = None
-        if mod_paths is not None:
-            self.set_mod_paths(mod_paths)
 
         # DEPRECATED!
         self._modules = []
@@ -155,6 +163,10 @@ class ModulesTool(object):
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = self.COMMAND
         env_cmd_path = os.environ.get(self.COMMAND_ENVIRONMENT)
+
+        self.mod_paths = None
+        if mod_paths is not None:
+            self.set_mod_paths(mod_paths)
 
         # only use command path in environment variable if command in not available in $PATH
         if which(self.cmd) is None and env_cmd_path is not None:
@@ -192,6 +204,11 @@ class ModulesTool(object):
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
+        if self.COMMAND in MODULE_VERSION_CACHE:
+            self.version = MODULE_VERSION_CACHE[self.COMMAND]
+            self.log.debug("Found cached version for %s: %s", self.COMMAND, self.version)
+            return
+
         if self.VERSION_REGEXP is None:
             raise EasyBuildError("No VERSION_REGEXP defined")
 
@@ -225,6 +242,8 @@ class ModulesTool(object):
                                      self.__class__.__name__, self.REQ_VERSION, self.version)
             else:
                 self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
+
+        MODULE_VERSION_CACHE[self.COMMAND] = self.version
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
@@ -270,16 +289,25 @@ class ModulesTool(object):
             # module function may not be defined (weird, but fine)
             self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
 
+    def mk_module_cache_key(self, partial_key):
+        """Create a module cache key, using the specified partial key, by combining it with the current $MODULEPATH."""
+        return ('MODULEPATH=%s' % os.environ.get('MODULEPATH', ''), self.COMMAND, partial_key)
+
     def set_mod_paths(self, mod_paths=None):
-        """Set mod_paths, based on $MODULEPATH unless a list of module paths is specified."""
+        """
+        Set mod_paths, based on $MODULEPATH unless a list of module paths is specified.
+
+        @param mod_paths: list of entries for $MODULEPATH to use
+        """
         # make sure we don't have the same path twice, using nub
-        if mod_paths is not None:
-            self.mod_paths = nub(mod_paths)
-            for mod_path in self.mod_paths:
-                self.prepend_module_path(mod_path)
-        else:
+        if mod_paths is None:
             # no paths specified, so grab list of (existing) module paths from $MODULEPATH
             self.mod_paths = [p for p in nub(curr_module_paths()) if os.path.exists(p)]
+        else:
+            for mod_path in nub(mod_paths):
+                self.prepend_module_path(mod_path, set_mod_paths=False)
+            self.mod_paths = nub(mod_paths)
+
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
     def use(self, path):
@@ -292,24 +320,47 @@ class ModulesTool(object):
         """Remove module path via 'module unuse'."""
         self.run_module(['unuse', path])
 
-    def add_module_path(self, path):
-        """Add specified module path (using 'module use') if it's not there yet."""
-        if not path in self.mod_paths:
+    def add_module_path(self, path, set_mod_paths=True):
+        """
+        Add specified module path (using 'module use') if it's not there yet.
+
+        @param path: path to add to $MODULEPATH via 'use'
+        @param set_mod_paths: (re)set self.mod_paths
+        """
+        if path not in curr_module_paths():
             # add module path via 'module use' and make sure self.mod_paths is synced
             self.use(path)
-            self.set_mod_paths()
+            if set_mod_paths:
+                self.set_mod_paths()
 
-    def remove_module_path(self, path):
-        """Remove specified module path (using 'module unuse')."""
+    def remove_module_path(self, path, set_mod_paths=True):
+        """
+        Remove specified module path (using 'module unuse').
+
+        @param path: path to remove from $MODULEPATH via 'unuse'
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         # remove module path via 'module unuse' and make sure self.mod_paths is synced
-        self.unuse(path)
-        self.set_mod_paths()
+        if path in curr_module_paths():
+            self.unuse(path)
 
-    def prepend_module_path(self, path):
-        """Prepend given module path to list of module paths, or bump it to 1st place."""
+            if set_mod_paths:
+                self.set_mod_paths()
+
+    def prepend_module_path(self, path, set_mod_paths=True):
+        """
+        Prepend given module path to list of module paths, or bump it to 1st place.
+
+        @param path: path to prepend to $MODULEPATH
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         # generic approach: remove the path first (if it's there), then add it again (to the front)
-        self.remove_module_path(path)
-        self.add_module_path(path)
+        modulepath = curr_module_paths()
+        if not modulepath:
+            self.add_module_path(path, set_mod_paths=set_mod_paths)
+        elif modulepath[0] != path:
+            self.remove_module_path(path, set_mod_paths=False)
+            self.add_module_path(path, set_mod_paths=set_mod_paths)
 
     def check_module_path(self):
         """
@@ -329,9 +380,12 @@ class ModulesTool(object):
             self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
         # set the module path environment accordingly
-        for mod_path in self.mod_paths[::-1]:
-            self.use(mod_path)
-        self.log.info("$MODULEPATH set based on list of module paths (via 'module use'): %s" % os.environ['MODULEPATH'])
+        if curr_module_paths() == self.mod_paths:
+            self.log.debug("Current value of $MODULEPATH already matches list of module path %s", self.mod_paths)
+        else:
+            for mod_path in self.mod_paths[::-1]:
+                self.prepend_module_path(mod_path)
+            self.log.info("$MODULEPATH set via list of module paths (w/ 'module use'): %s" % os.environ['MODULEPATH'])
 
     def available(self, mod_name=None, extra_args=None):
         """
@@ -344,14 +398,25 @@ class ModulesTool(object):
             extra_args = []
         if mod_name is None:
             mod_name = ''
-        args = ['avail'] + extra_args + [mod_name]
-        mods = self.run_module(*args)
 
-        # sort list of modules in alphabetical order
-        mods.sort(key=lambda m: m['mod_name'])
-        ans = nub([mod['mod_name'] for mod in mods])
+        # cache 'avail' calls without an argument, since these are particularly expensive...
+        key = self.mk_module_cache_key(';'.join(extra_args))
+        if not mod_name and key in MODULE_AVAIL_CACHE:
+            ans = MODULE_AVAIL_CACHE[key]
+            self.log.debug("Found cached result for 'module avail' with key '%s': %s", key, ans)
+        else:
+            args = ['avail'] + extra_args + [mod_name]
+            mods = self.run_module(*args)
 
-        self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
+            # sort list of modules in alphabetical order
+            mods.sort(key=lambda m: m['mod_name'])
+            ans = nub([mod['mod_name'] for mod in mods])
+            self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
+
+            if not mod_name:
+                MODULE_AVAIL_CACHE[key] = ans
+                self.log.debug("Cached result for 'module avail' with key '%s': %s", key, ans)
+
         return ans
 
     def exist(self, mod_names, mod_exists_regex_template=r'^\s*\S*/%s.*:\s*$', skip_avail=False):
@@ -374,6 +439,9 @@ class ModulesTool(object):
 
         if skip_avail:
             avail_mod_names = []
+        elif len(mod_names) == 1:
+            # optimize for case of single module name ('avail' without arguments can be expensive)
+            avail_mod_names = self.available(mod_name=mod_names[0])
         else:
             avail_mod_names = self.available()
 
@@ -448,7 +516,16 @@ class ModulesTool(object):
         """
         Run 'module show' for the specified module.
         """
-        return self.run_module('show', mod_name, return_output=True)
+        key = self.mk_module_cache_key(mod_name)
+        if key in MODULE_SHOW_CACHE:
+            ans = MODULE_SHOW_CACHE[key]
+            self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
+        else:
+            ans = self.run_module('show', mod_name, return_output=True)
+            MODULE_SHOW_CACHE[key] = ans
+            self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
+
+        return ans
 
     def get_value_from_modulefile(self, mod_name, regex):
         """
@@ -520,6 +597,7 @@ class ModulesTool(object):
 
         full_cmd = ' '.join(cmdlist + args)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
+
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -558,14 +636,14 @@ class ModulesTool(object):
             # Process stderr
             result = []
             for line in stderr.split('\n'):  # IGNORE:E1103
-                if output_matchers['whitespace'].search(line):
+                if OUTPUT_MATCHES['whitespace'].search(line):
                     continue
 
-                error = output_matchers['error'].search(line)
+                error = OUTPUT_MATCHES['error'].search(line)
                 if error:
                     raise EasyBuildError(line)
 
-                modules = output_matchers['available'].finditer(line)
+                modules = OUTPUT_MATCHES['available'].finditer(line)
                 for module in modules:
                     result.append(module.groupdict())
             return result
@@ -777,13 +855,19 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         return clean_mods
 
-    def remove_module_path(self, path):
-        """Remove specified module path (using 'module unuse')."""
+    def remove_module_path(self, path, set_mod_paths=True):
+        """
+        Remove specified module path (using 'module unuse').
+
+        @param path: path to remove from $MODULEPATH via 'unuse'
+        @param set_mod_paths: (re)set self.mod_paths
+        """
         # remove module path via 'module use' and make sure self.mod_paths is synced
         # modulecmd.tcl keeps track of how often a path was added via 'module use',
         # so we need to check to make sure it's really removed
-        while path in self.mod_paths:
+        while path in curr_module_paths():
             self.unuse(path)
+        if set_mod_paths:
             self.set_mod_paths()
 
 
@@ -837,6 +921,7 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
+
         if build_option('update_modules_tool_cache'):
             spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
             cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
@@ -864,10 +949,19 @@ class Lmod(ModulesTool):
                 except (IOError, OSError), err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
-    def prepend_module_path(self, path):
-        # Lmod pushes a path to the front on 'module use'
-        self.use(path)
-        self.set_mod_paths()
+    def prepend_module_path(self, path, set_mod_paths=True):
+        """
+        Prepend given module path to list of module paths, or bump it to 1st place.
+
+        @param path: path to prepend to $MODULEPATH
+        @param set_mod_paths: (re)set self.mod_paths
+        """
+        # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
+        modulepath = curr_module_paths()
+        if not modulepath or modulepath[0] != path:
+            self.use(path)
+            if set_mod_paths:
+                self.set_mod_paths()
 
     def exist(self, mod_names, skip_avail=False):
         """
@@ -970,7 +1064,8 @@ def curr_module_paths():
     """
     Return a list of current module paths.
     """
-    return os.environ.get('MODULEPATH', '').split(':')
+    # avoid empty entries, which don't make any sense
+    return [p for p in os.environ.get('MODULEPATH', '').split(':') if p]
 
 
 def mk_module_path(paths):
@@ -1002,6 +1097,29 @@ def modules_tool(mod_paths=None, testing=False):
         return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
+
+
+def reset_module_caches():
+    """Reset module caches."""
+    MODULE_AVAIL_CACHE.clear()
+    MODULE_SHOW_CACHE.clear()
+
+
+def invalidate_module_caches_for(path):
+    """Invalidate cache entries related to specified path."""
+    if not os.path.exists(path):
+        raise EasyBuildError("Non-existing path specified to invalidate module caches: %s", path)
+
+    _log.debug("Invallidating module cache entries for path '%s'", path)
+    for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
+        for key in cache.keys():
+            paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
+            _log.debug("Paths for 'module %s' key '%s': %s", subcmd, key, paths_in_key)
+            for path_in_key in paths_in_key:
+                if path == path_in_key or (os.path.exists(path_in_key) and os.path.samefile(path, path_in_key)):
+                    _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
+                               key, subcmd, path, cache[key])
+                    del cache[key]
 
 
 class Modules(EnvironmentModulesC):

@@ -46,7 +46,6 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -709,7 +708,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # building a toolchain module should also work
         args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
-        modules_tool().purge()
+        self.modtool.purge()
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
         gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
         if get_module_syntax() == 'Lua':
@@ -872,13 +871,13 @@ class ToyBuildTest(EnhancedTestCase):
             mkdir(os.path.join(modulepath, os.path.dirname(mod)), parents=True)
             write_file(os.path.join(modulepath, mod), "#%Module")
 
-        self.reset_modulepath([modulepath])
-        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True)
+        self.reset_modulepath([modulepath, os.path.join(self.test_installpath, 'modules', 'all')])
+        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
-        modules_tool().load(['toy/0.0-external-deps'])
+        self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
         mods = ['ictce/4.1.13', 'GCC/4.7.2', 'foobar/1.2.3', 'toy/0.0-external-deps']
-        self.assertEqual([x['mod_name'] for x in modules_tool().list()], mods)
+        self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
         err_msg = "Missing modules for one or more dependencies marked as external modules:"
@@ -972,6 +971,7 @@ class ToyBuildTest(EnhancedTestCase):
         lmod_abspath = which('lmod')
         if lmod_abspath is not None:
             args = common_args[:-1] + [
+                '--allow-modules-tool-mismatch',
                 '--module-only',
                 '--module-syntax=Lua',
                 '--modules-tool=Lmod',
@@ -1039,6 +1039,41 @@ class ToyBuildTest(EnhancedTestCase):
         # also check whether easyconfig is dumped to reprod/ subdir
         reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(reprod_ec))
+
+    def test_toy_toy(self):
+        """Test building two easyconfigs in a single go, with one depending on the other."""
+        toy_ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        ec1 = os.path.join(self.test_prefix, 'toy1.eb')
+        ec1_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-one'",
+        ])
+        write_file(ec1, ec1_txt)
+
+        ec2 = os.path.join(self.test_prefix, 'toy2.eb')
+        ec2_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-two'",
+            "dependencies = [('toy', '0.0', '-one')]",
+        ])
+        write_file(ec2, ec2_txt)
+
+        self.test_toy_build(ec_file=self.test_prefix, verify=False)
+
+        mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
+        mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
+        self.assertTrue(os.path.exists(mod1) or os.path.exists('%s.lua' % mod1))
+        self.assertTrue(os.path.exists(mod2) or os.path.exists('%s.lua' % mod2))
+
+        if os.path.exists(mod2):
+            mod2_txt = read_file(mod2)
+        else:
+            mod2_txt = read_file('%s.lua' % mod2)
+
+        load1_regex = re.compile('load.*toy/0.0-one', re.M)
+        self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
 
 
 def suite():
