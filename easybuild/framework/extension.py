@@ -118,9 +118,9 @@ class Extension(object):
         """
 
         try:
-            os.chdir(self.master.installdir)
+            os.chdir(self.installdir)
         except OSError, err:
-            raise EasyBuildError("Failed to change %s: %s", self.master.installdir, err)
+            raise EasyBuildError("Failed to change %s: %s", self.installdir, err)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False
