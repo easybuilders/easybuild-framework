@@ -1998,13 +1998,22 @@ class EasyBlock(object):
             perms = stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
-            # add read permissions for everybody on all files
-            perms = (stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-            if build_option('umask') is not None:
-                perms &= build_option('umask')
-                self.log.debug("Taking umask into account %s when adding read permissions to all files.")
+
+            # add read permissions for everybody on all files, taking into account group (if any)
+            perms = stat.S_IRUSR | stat.S_IRGRP
+            self.log.debug("Ensuring read permissions for user/group on install dir (recursively)")
+            if self.group is None:
+                perms |= stat.S_IROTH
+                self.log.debug("Also ensuring read permissions for others on install dir (no group specified)")
+
+            umask = build_option('umask')
+            if umask is not None:
+                # umask is specified as a string, so interpret it first as integer in octal, then take complement (~)
+                perms &= ~int(umask, 8)
+                self.log.debug("Taking umask '%s' into account when ensuring read permissions to install dir", umask)
+
             adjust_permissions(self.installdir, perms, add=True, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully added read permissions %s recursively for everybody on install dir.", perms)
+            self.log.info("Successfully added read permissions '%s' recursively on install dir", oct(perms))
 
     def test_cases_step(self):
         """
