@@ -921,12 +921,14 @@ class EasyBuildOptions(GeneralOption):
             Utility function to reparse EasyBuild configuration.
             @param args: command line arguments to pass to configuration parser
             @param withcfg: whether or not to also consider configuration files
-            @return: parsed configuration options
+            @return: dictionary with parsed configuration options, by option group
             """
             if args is None:
                 args = []
-            return EasyBuildOptions(go_args=args, go_useconfigfiles=withcfg,
-                                    envvar_prefix=CONFIG_ENV_VAR_PREFIX, with_include=False)
+            cfg = EasyBuildOptions(go_args=args, go_useconfigfiles=withcfg, envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                                   with_include=False)
+
+            return cfg.dict_by_prefix()
 
         def det_location(opt, prefix=''):
             """Determine location where option was defined."""
@@ -947,11 +949,11 @@ class EasyBuildOptions(GeneralOption):
         unset_env_vars([v for v in os.environ if v.startswith(CONFIG_ENV_VAR_PREFIX)], verbose=False)
         no_eb_env = copy.deepcopy(os.environ)
 
-        default_opts_dict = reparse_cfg(withcfg=False).dict_by_prefix()
-        cfgfile_opts_dict = reparse_cfg().dict_by_prefix()
+        default_opts_dict = reparse_cfg(withcfg=False)
+        cfgfile_opts_dict = reparse_cfg()
 
         restore_env(orig_env)
-        env_opts_dict = reparse_cfg().dict_by_prefix()
+        env_opts_dict = reparse_cfg()
 
         # options relevant to config files should always be passed,
         # but we need to figure out first where these options were defined...
@@ -970,10 +972,10 @@ class EasyBuildOptions(GeneralOption):
 
         # determine option dicts by selectively disabling configuration levels (but enable use configfiles)
         restore_env(no_eb_env)
-        cfgfile_opts_dict = reparse_cfg(args=args).dict_by_prefix()
+        cfgfile_opts_dict = reparse_cfg(args=args)
 
         restore_env(orig_env)
-        env_opts_dict = reparse_cfg(args=args).dict_by_prefix()
+        env_opts_dict = reparse_cfg(args=args)
 
         # construct options dict to pretty print
         for prefix in sorted(default_opts_dict):
