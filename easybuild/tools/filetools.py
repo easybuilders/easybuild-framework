@@ -111,9 +111,6 @@ CHECKSUM_FUNCTIONS = {
     'size': lambda p: os.path.getsize(p),
 }
 
-# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
-PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
-
 
 class ZlibChecksum(object):
     """
@@ -294,16 +291,6 @@ def download_file(filename, url, path, forced=False):
         # default system timeout (used is nothing is specified) may be infinite (?)
         timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
-
-    # catch PyPI download URLs, and translate them;
-    # required due to the mess discussed in https://bitbucket.org/pypa/pypi/issues/438
-    if PYPI_PKG_URL_PATTERN in url and not is_alt_pypi_url(url):
-        alt_url = derive_alt_pypi_url(url)
-        if alt_url:
-            _log.debug("Using alternate PyPI URL for %s: %s", url, alt_url)
-            url = alt_url
-        else:
-            _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", url)
 
     # make sure directory exists
     basedir = os.path.dirname(path)

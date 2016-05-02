@@ -651,19 +651,6 @@ class FileToolsTest(EnhancedTestCase):
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
-    def test_download_pypi_pkg(self):
-        """Test downloading from PyPI with old-style URLs."""
-        # this version of python-dateutil is not available under this exact URL, only via the alternate URL with a hash
-        try:
-            url = 'https://pypi.python.org/packages/source/p/python-dateutil/python-dateutil-2.5.3.tar.gz'
-            pkg_source = 'python-dateutil-2.5.3.tar.gz'
-            ft.download_file(pkg_source, url, os.path.join(self.test_prefix, pkg_source))
-            md5sum = ft.compute_checksum(os.path.join(self.test_prefix, pkg_source))
-            self.assertEqual(md5sum, '05ffc6d2cc85a7fd93bb245807f715ef')
-
-        except URLError, err:
-            print "Ignoring URLError '%s' in test_download_pypi_pkg" % err
-
 
 def suite():
     """ returns all the testcases in this module """
