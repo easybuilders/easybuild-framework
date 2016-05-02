@@ -2407,6 +2407,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
 
+        # --show-config should not break including of easyblocks via $EASYBUILD_INCLUDE_EASYBLOCKS (see bug #1696)
+        txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class EB_testeasyblocktoinclude(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        testeasyblocktoinclude = os.path.join(self.test_prefix, 'testeasyblocktoinclude.py')
+        write_file(testeasyblocktoinclude, txt)
+
+        os.environ['EASYBUILD_INCLUDE_EASYBLOCKS'] = testeasyblocktoinclude
+        args = ['--show-config']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+        regex = re.compile(r'^include-easyblocks \(E\) = .*/testeasyblocktoinclude.py$', re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_dump_env_config(self):
         """Test for --dump-env-config."""
 

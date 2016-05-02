@@ -264,12 +264,12 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.chdir(self.cwd)
 
         # make sure config is reinitialized
-        init_config()
+        init_config(with_include=False)
 
         # restore environment to what it was before running main,
         # changes may have been made by eb_main (e.g. $TMPDIR & co)
         if reset_env:
-            modify_env(os.environ, env_before)
+            modify_env(os.environ, env_before, verbose=False)
             tempfile.tempdir = None
 
         if myerr and raise_error:
@@ -359,13 +359,13 @@ def cleanup():
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
 
-def init_config(args=None, build_options=None):
+def init_config(args=None, build_options=None, with_include=True):
     """(re)initialize configuration"""
 
     cleanup()
 
     # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options(args=args)
+    eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     # initialize build options
