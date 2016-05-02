@@ -472,7 +472,8 @@ class ToyBuildTest(EnhancedTestCase):
             for path, correct_perms in paths_perms:
                 fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
                 perms = os.stat(fullpath).st_mode & 0777
-                msg = "Path %s has %s permissions: %s" % (fullpath, oct(correct_perms), oct(perms))
+                tup = (fullpath, oct(correct_perms), oct(perms), umask, cfg_group, ec_group)
+                msg = "Path %s has %s permissions: %s (umask: %s, group: %s - %s)" % tup
                 self.assertEqual(perms, correct_perms, msg)
                 if group is not None:
                     path_gid = os.stat(fullpath).st_gid
