@@ -43,6 +43,7 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
 import urllib2
 import zlib
@@ -109,6 +110,9 @@ CHECKSUM_FUNCTIONS = {
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
 }
+
+# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
+PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
 
 class ZlibChecksum(object):
@@ -239,6 +243,46 @@ def det_common_path_prefix(paths):
         return None
 
 
+def is_alt_pypi_url(url):
+    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+    alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
+    res = bool(alt_url_regex.search(url))
+    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+               url, alt_url_regex.pattern, res)
+    return res
+
+
+def derive_alt_pypi_url(url):
+    """Derive alternate PyPI URL for given URL, using 'simple' PyPI API."""
+    # see also https://www.python.org/dev/peps/pep-0503/
+    alt_pypi_url = None
+
+    # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
+    pkg_name, pkg_source = url.strip().split('/')[-2:]
+
+    # e.g. https://pypi.python.org/simple/easybuild
+    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+
+    tmpdir = tempfile.mkdtemp()
+    links_html = os.path.join(tmpdir, '%s_links.html' % pkg_name)
+    res = download_file(os.path.basename(links_html), simple_url, links_html)
+    if res is None:
+        _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
+    else:
+        txt = read_file(links_html)
+
+        regex = re.compile('^<a.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/.*>%s</.*' % pkg_source, re.M)
+        res = regex.search(txt)
+        if res:
+            # e.g. /packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+            alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
+        else:
+            _log.debug("Failed to extract hash using pattern '%s' from: %s", regex.pattern, txt)
+
+    return alt_pypi_url
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -250,6 +294,16 @@ def download_file(filename, url, path, forced=False):
         # default system timeout (used is nothing is specified) may be infinite (?)
         timeout = 10
     _log.debug("Using timeout of %s seconds for initiating download" % timeout)
+
+    # catch PyPI download URLs, and translate them;
+    # required due to the mess discussed in https://bitbucket.org/pypa/pypi/issues/438
+    if PYPI_PKG_URL_PATTERN in url and not is_alt_pypi_url(url):
+        alt_url = derive_alt_pypi_url(url)
+        if alt_url:
+            _log.debug("Using alternate PyPI URL for %s: %s", url, alt_url)
+            url = alt_url
+        else:
+            _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", url)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
