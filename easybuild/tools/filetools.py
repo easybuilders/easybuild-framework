@@ -543,6 +543,12 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
+def is_patch_file(path):
+    """Determine whether file at specified path is a patch file (based on +++ and --- lines being present)."""
+    txt = read_file(path)
+    return bool(re.search(r'^\+{3}\s', txt, re.M) and re.search(r'^-{3}\s', txt, re.M))
+
+
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.

@@ -628,6 +628,12 @@ class FileToolsTest(EnhancedTestCase):
         del os.environ['LM_LICENSE_FILE']
         self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
 
+    def test_is_patch_file(self):
+        """Test for is_patch_file() function."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')))
+        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
+
 
 def suite():
     """ returns all the testcases in this module """
