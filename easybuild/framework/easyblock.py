@@ -77,7 +77,7 @@ from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.systemtools import det_parallelism, use_group
+from easybuild.tools.systemtools import det_parallelism, get_shared_lib_ext, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -100,6 +100,11 @@ TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
+
+# constants for library checking (TODO: should probably be configurable)
+LIB_DIRS = ['lib', 'lib64']
+LIB_STATIC_SUFFIX = 'a'
+LIB_SHARED_SUFFIX = get_shared_lib_ext()
 
 
 _log = fancylogger.getLogger('easyblock')
@@ -1756,6 +1761,20 @@ class EasyBlock(object):
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
 
+            def gen_library_paths(name, suffix):
+                """little helper function to generate tuple of paths of a single library and given suffix"""
+                libpaths = []
+                for dir in LIB_DIRS:
+                    libpaths.append(os.path.join(dir, "%s.%s" % (name, suffix)))
+                return tuple(libpaths)
+
+            # transform specified libs into simple file paths
+            for lib in paths.pop('shared_libs', []):
+                paths['files'].append(gen_library_paths(lib, LIB_SHARED_SUFFIX))
+            for lib in paths.pop('static_libs', []):
+                paths['files'].append(gen_library_paths(lib, LIB_STATIC_SUFFIX))
+
+        # check sanity check paths
         ks = sorted(paths.keys())
         valnottypes = [not isinstance(x, list) for x in paths.values()]
         lenvals = [len(x) for x in paths.values()]
