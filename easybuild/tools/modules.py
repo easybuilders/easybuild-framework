@@ -1024,6 +1024,10 @@ def get_software_libdir(name, only_one=True, fs=None):
             if os.path.exists(os.path.join(root, lib_subdir)):
                 if fs is None or any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
                     res.append(lib_subdir)
+            elif build_option('extended_dry_run'):
+                res.append(lib_subdir)
+                break
+
         # if no library subdir was found, return None
         if not res:
             return None
