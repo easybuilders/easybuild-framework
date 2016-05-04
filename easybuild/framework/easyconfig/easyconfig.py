@@ -1323,6 +1323,39 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None):
     return minimal_toolchain
 
 
+def _copy_file_to_easyconfigs_dir(path, target_dir, soft_name, target_file):
+    """
+    Copy file at specified path to easyconfigs directory for specified software name, using specified target file name.
+
+    @param path: path of file to copy
+    @param target_dir: (parent) target directory, should contain easybuild/easyconfigs subdirectory
+    @param soft_name: software name (to determine location to copy to)
+    @aram target_file: target file name
+    @return: full path to copied file
+    """
+    subdir = os.path.join('easybuild', 'easyconfigs')
+    if os.path.exists(os.path.join(target_dir, subdir)):
+
+        letter = soft_name.lower()[0]
+        if letter not in [chr(i) for i in range(ord('a'), ord('z') + 1)]:
+            raise EasyBuildError("Don't know which letter subdir to use for software name %s", soft_name)
+
+        target_path = os.path.join('easybuild', 'easyconfigs', letter, soft_name, target_file)
+        _log.debug("Target path for %s: %s", path, target_path)
+
+        full_target_path = os.path.join(target_dir, target_path)
+        try:
+            mkdir(os.path.dirname(full_target_path), parents=True)
+            shutil.copy2(path, full_target_path)
+            _log.info("%s copied to %s", path, full_target_path)
+        except OSError as err:
+            raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+    else:
+        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
+
+    return target_path
+
+
 def copy_easyconfigs(paths, target_dir):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
@@ -1337,41 +1370,33 @@ def copy_easyconfigs(paths, target_dir):
         'new': [],
     }
 
-    a_to_z = [chr(i) for i in range(ord('a'), ord('z') + 1)]
-    subdir = os.path.join('easybuild', 'easyconfigs')
+    for path in paths:
+        ecs = process_easyconfig(path, validate=False)
+        if len(ecs) == 1:
+            file_info['ecs'].append(ecs[0]['ec'])
+            soft_name = file_info['ecs'][-1].name
+            ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
 
-    if os.path.exists(os.path.join(target_dir, subdir)):
-        for path in paths:
-            ecs = process_easyconfig(path, validate=False)
-            if len(ecs) == 1:
-                file_info['ecs'].append(ecs[0]['ec'])
-                name = file_info['ecs'][-1].name
-                ec_filename = '%s-%s.eb' % (name, det_full_ec_version(file_info['ecs'][-1]))
+            target_path = _copy_file_to_easyconfigs_dir(path, target_dir, soft_name, ec_filename)
+            full_target_path = os.path.join(target_dir, target_path)
 
-                letter = name.lower()[0]
-                if letter not in a_to_z:
-                    raise EasyBuildError("Don't know which letter subdir to use for %s", name)
-
-                target_path = os.path.join(subdir, letter, name, ec_filename)
-                _log.debug("Target path for %s: %s", path, target_path)
-
-                full_target_path = os.path.join(target_dir, target_path)
-                try:
-                    file_info['new'].append(not os.path.exists(full_target_path))
-
-                    mkdir(os.path.dirname(full_target_path), parents=True)
-                    shutil.copy2(path, full_target_path)
-                    _log.info("%s copied to %s", path, full_target_path)
-                except OSError as err:
-                    raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
-
-                file_info['paths_in_repo'].append(target_path)
-            else:
-                raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
-    else:
-        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
+            file_info['new'].append(not os.path.exists(full_target_path))
+            file_info['paths_in_repo'].append(target_path)
+        else:
+            raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
 
     return file_info
+
+
+def copy_patch_files(patch_specs, target_dir):
+    """
+    Copy patch files to specified directory, in the 'right' location according to the software name they relate to.
+
+    @param patch_specs: list of tuples with patch file location and name of software they are for
+    @param target_dir: target directory
+    """
+    for patch_path, soft_name in patch_specs:
+        _copy_file_to_easyconfigs_dir(patch_path, target_dir, soft_name, os.path.basename(patch_path))
 
 
 class ActiveMNS(object):

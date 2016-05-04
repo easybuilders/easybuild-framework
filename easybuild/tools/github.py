@@ -44,10 +44,10 @@ import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
+from easybuild.tools.filetools import det_patched_files, download_file, extract_file, is_patch_file, mkdir, read_file
 from easybuild.tools.filetools import which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
@@ -595,8 +595,38 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # copy files to right place
-    file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+    # seperate easyconfigs and patch files
+    ec_paths = [p for p in paths if p.endswith('.eb') or not is_patch_file(p)]
+    patch_paths = [p for p in paths if p not in ec_paths]
+
+    # copy easyconfig files to right place
+    target_dir = os.path.join(git_working_dir, pr_target_repo)
+    print_msg("copying easyconfigs to %s..." % target_dir)
+    file_info = copy_easyconfigs(ec_paths, target_dir)
+
+    # figure out to which software name patches relate, and copy them to the right place
+    if patch_paths:
+        patch_specs = []
+        print_msg("determining software names for patch files...")
+        for patch_path in patch_paths:
+            soft_name = None
+            patch_file = os.path.basename(patch_path)
+
+            # consider patch lists of easyconfigs being provided
+            for ec in file_info['ecs']:
+                if patch_file in ec['patches']:
+                    soft_name = ec.name
+                    break
+
+            # FIXME: try harder if software name wasn't found yet?
+
+            if soft_name:
+                patch_specs.append((patch_path, soft_name))
+            else:
+                raise EasyBuildError("Failed to determine software name to which patch file %s relates", patch_path)
+
+        print_msg("copying patch files to %s..." % target_dir)
+        copy_patch_files(patch_specs, target_dir)
 
     # checkout target branch
     if pr_branch is None:
