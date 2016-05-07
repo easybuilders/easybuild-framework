@@ -269,7 +269,12 @@ def derive_alt_pypi_url(url):
     if res is None:
         _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
     else:
-        links = [a.attrib['href'] for a in ElementTree.parse(links_html).iter('a')]
+        parsed_html = ElementTree.parse(links_html)
+        if hasattr(parsed_html, 'iter'):
+            links = [a.attrib['href'] for a in parsed_html.iter('a')]
+        else:
+            links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+
         regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
         for link in links:
             res = regex.match(link)
