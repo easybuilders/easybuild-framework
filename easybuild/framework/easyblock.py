@@ -625,6 +625,8 @@ class EasyBlock(object):
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
                         continue
 
+                    # PyPI URLs may need to be converted due to change in format of these URLs,
+                    # cfr. https://bitbucket.org/pypa/pypi/issues/438
                     if PYPI_PKG_URL_PATTERN in fullurl and not is_alt_pypi_url(fullurl):
                         alt_url = derive_alt_pypi_url(fullurl)
                         if alt_url:

@@ -49,6 +49,7 @@ import urllib2
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
+from xml.etree import ElementTree
 
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
@@ -267,15 +268,17 @@ def derive_alt_pypi_url(url):
     if res is None:
         _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
     else:
-        txt = read_file(links_html)
+        links = [a.attrib['href'] for a in ElementTree.parse(links_html).iter('a')]
+        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
+        for link in links:
+            res = regex.match(link)
+            if res:
+                # e.g. .../5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+                alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
+                break
 
-        regex = re.compile('^<a.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/.*>%s</.*' % pkg_source, re.M)
-        res = regex.search(txt)
-        if res:
-            # e.g. /packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
-            alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
-        else:
-            _log.debug("Failed to extract hash using pattern '%s' from: %s", regex.pattern, txt)
+        if not alt_pypi_url:
+            _log.debug("Failed to extract hash using pattern '%s' from list of links: %s", regex.pattern, links)
 
     return alt_pypi_url
 
