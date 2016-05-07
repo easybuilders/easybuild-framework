@@ -49,7 +49,6 @@ MODULECLASS_MPI = 'mpi'
 COMP_NAME_VERSION_TEMPLATES = {
     'icc,ifort': ('intel', '%(icc)s'),
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
-    'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
 
@@ -153,7 +152,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
 
         paths = []
-        if modclass == MODULECLASS_COMPILER or ec['name'] in ['CUDA']:
+        if modclass == MODULECLASS_COMPILER:
             # obtain list of compilers based on that extend $MODULEPATH in some way other than <name>/<version>
             extend_comps = []
             # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
