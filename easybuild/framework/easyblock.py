@@ -64,9 +64,9 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
-from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file, rmtree2
-from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum, weld_paths
+from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, derive_alt_pypi_url
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs
+from easybuild.tools.filetools import read_file, rmtree2, write_file, compute_checksum, verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
@@ -100,6 +100,9 @@ TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
+
+# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
+PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
 
 _log = fancylogger.getLogger('easyblock')
@@ -621,6 +624,16 @@ class EasyBlock(object):
                     else:
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
                         continue
+
+                    # PyPI URLs may need to be converted due to change in format of these URLs,
+                    # cfr. https://bitbucket.org/pypa/pypi/issues/438
+                    if PYPI_PKG_URL_PATTERN in fullurl and not is_alt_pypi_url(fullurl):
+                        alt_url = derive_alt_pypi_url(fullurl)
+                        if alt_url:
+                            _log.debug("Using alternate PyPI URL for %s: %s", fullurl, alt_url)
+                            fullurl = alt_url
+                        else:
+                            _log.debug("Failed to derive alternate PyPI URL for %s, so retaining the original", fullurl)
 
                     if self.dry_run:
                         self.dry_run_msg("  * %s will be downloaded to %s", filename, targetpath)
