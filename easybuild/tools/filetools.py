@@ -260,6 +260,7 @@ def derive_alt_pypi_url(url):
     pkg_name, pkg_source = url.strip().split('/')[-2:]
 
     # e.g. https://pypi.python.org/simple/easybuild
+    # cfr. https://wiki.python.org/moin/PyPISimple
     simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
 
     tmpdir = tempfile.mkdtemp()
