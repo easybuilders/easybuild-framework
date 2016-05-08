@@ -61,6 +61,86 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
 
     return robot_path
 
+def dump_easyconfig_info(easyconfigs, terse=False):
+    """Dump EasyConfig file(-s) information like EasyConfig files, EasyBlocks, patches, module names..."""
+    # maybe dump in JSON format?
+    # see python JSON
+    import json
+
+    if build_option('robot_path') is None:
+        all_specs = easyconfigs
+    else:
+        all_specs = resolve_dependencies(easyconfigs,
+                                         minimal_toolchains = build_option('minimal_toolchains'),
+                                         use_existing_modules = build_option('use_existing_modules'),
+                                         retain_all_deps=True)
+    listed_ec_paths = [spec['spec'] for spec in easyconfigs]
+
+    specdata = {}
+    for spec in all_specs:
+        from easybuild.framework.easyconfig.easyconfig import EasyConfig
+        from easybuild.framework.easyblock import EasyBlock
+        ec = EasyConfig(spec['spec'], validate=False)
+        specfile = os.path.basename(spec['spec'])
+        specdata[specfile] = {}
+        item = specdata[specfile]
+
+        item['spec'] = spec['spec']
+        item['short_mod_name'] = spec['short_mod_name']
+        item['hidden'] = True 
+        item['name'] = ec['name'] 
+        item['version'] = ec['version']
+        item['versionsuffix'] = ec['versionsuffix']
+        item['dependencies'] = ec['dependencies']
+        item['hiddendependencies'] = ec['hiddendependencies']
+        item['builddependencies'] = ec['builddependencies']
+
+        patchf = None
+        item['patches'] = []
+        for f in ec['patches']:
+            if isinstance(f, (list, tuple)):
+                patchf = f[0]
+            else:
+                patchf = f
+            dummyblock = EasyBlock(ec)
+            item['patches'].append(EasyBlock.obtain_file(dummyblock, patchf))
+
+        # find easyblock and all parent easyblocks
+        import sys
+        from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
+        try:
+            easyblock_modfile = sys.modules[get_easyblock_class(ec['easyblock'], ec['name']).__module__].__file__
+        except AttributeError:
+            sys.exit('Module does not have __file__ defined.')
+
+        easyblock = get_easyblock_class(ec['easyblock'], ec['name'])
+        item['easyblock'] = {'name': easyblock.__name__,
+            'path': sys.modules[easyblock.__module__].__file__.replace(".pyc", ".py")
+        }
+        item['parenteasyblocks'] = []
+        eblock = easyblock
+        
+        while eblock.__name__ is not 'EasyBlock':
+            eblock = eblock.__base__
+            item['parenteasyblocks'].append({'name': eblock.__name__,
+                'path': os.path.realpath(sys.modules[eblock.__module__].__file__.replace(".pyc", ".py"))
+            })
+
+        easyblock_modfile = os.path.realpath(
+            sys.modules[get_easyblock_class(ec['easyblock'], ec['name']).__module__].__file__
+        )
+        if easyblock_modfile.endswith('.pyc') and os.path.exists(easyblock_modfile[:-1]):
+            easyblock_modfile = easyblock_modfile[:-1]
+        easyblock_modfile = os.path.realpath(easyblock_modfile)
+        item['toolchain'] = ec['toolchain']
+        item['full_mod_name'] = ec.full_mod_name
+
+    # maybe use --terse to display Human readable format?
+    if terse:
+        print json.dumps(specdata, sort_keys=True, indent=4)
+    else:
+        print json.dumps(specdata, sort_keys=True, indent=4)
+        return json.dumps(specdata)
 
 def dry_run(easyconfigs, modtool, short=False):
     """
