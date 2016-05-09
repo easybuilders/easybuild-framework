@@ -357,7 +357,7 @@ class Toolchain(object):
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
-        dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
+        dep_mod_names = [dep['short_mod_name'] for dep in dependencies]
 
         # check whether modules exist
         if self.dry_run:

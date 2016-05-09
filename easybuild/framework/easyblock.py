@@ -1145,7 +1145,15 @@ class EasyBlock(object):
             if mod_paths is None:
                 mod_paths = []
             all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
-            mods = [self.full_mod_name]
+
+            if self.short_mod_name == self.full_mod_name:
+                # for flat module naming schemes, we can load the module directly
+                mods = [self.short_mod_name]
+            else:
+                # for non-flat (hierarchical) module naming schemes, we may need to load the toolchain module first
+                # to update $MODULEPATH such that the module can be loaded using the short module name
+                mods = [self.toolchain.det_short_module_name(), self.short_mod_name]
+
             self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
