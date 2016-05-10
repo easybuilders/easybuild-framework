@@ -887,6 +887,8 @@ class Lmod(ModulesTool):
         os.environ['LMOD_QUIET'] = '1'
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
+        # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
+        os.environ['LMOD_REDIRECT'] = 'no'
 
         super(Lmod, self).__init__(*args, **kwargs)
 
