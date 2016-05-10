@@ -707,6 +707,13 @@ class EasyBlock(object):
         return self.cfg.short_mod_name
 
     @property
+    def mod_subdir(self):
+        """
+        Subdirectory in module install path
+        """
+        return self.cfg.mod_subdir
+
+    @property
     def moduleGenerator(self):
         """
         Module generator (DEPRECATED, use self.module_generator instead).
@@ -918,7 +925,7 @@ class EasyBlock(object):
         self.log.debug("Full list of dependencies: %s" % deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
-        full_mod_subdir = os.path.join(self.installdir_mod, self.cfg.mod_subdir)
+        full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
@@ -1145,7 +1152,14 @@ class EasyBlock(object):
             if mod_paths is None:
                 mod_paths = []
             all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
-            mods = [self.full_mod_name]
+
+            # for flat module naming schemes, we can load the module directly;
+            # for non-flat (hierarchical) module naming schemes, we may need to load the toolchain module first
+            # to update $MODULEPATH such that the module can be loaded using the short module name
+            mods = [self.short_mod_name]
+            if self.mod_subdir and self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+                mods.insert(0, self.toolchain.det_short_module_name())
+
             self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
@@ -1161,7 +1175,7 @@ class EasyBlock(object):
         fake_mod_path = self.make_module_step(fake=True)
 
         # load fake module
-        self.modules_tool.prepend_module_path(fake_mod_path)
+        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir))
         self.load_module(purge=purge)
 
         return (fake_mod_path, env)
@@ -1172,16 +1186,16 @@ class EasyBlock(object):
         """
         fake_mod_path, env = fake_mod_data
         # unload module and remove temporary module directory
-        # self.full_mod_name might not be set (e.g. during unit tests)
-        if fake_mod_path and self.full_mod_name is not None:
+        # self.short_mod_name might not be set (e.g. during unit tests)
+        if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.full_mod_name])
-                self.modules_tool.remove_module_path(fake_mod_path)
+                self.modules_tool.unload([self.short_mod_name])
+                self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)
-        elif self.full_mod_name is None:
-            self.log.warning("Not unloading module, since self.full_mod_name is not set.")
+        elif self.short_mod_name is None:
+            self.log.warning("Not unloading module, since self.short_mod_name is not set.")
 
         # restore original environment
         restore_env(env)
@@ -1970,9 +1984,8 @@ class EasyBlock(object):
             modpath = self.module_generator.get_modules_path(fake=fake)
             # consider both paths: for short module name, and subdir indicated by long module name
             paths = [modpath]
-            mod_subdir = self.full_mod_name[:-len(self.short_mod_name)]
-            if mod_subdir:
-                paths.append(os.path.join(modpath, mod_subdir))
+            if self.mod_subdir:
+                paths.append(os.path.join(modpath, self.mod_subdir))
 
             for path in paths:
                 invalidate_module_caches_for(path)

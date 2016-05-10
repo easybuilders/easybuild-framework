@@ -357,6 +357,12 @@ class Toolchain(object):
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
+
+        # use *full* module name to check existence of dependencies, since the modules may not be available in the
+        # current $MODULEPATH without loading the prior dependencies in a module hierarchy
+        # (e.g. OpenMPI module may only be available after loading GCC module);
+        # when actually loading the modules for the dependencies, the *short* module name is used,
+        # see _load_dependencies_modules()
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
 
         # check whether modules exist
