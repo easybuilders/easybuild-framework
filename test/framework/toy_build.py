@@ -698,7 +698,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
+            self.assertTrue(re.search(r'^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -708,13 +708,19 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
-        args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
-        self.modtool.purge()
-        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
         gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
+
+        # make sure Core/gompi/1.4.10 module that may already be there is removed (both Tcl/Lua variants)
+        for modfile in glob.glob(gompi_module_path + '*'):
+            os.remove(modfile)
+
         if get_module_syntax() == 'Lua':
             gompi_module_path += '.lua'
-        self.assertTrue(os.path.exists(gompi_module_path))
+
+        args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
+        self.modtool.purge()
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(os.path.exists(gompi_module_path), "%s found" % gompi_module_path)
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
