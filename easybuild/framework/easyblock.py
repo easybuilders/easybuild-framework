@@ -1186,16 +1186,16 @@ class EasyBlock(object):
         """
         fake_mod_path, env = fake_mod_data
         # unload module and remove temporary module directory
-        # self.full_mod_name might not be set (e.g. during unit tests)
-        if fake_mod_path and self.full_mod_name is not None:
+        # self.short_mod_name might not be set (e.g. during unit tests)
+        if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.full_mod_name])
-                self.modules_tool.remove_module_path(fake_mod_path)
+                self.modules_tool.unload([self.short_mod_name])
+                self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)
-        elif self.full_mod_name is None:
-            self.log.warning("Not unloading module, since self.full_mod_name is not set.")
+        elif self.short_mod_name is None:
+            self.log.warning("Not unloading module, since self.short_mod_name is not set.")
 
         # restore original environment
         restore_env(env)
