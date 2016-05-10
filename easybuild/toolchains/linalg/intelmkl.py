@@ -85,6 +85,7 @@ class IntelMKL(LinAlg):
         interfacemap = {
             TC_CONSTANT_INTELCOMP: 'intel',
             TC_CONSTANT_GCC: 'gf',
+            # Taken from https://www.pgroup.com/support/link.htm#mkl
             TC_CONSTANT_PGI: 'intel',
         }
         try:
