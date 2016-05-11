@@ -78,7 +78,8 @@ class Pgi(Compiler):
     }
 
     COMPILER_CC = 'pgcc'
-    COMPILER_CXX = 'pgc++'
+    # C++ compiler command is version-dependent, see below
+    COMPILER_CXX = None
 
     COMPILER_F77 = 'pgf77'
     COMPILER_F90 = 'pgfortran'
@@ -94,3 +95,15 @@ class Pgi(Compiler):
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
         super(Pgi, self)._set_compiler_flags()
+
+    def _set_compiler_vars(self):
+        """Set the compiler variables"""
+        pgi_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
+
+        # for older versions of PGI, pgCC was the recommended C++ compiler
+        if LooseVersion(pgi_version) >= LooseVersion('16'):
+            self.COMPILER_CXX = 'pgc++'
+        else:
+            self.COMPILER_CXX = 'pgCC'
+
+        super(Pgi, self)._set_compiler_vars()
