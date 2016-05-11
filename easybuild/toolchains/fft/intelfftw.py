@@ -59,10 +59,12 @@ class IntelFFTW(Fftw):
             bitsuff = '_ilp64'
         compsuff = '_intel'
         if get_software_root('icc') is None:
-            if get_software_root('GCC'):
+            if get_software_root('PGI'):
+                compsuff = '_pgi'
+            elif get_software_root('GCC'):
                 compsuff = '_gnu'
             else:
-                raise EasyBuildError("Not using Intel compilers or GCC, don't know compiler suffix for FFTW libraries.")
+                raise EasyBuildError("Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries.")
 
         fftw_libs = ["fftw3xc%s%s" % (compsuff, picsuff)]
         if self.options['usempi']:
