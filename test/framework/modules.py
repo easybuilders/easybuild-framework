@@ -45,6 +45,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
+from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
@@ -464,6 +465,23 @@ class ModulesTest(EnhancedTestCase):
         invalidate_module_caches_for(modpath)
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
+
+    def test_module_use_bash(self):
+        """Test whether effect of 'module use' is preserved when a new bash session is started."""
+        # this test is here as check for a nasty bug in how the modules tool is deployed
+        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1756,
+        # https://bugzilla.redhat.com/show_bug.cgi?id=1326075
+        modules_dir = os.path.abspath(os.path.join(self.test_prefix, 'modules'))
+        self.assertFalse(modules_dir in os.environ['MODULEPATH'])
+
+        mkdir(modules_dir, parents=True)
+        self.modtool.use(modules_dir)
+        modulepath = os.environ['MODULEPATH']
+        self.assertTrue(modules_dir in modulepath)
+
+        out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
+        self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
+        self.assertTrue(modules_dir in out)
 
 
 def suite():
