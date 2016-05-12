@@ -769,11 +769,12 @@ class ToolchainTest(EnhancedTestCase):
     def test_pgi_toolchain(self):
         """Tests for PGI toolchain."""
         # add dummy PGI modules to play with
-        write_file(os.path.join(self.test_prefix, 'PGI', '15.10'), '#%Module\nsetenv EBVERSIONPGI 15.10')
+        write_file(os.path.join(self.test_prefix, 'PGI', '14.9'), '#%Module\nsetenv EBVERSIONPGI 14.9')
+        write_file(os.path.join(self.test_prefix, 'PGI', '14.10'), '#%Module\nsetenv EBVERSIONPGI 14.10')
         write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), '#%Module\nsetenv EBVERSIONPGI 16.3')
         self.modtool.use(self.test_prefix)
 
-        tc = self.get_toolchain('PGI', version='15.10')
+        tc = self.get_toolchain('PGI', version='14.9')
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'pgcc')
@@ -783,14 +784,15 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('FC'), 'pgfortran')
         self.modtool.purge()
 
-        tc = self.get_toolchain('PGI', version='16.3')
-        tc.prepare()
+        for pgi_ver in ['14.10', '16.3']:
+            tc = self.get_toolchain('PGI', version=pgi_ver)
+            tc.prepare()
 
-        self.assertEqual(tc.get_variable('CC'), 'pgcc')
-        self.assertEqual(tc.get_variable('CXX'), 'pgc++')
-        self.assertEqual(tc.get_variable('F77'), 'pgf77')
-        self.assertEqual(tc.get_variable('F90'), 'pgfortran')
-        self.assertEqual(tc.get_variable('FC'), 'pgfortran')
+            self.assertEqual(tc.get_variable('CC'), 'pgcc')
+            self.assertEqual(tc.get_variable('CXX'), 'pgc++')
+            self.assertEqual(tc.get_variable('F77'), 'pgf77')
+            self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+            self.assertEqual(tc.get_variable('FC'), 'pgfortran')
 
 
 def suite():

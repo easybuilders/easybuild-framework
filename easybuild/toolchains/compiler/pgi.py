@@ -100,8 +100,8 @@ class Pgi(Compiler):
         """Set the compiler variables"""
         pgi_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
 
-        # for older versions of PGI, pgCC was the recommended C++ compiler
-        if LooseVersion(pgi_version) >= LooseVersion('16'):
+        # based on feedback from PGI support: use pgc++ with PGI 14.10 and newer, pgCC for older versions
+        if LooseVersion(pgi_version) >= LooseVersion('14.10'):
             self.COMPILER_CXX = 'pgc++'
         else:
             self.COMPILER_CXX = 'pgCC'
