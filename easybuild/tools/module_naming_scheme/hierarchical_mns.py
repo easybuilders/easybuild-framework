@@ -47,9 +47,10 @@ MODULECLASS_MPI = 'mpi'
 
 # note: names in keys are ordered alphabetically
 COMP_NAME_VERSION_TEMPLATES = {
-    'icc,ifort': ('intel', '%(icc)s'),
-    'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
-    'xlc,xlf': ('xlcxlf', '%(xlc)s'),
+    'icc,ifort': ('intel', ('icc',)),
+    'Clang,GCC': ('Clang-GCC', ('Clang', 'GCC')),
+    'CUDA,GCC': ('GCC-CUDA', ('GCC', 'CUDA')),
+    'xlc,xlf': ('xlcxlf', ('xlc',)),
 }
 
 
@@ -99,8 +100,8 @@ class HierarchicalMNS(ModuleNamingScheme):
             comp_names = comp_versions.keys()
             key = ','.join(sorted(comp_names))
             if key in COMP_NAME_VERSION_TEMPLATES:
-                tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
-                tc_comp_ver = tc_comp_ver_tmpl % comp_versions
+                tc_comp_name, tc_comp_ver_keys = COMP_NAME_VERSION_TEMPLATES[key]
+                tc_comp_ver = '-'.join('%%(%s)' % ver_key for ver_key in tc_comp_ver_keys) % comp_versions
                 # make sure that icc/ifort versions match
                 if tc_comp_name == 'intel' and comp_versions['icc'] != comp_versions['ifort']:
                     raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
@@ -152,7 +153,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
 
         paths = []
-        if modclass == MODULECLASS_COMPILER:
+        if modclass == MODULECLASS_COMPILER or ec['name'] in ['CUDA']:
             # obtain list of compilers based on that extend $MODULEPATH in some way other than <name>/<version>
             extend_comps = []
             # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
@@ -164,7 +165,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             if ec['name'] in extend_comps:
                 for key in COMP_NAME_VERSION_TEMPLATES:
                     if ec['name'] in key.split(','):
-                        comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+                        comp_name, comp_ver_keys = COMP_NAME_VERSION_TEMPLATES[key]
                         comp_versions = {ec['name']: self.det_full_version(ec)}
                         if ec['name'] == 'ifort':
                             # 'icc' key should be provided since it's the only one used in the template
@@ -173,10 +174,16 @@ class HierarchicalMNS(ModuleNamingScheme):
                             # also provide toolchain version for non-dummy toolchains
                             comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
 
-                        comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
-                        break
+                        if all(comp_ver_key in comp_versions.keys() for comp_ver_key in comp_ver_keys):
+                            comp_ver_fmt = '-'.join('%%(%s)' % ver_key for ver_key in comp_ver_keys)
+                            comp_name_ver = [comp_name, comp_ver_fmt % comp_versions]
+                            break
             else:
                 comp_name_ver = [ec['name'], self.det_full_version(ec)]
+
+            if comp_name_ver is None:
+                raise EasyBuildError("Required compilers not available in toolchain %s for %s v%s",
+                                     ec['toolchain'], ec['name'], ec['version'])
 
             paths.append(os.path.join(COMPILER, *comp_name_ver))
 
