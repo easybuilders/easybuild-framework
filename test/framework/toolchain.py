@@ -809,7 +809,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         liblapack = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core "
-        liblapack += "-Wl,--end-group -Wl,-Bdynamic -lm -ldl"
+        liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
         self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
 
 
