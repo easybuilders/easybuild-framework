@@ -101,7 +101,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             key = ','.join(sorted(comp_names))
             if key in COMP_NAME_VERSION_TEMPLATES:
                 tc_comp_name, tc_comp_ver_keys = COMP_NAME_VERSION_TEMPLATES[key]
-                tc_comp_ver = '-'.join('%%(%s)' % ver_key for ver_key in tc_comp_ver_keys) % comp_versions
+                tc_comp_ver = '-'.join('%%(%s)s' % ver_key for ver_key in tc_comp_ver_keys) % comp_versions
                 # make sure that icc/ifort versions match
                 if tc_comp_name == 'intel' and comp_versions['icc'] != comp_versions['ifort']:
                     raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
@@ -175,7 +175,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                             comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
 
                         if all(comp_ver_key in comp_versions.keys() for comp_ver_key in comp_ver_keys):
-                            comp_ver_fmt = '-'.join('%%(%s)' % ver_key for ver_key in comp_ver_keys)
+                            comp_ver_fmt = '-'.join('%%(%s)s' % ver_key for ver_key in comp_ver_keys)
                             comp_name_ver = [comp_name, comp_ver_fmt % comp_versions]
                             break
             else:
