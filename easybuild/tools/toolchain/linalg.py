@@ -76,6 +76,8 @@ class LinAlg(Toolchain):
     SCALAPACK_LIB_DIR = ['lib']
     SCALAPACK_INCLUDE_DIR = ['include']
 
+    LIB_EXTRA = None
+
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
@@ -118,9 +120,9 @@ class LinAlg(Toolchain):
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBBLAS_MT', self.LIB_MULTITHREAD, position=10)
 
-        if getattr(self, 'LIB_MATH', None) is not None:
-            self.variables.nappend('LIBBLAS', self.LIB_MATH, position=20)
-            self.variables.nappend('LIBBLAS_MT', self.LIB_MATH, position=20)
+        if getattr(self, 'LIB_EXTRA', None) is not None:
+            self.variables.nappend('LIBBLAS', self.LIB_EXTRA, position=20)
+            self.variables.nappend('LIBBLAS_MT', self.LIB_EXTRA, position=20)
 
         self.variables.join('BLAS_STATIC_LIBS', 'LIBBLAS')
         self.variables.join('BLAS_MT_STATIC_LIBS', 'LIBBLAS_MT')
@@ -174,9 +176,9 @@ class LinAlg(Toolchain):
                 self.variables.nappend('LIBLAPACK', 'LIBLAPACK_ONLY')
                 self.variables.nappend('LIBLAPACK_MT', 'LIBLAPACK_MT_ONLY')
 
-            if getattr(self, 'LIB_MATH', None) is not None:
-                self.variables.nappend('LIBLAPACK', self.LIB_MATH, position=20)
-                self.variables.nappend('LIBLAPACK_MT', self.LIB_MATH, position=20)
+            if getattr(self, 'LIB_EXTRA', None) is not None:
+                self.variables.nappend('LIBLAPACK', self.LIB_EXTRA, position=20)
+                self.variables.nappend('LIBLAPACK_MT', self.LIB_EXTRA, position=20)
 
             self.variables.join('LAPACK_STATIC_LIBS', 'LIBLAPACK')
             self.variables.join('LAPACK_MT_STATIC_LIBS', 'LIBLAPACK_MT')
@@ -219,9 +221,9 @@ class LinAlg(Toolchain):
                                                          toggle_startstopgroup=self.BLACS_LIB_GROUP,
                                                          toggle_staticdynamic=self.BLACS_LIB_STATIC)
 
-        if getattr(self, 'LIB_MATH', None) is not None:
-            self.variables.nappend('LIBBLACS', self.LIB_MATH, position=20)
-            self.variables.nappend('LIBBLACS_MT', self.LIB_MATH, position=20)
+        if getattr(self, 'LIB_EXTRA', None) is not None:
+            self.variables.nappend('LIBBLACS', self.LIB_EXTRA, position=20)
+            self.variables.nappend('LIBBLACS_MT', self.LIB_EXTRA, position=20)
 
         self.variables.join('BLACS_STATIC_LIBS', 'LIBBLACS')
         self.variables.join('BLACS_MT_STATIC_LIBS', 'LIBBLACS_MT')
@@ -284,9 +286,9 @@ class LinAlg(Toolchain):
         else:
             raise EasyBuildError("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
 
-        if getattr(self, 'LIB_MATH', None) is not None:
-            self.variables.nappend('LIBSCALAPACK', self.LIB_MATH, position=20)
-            self.variables.nappend('LIBSCALAPACK_MT', self.LIB_MATH, position=20)
+        if getattr(self, 'LIB_EXTRA', None) is not None:
+            self.variables.nappend('LIBSCALAPACK', self.LIB_EXTRA, position=20)
+            self.variables.nappend('LIBSCALAPACK_MT', self.LIB_EXTRA, position=20)
 
         self.variables.join('SCALAPACK_STATIC_LIBS', 'LIBSCALAPACK')
         self.variables.join('SCALAPACK_MT_STATIC_LIBS', 'LIBSCALAPACK_MT')
