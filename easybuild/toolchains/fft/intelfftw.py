@@ -87,8 +87,8 @@ class IntelFFTW(Fftw):
         # so make sure libraries are there before FFT_LIB is set
         imklroot = get_software_root(self.FFT_MODULE_NAME[0])
         fft_lib_dirs = [os.path.join(imklroot, d) for d in self.FFT_LIB_DIR]
-        # filter out gfortran from list of FFTW libraries to check for, since it's not provided by imkl
-        check_fftw_libs = [lib for lib in fftw_libs if lib != 'gfortran']
+        # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
+        check_fftw_libs = [lib for lib in fftw_libs if lib not in ['dl', 'gfortran']]
         fftw_lib_exists = lambda x: any([os.path.exists(os.path.join(d, "lib%s.a" % x)) for d in fft_lib_dirs])
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
