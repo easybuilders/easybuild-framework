@@ -80,6 +80,20 @@ class IntelMKL(LinAlg):
         class_constants.extend(['BLAS_LIB_MAP', 'SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
         super(IntelMKL, self).__init__(*args, **kwargs)
 
+    def set_variables(self):
+        """Set the variables"""
+
+        # for recent versions of Intel MKL, -lm -ldl should be used for linking
+        mkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
+        if LooseVersion(mkl_version) >= LooseVersion('11'):
+            math_libs = ['m', 'dl']
+            if self.LIB_MATH is None:
+                self.LIB_MATH = math_libs
+            else:
+                self.LIB_MATH.extend([l for l in math_libs if l not in self.LIB_MATH])
+
+        super(IntelMKL, self).set_variables()
+
     def _set_blas_variables(self):
         """Fix the map a bit"""
         interfacemap = {
