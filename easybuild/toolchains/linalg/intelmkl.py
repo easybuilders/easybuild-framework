@@ -84,13 +84,16 @@ class IntelMKL(LinAlg):
         """Set the variables"""
 
         # for recent versions of Intel MKL, -lm -ldl should be used for linking
+        # according to the Intel MKL Link Advisor, this should always be done,
+        # but it only seems to be strictly required for certain compilers
         mkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         if LooseVersion(mkl_version) >= LooseVersion('11'):
+        #if LooseVersion(mkl_version) >= LooseVersion('11') and self.COMPILER_FAMILY in [TC_CONSTANT_PGI]:
             math_libs = ['m', 'dl']
-            if self.LIB_MATH is None:
-                self.LIB_MATH = math_libs
+            if self.LIB_EXTRA is None:
+                self.LIB_EXTRA = math_libs
             else:
-                self.LIB_MATH.extend([l for l in math_libs if l not in self.LIB_MATH])
+                self.LIB_EXTRA.extend([l for l in math_libs if l not in self.LIB_EXTRA])
 
         super(IntelMKL, self).set_variables()
 
