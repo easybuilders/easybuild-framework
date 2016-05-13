@@ -681,19 +681,42 @@ class ModulesTool(object):
         # copy environment so we can restore it
         env = os.environ.copy()
 
+        # regex for $MODULEPATH definitions in Python syntax, e.g.:
+        # os.environ['MODULEPATH'] = "/tmp/example:/home/example/modules:";
+        modpath_ext_regex = re.compile(r"^os\.environ\[.MODULEPATH.\]\s*=\s*(?:'|\")(\S+)(?:'|\");?", re.M)
+
         modpath_exts = {}
         for mod_name in mod_names:
-            # Should be module show so as to catch conditional loads.
-            modtxt = self.show(mod_name)
-            useregex = re.compile(r'^\s*module\s+use\s+"?([^"\s]+)"?|^\s*prepend_path\("MODULEPATH",\s*"(\S+)"', re.M)
-            exts = []
-            for i in  useregex.finditer(modtxt):
-                    if i.group(1):
-                        exts.append(i.group(1))
-                    elif i.group(2):
-                        exts.append(i.group(2))
 
-            self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
+            # module must be available to (fake) load
+            if not self.exist([mod_name])[0]:
+                raise EasyBuildError("Can not determine $MODULEPATH extensions for non-existing module %s", mod_name)
+
+            # grab current value for $MODULEPATH, so we can figure out which paths get added to it
+            curr_modulepath = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
+
+            # fake load for module: just obtain changes that would be made to environment, don't apply them (yet)
+            # this is prefrred over parsing the module file contents, to take into account conditional extensions
+            mod_load_txt = self.run_module('load', mod_name, return_output=True)
+
+            # there may be no hits, because $MODULEPATH is not changed
+            # for Lmod, $MODULEPATH is always (re)set though...
+            res = modpath_ext_regex.findall(mod_load_txt)
+            exts = []
+            if res:
+                # in case there are multiple hits, only consider the last one
+                new_modulepath = [p for p in res[-1].split(os.pathsep) if p]
+
+                # trim new $MODULEPATH from the front, which should lead us back to the original $MODULEPATH
+                while new_modulepath != curr_modulepath and new_modulepath:
+                    exts.append(new_modulepath.pop(0))
+
+                if new_modulepath != curr_modulepath:
+                    error_msg = "Failed to determine list of $MODULEPATH extensions; "
+                    error_msg += "expected %s to be a suffix of %s"
+                    raise EasyBuildError(error_msg, curr_modulepath, new_modulepath)
+
+            self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:

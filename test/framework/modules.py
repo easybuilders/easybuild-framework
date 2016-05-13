@@ -299,6 +299,25 @@ class ModulesTest(EnhancedTestCase):
         path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+    def test_modpath_extensions_for(self):
+        """Test modpath_extensions_for method."""
+        self.setup_hierarchical_modules()
+
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        expected = {
+            'GCC/4.7.2': [os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2')],
+            'OpenMPI/1.6.4': [os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')],
+            'FFTW/3.3.3': [],
+        }
+        res = self.modtool.modpath_extensions_for(['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3'])
+        self.assertEqual(res, expected)
+
+        # error for non-existing modules
+        error_pattern = "Can not determine \$MODULEPATH extensions for non-existing module"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
+
+        # FIXME test separately for modules in Lua syntax!
+
     def test_path_to_top_of_module_tree_categorized_hmns(self):
         """
         Test function to determine path to top of the module tree for a categorized hierarchical module naming
