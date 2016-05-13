@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -58,7 +58,7 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
-        'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
+        'openmp': 'fopenmp',  # both -qopenmp/-fopenmp are valid for enabling OpenMP (-openmp is deprecated)
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
@@ -69,9 +69,15 @@ class IntelIccIfort(Compiler):
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.INTEL : 'xHost',
         systemtools.AMD : 'xHost',
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.INTEL : 'xSSE2',
+        systemtools.AMD : 'xSSE2',
     }
 
     COMPILER_CC = 'icc'
@@ -94,6 +100,7 @@ class IntelIccIfort(Compiler):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.append('LIB_MULTITHREAD')
+
         super(IntelIccIfort, self).__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
@@ -122,3 +129,12 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+
+    def set_variables(self):
+        """Set the variables."""
+        # -fopenmp is not supported in old versions (11.x)
+        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)
+        if LooseVersion(icc_version) < LooseVersion('12'):
+            self.options.options_map['openmp'] = 'openmp'
+
+        super(IntelIccIfort, self).set_variables()

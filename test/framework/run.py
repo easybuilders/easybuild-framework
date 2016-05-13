@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -31,6 +31,7 @@ Unit tests for filetools.py
 """
 import os
 import re
+import signal
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -50,6 +51,29 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+    def test_run_cmd_negative_exit_code(self):
+        """Test run_cmd function with command that has negative exit code."""
+        # define signal handler to call in case run_cmd takes too long
+        def handler(signum, _):
+            raise RuntimeError("Signal handler called with signal %s" % signum)
+
+        # set the signal handler and a 3-second alarm
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(3)
+
+        (_, ec) = run_cmd("kill -9 $$", log_ok=False)
+        self.assertEqual(ec, -9)
+
+        # reset the alarm
+        signal.alarm(0)
+        signal.alarm(3)
+
+        (_, ec) = run_cmd_qa("kill -9 $$", {}, log_ok=False)
+        self.assertEqual(ec, -9)
+
+        # disable the alarm
+        signal.alarm(0)
 
     def test_run_cmd_bis(self):
         """More 'complex' test for run_cmd function."""

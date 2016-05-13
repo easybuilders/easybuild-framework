@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -35,6 +35,7 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+import setuptools
 import vsc
 
 import easybuild.framework
@@ -50,11 +51,12 @@ class ScriptsTest(EnhancedTestCase):
         """Test setup."""
         super(ScriptsTest, self).setUp()
 
-        # make sure both vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
+        # make sure setuptools, vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
+        setuptools_loc = os.path.dirname(os.path.dirname(setuptools.__file__))
         vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
         pythonpath = os.environ.get('PYTHONPATH', '')
-        os.environ['PYTHONPATH'] = os.pathsep.join([vsc_loc, framework_loc, pythonpath])
+        os.environ['PYTHONPATH'] = os.pathsep.join([setuptools_loc, vsc_loc, framework_loc, pythonpath])
 
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""
@@ -82,13 +84,13 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(21 "
+        regex = r"Supported Packages \(23 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
             'B': '1',  # bzip2
-            'C': '1',  # CUDA
+            'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
-            'G': '4',  # GCC, gompi, goolf, gzip
+            'G': '5',  # GCC, GCCcore, gompi, goolf, gzip
             'H': '1',  # hwloc
             'I': '7',  # icc, iccifort, ictce, ifort, iimpi, imkl, impi
             'O': '2',  # OpenMPI, OpenBLAS

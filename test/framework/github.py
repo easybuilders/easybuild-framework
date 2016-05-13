@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,11 +26,14 @@
 Unit tests for talking to GitHub.
 
 @author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
+import random
 import re
 import shutil
+import string
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
@@ -40,8 +43,14 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 import easybuild.tools.github as gh
 
+try:
+    import keyring
+    HAVE_KEYRING = True
+except ImportError, err:
+    HAVE_KEYRING = False
 
-# test account, for which a token is available
+
+# test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
 # the user who's repo to test
 GITHUB_USER = "hpcugent"
@@ -49,6 +58,7 @@ GITHUB_USER = "hpcugent"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
+
 
 class GithubTest(EnhancedTestCase):
     """ small test for The github package
@@ -109,13 +119,19 @@ class GithubTest(EnhancedTestCase):
             return
 
         tmpdir = tempfile.mkdtemp()
-        # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
-        all_ecs = ['gzip-1.6-ictce-6.2.5.eb', 'icc-2013_sp1.2.144.eb', 'ictce-6.2.5.eb', 'ifort-2013_sp1.2.144.eb',
-                   'imkl-11.1.2.144.eb', 'impi-4.1.3.049.eb']
+        # PR for rename of ffmpeg to FFmpeg, see https://github.com/hpcugent/easybuild-easyconfigs/pull/2481/files
+        all_ecs = [
+            'FFmpeg-2.4-intel-2014.06.eb',
+            'FFmpeg-2.4-intel-2014b.eb',
+            'FFmpeg-2.8-intel-2015b.eb',
+            'OpenCV-2.4.9-intel-2014.06.eb',
+            'OpenCV-2.4.9-intel-2014b.eb',
+            'animation-2.4-intel-2015b-R-3.2.1.eb',
+        ]
         try:
-            ec_files = gh.fetch_easyconfigs_from_pr(726, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+            ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
             self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
-            self.assertEqual(all_ecs, sorted(os.listdir(tmpdir)))
+            self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in glob.glob(os.path.join(tmpdir, '*', '*'))]))
 
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
@@ -129,6 +145,10 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
+        if self.github_token is None:
+            print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
+            return
+
         sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
         sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
@@ -136,6 +156,10 @@ class GithubTest(EnhancedTestCase):
 
     def test_download_repo(self):
         """Test download_repo function."""
+        if self.github_token is None:
+            print "Skipping test_download_repo, no GitHub token available?"
+            return
+
         # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix)
         repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
@@ -164,6 +188,57 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue('easybuild' in os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertTrue(os.path.exists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py')))
+
+    def test_install_github_token(self):
+        """Test for install_github_token function."""
+        if self.github_token is None:
+            print "Skipping test_install_github_token, no GitHub token available?"
+            return
+
+        if not HAVE_KEYRING:
+            print "Skipping test_install_github_token, keyring module not available"
+            return
+
+        random_user = ''.join(random.choice(string.letters) for _ in range(10))
+        self.assertEqual(gh.fetch_github_token(random_user), None)
+
+        # poor mans mocking of getpass
+        def fake_getpass(*args, **kwargs):
+            return self.github_token
+
+        orig_getpass = gh.getpass.getpass
+        gh.getpass.getpass = fake_getpass
+
+        token_installed = False
+        try:
+            gh.install_github_token(random_user, silent=True)
+            token_installed = True
+        except Exception as err:
+            print err
+
+        gh.getpass.getpass = orig_getpass
+
+        token = gh.fetch_github_token(random_user)
+
+        # cleanup
+        if token_installed:
+            keyring.delete_password(gh.KEYRING_GITHUB_TOKEN, random_user)
+
+        # deliberately not using assertEqual, keep token secret!
+        self.assertTrue(token_installed)
+        self.assertTrue(token == self.github_token)
+
+    def test_validate_github_token(self):
+        """Test for validate_github_token function."""
+        if self.github_token is None:
+            print "Skipping test_validate_github_token, no GitHub token available?"
+            return
+
+        if not HAVE_KEYRING:
+            print "Skipping test_validate_github_token, keyring module not available"
+            return
+
+        self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
 
 def suite():

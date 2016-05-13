@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -35,12 +35,10 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import copy
 import os
-import re
 import sys
 from datetime import datetime
 from time import gmtime, strftime
 
-import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
@@ -49,7 +47,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_system_info
@@ -60,10 +57,11 @@ from vsc.utils import fancylogger
 _log = fancylogger.getLogger('testing', fname=False)
 
 
-def regtest(easyconfig_paths, build_specs=None):
+def regtest(easyconfig_paths, modtool, build_specs=None):
     """
     Run regression test, using easyconfigs available in given path
     @param easyconfig_paths: path of easyconfigs to run regtest on
+    @param modtool: ModulesTool instance to use
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
@@ -111,13 +109,13 @@ def regtest(easyconfig_paths, build_specs=None):
     # skip easyconfigs for which a module is already available, unless forced
     if not build_option('force'):
         _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
-        easyconfigs = skip_available(easyconfigs)
+        easyconfigs = skip_available(easyconfigs, modtool)
         _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
 
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs)
+        resolved = resolve_dependencies(easyconfigs, modtool)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
@@ -138,12 +136,6 @@ def session_state():
         'environment': copy.deepcopy(os.environ),
         'system_info': get_system_info(),
     }
-
-
-def session_module_list(testing=False):
-    """Get list of loaded modules ('module list')."""
-    modtool = modules_tool(testing=testing)
-    return modtool.list()
 
 
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False):
@@ -263,8 +255,9 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     # post comment to report test result
     system_info = init_session_state['system_info']
-    short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+    short_system_info = "%(hostname)s - %(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
         'cpu_model': system_info['cpu_model'],
+        'hostname': system_info['hostname'],
         'os_name': system_info['os_name'],
         'os_type': system_info['os_type'],
         'os_version': system_info['os_version'],

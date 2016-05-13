@@ -10,7 +10,7 @@ homepage: http://www.sqlite.org/
 # quotes on description to escape special character :
 description: "SQLite: SQL Database Engine in a C Library"
 
-toolchain: {name: goolf, version: 1.4.10}
+toolchain: goolf, 1.4.10
 
 # eg. http://www.sqlite.org/2014/sqlite-autoconf-3080600.tar.gz
 source_urls: ["http://www.sqlite.org/2015/"]

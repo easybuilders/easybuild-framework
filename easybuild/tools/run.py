@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -122,7 +122,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     ec = p.poll()
     stdouterr = ''
-    while ec < 0:
+    while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         output = p.stdout.read(readSize)
@@ -269,7 +269,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     oldLenOut = -1
     hitCount = 0
 
-    while ec < 0:
+    while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:

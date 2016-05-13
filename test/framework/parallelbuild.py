@@ -5,7 +5,7 @@
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -73,6 +73,7 @@ class MockPbsJob(object):
         self.jobid = None
         self.clean_conn = None
         self.script = args[1]
+        self.cores = kwargs['cores']
 
     def add_dependencies(self, jobs):
         self.deps.extend(jobs)
@@ -112,19 +113,20 @@ class ParallelBuildTest(EnhancedTestCase):
             'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             'valid_module_classes': config.module_classes(),
             'validate': False,
+            'job_cores': 3,
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
         easyconfigs = process_easyconfig(ec_file)
-        ordered_ecs = resolve_dependencies(easyconfigs)
+        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.assertEqual(len(jobs), 8)
         regex = re.compile("echo '.*/gzip-1.5-goolf-1.4.10.eb'")
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
-        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), retain_all_deps=True)
+        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
         jobs = submit_jobs(ordered_ecs, '', testing=False, prepare_first=False)
 
         # make sure command is correct, and that --hidden is there when it needs to be
@@ -134,6 +136,9 @@ class ParallelBuildTest(EnhancedTestCase):
             else:
                 regex = re.compile("eb %s" % ec['spec'])
             self.assertTrue(regex.search(jobs[i].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[i].script))
+
+        for job in jobs:
+            self.assertEqual(job.cores, build_options['job_cores'])
 
         # no deps for GCC/4.6.3 (toolchain) and ictce/4.1.13 (test easyconfig with 'fake' deps)
         self.assertEqual(len(jobs[0].deps), 0)
@@ -200,7 +205,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
-        ordered_ecs = resolve_dependencies(easyconfigs)
+        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
