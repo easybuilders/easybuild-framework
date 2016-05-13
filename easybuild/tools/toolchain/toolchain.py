@@ -584,7 +584,7 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
-    def prepare(self, onlymod=None, silent=False):
+    def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -594,7 +594,8 @@ class Toolchain(object):
         with module (True) or also set all other variables (False) like compiler CC etc
         (If string: comma separated list of variables that will be ignored).
         """
-        self._load_modules(silent=silent)
+        if loadmod:
+            self._load_modules(silent=silent)
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 
