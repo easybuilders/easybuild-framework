@@ -67,10 +67,6 @@ class Extension(object):
         self.patches = self.ext.get('patches', [])
         self.options = copy.deepcopy(self.ext.get('options', {}))
 
-        # don't re-prepare the build environment when doing a dry run, since it'll be the same as for the parent
-        if not build_option('extended_dry_run'):
-            self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True)
-
         self.sanity_check_fail_msgs = []
 
     @property
