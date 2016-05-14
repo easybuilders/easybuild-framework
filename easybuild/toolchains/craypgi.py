@@ -37,5 +37,4 @@ class CrayPGI(CrayPEPGI, CrayMPICH):
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; marked as experimental."""
-        self.log.experimental("Using %s toolchain", self.NAME)
         super(CrayPGI, self).prepare(*args, **kwargs)
