@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,10 +23,23 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declares EasyBuild namespace, in an extendable way.
+EasyBuild support for pomkl compiler toolchain (includes PGI compilers, OpenMPI,
+Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-@author: Jens Timmerman (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+
+from easybuild.toolchains.pompi import Pompi
+from easybuild.toolchains.fft.intelfftw import IntelFFTW
+from easybuild.toolchains.linalg.intelmkl import IntelMKL
+
+
+class Pomkl(Pompi, IntelMKL, IntelFFTW):
+    """
+    Compiler toolchain with PGI compilers, OpenMPI,
+    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
+    """
+    NAME = 'pomkl'
+    SUBTOOLCHAIN = Pompi.NAME

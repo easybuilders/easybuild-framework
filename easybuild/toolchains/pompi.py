@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,10 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declares EasyBuild namespace, in an extendable way.
+EasyBuild support for pompi compiler toolchain (includes PGI compilers and OpenMPI).
 
-@author: Jens Timmerman (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+
+from easybuild.toolchains.pgi import PgiToolchain
+from easybuild.toolchains.mpi.openmpi import OpenMPI
+
+
+class Pompi(PgiToolchain, OpenMPI):
+    """
+    Compiler toolchain with PGI compilers and OpenMPI.
+    """
+    NAME = 'pompi'
+    SUBTOOLCHAIN = PgiToolchain.NAME
