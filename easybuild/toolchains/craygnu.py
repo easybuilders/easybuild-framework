@@ -38,7 +38,3 @@ class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
     NAME = 'CrayGNU'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-
-    def prepare(self, *args, **kwargs):
-        """Prepare to use this toolchain."""
-        super(CrayGNU, self).prepare(*args, **kwargs)
