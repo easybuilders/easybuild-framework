@@ -8,10 +8,10 @@ v2.8.0 (May 18th 2016)
 
 feature + bugfix release
 - significant speedup improvements of EasyBuild itself, thanks to:
-  - stop creating ModulesTool instances over and over again (#1735)
-  - cache result of 'module avail' calls (#1742)
+    - stop creating ModulesTool instances over and over again (#1735)
+    - cache result of 'module avail' calls (#1742)
 - add support for using PGI as toolchain compiler (#1342, #1664, #1759, #1761, #1764)
-    incl. new toolchain definitions pompi and pomkl (#1724)
+    - incl. new toolchain definitions pompi and pomkl (#1724)
 - add test configuration for Travis (#1733, #1737, #1743)
 - various other enhancements, including:
     - add get_total_memory() function in systemtools module (#1623)
