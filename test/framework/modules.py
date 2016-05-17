@@ -327,6 +327,7 @@ class ModulesTest(EnhancedTestCase):
         test_mod = 'test-modpaths/1.2.3.4'
         test_modfile = os.path.join(mod_dir, test_mod)
         test_modtxt = '\n'.join([
+            '#%Module',
             "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
             # quoted path
             'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
