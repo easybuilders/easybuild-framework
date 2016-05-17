@@ -312,24 +312,64 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.modpath_extensions_for(['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3'])
         self.assertEqual(res, expected)
 
-        intel_modpath_exts = [
-            # this is typically not desirable, avoiding this requires using GCCcore as a base rather than GCC
-            os.path.join(mod_dir, 'Compiler', 'GCC', '4.8.3'),
-            os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
-        ]
         expected = {
-            'icc/2013.5.192-GCC-4.8.3': intel_modpath_exts,
-            # no $MODULEPATH extensions for ifort, because they're identical to those of icc
-            'ifort/2013.5.192-GCC-4.8.3': [],
+            'icc/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
+            'ifort/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
         }
         res = self.modtool.modpath_extensions_for(['icc/2013.5.192-GCC-4.8.3', 'ifort/2013.5.192-GCC-4.8.3'])
         self.assertEqual(res, expected)
 
         # error for non-existing modules
-        error_pattern = "Can not determine \$MODULEPATH extensions for non-existing module"
+        error_pattern = "Can't get value from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
-        # FIXME test separately for modules in Lua syntax!
+        # test result in case conditional loads are used
+        test_mod = 'test-modpaths/1.2.3.4'
+        test_modfile = os.path.join(mod_dir, test_mod)
+        test_modtxt = '\n'.join([
+            "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
+            # quoted path
+            'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
+            # using prepend-path & quoted
+            ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
+            # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
+            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
+            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            "}",
+        ])
+        write_file(test_modfile, test_modtxt)
+
+        expected = {
+            test_mod: [
+                os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+                os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
+                os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+                os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+            ]
+        }
+        self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
+
+        # also test with module file in Lua syntax if Lmod is used as modules tool
+        if isinstance(self.modtool, Lmod):
+
+            test_mod = 'test-modpaths-lua/1.2.3.4'
+            test_modfile = os.path.join(mod_dir, test_mod + '.lua')
+
+            test_modtxt = '\n'.join([
+                # indented without guard
+                '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
+                'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
+                'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
+                # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
+                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
+                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                'end',
+            ])
+            write_file(test_modfile, test_modtxt)
+
+            expected = {test_mod: expected['test-modpaths/1.2.3.4']}
+
+            self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
 
     def test_path_to_top_of_module_tree_categorized_hmns(self):
         """
