@@ -817,8 +817,17 @@ class EasyBlockTest(EnhancedTestCase):
                 else:
                     self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
-        init_config(build_options=build_options)
+        # modpath_extensions_for should spit out correct result, even if modules are loaded
+        icc_mod = 'icc/%s' % intel_ver
+        impi_mod = 'impi/4.1.3.049'
+        self.modtool.load([icc_mod])
+        self.assertTrue(impi_modfile_path in self.modtool.show(impi_mod))
+        self.modtool.load([impi_mod])
+        expected = {
+            icc_mod: [os.path.join(modpath, 'Compiler', 'intel', intel_ver)],
+            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '4.1.3.049')],
+        }
+        self.assertEqual(self.modtool.modpath_extensions_for([icc_mod, impi_mod]), expected)
 
     def test_patch_step(self):
         """Test patch step."""
