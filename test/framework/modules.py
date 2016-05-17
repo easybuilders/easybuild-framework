@@ -312,6 +312,19 @@ class ModulesTest(EnhancedTestCase):
         res = self.modtool.modpath_extensions_for(['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3'])
         self.assertEqual(res, expected)
 
+        intel_modpath_exts = [
+            # this is typically not desirable, avoiding this requires using GCCcore as a base rather than GCC
+            os.path.join(mod_dir, 'Compiler', 'GCC', '4.8.3'),
+            os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+        ]
+        expected = {
+            'icc/2013.5.192-GCC-4.8.3': intel_modpath_exts,
+            # no $MODULEPATH extensions for ifort, because they're identical to those of icc
+            'ifort/2013.5.192-GCC-4.8.3': [],
+        }
+        res = self.modtool.modpath_extensions_for(['icc/2013.5.192-GCC-4.8.3', 'ifort/2013.5.192-GCC-4.8.3'])
+        self.assertEqual(res, expected)
+
         # error for non-existing modules
         error_pattern = "Can not determine \$MODULEPATH extensions for non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
