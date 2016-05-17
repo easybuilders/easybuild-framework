@@ -27,7 +27,7 @@ feature + bugfix release
     - set $LMOD_REDIRECT to 'no' when initialising Lmod (#1755)
     - add test for broken modules tool setup affecting 'module use' (#1758)
 - various bug fixes, including:
-    - isolate 'options' tests from easyblocks other than the ones includes in the tests (#1699)
+    - isolate 'options' tests from easyblocks other than the ones included in the tests (#1699)
     - don't run 'module purge' in tests, since EasyBuild may be made available through a module (#1702)
     - avoid rehandling --include-* options over and over again during --show-config (#1705)
     - remove useless test_cwd (#1706)
