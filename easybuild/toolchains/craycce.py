@@ -38,7 +38,3 @@ class CrayCCE(CrayPECray, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-
-    def prepare(self, *args, **kwargs):
-        """Prepare to use this toolchain."""
-        super(CrayCCE, self).prepare(*args, **kwargs)

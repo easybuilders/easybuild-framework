@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2016 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,18 +23,23 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-CrayGNU toolchain: GCC and MPI via Cray compiler drivers + LibSci (PrgEnv-gnu) and Cray FFTW
+EasyBuild support for pomkl compiler toolchain (includes PGI compilers, OpenMPI,
+Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-@author: Petar Forai (IMP/IMBA, Austria)
+@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-from easybuild.toolchains.compiler.craype import CrayPEGCC
-from easybuild.toolchains.linalg.libsci import LibSci
-from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+
+from easybuild.toolchains.pompi import Pompi
+from easybuild.toolchains.fft.intelfftw import IntelFFTW
+from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
-    """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
-    NAME = 'CrayGNU'
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+class Pomkl(Pompi, IntelMKL, IntelFFTW):
+    """
+    Compiler toolchain with PGI compilers, OpenMPI,
+    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
+    """
+    NAME = 'pomkl'
+    SUBTOOLCHAIN = Pompi.NAME
