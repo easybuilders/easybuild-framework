@@ -674,7 +674,12 @@ class ModulesTool(object):
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
-        Modules with an empty list of $MODULEPATH extensions are included.
+        All potential $MODULEPATH extensions are included, even the ones guarded by a condition (which is not checked).
+        Only direct $MODULEPATH extensions are found, no recursion if performed for modules that load other modules.
+        Modules with an empty list of $MODULEPATH extensions are included in the result.
+
+        @param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
+        @return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
         """
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
