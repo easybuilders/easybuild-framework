@@ -41,9 +41,9 @@ The code in the ``vsc`` directory originally comes from the *vsc-base* package
 * **master** branch:
 
   .. image:: https://travis-ci.org/hpcugent/easybuild-framework.svg?branch=master
-      :target: https://travis-ci.org/hpcugent/easybuild-framework
+      :target: https://travis-ci.org/hpcugent/easybuild-framework/branches
 
 * **develop** branch:
 
   .. image:: https://travis-ci.org/hpcugent/easybuild-framework.svg?branch=develop
-      :target: https://travis-ci.org/hpcugent/easybuild-framework
+      :target: https://travis-ci.org/hpcugent/easybuild-framework/branches
