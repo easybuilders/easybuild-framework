@@ -699,7 +699,7 @@ class ModulesTool(object):
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            exts = [e for t in modpath_ext_regex.findall(modtxt) for e in t if e]
+            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
