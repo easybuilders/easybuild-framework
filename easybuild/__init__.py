@@ -28,14 +28,5 @@ Declares EasyBuild namespace, in an extendable way.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import os
 import pkg_resources
-import sys
-
-# check whether EasyBuild is being run from a directory that contains easybuild/__init__.py;
-# that doesn't work (fails with import errors), due to weirdness to Python packaging/setuptools/namespaces
-if __path__[0] == 'easybuild':
-    sys.stderr.write("ERROR: Running EasyBuild from %s does not work (Python packaging weirdness)...\n" % os.getcwd())
-    sys.exit(1)
-
 pkg_resources.declare_namespace(__name__)

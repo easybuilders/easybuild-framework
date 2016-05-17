@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2016 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,18 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-CrayGNU toolchain: GCC and MPI via Cray compiler drivers + LibSci (PrgEnv-gnu) and Cray FFTW
+EasyBuild support for pompi compiler toolchain (includes PGI compilers and OpenMPI).
 
-@author: Petar Forai (IMP/IMBA, Austria)
+@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-from easybuild.toolchains.compiler.craype import CrayPEGCC
-from easybuild.toolchains.linalg.libsci import LibSci
-from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+
+from easybuild.toolchains.pgi import PgiToolchain
+from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
-    """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
-    NAME = 'CrayGNU'
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+class Pompi(PgiToolchain, OpenMPI):
+    """
+    Compiler toolchain with PGI compilers and OpenMPI.
+    """
+    NAME = 'pompi'
+    SUBTOOLCHAIN = PgiToolchain.NAME

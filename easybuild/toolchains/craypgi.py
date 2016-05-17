@@ -34,8 +34,3 @@ class CrayPGI(CrayPEPGI, CrayMPICH):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (PGI) (PrgEnv-pgi)."""
     NAME = 'CrayPGI'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-
-    def prepare(self, *args, **kwargs):
-        """Prepare to use this toolchain; marked as experimental."""
-        self.log.experimental("Using %s toolchain", self.NAME)
-        super(CrayPGI, self).prepare(*args, **kwargs)

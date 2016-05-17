@@ -661,19 +661,19 @@ def module_load_regex(modfilepath):
     return re.compile(regex, re.M)
 
 
-def dependencies_for(mod_name, depth=sys.maxint):
+def dependencies_for(mod_name, modtool, depth=sys.maxint):
     """
     Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
     @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
     """
-    mod_filepath = modules_tool().modulefile_path(mod_name)
+    mod_filepath = modtool.modulefile_path(mod_name)
     modtxt = read_file(mod_filepath)
     loadregex = module_load_regex(mod_filepath)
     mods = loadregex.findall(modtxt)
 
     if depth > 0:
         # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, depth=depth - 1) for mod in mods]
+        moddeps = [dependencies_for(mod, modtool, depth=depth - 1) for mod in mods]
     else:
         # ignore any deeper dependencies
         moddeps = []

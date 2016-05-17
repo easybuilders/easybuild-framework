@@ -38,7 +38,3 @@ class CrayIntel(CrayPEIntel, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
     NAME = 'CrayIntel'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-
-    def prepare(self, *args, **kwargs):
-        """Prepare to use this toolchain."""
-        super(CrayIntel, self).prepare(*args, **kwargs)
