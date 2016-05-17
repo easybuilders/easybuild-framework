@@ -39,9 +39,11 @@ The code in the ``vsc`` directory originally comes from the *vsc-base* package
 *Build status overview:*
 
 * **master** branch:
+
   .. image:: https://travis-ci.org/hpcugent/easybuild-framework.svg?branch=master
       :target: https://travis-ci.org/hpcugent/easybuild-framework
 
 * **develop** branch:
+
   .. image:: https://travis-ci.org/hpcugent/easybuild-framework.svg?branch=develop
       :target: https://travis-ci.org/hpcugent/easybuild-framework
