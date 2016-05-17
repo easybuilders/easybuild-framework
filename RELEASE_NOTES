@@ -12,7 +12,7 @@ feature + bugfix release
     - cache result of 'module avail' calls (#1742)
 - add support for using PGI as toolchain compiler (#1342, #1664, #1759, #1761, #1764)
     - incl. new toolchain definitions pompi and pomkl (#1724)
-- add test configuration for Travis (#1733, #1737, #1743)
+- add test configuration for Travis (#1733, #1737, #1743, #1767)
 - various other enhancements, including:
     - add get_total_memory() function in systemtools module (#1623)
     - ignore __init__.py files in --include-* (#1704)
@@ -20,6 +20,7 @@ feature + bugfix release
     - add modules to metadata for Cray modules (#1721)
     - make sure user write permissions are set after failed removal attempt of installation directory (#1722)
     - escape special characters in software name in find_related_easyconfigs (#1726)
+    - add support for CrayPGI compiler toolchain (#1729)
     - ensure read permission to all installed files for everybody (unless other options specify otherwise) (#1731)
     - also consider $LMOD_CMD in bootstrap script (#1736)
     - translate PyPI download URL to alternate URL with a hash (#1749)
@@ -41,6 +42,8 @@ feature + bugfix release
     - change to install dir rather than buildpath in sanity check of extension, latter may not exist (#1746, #1748)
     - only load modules using short module names (#1754)
     - (re)load modules for build deps in extensions_step (#1762)
+    - fix modpath_extensions_for method: take into account modules in Lua syntax (#1766)
+    - fix broken link to VSC website in license headers (#1768)
 
 
 v2.7.0 (March 20th 2016)
