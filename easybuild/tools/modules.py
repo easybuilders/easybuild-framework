@@ -536,7 +536,6 @@ class ModulesTool(object):
         """
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
-            self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)
             if res:
                 return res.group(1)
@@ -765,8 +764,9 @@ class ModulesTool(object):
             # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
-                # full path to module subdir of dependency is simply path to module file without (short) module name
-                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                # full path to module subdir of dependency is simply path to module file without (short) module name,
+                # taking into account potential extension of module file (.lua)
+                dep_full_mod_subdir = os.path.splitext(self.modulefile_path(dep))[0][:-len(dep)-1]
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
