@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -1608,6 +1608,9 @@ class EasyBlock(object):
         if not self.dry_run:
             fake_mod_data = self.load_fake_module(purge=True)
 
+            # also load modules for build dependencies again, since those are not loaded by the fake module
+            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg['builddependencies'])
+
         self.prepare_for_extensions()
 
         if fetch:
@@ -1692,6 +1695,17 @@ class EasyBlock(object):
                 eb_class = cls.__name__
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % (ext['name'], ext['version'], eb_class)
                 self.dry_run_msg(msg)
+
+            self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+
+            # prepare toolchain build environment, but only when not doing a dry run
+            # since in that case the build environment is the same as for the parent
+            if self.dry_run:
+                self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
+            else:
+                # don't reload modules for toolchain, there is no need since they will be loaded already;
+                # the (fake) module for the parent software gets loaded before installing extensions
+                inst.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False)
 
             # real work
             inst.prerun()

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
-# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -23,16 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for LAPACK as toolchain linear algebra library.
-
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+CrayPGI toolchain: Cray compilers (PGI) and MPI via Cray compiler drivers (PrgEnv-pgi) minus LibSci minus Cray FFTW
+@author: Jg Piccinali (CSCS)
 """
+from easybuild.toolchains.compiler.craype import CrayPEPGI
+from easybuild.toolchains.mpi.craympich import CrayMPICH
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
-from easybuild.tools.toolchain.linalg import LinAlg
-
-
-class Lapack(LinAlg):
-    """Trivial class, provides LAPACK support."""
-    LAPACK_MODULE_NAME = ['LAPACK']
-    LAPACK_LIB = ['lapack']
+class CrayPGI(CrayPEPGI, CrayMPICH):
+    """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (PGI) (PrgEnv-pgi)."""
+    NAME = 'CrayPGI'
+    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
