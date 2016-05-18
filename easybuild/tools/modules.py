@@ -536,7 +536,6 @@ class ModulesTool(object):
         """
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
-            self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)
             if res:
                 return res.group(1)
@@ -546,12 +545,21 @@ class ModulesTool(object):
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
-    def modulefile_path(self, mod_name):
-        """Get the path of the module file for the specified module."""
+    def modulefile_path(self, mod_name, strip_ext=False):
+        """
+        Get the path of the module file for the specified module
+
+        @param mod_name: module name
+        @param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
-        return self.get_value_from_modulefile(mod_name, modpath_re)
+        modpath = self.get_value_from_modulefile(mod_name, modpath_re)
+
+        if strip_ext and modpath.endswith('.lua'):
+            modpath = os.path.splitext(modpath)[0]
+
+        return modpath
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
@@ -674,20 +682,33 @@ class ModulesTool(object):
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
-        Modules with an empty list of $MODULEPATH extensions are included.
+        All potential $MODULEPATH extensions are included, even the ones guarded by a condition (which is not checked).
+        Only direct $MODULEPATH extensions are found, no recursion if performed for modules that load other modules.
+        Modules with an empty list of $MODULEPATH extensions are included in the result.
+
+        @param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
+        @return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
         """
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
         # copy environment so we can restore it
         env = os.environ.copy()
 
+        # regex for $MODULEPATH extensions;
+        # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
+        # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        modpath_ext_regex = r'|'.join([
+            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
+        ])
+        modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
+
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            useregex = re.compile(r'^\s*module\s+use\s+"?([^"\s]+)"?', re.M)
-            exts = useregex.findall(modtxt)
-
-            self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
+            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+            self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:
@@ -752,8 +773,9 @@ class ModulesTool(object):
             # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
+
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep)-1]
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
@@ -773,7 +795,8 @@ class ModulesTool(object):
             # remove retained dependencies from the list, since we're climbing up the module tree
             remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
 
-            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, mods_to_top))
+            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top",
+                           mod_name, mods_to_top)
             for mod_name, full_mod_subdir in zip(mods_to_top, full_mod_subdirs):
                 path.extend(self.path_to_top_of_module_tree(top_paths, mod_name, full_mod_subdir, None,
                                                             modpath_exts=remaining_modpath_exts))

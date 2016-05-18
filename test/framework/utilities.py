@@ -314,6 +314,17 @@ class EnhancedTestCase(_EnhancedTestCase):
                               line)
                 sys.stdout.write(line)
 
+        # make sure paths for 'module use' commands exist; required for modulecmd
+        mod_subdirs = [
+            os.path.join('Compiler', 'GCC', '4.7.2'),
+            os.path.join('Compiler', 'GCC', '4.8.3'),
+            os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+            os.path.join('MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
+        ]
+        for mod_subdir in mod_subdirs:
+            mkdir(os.path.join(mod_prefix, mod_subdir), parents=True)
+
     def setup_categorized_hmns_modules(self):
         """Setup categorized hierarchical modules to run tests on."""
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')

@@ -299,6 +299,116 @@ class ModulesTest(EnhancedTestCase):
         path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+    def test_path_to_top_of_module_tree_lua(self):
+        """Test path_to_top_of_module_tree function on modules in Lua syntax."""
+        if isinstance(self.modtool, Lmod):
+            self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+            self.assertEqual(os.environ.get('MODULEPATH'), None)
+
+            top_moddir = os.path.join(self.test_prefix, 'test_modules')
+            core_dir = os.path.join(top_moddir, 'Core')
+            mkdir(core_dir, parents=True)
+            self.modtool.use(core_dir)
+            self.assertTrue(os.path.samefile(os.environ.get('MODULEPATH'), core_dir))
+
+            # install toy modules in Lua syntax that are sufficient to test path_to_top_of_module_tree with
+            intel_mod_dir = os.path.join(top_moddir, 'Compiler', 'intel', '2016')
+            intel_mod = 'prepend_path("MODULEPATH", "%s")\n' % intel_mod_dir
+            write_file(os.path.join(core_dir, 'intel', '2016.lua'), intel_mod)
+
+            impi_mod_dir = os.path.join(top_moddir, 'MPI', 'intel', '2016', 'impi', '2016')
+            impi_mod = 'prepend_path("MODULEPATH", "%s")\n' % impi_mod_dir
+            write_file(os.path.join(intel_mod_dir, 'impi', '2016.lua'), impi_mod)
+
+            imkl_mod = 'io.stderr:write("Hi from the imkl module")\n'
+            write_file(os.path.join(impi_mod_dir, 'imkl', '2016.lua'), imkl_mod)
+
+            self.assertEqual(self.modtool.available(), ['intel/2016'])
+
+            imkl_deps = ['intel/2016', 'impi/2016']
+
+            # modules that compose toolchain are expected to be loaded
+            self.modtool.load(imkl_deps)
+
+            res = self.modtool.path_to_top_of_module_tree(core_dir, 'imkl/2016', impi_mod_dir, imkl_deps)
+            self.assertEqual(res, ['impi/2016', 'intel/2016'])
+
+        else:
+            print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
+
+    def test_modpath_extensions_for(self):
+        """Test modpath_extensions_for method."""
+        self.setup_hierarchical_modules()
+
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        expected = {
+            'GCC/4.7.2': [os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2')],
+            'OpenMPI/1.6.4': [os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')],
+            'FFTW/3.3.3': [],
+        }
+        res = self.modtool.modpath_extensions_for(['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3'])
+        self.assertEqual(res, expected)
+
+        expected = {
+            'icc/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
+            'ifort/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
+        }
+        res = self.modtool.modpath_extensions_for(['icc/2013.5.192-GCC-4.8.3', 'ifort/2013.5.192-GCC-4.8.3'])
+        self.assertEqual(res, expected)
+
+        # error for non-existing modules
+        error_pattern = "Can't get value from a non-existing module"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
+
+        # test result in case conditional loads are used
+        test_mod = 'test-modpaths/1.2.3.4'
+        test_modfile = os.path.join(mod_dir, test_mod)
+        test_modtxt = '\n'.join([
+            '#%Module',
+            "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
+            # quoted path
+            'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
+            # using prepend-path & quoted
+            ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
+            # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
+            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
+            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            "}",
+        ])
+        write_file(test_modfile, test_modtxt)
+
+        expected = {
+            test_mod: [
+                os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+                os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
+                os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+                os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+            ]
+        }
+        self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
+
+        # also test with module file in Lua syntax if Lmod is used as modules tool
+        if isinstance(self.modtool, Lmod):
+
+            test_mod = 'test-modpaths-lua/1.2.3.4'
+            test_modfile = os.path.join(mod_dir, test_mod + '.lua')
+
+            test_modtxt = '\n'.join([
+                # indented without guard
+                '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
+                'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
+                'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
+                # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
+                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
+                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                'end',
+            ])
+            write_file(test_modfile, test_modtxt)
+
+            expected = {test_mod: expected['test-modpaths/1.2.3.4']}
+
+            self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
+
     def test_path_to_top_of_module_tree_categorized_hmns(self):
         """
         Test function to determine path to top of the module tree for a categorized hierarchical module naming
