@@ -299,6 +299,43 @@ class ModulesTest(EnhancedTestCase):
         path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+    def test_path_to_top_of_module_tree_lua(self):
+        """Test path_to_top_of_module_tree function on modules in Lua syntax."""
+        if isinstance(self.modtool, Lmod):
+            self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+            self.assertEqual(os.environ.get('MODULEPATH'), None)
+
+            top_moddir = os.path.join(self.test_prefix, 'test_modules')
+            core_dir = os.path.join(top_moddir, 'Core')
+            mkdir(core_dir, parents=True)
+            self.modtool.use(core_dir)
+            self.assertTrue(os.path.samefile(os.environ.get('MODULEPATH'), core_dir))
+
+            # install toy modules in Lua syntax that are sufficient to test path_to_top_of_module_tree with
+            intel_mod_dir = os.path.join(top_moddir, 'Compiler', 'intel', '2016')
+            intel_mod = 'prepend_path("MODULEPATH", "%s")\n' % intel_mod_dir
+            write_file(os.path.join(core_dir, 'intel', '2016.lua'), intel_mod)
+
+            impi_mod_dir = os.path.join(top_moddir, 'MPI', 'intel', '2016', 'impi', '2016')
+            impi_mod = 'prepend_path("MODULEPATH", "%s")\n' % impi_mod_dir
+            write_file(os.path.join(intel_mod_dir, 'impi', '2016.lua'), impi_mod)
+
+            imkl_mod = 'io.stderr:write("Hi from the imkl module")\n'
+            write_file(os.path.join(impi_mod_dir, 'imkl', '2016.lua'), imkl_mod)
+
+            self.assertEqual(self.modtool.available(), ['intel/2016'])
+
+            imkl_deps = ['intel/2016', 'impi/2016']
+
+            # modules that compose toolchain are expected to be loaded
+            self.modtool.load(imkl_deps)
+
+            res = self.modtool.path_to_top_of_module_tree(core_dir, 'imkl/2016', impi_mod_dir, imkl_deps)
+            self.assertEqual(res, ['impi/2016', 'intel/2016'])
+
+        else:
+            print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
+
     def test_modpath_extensions_for(self):
         """Test modpath_extensions_for method."""
         self.setup_hierarchical_modules()
