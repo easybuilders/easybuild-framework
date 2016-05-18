@@ -545,12 +545,21 @@ class ModulesTool(object):
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
-    def modulefile_path(self, mod_name):
-        """Get the path of the module file for the specified module."""
+    def modulefile_path(self, mod_name, strip_ext=False):
+        """
+        Get the path of the module file for the specified module
+
+        @param mod_name: module name
+        @param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
-        return self.get_value_from_modulefile(mod_name, modpath_re)
+        modpath = self.get_value_from_modulefile(mod_name, modpath_re)
+
+        if strip_ext and modpath.endswith('.lua'):
+            modpath = os.path.splitext(modpath)[0]
+
+        return modpath
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
@@ -764,9 +773,9 @@ class ModulesTool(object):
             # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
-                # full path to module subdir of dependency is simply path to module file without (short) module name,
-                # taking into account potential extension of module file (.lua)
-                dep_full_mod_subdir = os.path.splitext(self.modulefile_path(dep))[0][:-len(dep)-1]
+
+                # full path to module subdir of dependency is simply path to module file without (short) module name
+                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep)-1]
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
