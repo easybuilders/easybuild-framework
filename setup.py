@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -91,7 +91,16 @@ implement support for installing particular (groups of) software packages.""",
     packages=easybuild_packages,
     package_dir={'test.framework': 'test/framework'},
     package_data={'test.framework': find_rel_test(),},
-    scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash", "eb_bash_completion.bash"],
+    scripts=[
+        'eb',
+        # bash completion
+        'optcomplete.bash',
+        'minimal_bash_completion.bash',
+        'eb_bash_completion.bash',
+        # utility scripts
+        'easybuild/scripts/bootstrap_eb.py',
+        'easybuild/scripts/install_eb_dep.sh',
+    ],
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
         ('etc', glob.glob('etc/*')),

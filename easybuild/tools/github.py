@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -603,7 +603,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
 
-    git_repo.create_head(pr_branch).checkout()
+    # create branch to commit to and push;
+    # use force to avoid errors if branch already exists (OK since this is a local temporary copy of the repo)
+    git_repo.create_head(pr_branch, force=True).checkout()
     _log.info("New branch '%s' created to commit files to", pr_branch)
 
     # stage

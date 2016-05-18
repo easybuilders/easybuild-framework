@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -1522,7 +1522,7 @@ class EasyConfigTest(EnhancedTestCase):
             ecs, _ = parse_easyconfigs(ec_files)
 
             dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, retain_all_deps=True)
+            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
             dep_graph(dot_file, ordered_ecs)
 
             # hard check for expect .dot file contents
@@ -1597,6 +1597,13 @@ class EasyConfigTest(EnhancedTestCase):
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
+
+        # no problem with special characters in software name
+        ec['name'] = 'nosuchsoftware++'
+        testplusplus = os.path.join(self.test_prefix, '%s-1.2.3.eb' % ec['name'])
+        write_file(testplusplus, "name = %s" % ec['name'])
+        res = find_related_easyconfigs(self.test_prefix, ec)
+        self.assertTrue(res and os.path.samefile(res[0], testplusplus))
 
     def test_modaltsoftname(self):
         """Test specifying an alternative name for the software name, to use when determining module name."""

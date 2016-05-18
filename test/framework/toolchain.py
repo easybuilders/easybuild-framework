@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -32,6 +32,7 @@ import os
 import re
 import shutil
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TestLoader, main
 from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
 
@@ -42,7 +43,6 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -55,7 +55,7 @@ class ToolchainTest(EnhancedTestCase):
         """Get a toolchain object instance to test with."""
         tc_class, _ = search_toolchain(name)
         self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version=version, mns=ActiveMNS())
+        tc = tc_class(version=version, mns=ActiveMNS(), modtool=self.modtool)
         return tc
 
     def test_toolchain(self):
@@ -206,7 +206,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
                     else:
                         self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
-                modules.modules_tool().purge()
+                self.modtool.purge()
 
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
@@ -222,7 +222,7 @@ class ToolchainTest(EnhancedTestCase):
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
             self.assertTrue(flag in flags)
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt': True, 'lowopt':True})
@@ -231,7 +231,7 @@ class ToolchainTest(EnhancedTestCase):
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertTrue(flag in flags)
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
@@ -260,7 +260,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
-                modules.modules_tool().purge()
+                self.modtool.purge()
 
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
@@ -283,7 +283,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
-                modules.modules_tool().purge()
+                self.modtool.purge()
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
@@ -308,7 +308,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
                     else:
                         self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
-                modules.modules_tool().purge()
+                self.modtool.purge()
 
     def test_optarch_generic(self):
         """Test whether --optarch=GENERIC works as intended."""
@@ -351,7 +351,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
-                modules.modules_tool().purge()
+                self.modtool.purge()
 
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
@@ -379,7 +379,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(val in flags)
                     else:
                         self.assertTrue(val not in flags)
-                modules.modules_tool().purge()
+                self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
         """Test for cgoolf toolchain."""
@@ -404,23 +404,20 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("GCC", version="4.7.2")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), None)
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         # check full toolchain including MPI
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "OpenMPI")
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         # check another one
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
-
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
 
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
@@ -450,31 +447,37 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def setup_sandbox_for_intel_fftw(self, imklver='10.3.12.361'):
+    def setup_sandbox_for_intel_fftw(self, moddir, imklver='10.3.12.361'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
-        # rewrite $root in imkl module so we can put required lib*.a files in place
-        tmpdir = tempfile.mkdtemp()
+        # create dummy imkl module and put required lib*.a files in place
 
-        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-        imkl_module_path = os.path.join(test_modules_path, 'imkl', imklver)
-        imkl_module_txt = open(imkl_module_path, 'r').read()
-        regex = re.compile('^(set\s*root).*$', re.M)
-        imkl_module_alt_txt = regex.sub(r'\1\t%s' % tmpdir, imkl_module_txt)
-        open(imkl_module_path, 'w').write(imkl_module_alt_txt)
+        imkl_module_path = os.path.join(moddir, 'imkl', imklver)
+        imkl_dir = os.path.join(self.test_prefix, 'software', 'imkl', imklver)
 
-        fftw_libs = ['fftw3xc_intel', 'fftw3x_cdft', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
-        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        imkl_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv EBROOTIMKL %s" % imkl_dir,
+            "setenv EBVERSIONIMKL %s" % imklver,
+        ])
+        write_file(imkl_module_path, imkl_mod_txt)
+
+        fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
+        fftw_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        if LooseVersion(imklver) >= LooseVersion('11'):
+            fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])
+        else:
+            fftw_libs.append('fftw3x_cdft')
+
         for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
-            os.makedirs(os.path.join(tmpdir, subdir))
+            os.makedirs(os.path.join(imkl_dir, subdir))
             for fftlib in fftw_libs:
-                write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
-
-        return tmpdir, imkl_module_path, imkl_module_txt
+                write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
 
     def test_ictce_toolchain(self):
         """Test for ictce toolchain."""
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
@@ -484,7 +487,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('F77'), 'ifort')
         self.assertEqual(tc.get_variable('F90'), 'ifort')
         self.assertEqual(tc.get_variable('FC'), 'ifort')
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True}
@@ -501,18 +504,22 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
         self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True, 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
 
-        self.assertTrue('-mt_mpi' in tc.get_variable('CFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('CXXFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('FCFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('FFLAGS'))
-        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))
+        for flag in ['-mt_mpi', '-fopenmp']:
+            for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                self.assertTrue(flag in tc.get_variable(var))
+
+        # -openmp is deprecated for new Intel compiler versions
+        self.assertFalse('-openmp' in tc.get_variable('CFLAGS'))
+        self.assertFalse('-openmp' in tc.get_variable('CXXFLAGS'))
+        self.assertFalse('-openmp' in tc.get_variable('FFLAGS'))
+
         self.assertEqual(tc.get_variable('CC'), 'mpicc')
         self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('F77'), 'mpif77')
@@ -522,27 +529,34 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
 
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
+        # different flag for OpenMP with old Intel compilers (11.x)
+        modules.modules_tool().purge()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
+        opts = {'openmp': True}
+        tc.set_options(opts)
+        tc.prepare()
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+            self.assertTrue('-openmp' in tc.get_variable(var))
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         # toolchain modules missing a toolchain element should fail verification
         error_msg = "List of toolchain dependency modules and toolchain definition do not match"
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenFFTW")
         self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenBLACS")
         self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
-        modules.modules_tool().purge()
+        self.modtool.purge()
 
         # missing optional toolchain elements are fine
         tc = self.get_toolchain('goolfc', version='1.3.12')
@@ -557,17 +571,14 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
 
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
-
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
@@ -584,7 +595,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.add_dependencies(deps)
         tc.prepare()
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4']
-        self.assertTrue([m['mod_name'] for m in modules_tool().list()], mods)
+        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
 
     def test_prepare_deps_external(self):
         """Test preparing for a toolchain when dependencies and external modules are involved."""
@@ -611,7 +622,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.add_dependencies(deps)
         tc.prepare()
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
-        self.assertTrue([m['mod_name'] for m in modules_tool().list()], mods)
+        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertTrue(os.environ['EBROOTTOY'].endswith('software/toy/0.0'))
         self.assertEqual(os.environ['EBVERSIONTOY'], '0.0')
         self.assertFalse('EBROOTFOOBAR' in os.environ)
@@ -632,7 +643,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['FOOBAR_PREFIX'] = '/foo/bar'
         tc.prepare()
         mods = ['GCC/4.6.4', 'hwloc/1.6.2-GCC-4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4', 'toy/0.0']
-        self.assertTrue([m['mod_name'] for m in modules_tool().list()], mods)
+        self.assertTrue([m['mod_name'] for m in self.modtool.list()], mods)
         self.assertEqual(os.environ['EBROOTTOY'], '/foo/bar')
         self.assertEqual(os.environ['EBVERSIONTOY'], '1.2.3')
         self.assertEqual(os.environ['EBROOTFOOBAR'], '/foo/bar')
@@ -643,8 +654,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_old_new_iccifort(self):
         """Test whether preparing for old/new Intel compilers works correctly."""
-        tmpdir1, imkl_module_path1, imkl_module_txt1 = self.setup_sandbox_for_intel_fftw(imklver='10.3.12.361')
-        tmpdir2, imkl_module_path2, imkl_module_txt2 = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.3.12.361')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        self.modtool.prepend_module_path(self.test_prefix)
 
         # incl. -lguide
         libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
@@ -668,31 +680,31 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
-        modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
         self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
-        modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
         self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
-        modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
         self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
-        modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
         tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
         self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
-        modules_tool().purge()
+        self.modtool.purge()
 
         libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
         tc = self.get_toolchain('ictce', version='4.1.13')
@@ -700,18 +712,12 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
         self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
-        modules_tool().purge()
+        self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
-
-        # cleanup
-        shutil.rmtree(tmpdir1)
-        shutil.rmtree(tmpdir2)
-        write_file(imkl_module_path1, imkl_module_txt1)
-        write_file(imkl_module_path2, imkl_module_txt2)
 
     def test_independence(self):
         """Test independency of toolchain instances."""
@@ -738,13 +744,73 @@ class ToolchainTest(EnhancedTestCase):
         # purposely obtain toolchains several times in a row, value for $CFLAGS should not change
         for _ in range(3):
             for tcname, tcversion in toolchains:
-                tc = get_toolchain({'name': tcname, 'version': tcversion}, {}, mns=ActiveMNS())
+                tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
+                                   mns=ActiveMNS(), modtool=self.modtool)
                 tc.set_options({})
                 tc.prepare()
                 expected_cflags = tc_cflags[tcname]
                 msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
                 self.assertEqual(str(tc.variables['CFLAGS']), expected_cflags, msg)
                 self.assertEqual(os.environ['CFLAGS'], expected_cflags, msg)
+
+    def test_pgi_toolchain(self):
+        """Tests for PGI toolchain."""
+        # add dummy PGI modules to play with
+        write_file(os.path.join(self.test_prefix, 'PGI', '14.9'), '#%Module\nsetenv EBVERSIONPGI 14.9')
+        write_file(os.path.join(self.test_prefix, 'PGI', '14.10'), '#%Module\nsetenv EBVERSIONPGI 14.10')
+        write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), '#%Module\nsetenv EBVERSIONPGI 16.3')
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('PGI', version='14.9')
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('CC'), 'pgcc')
+        self.assertEqual(tc.get_variable('CXX'), 'pgCC')
+        self.assertEqual(tc.get_variable('F77'), 'pgf77')
+        self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+        self.assertEqual(tc.get_variable('FC'), 'pgfortran')
+        self.modtool.purge()
+
+        for pgi_ver in ['14.10', '16.3']:
+            tc = self.get_toolchain('PGI', version=pgi_ver)
+            tc.prepare()
+
+            self.assertEqual(tc.get_variable('CC'), 'pgcc')
+            self.assertEqual(tc.get_variable('CXX'), 'pgc++')
+            self.assertEqual(tc.get_variable('F77'), 'pgf77')
+            self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+            self.assertEqual(tc.get_variable('FC'), 'pgfortran')
+
+    def test_pgi_imkl(self):
+        """Test setup of build environment for toolchain with PGI and Intel MKL."""
+        pomkl_mod_txt = '\n'.join([
+            '#%Module',
+            "module load PGI/16.3",
+            "module load OpenMPI/1.10.2-PGI-16.3",
+            "module load imkl/11.3.2.181",
+        ])
+        write_file(os.path.join(self.test_prefix, 'pomkl', '2016.03'), pomkl_mod_txt)
+        pgi_mod_txt = '\n'.join([
+            '#%Module',
+            "setenv EBROOTPGI %s" % self.test_prefix,
+            "setenv EBVERSIONPGI 16.3",
+        ])
+        write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), pgi_mod_txt)
+        ompi_mod_txt = '\n'.join([
+            '#%Module',
+            "setenv EBROOTOPENMPI %s" % self.test_prefix,
+            "setenv EBVERSIONOPENMPI 1.10.2",
+        ])
+        write_file(os.path.join(self.test_prefix, 'OpenMPI', '1.10.2-PGI-16.3'), ompi_mod_txt)
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='11.3.2.181')
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('pomkl', version='2016.03')
+        tc.prepare()
+
+        liblapack = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core "
+        liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
+        self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
 
 
 def suite():

@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -28,14 +28,5 @@ Declares EasyBuild namespace, in an extendable way.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import os
 import pkg_resources
-import sys
-
-# check whether EasyBuild is being run from a directory that contains easybuild/__init__.py;
-# that doesn't work (fails with import errors), due to weirdness to Python packaging/setuptools/namespaces
-if __path__[0] == 'easybuild':
-    sys.stderr.write("ERROR: Running EasyBuild from %s does not work (Python packaging weirdness)...\n" % os.getcwd())
-    sys.exit(1)
-
 pkg_resources.declare_namespace(__name__)

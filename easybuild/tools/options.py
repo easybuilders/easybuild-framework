@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -33,6 +33,7 @@ Command line options for eb
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import glob
 import os
 import re
@@ -61,6 +62,7 @@ from easybuild.tools.config import DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
+from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -156,6 +158,8 @@ class EasyBuildOptions(GeneralOption):
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
+
+        self.with_include = kwargs.pop('with_include', True)
 
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
@@ -584,8 +588,9 @@ class EasyBuildOptions(GeneralOption):
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
 
-        # take --include options into account
-        self._postprocess_include()
+        # take --include options into account (unless instructed otherwise)
+        if self.with_include:
+            self._postprocess_include()
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
@@ -625,6 +630,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
+        # handle configuration options that affect other configuration options
         self._postprocess_config()
 
         # show current configuration and exit, if requested
@@ -902,10 +908,27 @@ class EasyBuildOptions(GeneralOption):
 
     def show_config(self):
         """Show specified EasyBuild configuration, relative to default EasyBuild configuration."""
+        # keep copy of original environment, so we can restore it later
+        orig_env = copy.deepcopy(os.environ)
+
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
         include_opts = ['buildpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
+
+        def reparse_cfg(args=None, withcfg=True):
+            """
+            Utility function to reparse EasyBuild configuration.
+            @param args: command line arguments to pass to configuration parser
+            @param withcfg: whether or not to also consider configuration files
+            @return: dictionary with parsed configuration options, by option group
+            """
+            if args is None:
+                args = []
+            cfg = EasyBuildOptions(go_args=args, go_useconfigfiles=withcfg, envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                                   with_include=False)
+
+            return cfg.dict_by_prefix()
 
         def det_location(opt, prefix=''):
             """Determine location where option was defined."""
@@ -922,9 +945,15 @@ class EasyBuildOptions(GeneralOption):
 
             return loc
 
-        default_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None, go_useconfigfiles=False).dict_by_prefix()
-        cfgfile_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None).dict_by_prefix()
-        env_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
+        # modify environment such that no $EASYBUILD_* environment variables are defined
+        unset_env_vars([v for v in os.environ if v.startswith(CONFIG_ENV_VAR_PREFIX)], verbose=False)
+        no_eb_env = copy.deepcopy(os.environ)
+
+        default_opts_dict = reparse_cfg(withcfg=False)
+        cfgfile_opts_dict = reparse_cfg()
+
+        restore_env(orig_env)
+        env_opts_dict = reparse_cfg()
 
         # options relevant to config files should always be passed,
         # but we need to figure out first where these options were defined...
@@ -941,9 +970,12 @@ class EasyBuildOptions(GeneralOption):
             if self.options.show_full_config or opt in include_opts or not is_default:
                 opts_dict[opt] = (opt_val, det_location(opt))
 
-        # determine option dicts by selectively disabling configuration levels (but specify configfiles)
-        cfgfile_opts_dict = EasyBuildOptions(go_args=args, envvar_prefix=None).dict_by_prefix()
-        env_opts_dict = EasyBuildOptions(go_args=args, envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
+        # determine option dicts by selectively disabling configuration levels (but enable use configfiles)
+        restore_env(no_eb_env)
+        cfgfile_opts_dict = reparse_cfg(args=args)
+
+        restore_env(orig_env)
+        env_opts_dict = reparse_cfg(args=args)
 
         # construct options dict to pretty print
         for prefix in sorted(default_opts_dict):
@@ -965,7 +997,7 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
 
-def parse_options(args=None):
+def parse_options(args=None, with_include=True):
     """wrapper function for option parsing"""
     if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
         # very early debug, to debug the generaloption itself
@@ -978,7 +1010,8 @@ def parse_options(args=None):
 
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror)
+                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror,
+                                 with_include=with_include)
     except Exception as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
 

@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -43,11 +43,13 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
 import urllib2
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
+from xml.etree import ElementTree
 
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
@@ -237,6 +239,54 @@ def det_common_path_prefix(paths):
         return prefix.rstrip(os.path.sep) or None
     else:
         return None
+
+
+def is_alt_pypi_url(url):
+    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+    alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
+    res = bool(alt_url_regex.search(url))
+    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+               url, alt_url_regex.pattern, res)
+    return res
+
+
+def derive_alt_pypi_url(url):
+    """Derive alternate PyPI URL for given URL, using 'simple' PyPI API."""
+    # see also https://www.python.org/dev/peps/pep-0503/
+    alt_pypi_url = None
+
+    # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
+    pkg_name, pkg_source = url.strip().split('/')[-2:]
+
+    # e.g. https://pypi.python.org/simple/easybuild
+    # cfr. https://wiki.python.org/moin/PyPISimple
+    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+
+    tmpdir = tempfile.mkdtemp()
+    links_html = os.path.join(tmpdir, '%s_links.html' % pkg_name)
+    res = download_file(os.path.basename(links_html), simple_url, links_html)
+    if res is None:
+        _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
+    else:
+        parsed_html = ElementTree.parse(links_html)
+        if hasattr(parsed_html, 'iter'):
+            links = [a.attrib['href'] for a in parsed_html.iter('a')]
+        else:
+            links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+
+        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
+        for link in links:
+            res = regex.match(link)
+            if res:
+                # e.g. .../5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+                alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
+                break
+
+        if not alt_pypi_url:
+            _log.debug("Failed to extract hash using pattern '%s' from list of links: %s", regex.pattern, links)
+
+    return alt_pypi_url
 
 
 def download_file(filename, url, path, forced=False):
@@ -947,6 +997,9 @@ def rmtree2(path, n=3):
         except OSError, err:
             _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
             time.sleep(2)
+
+            # make sure write permissions are enabled on entire directory
+            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
     if not ok:
         raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
     else:

@@ -3,6 +3,49 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.8.0 (May 18th 2016)
+----------------------
+
+feature + bugfix release
+- significant speedup improvements of EasyBuild itself, thanks to:
+    - stop creating ModulesTool instances over and over again (#1735)
+    - cache result of 'module avail' calls (#1742)
+- add support for using PGI as toolchain compiler (#1342, #1664, #1759, #1761, #1764)
+    - incl. new toolchain definitions pompi and pomkl (#1724)
+- add test configuration for Travis (#1733, #1737, #1743, #1767)
+- various other enhancements, including:
+    - add get_total_memory() function in systemtools module (#1623)
+    - ignore __init__.py files in --include-* (#1704)
+    - use -fopenmp rather than -openmp for Intel compilers, since -openmp is deprecated (#1718)
+    - add modules to metadata for Cray modules (#1721)
+    - make sure user write permissions are set after failed removal attempt of installation directory (#1722)
+    - escape special characters in software name in find_related_easyconfigs (#1726)
+    - add support for CrayPGI compiler toolchain (#1729)
+    - ensure read permission to all installed files for everybody (unless other options specify otherwise) (#1731)
+    - also consider $LMOD_CMD in bootstrap script (#1736)
+    - translate PyPI download URL to alternate URL with a hash (#1749)
+    - make get_software_libdir compatible with -x (#1750)
+    - set $LMOD_REDIRECT to 'no' when initialising Lmod (#1755)
+    - add test for broken modules tool setup affecting 'module use' (#1758)
+- various bug fixes, including:
+    - isolate 'options' tests from easyblocks other than the ones included in the tests (#1699)
+    - don't run 'module purge' in tests, since EasyBuild may be made available through a module (#1702)
+    - avoid rehandling --include-* options over and over again during --show-config (#1705)
+    - remove useless test_cwd (#1706)
+    - fix bootstrap script: make sure setuptools installed in stage0 is still available at end of stage1 (#1727)
+    - forcibly create target branch in --update-pr (#1728)
+    - remove check whether 'easybuild' is being imported from dir that contains easybuild/__init__.py (#1730)
+    - (re)install vsc-base during stage1 using --always-copy in bootstrap script, if needed (#1732)
+    - use os.path.realpath in test_wrong_modulepath to avoid symlinked path breaking the test (#1740)
+    - unset $PYTHONPATH in before tested bootstrapped EasyBuild module (#1743)
+    - take into account that paths in modulepath may be symlinks in test_module_caches (#1745)
+    - change to install dir rather than buildpath in sanity check of extension, latter may not exist (#1746, #1748)
+    - only load modules using short module names (#1754)
+    - (re)load modules for build deps in extensions_step (#1762)
+    - fix modpath_extensions_for method: take into account modules in Lua syntax (#1766)
+    - fix broken link to VSC website in license headers (#1768)
+
+
 v2.7.0 (March 20th 2016)
 ------------------------
 

@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -83,9 +83,8 @@ except ImportError:
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
 
-def skip_available(easyconfigs):
+def skip_available(easyconfigs, modtool):
     """Skip building easyconfigs for existing modules."""
-    modtool = modules_tool()
     module_names = [ec['full_mod_name'] for ec in easyconfigs]
     modules_exist = modtool.exist(module_names)
     retained_easyconfigs = []
@@ -98,7 +97,7 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
+def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=False):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
 
@@ -108,7 +107,6 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
     """
     ordered_ecs = []
     new_easyconfigs = []
-    modtool = modules_tool()
     # copy, we don't want to modify the origin list of available modules
     avail_modules = avail_modules[:]
     _log.debug("Finding resolved modules for %s (available modules: %s)", easyconfigs, avail_modules)
@@ -434,7 +432,7 @@ def find_related_easyconfigs(path, ec):
 
     regexes = []
     for version_pattern in version_patterns:
-        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (name, version_pattern)
+        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (re.escape(name), version_pattern)
         regexes.extend([
             common_pattern % (toolchain_pattern + versionsuffix),
             common_pattern % (toolchain_name_pattern + versionsuffix),

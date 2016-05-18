@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -70,7 +70,7 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs, targetdir=None):
+def tweak(easyconfigs, build_specs, modtool, targetdir=None):
     """Tweak list of easyconfigs according to provided build specifications."""
 
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
@@ -89,14 +89,14 @@ def tweak(easyconfigs, build_specs, targetdir=None):
         # obtain full dependency graph for specified easyconfigs
         # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
         _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
-        orig_ecs = resolve_dependencies(easyconfigs, retain_all_deps=True)
+        orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
     # keep track of originally listed easyconfigs (via their path)
     listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
     # obtain full dependency graph for specified easyconfigs
     # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
-    orig_ecs = resolve_dependencies(easyconfigs, retain_all_deps=True)
+    orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
     # determine toolchain based on last easyconfigs
     toolchain = orig_ecs[-1]['ec']['toolchain']

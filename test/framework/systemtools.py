@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -37,14 +37,12 @@ import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, LINUX, POWER, UNKNOWN, VENDORS
+from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info, get_gcc_version
+from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
 
-
-MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
-PROC_CPUINFO_FP = '/proc/cpuinfo'
 
 PROC_CPUINFO_TXT = None
 PROC_CPUINFO_TXT_ARM = """processor : 0
@@ -134,6 +132,50 @@ cache_alignment	: 64
 address sizes	: 46 bits physical, 48 bits virtual
 power management:
 """
+PROC_MEMINFO_TXT = """MemTotal:       66059108 kB
+MemFree:         2639988 kB
+Buffers:          236368 kB
+Cached:         59396644 kB
+SwapCached:           84 kB
+Active:          3288736 kB
+Inactive:       56906588 kB
+Active(anon):     246284 kB
+Inactive(anon):   348796 kB
+Active(file):    3042452 kB
+Inactive(file): 56557792 kB
+Unevictable:     1048576 kB
+Mlocked:            2048 kB
+SwapTotal:      20971516 kB
+SwapFree:       20969556 kB
+Dirty:                76 kB
+Writeback:             0 kB
+AnonPages:       1610864 kB
+Mapped:           118176 kB
+Shmem:             32744 kB
+Slab:             891272 kB
+SReclaimable:     646764 kB
+SUnreclaim:       244508 kB
+KernelStack:       18960 kB
+PageTables:        31528 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    54001068 kB
+Committed_AS:    2331888 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:      492584 kB
+VmallocChunk:   34325311012 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:   1232896 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:        5056 kB
+DirectMap2M:     2045952 kB
+DirectMap1G:    65011712 kB
+"""
 
 
 def mocked_read_file(fp):
@@ -141,6 +183,7 @@ def mocked_read_file(fp):
     known_fps = {
         MAX_FREQ_FP:  '2850000',
         PROC_CPUINFO_FP: PROC_CPUINFO_TXT,
+        PROC_MEMINFO_FP: PROC_MEMINFO_TXT,
     }
     if fp in known_fps:
         return known_fps[fp]
@@ -160,6 +203,7 @@ def mocked_run_cmd(cmd, **kwargs):
         "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
+        "sysctl -n hw.memsize": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
@@ -387,7 +431,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_gcc_version_native(self):
         """Test getting gcc version."""
         gcc_version = get_gcc_version()
-        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == UNKNOWN or gcc_version is None)
+        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == None)
 
     def test_gcc_version_linux(self):
         """Test getting gcc version (mocked for Linux)."""
@@ -416,6 +460,24 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting glibc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         self.assertEqual(get_glibc_version(), UNKNOWN)
+
+    def test_get_total_memory_linux(self):
+        """Test the function that gets the total memory."""
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_MEMINFO_FP, fp)
+        self.assertEqual(get_total_memory(), 64510)
+
+    def test_get_total_memory_darwin(self):
+        """Test the function that gets the total memory."""
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_total_memory(), 8192)
+
+    def test_get_total_memory_native(self):
+        """Test the function that gets the total memory."""
+        memtotal = get_total_memory()
+        self.assertTrue(isinstance(memtotal, int))
 
     def test_system_info(self):
         """Test getting system info."""

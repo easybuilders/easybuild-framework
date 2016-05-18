@@ -5,7 +5,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -151,7 +151,7 @@ def include_easyblocks(tmpdir, paths):
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
-    allpaths = expand_glob_paths(paths)
+    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 
@@ -200,7 +200,7 @@ def include_module_naming_schemes(tmpdir, paths):
 
     mns_dir = os.path.join(mns_path, 'easybuild', 'tools', 'module_naming_scheme')
 
-    allpaths = expand_glob_paths(paths)
+    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
     for mns_module in allpaths:
         filename = os.path.basename(mns_module)
         target_path = os.path.join(mns_dir, filename)
@@ -232,7 +232,7 @@ def include_toolchains(tmpdir, paths):
 
     tcs_dir = os.path.join(toolchains_path, 'easybuild', 'toolchains')
 
-    allpaths = expand_glob_paths(paths)
+    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
     for toolchain_module in allpaths:
         filename = os.path.basename(toolchain_module)
 

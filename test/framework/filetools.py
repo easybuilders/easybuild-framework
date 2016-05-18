@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -37,6 +37,7 @@ import tempfile
 import urllib2
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
+from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
@@ -89,11 +90,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(name, "testplustestmintestmpi")
         name = ft.convert_name("test+test-test.mpi", True)
         self.assertEqual(name, "TESTPLUSTESTMINTESTMPI")
-
-    def test_cwd(self):
-        """tests should be run from the base easybuild directory"""
-        # used to be part of test_parse_log_error
-        self.assertEqual(os.getcwd(), ft.find_base_dir())
 
     def test_find_base_dir(self):
         """test if we find the correct base dir"""
@@ -632,6 +628,28 @@ class FileToolsTest(EnhancedTestCase):
         del os.environ['INTEL_LICENSE_FILE']
         del os.environ['LM_LICENSE_FILE']
         self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
+
+    def test_is_alt_pypi_url(self):
+        """Test is_alt_pypi_url() function."""
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
+        self.assertFalse(ft.is_alt_pypi_url(url))
+
+        url = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
+        self.assertTrue(ft.is_alt_pypi_url(url))
+
+    def test_derive_alt_pypi_url(self):
+        """Test derive_alt_pypi_url() function."""
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
+        alturl = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
+        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+
+        # no crash on non-existing version
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-0.0.0.tar.gz'
+        self.assertEqual(ft.derive_alt_pypi_url(url), None)
+
+        # no crash on non-existing package
+        url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
+        self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
 
 def suite():

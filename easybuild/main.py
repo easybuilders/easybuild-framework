@@ -5,7 +5,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -56,12 +56,13 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
+from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -182,7 +183,7 @@ def handle_github_options(options, ec_paths):
     return done
 
 
-def main(args=None, logfile=None, do_build=None, testing=False):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
     @param args: command line arguments to use
@@ -250,6 +251,9 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
 
+    if modtool is None:
+        modtool = modules_tool(testing=testing)
+
     if options.last_log:
         # print location to last log file, and exit
         last_log = find_last_log(logfile) or '(none)'
@@ -277,7 +281,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
-    modlist = session_module_list(testing=testing)  # build options must be initialized first before 'module list' works
+    modlist = modtool.list()  # build options must be initialized first before 'module list' works
     init_session_state.update({'easybuild_configuration': eb_config})
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
@@ -310,7 +314,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         # fallback: easybuild-easyconfigs install path
-        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths)
+        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths, modtool)
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
@@ -322,11 +326,11 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, targetdir=tweaked_ecs_path)
+        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdir=tweaked_ecs_path)
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, short=not options.dry_run)
+        txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # dump source script to set up build environment
@@ -340,7 +344,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # skip modules that are already installed unless forced
     if not (options.force or options.rebuild or options.extended_dry_run):
-        retained_ecs = skip_available(easyconfigs)
+        retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
                 print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
@@ -350,7 +354,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs)
+            ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
     else:

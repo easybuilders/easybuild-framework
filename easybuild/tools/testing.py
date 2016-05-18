@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -47,7 +47,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_system_info
@@ -58,10 +57,11 @@ from vsc.utils import fancylogger
 _log = fancylogger.getLogger('testing', fname=False)
 
 
-def regtest(easyconfig_paths, build_specs=None):
+def regtest(easyconfig_paths, modtool, build_specs=None):
     """
     Run regression test, using easyconfigs available in given path
     @param easyconfig_paths: path of easyconfigs to run regtest on
+    @param modtool: ModulesTool instance to use
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
@@ -109,13 +109,13 @@ def regtest(easyconfig_paths, build_specs=None):
     # skip easyconfigs for which a module is already available, unless forced
     if not build_option('force'):
         _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
-        easyconfigs = skip_available(easyconfigs)
+        easyconfigs = skip_available(easyconfigs, modtool)
         _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
 
     if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs)
+        resolved = resolve_dependencies(easyconfigs, modtool)
 
         cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
@@ -136,12 +136,6 @@ def session_state():
         'environment': copy.deepcopy(os.environ),
         'system_info': get_system_info(),
     }
-
-
-def session_module_list(testing=False):
-    """Get list of loaded modules ('module list')."""
-    modtool = modules_tool(testing=testing)
-    return modtool.list()
 
 
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False):

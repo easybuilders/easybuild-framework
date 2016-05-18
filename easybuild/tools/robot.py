@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -43,7 +43,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import modules_tool
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
@@ -63,7 +62,7 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
     return robot_path
 
 
-def dry_run(easyconfigs, short=False):
+def dry_run(easyconfigs, modtool, short=False):
     """
     Compose dry run overview for supplied easyconfigs:
     * [ ] for unavailable
@@ -71,6 +70,7 @@ def dry_run(easyconfigs, short=False):
     * [F] for forced
     * [R] for rebuild
     @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
+    @param modtool: ModulesTool instance to use
     @param short: use short format for overview: use a variable for common prefixes
     """
     lines = []
@@ -79,9 +79,9 @@ def dry_run(easyconfigs, short=False):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
-    unbuilt_specs = skip_available(all_specs)
+    unbuilt_specs = skip_available(all_specs, modtool)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
 
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
@@ -117,10 +117,11 @@ def dry_run(easyconfigs, short=False):
     return '\n'.join(lines)
 
 
-def resolve_dependencies(easyconfigs, retain_all_deps=False):
+def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param easyconfigs: list of easyconfigs
+    @param modtool: ModulesTool instance to use
     @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
@@ -128,7 +129,7 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False):
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 
-    avail_modules = modules_tool().available()
+    avail_modules = modtool.available()
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
@@ -159,7 +160,7 @@ def resolve_dependencies(easyconfigs, retain_all_deps=False):
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
-            res = find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=retain_all_deps)
+            res = find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=retain_all_deps)
             resolved_ecs, easyconfigs, avail_modules = res
             ordered_ec_mod_names = [x['full_mod_name'] for x in ordered_ecs]
             for ec in resolved_ecs:

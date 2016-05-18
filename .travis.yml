@@ -1,0 +1,75 @@
+language: python
+python: 2.6
+env:
+  matrix:
+    # purposely specifying slowest builds first, to gain time overall
+    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
+    - ENV_MOD_VERSION=3.2.10
+    - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+matrix:
+  # mark build as finished as soon as job has failed
+  fast_finish: true
+  include:
+    # also test default configuration with Python 2.7
+    - python: 2.7
+      env: ENV_MOD_VERSION=3.2.10
+addons:
+  apt:
+    packages:
+      # for environment modules/Lmod
+      - tcl8.5
+      # for EasyBuild
+      - python-setuptools
+      # for GitPython, python-hglib
+      - git
+      - mercurial
+      # for GC3Pie (optional dep for EasyBuild)
+      - time
+before_install:
+    # keyring is required to provide GitHub token to EasyBuild;
+    # keyring v5.7.1 is last version to be compatible with py2.6;
+    # for recent versions of keyring, keyrings.alt must be installed too
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install keyring==5.7.1; else pip install keyring keyrings.alt; fi
+    # optional Python packages for EasyBuild
+    - pip install autopep8 GC3Pie GitPython python-graph-dot python-hglib PyYAML
+    # git config is required to make actual git commits (cfr. tests for GitRepository)
+    - git config --global user.name "Travis CI"
+    - git config --global user.email "travis@travis-ci.org"
+install:
+    # install vsc-base (& vsc-install) dependencies for EasyBuild
+    - easy_install vsc-base
+    # install environment modules or Lmod
+    - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
+    - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
+    - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
+    - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
+    - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
+script:
+    # set up environment for modules tool (if $MOD_INIT is defined)
+    - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
+    # set up environment for EasyBuild framework tests
+    - export PATH=$TRAVIS_BUILD_DIR:$PATH
+    - export PYTHONPATH=$TRAVIS_BUILD_DIR
+    # install GitHub token
+    - if [ ! -z $GITHUB_TOKEN ]; then
+        if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
+            then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
+            else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
+        fi;
+        python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
+      fi
+    # run test suite
+    - python -O -m test.framework.suite
+    # configure EasyBuild before running bootstrap (modules tool/syntax to use)
+    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
+    # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
+    - cd $HOME
+    # test bootstrap script
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
+    - unset PYTHONPATH
+    # simply sanity check on bootstrapped EasyBuild module
+    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
