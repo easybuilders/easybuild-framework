@@ -201,9 +201,10 @@ def check_module_command(tmpdir):
                 break
 
     if easybuild_modules_tool is None:
+        mod_cmds = [m for (m, _) in known_module_commands]
         msg = [
             "Could not find any module command, make sure one available in your $PATH.",
-            "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
+            "Known module commands are checked in order, and include: %s" % ', '.join(mod_cmds),
             "Check the output of 'type module' to determine the location of the module command you are using.",
         ]
         error('\n'.join(msg))
