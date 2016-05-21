@@ -448,6 +448,33 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
         self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
+    def test_expand_glob_paths(self):
+        """Test expand_glob_paths function."""
+        for dirname in ['empty_dir', 'test_dir']:
+            ft.mkdir(os.path.join(self.test_prefix, dirname), parents=True)
+        for filename in ['file1.txt', 'test_dir/file2.txt', 'test_dir/file3.txt', 'test_dir2/file4.dat']:
+            ft.write_file(os.path.join(self.test_prefix, filename), 'gibberish')
+
+        globs = [os.path.join(self.test_prefix, '*.txt'), os.path.join(self.test_prefix, '*', '*')]
+        expected = [
+            os.path.join(self.test_prefix, 'file1.txt'),
+            os.path.join(self.test_prefix, 'test_dir', 'file2.txt'),
+            os.path.join(self.test_prefix, 'test_dir', 'file3.txt'),
+            os.path.join(self.test_prefix, 'test_dir2', 'file4.dat'),
+        ]
+        self.assertEqual(ft.expand_glob_paths(globs), expected)
+
+        # passing non-glob patterns is fine too
+        file2 = os.path.join(self.test_prefix, 'test_dir', 'file2.txt')
+        self.assertEqual(ft.expand_glob_paths([file2]), [file2])
+
+        # test expanding of '~' into $HOME value
+        # hard overwrite $HOME in environment (used by os.path.expanduser) so we can reliably test this
+        new_home = os.path.join(self.test_prefix, 'home')
+        ft.mkdir(new_home, parents=True)
+        ft.write_file(os.path.join(new_home, 'test.txt'), 'test')
+        os.environ['HOME'] = new_home
+        self.assertEqual(ft.expand_glob_paths(['~/*.txt']), [os.path.join(new_home, 'test.txt')])
 
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
