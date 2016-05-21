@@ -536,6 +536,13 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
         shutil.rmtree(nonpath)
 
+        # create symlink to entry in $MODULEPATH we're going to use, and add it to $MODULEPATH
+        # invalidate_module_caches_for should be able to deal with this
+        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        mods_symlink = os.path.join(self.test_prefix, 'modules_symlink')
+        os.symlink(test_mods_path, mods_symlink)
+        self.modtool.use(mods_symlink)
+
         # no caching for 'avail' commands with an argument
         self.assertTrue(self.modtool.available('GCC'))
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
@@ -565,14 +572,13 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(self.modtool.show('FFTW') is show_res_fftw)
 
         # invalidate caches with correct path
-        modpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(modpath, mp) for mp in modulepaths]))
+        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(test_mods_path, mp) for mp in modulepaths]))
         paths_in_key = [p for p in avail_cache_key[0].split('=')[1].split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(p) and os.path.samefile(modpath, p) for p in paths_in_key]))
+        self.assertTrue(any([os.path.exists(p) and os.path.samefile(test_mods_path, p) for p in paths_in_key]))
 
         # verify cache invalidation, caches should be empty again
-        invalidate_module_caches_for(modpath)
+        invalidate_module_caches_for(test_mods_path)
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 
