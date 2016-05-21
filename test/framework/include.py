@@ -75,8 +75,11 @@ class IncludeTest(EnhancedTestCase):
         ])
         write_file(os.path.join(myeasyblocks, 'generic', 'mybar.py'), mybar_easyblock_txt)
 
+        # hijack $HOME to test expanding ~ in locations passed to include_easyblocks
+        os.environ['HOME'] = myeasyblocks
+
         # expand set of known easyblocks with our custom ones
-        glob_paths = [os.path.join(myeasyblocks, '*'), os.path.join(myeasyblocks, '*/*.py')]
+        glob_paths = [os.path.join('~', '*'), os.path.join(myeasyblocks, '*/*.py')]
         included_easyblocks_path = include_easyblocks(self.test_prefix, glob_paths)
 
         expected_paths = ['__init__.py', 'easyblocks/__init__.py', 'easyblocks/myfoo.py',
