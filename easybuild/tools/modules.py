@@ -1149,6 +1149,7 @@ def invalidate_module_caches_for(path):
                     _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
                                key, subcmd, path, cache[key])
                     del cache[key]
+                    break
 
 
 class Modules(EnvironmentModulesC):
