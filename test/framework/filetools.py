@@ -466,7 +466,7 @@ class FileToolsTest(EnhancedTestCase):
             os.path.join(self.test_prefix, 'test_dir', 'file3.txt'),
             os.path.join(self.test_prefix, 'test_dir2', 'file4.dat'),
         ]
-        self.assertEqual(ft.expand_glob_paths(globs), expected)
+        self.assertEqual(sorted(ft.expand_glob_paths(globs)), sorted(expected))
 
         # passing non-glob patterns is fine too
         file2 = os.path.join(self.test_prefix, 'test_dir', 'file2.txt')
