@@ -615,6 +615,10 @@ class FileToolsTest(EnhancedTestCase):
         os.environ['LM_LICENSE_FILE'] = lic_server
         self.assertEqual(ft.find_flexlm_license(), ([lic_server], 'LM_LICENSE_FILE'))
 
+        # duplicates are filtered out, order is maintained
+        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file1, lic_server, self.test_prefix, lic_file2, lic_file1])
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_server, lic_file2], 'LM_LICENSE_FILE'))
+
         # invalid server spec (missing port)
         os.environ['LM_LICENSE_FILE'] = 'test.license.server'
         self.assertEqual(ft.find_flexlm_license(), ([], None))
