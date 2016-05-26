@@ -1,11 +1,11 @@
 # #
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -37,6 +37,7 @@ from unittest import main as unittestmain
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
@@ -55,11 +56,13 @@ debug_echo () {
 }
 
 debug_echo "$@"
+
+#an array of excludes (probably more than one)
+excludes=()
 # only parse what we need to spit out the expected package file, ignore the rest
 while true
 do
     debug_echo "arg: $1"
-    debug_echo "rest: $@"
     case "$1" in
         "--workdir")
             workdir="$2"
@@ -89,6 +92,11 @@ do
         "-s")
             source="$2"
             ;;
+        "--exclude")
+            # pushing this onto an array
+            debug_echo "an exclude being pushed" $2
+            excludes+=("$2")
+            ;;
         --*)
             debug_echo "got a unhandled option"
             ;;
@@ -105,10 +113,17 @@ done
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
 echo $@ >> $pkgfile
-echo "Contents of installdir $installdir:" >> $pkgfile
-ls $installdir >> $pkgfile
+echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
+for exclude in ${excludes[*]}; do
+    exclude_str+=" -not -path /${exclude} "
+done
+find_cmd="find $installdir  $exclude_str "
+debug_echo "trying: $find_cmd"
+$find_cmd >> $pkgfile
+echo "ENDCONTENTS" >> $pkgfile
 echo "Contents of module file $modulefile:" >> $pkgfile
 cat $modulefile >> $pkgfile
+echo "I found excludes "${excludes[*]} >> $pkgfile
 """
 
 
@@ -139,9 +154,6 @@ class PackageTest(EnhancedTestCase):
 
     def test_check_pkg_support(self):
         """Test check_pkg_support()."""
-        # hard enable experimental
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
-        easybuild.tools.build_log.EXPERIMENTAL = True
 
         # clear $PATH to make sure fpm/rpmbuild can not be found
         os.environ['PATH'] = ''
@@ -156,9 +168,6 @@ class PackageTest(EnhancedTestCase):
 
         # no errors => support check passes
         check_pkg_support()
-
-        # restore
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
@@ -188,6 +197,12 @@ class PackageTest(EnhancedTestCase):
         # build & install first
         easyblock.run_all_steps(False)
 
+        # write a dummy log and report file to make sure they don't get packaged
+        logfile = os.path.join(easyblock.installdir, log_path(), "logfile.log")
+        write_file(logfile, "I'm a logfile")
+        reportfile = os.path.join(easyblock.installdir, log_path(), "report.md")
+        write_file(reportfile, "I'm a reportfile")
+
         # package using default packaging configuration (FPM to build RPM packages)
         pkgdir = package(easyblock)
 
@@ -195,11 +210,18 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
         pkgtxt = read_file(pkgfile)
-        pkgtxt_regex = re.compile("Contents of installdir %s" % easyblock.installdir)
+        pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
         self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
 
+        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
+        self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+
         if DEBUG:
+            print "The FPM script debug output"
             print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
+            print "The Package File"
+            print read_file(pkgfile)
+
 
 def suite():
     """ returns all the testcases in this module """

@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -59,7 +59,10 @@ class ModuleGenerator(object):
     CHARS_TO_ESCAPE = None
 
     MODULE_FILE_EXTENSION = None
-    MODULE_HEADER = None
+    MODULE_SHEBANG = None
+
+    # a single level of indentation
+    INDENTATION = ' ' * 4
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -124,8 +127,21 @@ class ModuleGenerator(object):
         """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def conditional_statement(self, condition, body, negative=False):
-        """Return formatted conditional statement, with given condition and body."""
+    def conditional_statement(self, condition, body, negative=False, else_body=None):
+        """
+        Return formatted conditional statement, with given condition and body.
+
+        @param condition: string containing the statement for the if condition (in correct syntax)
+        @param body: (multiline) string with if body (in correct syntax, without indentation)
+        @param negative: boolean indicating whether the condition should be negated
+        @param else_body: optional body for 'else' part
+        """
+        raise NotImplementedError
+
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
         raise NotImplementedError
 
     def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
@@ -146,6 +162,16 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
+        """
+        Generate swap statement for specified module names.
+
+        @param mod_name_out: name of module to unload (swap out)
+        @param mod_name_in: name of module to load (swap in)
+        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        raise NotImplementedError
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -153,7 +179,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     SYNTAX = 'Tcl'
     MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
-    MODULE_HEADER = '#%Module'
+    MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
@@ -163,16 +189,31 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False):
-        """Return formatted conditional statement, with given condition and body."""
+    def conditional_statement(self, condition, body, negative=False, else_body=None):
+        """
+        Return formatted conditional statement, with given condition and body.
+
+        @param condition: string containing the statement for the if condition (in correct syntax)
+        @param body: (multiline) string with if body (in correct syntax, without indentation)
+        @param negative: boolean indicating whether the condition should be negated
+        @param else_body: optional body for 'else' part
+        """
         if negative:
             lines = ["if { ![ %s ] } {" % condition]
         else:
             lines = ["if { [ %s ] } {" % condition]
 
         for line in body.split('\n'):
-            lines.append('    ' + line)
-        lines.extend(['}', ''])
+            lines.append(self.INDENTATION + line)
+
+        if else_body is None:
+            lines.extend(['}', ''])
+        else:
+            lines.append('} else {')
+            for line in else_body.split('\n'):
+                lines.append(self.INDENTATION + line)
+            lines.extend(['}', ''])
+
         return '\n'.join(lines)
 
     def get_description(self, conflict=True):
@@ -184,10 +225,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
         whatis = self.app.cfg['whatis']
         if whatis is None:
             # default: include single 'whatis' statement with description as contents
-            whatis = [description]
+            whatis = ["Description: %s" % description]
 
         lines = [
-            self.MODULE_HEADER.replace('%', '%%'),
             "proc ModulesHelp { } {",
             "    puts stderr { %(description)s",
             "    }",
@@ -251,6 +291,23 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
+        """
+        Generate swap statement for specified module names.
+
+        @param mod_name_out: name of module to unload (swap out)
+        @param mod_name_in: name of module to load (swap in)
+        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        body = "module swap %s %s" % (mod_name_out, mod_name_in)
+        if guarded:
+            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
+            swap_statement = [self.conditional_statement("is-loaded %s" % mod_name_out, body, else_body=alt_body)]
+        else:
+            swap_statement = [body, '']
+
+        return '\n'.join([''] + swap_statement)
+
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths.
@@ -286,13 +343,26 @@ class ModuleGeneratorTcl(ModuleGenerator):
         statements = [template % (key, p) for p in abspaths]
         return ''.join(statements)
 
-    def use(self, paths):
+    def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
+        @param paths: list of module path extensions to generate use statements for; paths will be quoted
+        @param prefix: optional path prefix; not quoted, i.e., can be a statement
+        @param guarded: use statements will be guarded to only apply if path exists
         """
         use_statements = []
         for path in paths:
-            use_statements.append("module use %s\n" % path)
+            quoted_path = quote_str(path)
+            if prefix:
+                full_path = '[ file join %s %s ]' % (prefix, quoted_path)
+            else:
+                full_path = quoted_path
+            if guarded:
+                cond_statement = self.conditional_statement('file isdirectory %s' % full_path,
+                                                            'module use %s' % full_path)
+                use_statements.append(cond_statement)
+            else:
+                use_statements.append("module use %s\n" % full_path)
         return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
@@ -325,6 +395,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        return '$env(%s)' % envvar
+
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
@@ -332,14 +408,14 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     SYNTAX = 'Lua'
     MODULE_FILE_EXTENSION = '.lua'
-    MODULE_HEADER = ''  # no header in Lua module files
+    MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
     LOAD_REGEX = r'^\s*load\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
-    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)\n'
+    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -349,16 +425,31 @@ class ModuleGeneratorLua(ModuleGenerator):
         """Return string containing given message as a comment."""
         return "-- %s\n" % msg
 
-    def conditional_statement(self, condition, body, negative=False):
-        """Return formatted conditional statement, with given condition and body."""
+    def conditional_statement(self, condition, body, negative=False, else_body=None):
+        """
+        Return formatted conditional statement, with given condition and body.
+
+        @param condition: string containing the statement for the if condition (in correct syntax)
+        @param body: (multiline) string with if body (in correct syntax, without indentation)
+        @param negative: boolean indicating whether the condition should be negated
+        @param else_body: optional body for 'else' part
+        """
         if negative:
             lines = ["if not %s then" % condition]
         else:
             lines = ["if %s then" % condition]
 
         for line in body.split('\n'):
-            lines.append('    ' + line)
-        lines.extend(['end', ''])
+            lines.append(self.INDENTATION + line)
+
+        if else_body is None:
+            lines.extend(['end', ''])
+        else:
+            lines.append('else')
+            for line in else_body.split('\n'):
+                lines.append(self.INDENTATION + line)
+            lines.extend(['end', ''])
+
         return '\n'.join(lines)
 
     def get_description(self, conflict=True):
@@ -371,7 +462,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         whatis = self.app.cfg['whatis']
         if whatis is None:
             # default: include single 'whatis' statement with description as contents
-            whatis = [description]
+            whatis = ["Description: %s" % description]
 
         lines = [
             "help([[%(description)s]])",
@@ -430,6 +521,23 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
 
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
+        """
+        Generate swap statement for specified module names.
+
+        @param mod_name_out: name of module to unload (swap out)
+        @param mod_name_in: name of module to load (swap in)
+        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
+        if guarded:
+            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
+            swap_statement = [self.conditional_statement('isloaded("%s")' % mod_name_out, body, else_body=alt_body)]
+        else:
+            swap_statement = [body, '']
+
+        return '\n'.join([''] + swap_statement)
+
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
         Generate prepend-path statements for the given list of paths
@@ -462,14 +570,30 @@ class ModuleGeneratorLua(ModuleGenerator):
                     abspaths.append('root')
 
         statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in abspaths]
-        return ''.join(statements)
+        statements.append('')
+        return '\n'.join(statements)
 
-    def use(self, paths):
+    def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
-        @param paths: list of module path extensions to generate use statements for
+        @param paths: list of module path extensions to generate use statements for; paths will be quoted
+        @param prefix: optional path prefix; not quoted, i.e., can be a statement
+        @param guarded: use statements will be guarded to only apply if path exists
         """
-        return ''.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths])
+        use_statements = []
+        for path in paths:
+            quoted_path = quote_str(path)
+            if prefix:
+                full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
+            else:
+                full_path = quoted_path
+            if guarded:
+                cond_statement = self.conditional_statement('isDir(%s)' % full_path,
+                                                            self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                use_statements.append(cond_statement)
+            else:
+                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
+        return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -495,7 +619,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setalias("%s", %s)\n' % (key, quote_str(value))
+        return 'set_alias("%s", %s)\n' % (key, quote_str(value))
+
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        return 'os.getenv("%s")' % envvar
 
 
 def avail_module_generators():
@@ -531,19 +661,19 @@ def module_load_regex(modfilepath):
     return re.compile(regex, re.M)
 
 
-def dependencies_for(mod_name, depth=sys.maxint):
+def dependencies_for(mod_name, modtool, depth=sys.maxint):
     """
     Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
     @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
     """
-    mod_filepath = modules_tool().modulefile_path(mod_name)
+    mod_filepath = modtool.modulefile_path(mod_name)
     modtxt = read_file(mod_filepath)
     loadregex = module_load_regex(mod_filepath)
     mods = loadregex.findall(modtxt)
 
     if depth > 0:
         # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, depth=depth - 1) for mod in mods]
+        moddeps = [dependencies_for(mod, modtool, depth=depth - 1) for mod in mods]
     else:
         # ignore any deeper dependencies
         moddeps = []

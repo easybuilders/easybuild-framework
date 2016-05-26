@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -103,18 +103,23 @@ def setvar(key, value, verbose=True):
         dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
 
 
-def unset_env_vars(keys):
+def unset_env_vars(keys, verbose=True):
     """
     Unset the keys given in the environment
     Returns a dict with the old values of the unset keys
     """
     old_environ = {}
 
+    if keys and verbose and build_option('extended_dry_run'):
+        dry_run_msg("Undefining environment variables:\n", silent=build_option('silent'))
+
     for key in keys:
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
             del os.environ[key]
+            if verbose and build_option('extended_dry_run'):
+                dry_run_msg("  unset %s  # value was: %s" % (key, old_environ[key]), silent=build_option('silent'))
 
     return old_environ
 
@@ -177,3 +182,24 @@ def restore_env(env):
     Restore active environment based on specified dictionary.
     """
     modify_env(os.environ, env, verbose=False)
+
+
+def sanitize_env():
+    """
+    Sanitize environment.
+
+    This function undefines all $PYTHON* environment variables,
+    since they may affect the build/install procedure of Python packages.
+
+    cfr. https://docs.python.org/2/using/cmdline.html#environment-variables
+
+    While the $PYTHON* environment variables may be relevant/required for EasyBuild itself,
+    and for any non-stdlib Python packages it uses,
+    they are irrelevant (and potentially harmful) when installing Python packages.
+
+    Note that this is not an airtight protection against the Python being used in the build/install procedure
+    picking up non-stdlib Python packages (e.g., setuptools, vsc-base, ...), thanks to the magic of .pth files,
+    cfr. https://docs.python.org/2/library/site.html .
+    """
+    keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
+    unset_env_vars(keys_to_unset, verbose=False)

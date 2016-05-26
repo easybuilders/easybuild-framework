@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -43,11 +43,13 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
 import urllib2
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
+from xml.etree import ElementTree
 
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
@@ -132,21 +134,15 @@ class ZlibChecksum(object):
 
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
-    f = None
-    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    txt = None
     try:
-        f = open(path, 'r')
-        txt = f.read()
-        f.close()
-        return txt
+        with open(path, 'r') as handle:
+            txt = handle.read()
     except IOError, err:
-        # make sure file handle is always closed
-        if f is not None:
-            f.close()
         if log_error:
             raise EasyBuildError("Failed to read %s: %s", path, err)
-        else:
-            return None
+
+    return txt
 
 
 def write_file(path, txt, append=False, forced=False):
@@ -245,6 +241,54 @@ def det_common_path_prefix(paths):
         return None
 
 
+def is_alt_pypi_url(url):
+    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+    alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
+    res = bool(alt_url_regex.search(url))
+    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+               url, alt_url_regex.pattern, res)
+    return res
+
+
+def derive_alt_pypi_url(url):
+    """Derive alternate PyPI URL for given URL, using 'simple' PyPI API."""
+    # see also https://www.python.org/dev/peps/pep-0503/
+    alt_pypi_url = None
+
+    # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
+    pkg_name, pkg_source = url.strip().split('/')[-2:]
+
+    # e.g. https://pypi.python.org/simple/easybuild
+    # cfr. https://wiki.python.org/moin/PyPISimple
+    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+
+    tmpdir = tempfile.mkdtemp()
+    links_html = os.path.join(tmpdir, '%s_links.html' % pkg_name)
+    res = download_file(os.path.basename(links_html), simple_url, links_html)
+    if res is None:
+        _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
+    else:
+        parsed_html = ElementTree.parse(links_html)
+        if hasattr(parsed_html, 'iter'):
+            links = [a.attrib['href'] for a in parsed_html.iter('a')]
+        else:
+            links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+
+        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
+        for link in links:
+            res = regex.match(link)
+            if res:
+                # e.g. .../5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+                alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
+                break
+
+        if not alt_pypi_url:
+            _log.debug("Failed to extract hash using pattern '%s' from list of links: %s", regex.pattern, links)
+
+    return alt_pypi_url
+
+
 def download_file(filename, url, path, forced=False):
     """Download a file from the given URL, to the specified path."""
 
@@ -326,7 +370,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
     """
     Search for a particular file (only prints)
     """
@@ -346,7 +390,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     for path in paths:
         hits = []
         hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
+        if not terse:
+            print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
@@ -355,7 +400,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
                         var = "CFGS%d" % var_index
                         var_index += 1
                         hit_in_path = True
-                    hits.append(os.path.join(dirpath, filename))
+                    if filename_only:
+                        hits.append(filename)
+                    else:
+                        hits.append(os.path.join(dirpath, filename))
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
@@ -365,7 +413,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
 
         hits = sorted(hits)
 
-        if hits:
+        if hits and not terse:
             common_prefix = det_common_path_prefix(hits)
             if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
                 var_lines.append("%s=%s" % (var, common_prefix))
@@ -373,8 +421,12 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             else:
                 hit_lines.extend([" * %s" % fn for fn in hits])
 
-    for line in var_lines + hit_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
+    if terse:
+        for line in hits:
+            print(line)
+    else:
+        for line in var_lines + hit_lines:
+            print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
@@ -541,7 +593,7 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
     It searches for "+++ path/to/patched/file" lines to determine
@@ -550,6 +602,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
     @param txt: the contents of the diff (either path or txt should be give)
     @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
     @param github: only consider lines that start with 'diff --git' to determine list of patched files
+    @param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
         patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
@@ -568,8 +621,12 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False):
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
 
+        delete_regex = re.compile(r"%s\ndeleted file" % re.escape(os.path.basename(patched_file)), re.M)
         if patched_file in ['/dev/null']:
-            _log.debug("Ignoring patched file %s" % patched_file)
+            _log.debug("Ignoring patched file %s", patched_file)
+
+        elif filter_deleted and delete_regex.search(txt):
+            _log.debug("Filtering out deleted file %s", patched_file)
         else:
             patched_files.append(patched_file)
 
@@ -705,7 +762,8 @@ def convert_name(name, upper=False):
     # no regexps
     charmap = {
         '+': 'plus',
-        '-': 'min'
+        '-': 'min',
+        '.': '',
     }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
@@ -879,7 +937,7 @@ def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []
     for glob_path in glob_paths:
-        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
+        paths.extend([f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)])
 
     return nub(paths)
 
@@ -939,6 +997,9 @@ def rmtree2(path, n=3):
         except OSError, err:
             _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
             time.sleep(2)
+
+            # make sure write permissions are enabled on entire directory
+            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
     if not ok:
         raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
     else:
@@ -976,8 +1037,15 @@ def move_logs(src_logfile, target_logfile):
                              src_logfile, target_logfile, err)
 
 
-def cleanup(logfile, tempdir, testing):
-    """Cleanup the specified log file and the tmp directory, if desired."""
+def cleanup(logfile, tempdir, testing, silent=False):
+    """
+    Cleanup the specified log file and the tmp directory, if desired.
+
+    @param logfile: path to log file to clean up
+    @param tempdir: path to temporary directory to clean up
+    @param testing: are we in testing mode? if so, don't actually clean up anything
+    @param silent: be silent (don't print anything to stdout)
+    """
 
     if build_option('cleanup_tmpdir') and not testing:
         if logfile is not None:
@@ -986,17 +1054,18 @@ def cleanup(logfile, tempdir, testing):
                     os.remove(log)
             except OSError, err:
                 raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
-            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing)
+            print_msg("Temporary log file(s) %s* have been removed." % (logfile), log=None, silent=testing or silent)
 
         if tempdir is not None:
             try:
                 shutil.rmtree(tempdir, ignore_errors=True)
             except OSError, err:
                 raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
-            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing)
+            print_msg("Temporary directory %s has been removed." % tempdir, log=None, silent=testing or silent)
 
     else:
-        print_msg("Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir), log=None, silent=testing)
+        msg = "Keeping temporary log file(s) %s* and directory %s." % (logfile, tempdir)
+        print_msg(msg, log=None, silent=testing or silent)
 
 
 def copytree(src, dst, symlinks=False, ignore=None):
@@ -1155,3 +1224,89 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
+
+
+def find_flexlm_license(custom_env_vars=None, lic_specs=None):
+    """
+    Find FlexLM license.
+
+    Considered specified list of environment variables;
+    checks for path to existing license file or valid license server specification.
+
+    If no license is found through environment variables, also consider 'lic_specs'.
+
+    @param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
+    @param lic_specs: list of license specifications
+    @return: tuple with list of valid license specs found and name of first valid environment variable
+    """
+    valid_lic_specs = []
+    lic_env_var = None
+
+    # regex for license server spec; format: <port>@<server>
+    server_port_regex = re.compile(r'^[0-9]+@\S+$')
+
+    # always consider $LM_LICENSE_FILE
+    lic_env_vars = ['LM_LICENSE_FILE']
+    if isinstance(custom_env_vars, basestring):
+        lic_env_vars.insert(0, custom_env_vars)
+    elif custom_env_vars is not None:
+        lic_env_vars = custom_env_vars + lic_env_vars
+
+    # grab values for defined environment variables
+    cand_lic_specs = {}
+    for env_var in lic_env_vars:
+        if env_var in os.environ:
+            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+
+    # also consider provided license spec (last)
+    # use None as key to indicate that these license specs do not have an environment variable associated with them
+    if lic_specs:
+        cand_lic_specs[None] = lic_specs
+
+    _log.debug("Candidate license specs: %s", cand_lic_specs)
+
+    # check for valid license specs
+    # order matters, so loop over original list of environment variables to consider
+    valid_lic_specs = []
+    for env_var in lic_env_vars + [None]:
+        # obtain list of values to consider
+        # take into account that some keys may be missing, and that individual values may be None
+        values = [val for val in cand_lic_specs.get(env_var, None) or [] if val]
+        _log.info("Considering %s to find FlexLM license specs: %s", env_var, values)
+
+        for value in values:
+
+            # license files to consider
+            lic_files = None
+            if os.path.isfile(value):
+                lic_files = [value]
+            elif os.path.isdir(value):
+                # consider all *.dat and *.lic files in specified directory
+                lic_files = sorted(glob.glob(os.path.join(value, '*.dat')) + glob.glob(os.path.join(value, '*.lic')))
+
+            # valid license server spec
+            elif server_port_regex.match(value):
+                valid_lic_specs.append(value)
+
+            # check whether license files are readable before retaining them
+            if lic_files:
+                for lic_file in lic_files:
+                    try:
+                        open(lic_file, 'r')
+                        valid_lic_specs.append(lic_file)
+                    except IOError as err:
+                        _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
+
+        # stop after finding valid license specs
+        if valid_lic_specs:
+            lic_env_var = env_var
+            break
+
+    if lic_env_var:
+        via_msg = '$%s' % lic_env_var
+    else:
+        via_msg = "provided license spec"
+
+    _log.info("Found valid license specs via %s: %s", via_msg, valid_lic_specs)
+
+    return (valid_lic_specs, lic_env_var)
