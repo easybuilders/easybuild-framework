@@ -732,7 +732,8 @@ class EasyConfigTest(EnhancedTestCase):
         """ test easyconfig templating """
         inp = {
            'name': 'PI',
-           'version': '3.14',
+           # purposely using minor version that starts with a 0, to check for correct version_minor value
+           'version': '3.04',
            'namelower': 'pi',
            'cmd': 'tar xfvz %s',
         }
@@ -742,13 +743,13 @@ class EasyConfigTest(EnhancedTestCase):
             'name = "%(name)s"',
             'version = "%(version)s"',
             'versionsuffix = "-Python-%%(pyver)s"',
-            'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s"',
+            'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
             'source_urls = [(GOOGLECODE_SOURCE)]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, "%(cmd)s")]',
             'sanity_check_paths = {',
-            '   "files": ["lib/python%%(pyshortver)s/site-packages"],',
+            '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
             '}',
             'dependencies = [',
@@ -777,9 +778,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
-        self.assertEqual(eb['sanity_check_paths']['files'][0], 'lib/python2.7/site-packages')
+        self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
+        self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
-        self.assertEqual(eb['homepage'], "http://example.com/P/p")
+        self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
         self.assertEqual(eb['modloadmsg'], "Java: 1.7.80, 1.7; Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
