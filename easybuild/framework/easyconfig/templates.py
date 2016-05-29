@@ -171,13 +171,13 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
-                version = LooseVersion(version).version
+                version = version.split('.')
                 try:
-                    major = str(version[0])
+                    major = version[0]
                     template_values['version_major'] = major
-                    minor = str(version[1])
+                    minor = version[1]
                     template_values['version_minor'] = minor
-                    template_values['version_major_minor'] = ".".join([major, minor])
+                    template_values['version_major_minor'] = '.'.join([major, minor])
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
