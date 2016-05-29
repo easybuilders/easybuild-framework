@@ -47,7 +47,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easyconfigs, get_easyblock_class
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import to_template_str
+from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -1704,6 +1704,43 @@ class EasyConfigTest(EnhancedTestCase):
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
             self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+
+    def test_template_constant_dict(self):
+        """Test template_constant_dict function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+
+        expected = {
+            'name': 'gzip',
+            'nameletter': 'g',
+            'toolchain_name': 'goolf',
+            'toolchain_version': '1.4.10',
+            'version': '1.5',
+            'version_major': '1',
+            'version_major_minor': '1.5',
+            'version_minor': '5',
+            'versionprefix': '',
+            'versionsuffix': '',
+        }
+        self.assertEqual(template_constant_dict(ec._config), expected)
+
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-deps.eb'))
+        # fiddle with version to check version_minor template ('0' should be retained)
+        ec['version'] = '0.01'
+
+        expected = {
+            'name': 'toy',
+            'nameletter': 't',
+            'toolchain_name': 'dummy',
+            'toolchain_version': 'dummy',
+            'version': '0.01',
+            'version_major': '0',
+            'version_major_minor': '0.01',
+            'version_minor': '01',
+            'versionprefix': '',
+            'versionsuffix': '-deps',
+        }
+        self.assertEqual(template_constant_dict(ec._config), expected)
 
 
 def suite():
