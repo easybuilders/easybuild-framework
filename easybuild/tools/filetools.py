@@ -937,7 +937,7 @@ def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []
     for glob_path in glob_paths:
-        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
+        paths.extend([f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)])
 
     return nub(paths)
 
@@ -1231,7 +1231,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     Find FlexLM license.
 
     Considered specified list of environment variables;
-    checks for path to existing license file or valid license server specification.
+    checks for path to existing license file or valid license server specification;
+    duplicate paths are not retained in the returned list of license specs.
 
     If no license is found through environment variables, also consider 'lic_specs'.
 
@@ -1256,7 +1257,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     cand_lic_specs = {}
     for env_var in lic_env_vars:
         if env_var in os.environ:
-            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+            cand_lic_specs[env_var] = nub(os.environ[env_var].split(os.pathsep))
 
     # also consider provided license spec (last)
     # use None as key to indicate that these license specs do not have an environment variable associated with them
@@ -1297,8 +1298,9 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
 
-        # stop after finding valid license specs
+        # stop after finding valid license specs, filter out duplicates
         if valid_lic_specs:
+            valid_lic_specs = nub(valid_lic_specs)
             lic_env_var = env_var
             break
 

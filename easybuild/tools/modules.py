@@ -46,7 +46,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
+from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from vsc.utils.missing import nub
@@ -358,7 +358,7 @@ class ModulesTool(object):
         modulepath = curr_module_paths()
         if not modulepath:
             self.add_module_path(path, set_mod_paths=set_mod_paths)
-        elif modulepath[0] != path:
+        elif os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.remove_module_path(path, set_mod_paths=False)
             self.add_module_path(path, set_mod_paths=set_mod_paths)
 
@@ -983,7 +983,7 @@ class Lmod(ModulesTool):
         """
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
-        if not modulepath or modulepath[0] != path:
+        if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.use(path)
             if set_mod_paths:
                 self.set_mod_paths()
@@ -1149,6 +1149,7 @@ def invalidate_module_caches_for(path):
                     _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
                                key, subcmd, path, cache[key])
                     del cache[key]
+                    break
 
 
 class Modules(EnvironmentModulesC):

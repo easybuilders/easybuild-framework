@@ -43,8 +43,8 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir
-from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
+from easybuild.tools.modules import Lmod, curr_module_paths, get_software_root, get_software_version
+from easybuild.tools.modules import get_software_libdir, invalidate_module_caches_for, modules_tool
 from easybuild.tools.run import run_cmd
 
 
@@ -155,11 +155,37 @@ class ModulesTest(EnhancedTestCase):
 
         # trying to load a module not on the top level of a hierarchy should fail
         mods = [
-            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
-            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing dep
+            # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
+            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',
+            # missing dep
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',
         ]
         for mod in mods:
             self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [mod])
+
+    def test_prepend_module_path(self):
+        """Test prepend_module_path method."""
+        test_path = tempfile.mkdtemp(prefix=self.test_prefix)
+        self.modtool.prepend_module_path(test_path)
+        self.assertTrue(os.path.samefile(curr_module_paths()[0], test_path))
+
+        # prepending same path again is fine, no changes to $MODULEPATH
+        modulepath = curr_module_paths()
+        self.modtool.prepend_module_path(test_path)
+        self.assertEqual(modulepath, curr_module_paths())
+
+        # prepending path that is 'deeper down' in $MODULEPATH works, brings it back to front
+        test_mods_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        self.assertTrue(any(os.path.samefile(test_mods_dir, p) for p in modulepath))
+        self.modtool.prepend_module_path(test_mods_dir)
+        self.assertTrue(os.path.samefile(curr_module_paths()[0], test_mods_dir))
+
+        # prepending path that is a symlink to the current head of $MODULEPATH is a no-op
+        modulepath = curr_module_paths()
+        symlink_path = os.path.join(self.test_prefix, 'symlink_modules')
+        os.symlink(modulepath[0], symlink_path)
+        self.modtool.prepend_module_path(symlink_path)
+        self.assertEqual(modulepath, curr_module_paths())
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
@@ -536,6 +562,13 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
         shutil.rmtree(nonpath)
 
+        # create symlink to entry in $MODULEPATH we're going to use, and add it to $MODULEPATH
+        # invalidate_module_caches_for should be able to deal with this
+        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        mods_symlink = os.path.join(self.test_prefix, 'modules_symlink')
+        os.symlink(test_mods_path, mods_symlink)
+        self.modtool.use(mods_symlink)
+
         # no caching for 'avail' commands with an argument
         self.assertTrue(self.modtool.available('GCC'))
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
@@ -565,14 +598,13 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(self.modtool.show('FFTW') is show_res_fftw)
 
         # invalidate caches with correct path
-        modpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(modpath, mp) for mp in modulepaths]))
+        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(test_mods_path, mp) for mp in modulepaths]))
         paths_in_key = [p for p in avail_cache_key[0].split('=')[1].split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(p) and os.path.samefile(modpath, p) for p in paths_in_key]))
+        self.assertTrue(any([os.path.exists(p) and os.path.samefile(test_mods_path, p) for p in paths_in_key]))
 
         # verify cache invalidation, caches should be empty again
-        invalidate_module_caches_for(modpath)
+        invalidate_module_caches_for(test_mods_path)
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 

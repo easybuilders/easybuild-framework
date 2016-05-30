@@ -32,8 +32,10 @@ before_install:
     # keyring v5.7.1 is last version to be compatible with py2.6;
     # for recent versions of keyring, keyrings.alt must be installed too
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install keyring==5.7.1; else pip install keyring keyrings.alt; fi
+    # GitPython 2.x may no longer be compatible with py2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'GitPython<2.0'; else pip install GitPython; fi
     # optional Python packages for EasyBuild
-    - pip install autopep8 GC3Pie GitPython python-graph-dot python-hglib PyYAML
+    - pip install autopep8 GC3Pie python-graph-dot python-hglib PyYAML
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
     - git config --global user.email "travis@travis-ci.org"
