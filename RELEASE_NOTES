@@ -3,6 +3,18 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.8.1 (May 30th 2016)
+----------------------
+
+- various bug fixes, including:
+    - fix error message on missing module command in bootstrap script (#1772)
+    - expand ~ in paths specified to --include-* (#1774)
+    - break after deleting cache entry to avoid attempt to delete cache entry again (#1776)
+    - avoid changing $MODULEPATH when prepending with symlink of path already at head of $MODULEPATH (#1777)
+    - filter out duplicates in find_flexlm_license (#1779)
+    - stick with GitPython < 2.0 with Py2.6 in Travis configuration (#1781)
+    - don't use LooseVersion to define version_major/version_minor (#1783)
+
 v2.8.0 (May 18th 2016)
 ----------------------
 
