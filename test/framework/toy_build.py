@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -472,7 +472,8 @@ class ToyBuildTest(EnhancedTestCase):
             for path, correct_perms in paths_perms:
                 fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
                 perms = os.stat(fullpath).st_mode & 0777
-                msg = "Path %s has %s permissions: %s" % (fullpath, oct(correct_perms), oct(perms))
+                tup = (fullpath, oct(correct_perms), oct(perms), umask, cfg_group, ec_group)
+                msg = "Path %s has %s permissions: %s (umask: %s, group: %s - %s)" % tup
                 self.assertEqual(perms, correct_perms, msg)
                 if group is not None:
                     path_gid = os.stat(fullpath).st_gid
@@ -697,7 +698,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search('^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
+            self.assertTrue(re.search(r'^module\s*use\s*"%s"' % modpath_extension, modtxt, re.M))
         elif get_module_syntax() == 'Lua':
             fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
             regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
@@ -707,13 +708,19 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
-        args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
-        self.modtool.purge()
-        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
         gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
+
+        # make sure Core/gompi/1.4.10 module that may already be there is removed (both Tcl/Lua variants)
+        for modfile in glob.glob(gompi_module_path + '*'):
+            os.remove(modfile)
+
         if get_module_syntax() == 'Lua':
             gompi_module_path += '.lua'
-        self.assertTrue(os.path.exists(gompi_module_path))
+
+        args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
+        self.modtool.purge()
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(os.path.exists(gompi_module_path), "%s found" % gompi_module_path)
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
@@ -1074,6 +1081,51 @@ class ToyBuildTest(EnhancedTestCase):
 
         load1_regex = re.compile('load.*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
+
+    def test_toy_sanity_check_commands(self):
+        """Test toy build with extra sanity check commands."""
+
+        self.setup_hierarchical_modules()
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        toy_ec_txt = read_file(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+
+        toy_ec_txt = '\n'.join([
+            toy_ec_txt,
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            # specially construct (sort of senseless) sanity check commands,
+            # that will fail if the corresponding modules are not loaded
+            # cfr. https://github.com/hpcugent/easybuild-framework/pull/1754
+            "sanity_check_commands = [",
+            "   ('env | grep EBROOTFFTW', ''),",
+            "   ('env | grep EBROOTGCC', ''),",
+            "   ('env | grep EBROOTGOOLF', ''),",
+            "]",
+        ])
+
+        tweaked_toy_ec = os.path.join(self.test_prefix, 'toy-0.0-tweaked.eb')
+        write_file(tweaked_toy_ec, toy_ec_txt)
+
+        args = [
+            tweaked_toy_ec,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--robot=%s' % test_easyconfigs,
+            '--module-naming-scheme=HierarchicalMNS',
+        ]
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        modpath = os.path.join(self.test_installpath, 'modules', 'all')
+        toy_modfile = os.path.join(modpath, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_modfile += '.lua'
+
+        self.assertTrue(os.path.exists(toy_modfile))
 
 
 def suite():

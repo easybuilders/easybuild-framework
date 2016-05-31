@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -2406,6 +2406,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout().strip()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"buildpath\s* \(C\) = /weird/build/dir", txt))
+
+        # --show-config should not break including of easyblocks via $EASYBUILD_INCLUDE_EASYBLOCKS (see bug #1696)
+        txt = '\n'.join([
+            'from easybuild.framework.easyblock import EasyBlock',
+            'class EB_testeasyblocktoinclude(EasyBlock):',
+            '   pass',
+            ''
+        ])
+        testeasyblocktoinclude = os.path.join(self.test_prefix, 'testeasyblocktoinclude.py')
+        write_file(testeasyblocktoinclude, txt)
+
+        os.environ['EASYBUILD_INCLUDE_EASYBLOCKS'] = testeasyblocktoinclude
+        args = ['--show-config']
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout().strip()
+        self.mock_stdout(False)
+        regex = re.compile(r'^include-easyblocks \(E\) = .*/testeasyblocktoinclude.py$', re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_dump_env_config(self):
         """Test for --dump-env-config."""

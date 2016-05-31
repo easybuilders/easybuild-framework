@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -30,8 +30,9 @@ Support for Intel MKL as toolchain linear algebra library.
 """
 from distutils.version import LooseVersion
 
-from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
+from easybuild.toolchains.compiler.pgi import TC_CONSTANT_PGI
 from easybuild.toolchains.mpi.intelmpi import TC_CONSTANT_INTELMPI
 from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH
 from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
@@ -79,11 +80,30 @@ class IntelMKL(LinAlg):
         class_constants.extend(['BLAS_LIB_MAP', 'SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
         super(IntelMKL, self).__init__(*args, **kwargs)
 
+    def set_variables(self):
+        """Set the variables"""
+
+        # for recent versions of Intel MKL, -ldl should be used for linking;
+        # the Intel MKL Link Advisor specifies to always do this,
+        # but it is only needed when statically linked with Intel MKL,
+        # and only strictly needed for some compilers (e.g. PGI)
+        mkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
+        if LooseVersion(mkl_version) >= LooseVersion('11') and self.COMPILER_FAMILY in [TC_CONSTANT_PGI]:
+            self.log.info("Adding -ldl as extra library when linking with Intel MKL libraries (for v11.x and newer)")
+            if self.LIB_EXTRA is None:
+                self.LIB_EXTRA = ['dl']
+            elif 'dl' not in self.LIB_EXTRA:
+                self.LIB_EXTRA.append('dl')
+
+        super(IntelMKL, self).set_variables()
+
     def _set_blas_variables(self):
         """Fix the map a bit"""
         interfacemap = {
             TC_CONSTANT_INTELCOMP: 'intel',
             TC_CONSTANT_GCC: 'gf',
+            # Taken from https://www.pgroup.com/support/link.htm#mkl
+            TC_CONSTANT_PGI: 'intel',
         }
         try:
             self.BLAS_LIB_MAP.update({
@@ -96,6 +116,7 @@ class IntelMKL(LinAlg):
         interfacemap_mt = {
             TC_CONSTANT_INTELCOMP: 'intel',
             TC_CONSTANT_GCC: 'gnu',
+            TC_CONSTANT_PGI: 'pgi',
         }
         try:
             self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})

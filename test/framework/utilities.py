@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -264,12 +264,12 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.chdir(self.cwd)
 
         # make sure config is reinitialized
-        init_config()
+        init_config(with_include=False)
 
         # restore environment to what it was before running main,
         # changes may have been made by eb_main (e.g. $TMPDIR & co)
         if reset_env:
-            modify_env(os.environ, env_before)
+            modify_env(os.environ, env_before, verbose=False)
             tempfile.tempdir = None
 
         if myerr and raise_error:
@@ -313,6 +313,17 @@ class EnhancedTestCase(_EnhancedTestCase):
                               r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
+
+        # make sure paths for 'module use' commands exist; required for modulecmd
+        mod_subdirs = [
+            os.path.join('Compiler', 'GCC', '4.7.2'),
+            os.path.join('Compiler', 'GCC', '4.8.3'),
+            os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+            os.path.join('MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
+        ]
+        for mod_subdir in mod_subdirs:
+            mkdir(os.path.join(mod_prefix, mod_subdir), parents=True)
 
     def setup_categorized_hmns_modules(self):
         """Setup categorized hierarchical modules to run tests on."""
@@ -359,13 +370,13 @@ def cleanup():
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
 
-def init_config(args=None, build_options=None):
+def init_config(args=None, build_options=None, with_include=True):
     """(re)initialize configuration"""
 
     cleanup()
 
     # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options(args=args)
+    eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     # initialize build options

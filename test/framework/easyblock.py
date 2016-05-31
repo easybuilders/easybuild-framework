@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -784,12 +784,9 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options=build_options)
         self.setup_hierarchical_modules()
 
-        modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
-        mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
-        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'), parents=True)
-
-        impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049')
-        imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        intel_ver = '2013.5.192-GCC-4.8.3'
+        impi_modfile_path = os.path.join('Compiler', 'intel', intel_ver, 'impi', '4.1.3.049')
+        imkl_modfile_path = os.path.join('MPI', 'intel', intel_ver, 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
         if get_module_syntax() == 'Lua':
             impi_modfile_path += '.lua'
             imkl_modfile_path += '.lua'
@@ -797,9 +794,10 @@ class EasyBlockTest(EnhancedTestCase):
         # example: for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included
         # not for the toolchain or any of the toolchain components,
         # since both icc/ifort and impi form the path to the top of the module tree
+        iccifort_mods = ['icc', 'ifort', 'iccifort']
         tests = [
-            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, ['icc', 'ifort', 'iccifort']),
-            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, ['icc', 'ifort', 'impi', 'iccifort', 'iimpi']),
+            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, iccifort_mods),
+            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
         ]
         for ec_file, modfile_path, excluded_deps in tests:
             ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
@@ -819,8 +817,17 @@ class EasyBlockTest(EnhancedTestCase):
                 else:
                     self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
-        init_config(build_options=build_options)
+        # modpath_extensions_for should spit out correct result, even if modules are loaded
+        icc_mod = 'icc/%s' % intel_ver
+        impi_mod = 'impi/4.1.3.049'
+        self.modtool.load([icc_mod])
+        self.assertTrue(impi_modfile_path in self.modtool.show(impi_mod))
+        self.modtool.load([impi_mod])
+        expected = {
+            icc_mod: [os.path.join(modpath, 'Compiler', 'intel', intel_ver)],
+            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '4.1.3.049')],
+        }
+        self.assertEqual(self.modtool.modpath_extensions_for([icc_mod, impi_mod]), expected)
 
     def test_patch_step(self):
         """Test patch step."""

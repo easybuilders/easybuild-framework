@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -32,6 +32,7 @@ import os
 import re
 import shutil
 import tempfile
+from distutils.version import LooseVersion
 from unittest import TestLoader, main
 from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
 
@@ -412,14 +413,11 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         # check another one
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
-
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
 
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
@@ -449,31 +447,37 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def setup_sandbox_for_intel_fftw(self, imklver='10.3.12.361'):
+    def setup_sandbox_for_intel_fftw(self, moddir, imklver='10.3.12.361'):
         """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
-        # rewrite $root in imkl module so we can put required lib*.a files in place
-        tmpdir = tempfile.mkdtemp()
+        # create dummy imkl module and put required lib*.a files in place
 
-        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-        imkl_module_path = os.path.join(test_modules_path, 'imkl', imklver)
-        imkl_module_txt = open(imkl_module_path, 'r').read()
-        regex = re.compile('^(set\s*root).*$', re.M)
-        imkl_module_alt_txt = regex.sub(r'\1\t%s' % tmpdir, imkl_module_txt)
-        open(imkl_module_path, 'w').write(imkl_module_alt_txt)
+        imkl_module_path = os.path.join(moddir, 'imkl', imklver)
+        imkl_dir = os.path.join(self.test_prefix, 'software', 'imkl', imklver)
 
-        fftw_libs = ['fftw3xc_intel', 'fftw3x_cdft', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
-        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        imkl_mod_txt = '\n'.join([
+            "#%Module",
+            "setenv EBROOTIMKL %s" % imkl_dir,
+            "setenv EBVERSIONIMKL %s" % imklver,
+        ])
+        write_file(imkl_module_path, imkl_mod_txt)
+
+        fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
+        fftw_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        if LooseVersion(imklver) >= LooseVersion('11'):
+            fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])
+        else:
+            fftw_libs.append('fftw3x_cdft')
+
         for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64', 'lib/em64t']:
-            os.makedirs(os.path.join(tmpdir, subdir))
+            os.makedirs(os.path.join(imkl_dir, subdir))
             for fftlib in fftw_libs:
-                write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
-
-        return tmpdir, imkl_module_path, imkl_module_txt
+                write_file(os.path.join(imkl_dir, subdir, 'lib%s.a' % fftlib), 'foo')
 
     def test_ictce_toolchain(self):
         """Test for ictce toolchain."""
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
@@ -526,26 +530,17 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
 
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
-
         # different flag for OpenMP with old Intel compilers (11.x)
         modules.modules_tool().purge()
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        self.modtool.prepend_module_path(self.test_prefix)
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
         opts = {'openmp': True}
         tc.set_options(opts)
         tc.prepare()
         self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
-        write_file(imkl_module_path, imkl_module_txt)
-
         for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.assertTrue('-openmp' in tc.get_variable(var))
-
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
@@ -576,17 +571,14 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
-        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
 
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
-
-        # cleanup
-        shutil.rmtree(tmpdir)
-        write_file(imkl_module_path, imkl_module_txt)
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
@@ -662,8 +654,9 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_old_new_iccifort(self):
         """Test whether preparing for old/new Intel compilers works correctly."""
-        tmpdir1, imkl_module_path1, imkl_module_txt1 = self.setup_sandbox_for_intel_fftw(imklver='10.3.12.361')
-        tmpdir2, imkl_module_path2, imkl_module_txt2 = self.setup_sandbox_for_intel_fftw(imklver='10.2.6.038')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.3.12.361')
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        self.modtool.prepend_module_path(self.test_prefix)
 
         # incl. -lguide
         libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
@@ -726,12 +719,6 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
 
-        # cleanup
-        shutil.rmtree(tmpdir1)
-        shutil.rmtree(tmpdir2)
-        write_file(imkl_module_path1, imkl_module_txt1)
-        write_file(imkl_module_path2, imkl_module_txt2)
-
     def test_independence(self):
         """Test independency of toolchain instances."""
 
@@ -765,6 +752,65 @@ class ToolchainTest(EnhancedTestCase):
                 msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
                 self.assertEqual(str(tc.variables['CFLAGS']), expected_cflags, msg)
                 self.assertEqual(os.environ['CFLAGS'], expected_cflags, msg)
+
+    def test_pgi_toolchain(self):
+        """Tests for PGI toolchain."""
+        # add dummy PGI modules to play with
+        write_file(os.path.join(self.test_prefix, 'PGI', '14.9'), '#%Module\nsetenv EBVERSIONPGI 14.9')
+        write_file(os.path.join(self.test_prefix, 'PGI', '14.10'), '#%Module\nsetenv EBVERSIONPGI 14.10')
+        write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), '#%Module\nsetenv EBVERSIONPGI 16.3')
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('PGI', version='14.9')
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('CC'), 'pgcc')
+        self.assertEqual(tc.get_variable('CXX'), 'pgCC')
+        self.assertEqual(tc.get_variable('F77'), 'pgf77')
+        self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+        self.assertEqual(tc.get_variable('FC'), 'pgfortran')
+        self.modtool.purge()
+
+        for pgi_ver in ['14.10', '16.3']:
+            tc = self.get_toolchain('PGI', version=pgi_ver)
+            tc.prepare()
+
+            self.assertEqual(tc.get_variable('CC'), 'pgcc')
+            self.assertEqual(tc.get_variable('CXX'), 'pgc++')
+            self.assertEqual(tc.get_variable('F77'), 'pgf77')
+            self.assertEqual(tc.get_variable('F90'), 'pgfortran')
+            self.assertEqual(tc.get_variable('FC'), 'pgfortran')
+
+    def test_pgi_imkl(self):
+        """Test setup of build environment for toolchain with PGI and Intel MKL."""
+        pomkl_mod_txt = '\n'.join([
+            '#%Module',
+            "module load PGI/16.3",
+            "module load OpenMPI/1.10.2-PGI-16.3",
+            "module load imkl/11.3.2.181",
+        ])
+        write_file(os.path.join(self.test_prefix, 'pomkl', '2016.03'), pomkl_mod_txt)
+        pgi_mod_txt = '\n'.join([
+            '#%Module',
+            "setenv EBROOTPGI %s" % self.test_prefix,
+            "setenv EBVERSIONPGI 16.3",
+        ])
+        write_file(os.path.join(self.test_prefix, 'PGI', '16.3'), pgi_mod_txt)
+        ompi_mod_txt = '\n'.join([
+            '#%Module',
+            "setenv EBROOTOPENMPI %s" % self.test_prefix,
+            "setenv EBVERSIONOPENMPI 1.10.2",
+        ])
+        write_file(os.path.join(self.test_prefix, 'OpenMPI', '1.10.2-PGI-16.3'), ompi_mod_txt)
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='11.3.2.181')
+        self.modtool.prepend_module_path(self.test_prefix)
+
+        tc = self.get_toolchain('pomkl', version='2016.03')
+        tc.prepare()
+
+        liblapack = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core "
+        liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
+        self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
 
 
 def suite():

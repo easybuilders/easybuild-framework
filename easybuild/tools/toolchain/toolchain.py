@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -357,6 +357,12 @@ class Toolchain(object):
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
+
+        # use *full* module name to check existence of dependencies, since the modules may not be available in the
+        # current $MODULEPATH without loading the prior dependencies in a module hierarchy
+        # (e.g. OpenMPI module may only be available after loading GCC module);
+        # when actually loading the modules for the dependencies, the *short* module name is used,
+        # see _load_dependencies_modules()
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
 
         # check whether modules exist
@@ -578,17 +584,20 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
-    def prepare(self, onlymod=None, silent=False):
+    def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
-        onlymod: Boolean/string to indicate if the toolchain should only load the environment
-        with module (True) or also set all other variables (False) like compiler CC etc
-        (If string: comma separated list of variables that will be ignored).
+        @param: onlymod: boolean/string to indicate if the toolchain should only load the environment
+                         with module (True) or also set all other variables (False) like compiler CC etc
+                         (If string: comma separated list of variables that will be ignored).
+        @param silent: keep quiet, or not (mostly relates to extended dry run output)
+        @param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         """
-        self._load_modules(silent=silent)
+        if loadmod:
+            self._load_modules(silent=silent)
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 

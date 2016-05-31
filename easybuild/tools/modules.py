@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -46,7 +46,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
+from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from vsc.utils.missing import nub
@@ -358,7 +358,7 @@ class ModulesTool(object):
         modulepath = curr_module_paths()
         if not modulepath:
             self.add_module_path(path, set_mod_paths=set_mod_paths)
-        elif modulepath[0] != path:
+        elif os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.remove_module_path(path, set_mod_paths=False)
             self.add_module_path(path, set_mod_paths=set_mod_paths)
 
@@ -536,7 +536,6 @@ class ModulesTool(object):
         """
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
-            self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)
             if res:
                 return res.group(1)
@@ -546,12 +545,21 @@ class ModulesTool(object):
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
-    def modulefile_path(self, mod_name):
-        """Get the path of the module file for the specified module."""
+    def modulefile_path(self, mod_name, strip_ext=False):
+        """
+        Get the path of the module file for the specified module
+
+        @param mod_name: module name
+        @param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
-        return self.get_value_from_modulefile(mod_name, modpath_re)
+        modpath = self.get_value_from_modulefile(mod_name, modpath_re)
+
+        if strip_ext and modpath.endswith('.lua'):
+            modpath = os.path.splitext(modpath)[0]
+
+        return modpath
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
@@ -674,20 +682,33 @@ class ModulesTool(object):
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
-        Modules with an empty list of $MODULEPATH extensions are included.
+        All potential $MODULEPATH extensions are included, even the ones guarded by a condition (which is not checked).
+        Only direct $MODULEPATH extensions are found, no recursion if performed for modules that load other modules.
+        Modules with an empty list of $MODULEPATH extensions are included in the result.
+
+        @param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
+        @return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
         """
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
         # copy environment so we can restore it
         env = os.environ.copy()
 
+        # regex for $MODULEPATH extensions;
+        # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
+        # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        modpath_ext_regex = r'|'.join([
+            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
+        ])
+        modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
+
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            useregex = re.compile(r'^\s*module\s+use\s+"?([^"\s]+)"?', re.M)
-            exts = useregex.findall(modtxt)
-
-            self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
+            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+            self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:
@@ -752,8 +773,9 @@ class ModulesTool(object):
             # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
+
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                dep_full_mod_subdir = self.modulefile_path(dep, strip_ext=True)[:-len(dep)-1]
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
@@ -773,7 +795,8 @@ class ModulesTool(object):
             # remove retained dependencies from the list, since we're climbing up the module tree
             remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
 
-            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, mods_to_top))
+            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top",
+                           mod_name, mods_to_top)
             for mod_name, full_mod_subdir in zip(mods_to_top, full_mod_subdirs):
                 path.extend(self.path_to_top_of_module_tree(top_paths, mod_name, full_mod_subdir, None,
                                                             modpath_exts=remaining_modpath_exts))
@@ -887,6 +910,8 @@ class Lmod(ModulesTool):
         os.environ['LMOD_QUIET'] = '1'
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
+        # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
+        os.environ['LMOD_REDIRECT'] = 'no'
 
         super(Lmod, self).__init__(*args, **kwargs)
 
@@ -958,7 +983,7 @@ class Lmod(ModulesTool):
         """
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
-        if not modulepath or modulepath[0] != path:
+        if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.use(path)
             if set_mod_paths:
                 self.set_mod_paths()
@@ -1024,6 +1049,10 @@ def get_software_libdir(name, only_one=True, fs=None):
             if os.path.exists(os.path.join(root, lib_subdir)):
                 if fs is None or any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
                     res.append(lib_subdir)
+            elif build_option('extended_dry_run'):
+                res.append(lib_subdir)
+                break
+
         # if no library subdir was found, return None
         if not res:
             return None
@@ -1120,6 +1149,7 @@ def invalidate_module_caches_for(path):
                     _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path '%s': %s",
                                key, subcmd, path, cache[key])
                     del cache[key]
+                    break
 
 
 class Modules(EnvironmentModulesC):

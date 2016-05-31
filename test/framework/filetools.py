@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -37,6 +37,7 @@ import tempfile
 import urllib2
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
+from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
@@ -447,6 +448,33 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
         self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
+    def test_expand_glob_paths(self):
+        """Test expand_glob_paths function."""
+        for dirname in ['empty_dir', 'test_dir']:
+            ft.mkdir(os.path.join(self.test_prefix, dirname), parents=True)
+        for filename in ['file1.txt', 'test_dir/file2.txt', 'test_dir/file3.txt', 'test_dir2/file4.dat']:
+            ft.write_file(os.path.join(self.test_prefix, filename), 'gibberish')
+
+        globs = [os.path.join(self.test_prefix, '*.txt'), os.path.join(self.test_prefix, '*', '*')]
+        expected = [
+            os.path.join(self.test_prefix, 'file1.txt'),
+            os.path.join(self.test_prefix, 'test_dir', 'file2.txt'),
+            os.path.join(self.test_prefix, 'test_dir', 'file3.txt'),
+            os.path.join(self.test_prefix, 'test_dir2', 'file4.dat'),
+        ]
+        self.assertEqual(sorted(ft.expand_glob_paths(globs)), sorted(expected))
+
+        # passing non-glob patterns is fine too
+        file2 = os.path.join(self.test_prefix, 'test_dir', 'file2.txt')
+        self.assertEqual(ft.expand_glob_paths([file2]), [file2])
+
+        # test expanding of '~' into $HOME value
+        # hard overwrite $HOME in environment (used by os.path.expanduser) so we can reliably test this
+        new_home = os.path.join(self.test_prefix, 'home')
+        ft.mkdir(new_home, parents=True)
+        ft.write_file(os.path.join(new_home, 'test.txt'), 'test')
+        os.environ['HOME'] = new_home
+        self.assertEqual(ft.expand_glob_paths(['~/*.txt']), [os.path.join(new_home, 'test.txt')])
 
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
@@ -587,6 +615,10 @@ class FileToolsTest(EnhancedTestCase):
         os.environ['LM_LICENSE_FILE'] = lic_server
         self.assertEqual(ft.find_flexlm_license(), ([lic_server], 'LM_LICENSE_FILE'))
 
+        # duplicates are filtered out, order is maintained
+        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file1, lic_server, self.test_prefix, lic_file2, lic_file1])
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_server, lic_file2], 'LM_LICENSE_FILE'))
+
         # invalid server spec (missing port)
         os.environ['LM_LICENSE_FILE'] = 'test.license.server'
         self.assertEqual(ft.find_flexlm_license(), ([], None))
@@ -627,6 +659,28 @@ class FileToolsTest(EnhancedTestCase):
         del os.environ['INTEL_LICENSE_FILE']
         del os.environ['LM_LICENSE_FILE']
         self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
+
+    def test_is_alt_pypi_url(self):
+        """Test is_alt_pypi_url() function."""
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
+        self.assertFalse(ft.is_alt_pypi_url(url))
+
+        url = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
+        self.assertTrue(ft.is_alt_pypi_url(url))
+
+    def test_derive_alt_pypi_url(self):
+        """Test derive_alt_pypi_url() function."""
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
+        alturl = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
+        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+
+        # no crash on non-existing version
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-0.0.0.tar.gz'
+        self.assertEqual(ft.derive_alt_pypi_url(url), None)
+
+        # no crash on non-existing package
+        url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
+        self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
 
 def suite():

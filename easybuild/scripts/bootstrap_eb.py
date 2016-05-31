@@ -5,7 +5,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -201,9 +201,10 @@ def check_module_command(tmpdir):
                 break
 
     if easybuild_modules_tool is None:
+        mod_cmds = [m for (m, _) in known_module_commands]
         msg = [
             "Could not find any module command, make sure one available in your $PATH.",
-            "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
+            "Known module commands are checked in order, and include: %s" % ', '.join(mod_cmds),
             "Check the output of 'type module' to determine the location of the module command you are using.",
         ]
         error('\n'.join(msg))
