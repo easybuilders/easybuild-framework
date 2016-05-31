@@ -741,6 +741,9 @@ def apply_regex_substitutions(path, regex_subs):
     else:
         _log.debug("Applying following regex substitutions to %s: %s", path, regex_subs)
 
+        if not os.path.exists(path):
+            raise EasyBuildError("File to patch %s not found", path)
+
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
