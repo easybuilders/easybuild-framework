@@ -741,16 +741,17 @@ def apply_regex_substitutions(path, regex_subs):
     else:
         _log.debug("Applying following regex substitutions to %s: %s", path, regex_subs)
 
-        if not os.path.exists(path):
-            raise EasyBuildError("File to patch %s not found", path)
-
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
-        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
-            for regex, subtxt in regex_subs:
-                line = regex.sub(subtxt, line)
-            sys.stdout.write(line)
+        try:
+            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+                for regex, subtxt in regex_subs:
+                    line = regex.sub(subtxt, line)
+                sys.stdout.write(line)
+
+        except OSError, err:
+            raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):

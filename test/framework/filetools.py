@@ -585,7 +585,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(new_testtxt, testtxt)
 
         # clean error on non-existing file
-        error_pat = "File to patch .*/nosuchfile.txt not found"
+        error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
 
