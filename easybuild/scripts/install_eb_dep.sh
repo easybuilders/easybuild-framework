@@ -44,5 +44,5 @@ wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
-    cd ${PKG} && ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
+    cd ${PKG} && ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make clean && make && make install
 fi
