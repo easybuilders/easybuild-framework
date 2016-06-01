@@ -46,7 +46,7 @@ if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
     cd ${PKG}
-    if [ ! -z $PRECONFIG_CMD ]; then
+    if [[ ! -z $PRECONFIG_CMD ]]; then
         eval ${PRECONFIG_CMD}
     fi
     ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
