@@ -19,6 +19,7 @@ if [ x$PKG_NAME == 'xmodules' ]; then
 
 elif [ x$PKG_NAME == 'xlua' ]; then
     PKG_URL="http://downloads.sourceforge.net/project/lmod/${PKG}.tar.gz"
+    PRECONFIG_CMD="PATH=$PKG:$PATH make clean && "
     CONFIG_OPTIONS='--with-static=yes'
     export PATH=$PREFIX/bin:$PATH
 
@@ -44,5 +45,5 @@ wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
-    cd ${PKG} && PATH=$PWD:$PATH make clean && ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
+    cd ${PKG} && ${PRECONFIG_CMD} ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
 fi
