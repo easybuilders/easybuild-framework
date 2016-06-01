@@ -12,6 +12,9 @@ PREFIX=$2
 PKG_NAME=`echo $PKG | sed 's/-[^-]*$//g'`
 PKG_VERSION=`echo $PKG | sed 's/.*-//g'`
 
+CONFIG_OPTIONS=
+PRECONFIG_CMD=
+
 if [ x$PKG_NAME == 'xmodules' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
     export PATH=$PREFIX/Modules/$PKG_VERSION/bin:$PATH
