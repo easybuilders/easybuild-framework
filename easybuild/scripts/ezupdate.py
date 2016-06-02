@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# python3 declarations for python2
+from __future__ import absolute_import,division,print_function,unicode_literals
+
 import sys,os,re,time
 import json,requests
 import shutil
@@ -15,7 +18,7 @@ def cran_version(package):
    if package not in r_dict:
       cran_url="http://crandb.r-pkg.org/"
 
-      print("cran url",cran_url+package)
+      #print("cran url",cran_url+package)
       resp=requests.get(url=cran_url+package)
       data=json.loads(resp.text)
       try:
@@ -28,17 +31,17 @@ def cran_version(package):
                depends.remove('R')
             if len(depends) > 0:
                dependency_list = dependency_list + depends
-               print("Depends:",depends)
+               #print("Depends:",depends)
          if u'Imports' in data:
             imports = data[u'Imports'].keys()
             if len(imports) > 0:
                dependency_list = dependency_list + imports
-               print("Imports:",imports)
+               #print("Imports:",imports)
          if len(dependency_list) > 0:
             r_dict[package].append(list(set(dependency_list)))
       except KeyError:
          print("Warning: could not find R package:",package)
-         print("CRAN response:",data)
+         #print("CRAN response:",data)
          r_dict[package]=[]
  
    return r_dict[package]
@@ -139,19 +142,19 @@ def parse_r_params(params,indent,f_out,pkgs):
    current=cran_version(params[0])
      
    # 2 items means dependency list 
-   print(params[0],"cran_version returned",len(current))
+   #print(params[0],"cran_version returned",len(current))
    if len(current)==2:
-      print(params[0],"needs",current[1])
+      #print(params[0],"needs",current[1])
       missing=list(set(current[1])-set(pkgs))
       for m in missing:
-         print("missing",m)
+         #print("missing",m)
          changed=parse_r_params([m,"0","ext_options"],indent,f_out,pkgs)
          if changed>0:
             pkgs.append(m)
             changes=changes+changed
 
    if current!=[] and params[1]!=current[0]:
-      print("wrote",params[0],"to file! version",params[1],"to",current[0])
+      #print("wrote",params[0],"to file! version",params[1],"to",current[0])
       write3(f_out,indent,params,current[0])
       changes=changes+1
 
@@ -210,7 +213,7 @@ def dump_py_group(f,group,finalize=False):
 # if not dump to file else
 # get package version, etc
 def parse_py_group(f,group,pkgs):
-   print("DEBUG: parse_py_group: ",repr(group))
+   #print("DEBUG: parse_py_group: ",repr(group))
    params_re="([^', \(\)]+)"
 
    params=re.findall(params_re,group[0][1])
@@ -230,11 +233,11 @@ def parse_py_group(f,group,pkgs):
       # if package has associated dependencies
       if len(current)==2:
          missing=list(set(current[1])-set(pkgs))
-         print("parent",group)
+         #print("parent",group)
          for m in missing:
-            print("missing",m)
+            #print("missing",m)
             m_group=create_py_group(m)
-            print("m_group",m_group)
+            #print("m_group",m_group)
             dump_py_group(f,m_group,True)
             #parse_py_group(f,m_group,pkgs)
 
