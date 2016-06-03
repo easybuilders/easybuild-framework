@@ -272,7 +272,7 @@ def parse_py(cleaned,indent,changes,f_out,pkgs):
 
 def main(args):
    if len(args)==0:
-      print("Usage: ezupdate <R- or Python- .eb file(s)>")
+      print("Usage: update_exts <R- or Python- .eb file(s)>")
    else:
       for arg in args:
          base=os.path.basename(arg)
