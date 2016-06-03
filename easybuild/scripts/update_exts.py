@@ -7,6 +7,8 @@ import sys,os,re,time
 import json,requests
 import shutil
 
+import xmlrpclib
+
 # global dictionary of R packages and their respective dependencies
 r_dict={}
 
@@ -66,19 +68,17 @@ def pypi_version(package):
    global py_dict
 
    if package not in py_dict:
-      pypi_url="http://pypi.python.org/pypi/"
-
-      #print("pypi url",pypi_url+package+"/json")
-      resp=requests.get(url=pypi_url+package+"/json")
-      try:
-         data=json.loads(resp.text)
-         py_dict[package]=[data['info']['version']]
-         if 'requires_dist' in data['info']:
-            req=parse_pypi_requires(data['info']['requires_dist'])
+      client=xmlrpclib.ServerProxy('https://pypi.python.org/pypi')
+      xml_vers=client.package_releases(package)
+      if xml_vers:
+         py_dict[package]=[xml_vers[0]]
+         xml_info=client.release_data(package,xml_vers[0])
+         if 'requires_dist' in xml_info:
+            req=parse_pypi_requires(xml_info['requires_dist'])
             if req:
                py_dict[package].append(req)
                #print("requires_dist:",req)
-      except:
+      else:
          print("Warning: could not find Python package:",package)
          py_dict[package]=[]
 
@@ -274,6 +274,8 @@ def parse_py(cleaned,indent,changes,f_out,pkgs):
    return changes,cont
 
 def main(args):
+   pypi_version("frobotznik")
+
    if len(args)==0:
       print("Usage: update_exts <R- or Python- .eb file(s)>")
    else:
