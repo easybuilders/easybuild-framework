@@ -388,9 +388,8 @@ class ModulesTool(object):
             eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
             shufflepaths = \
                 (mod_path for mod_path in self.mod_paths[::-1] if
-                 (os.path.commonprefix([os.path.realpath(mod_path), os.path.realpath(eb_modpath)]) != eb_modpath)
-                 and (os.path.realpath(mod_path) != os.path.realpath(eb_modpath))
-                 )
+                 (os.path.realpath(mod_path) == os.path.realpath(eb_modpath)) or
+                 (os.path.commonprefix([os.path.realpath(mod_path), os.path.realpath(eb_modpath)]) != eb_modpath))
             for mod_path in shufflepaths:
                 self.prepend_module_path(mod_path)
             self.log.info("$MODULEPATH set via list of module paths (w/ 'module use'): %s" % os.environ['MODULEPATH'])
