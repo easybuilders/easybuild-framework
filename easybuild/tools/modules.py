@@ -565,6 +565,10 @@ class ModulesTool(object):
         """Set path environment variable to the given list of paths."""
         os.environ[key] = os.pathsep.join(paths)
 
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
+
     def run_module(self, *args, **kwargs):
         """
         Run module command.
@@ -611,6 +615,8 @@ class ModulesTool(object):
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
+
+        self.check_module_output(full_cmd, stdout, stderr)
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -920,6 +926,13 @@ class Lmod(ModulesTool):
         if not 'regex' in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
         super(Lmod, self).check_module_function(*args, **kwargs)
+
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if stdout:
+            self.log.debug("Output found in stdout, seems like '%s' ran fine", cmd)
+        else:
+            raise EasyBuildError("No output found in stdout, seems like '%s' failed", cmd)
 
     def available(self, mod_name=None):
         """
