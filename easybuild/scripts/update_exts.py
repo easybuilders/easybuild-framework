@@ -99,7 +99,7 @@ def get_temp():
 def update_updated():
    return('# package versions updated '+time.strftime("%b %d %Y")+'\n')
 
-def parse_ez(ez_file,parse_func):
+def parse_ez(ez_file,parse_func,suffix=".updated"):
    not_exts_list=True
    changes=0
    pkgs=[]
@@ -130,7 +130,7 @@ def parse_ez(ez_file,parse_func):
             f_out.write(line)
 
    if changes>0:
-      shutil.move(temp,ez_file)
+      shutil.move(temp,ez_file+suffix)
    else:
       os.remove(temp)
 
