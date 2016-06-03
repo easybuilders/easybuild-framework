@@ -383,8 +383,8 @@ class ModulesTool(object):
         if curr_module_paths() == self.mod_paths:
             self.log.debug("Current value of $MODULEPATH already matches list of module path %s", self.mod_paths)
         else:
-            # Don't include subdirs of the module installation target (hierarchical schemes, for example, rely on their
-            # placement)
+            # Don't include subdirs of the module installation target when we shuffle (hierarchical schemes, for
+            # example, rely on their relative location in MODULEPATH)
             eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
             shufflepaths = \
                 (mod_path for mod_path in self.mod_paths[::-1] if
