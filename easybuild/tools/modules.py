@@ -929,10 +929,11 @@ class Lmod(ModulesTool):
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
+        fail_regex = re.compile('^stack traceback:', re.M)
         if stdout:
             self.log.debug("Output found in stdout, seems like '%s' ran fine", cmd)
-        else:
-            raise EasyBuildError("No output found in stdout, seems like '%s' failed", cmd)
+        elif fail_regex.search(stderr):
+            raise EasyBuildError("Empty stdout, '%s' found in stderr, seems like '%s' failed", fail_regex.pattern, cmd)
 
     def available(self, mod_name=None):
         """
