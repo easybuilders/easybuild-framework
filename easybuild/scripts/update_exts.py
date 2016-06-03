@@ -87,6 +87,9 @@ def pypi_version(package):
 def q(s):
    return("'"+s+"'")
 
+def s(s):
+   return("/"+s+"/")
+
 # write simplest R exts_list record
 # fp, 3 params from original, new version
 def write3(f,indent,params,current):
@@ -196,7 +199,7 @@ def create_py_group(package):
 
    new_entry=py_template
    new_entry[0][1]="("+q(package)+", '0', {"
-   new_entry[1][1]="'source_urls': ["+q(pypi_url+package[0]+'/'+package+'/],')
+   new_entry[1][1]="'source_urls': ["+q(pypi_url+package[0]+s(package))+'],'
 
    return new_entry
 
