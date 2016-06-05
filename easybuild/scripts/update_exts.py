@@ -242,7 +242,6 @@ def parse_py_group(f,group,pkgs):
             m_group=create_py_group(m)
             #print("m_group",m_group)
             dump_py_group(f,m_group,True)
-            #parse_py_group(f,m_group,pkgs)
 
       if current==[] or current[0]==params[1]:
          dump_py_group(f,group)
@@ -274,8 +273,6 @@ def parse_py(cleaned,indent,changes,f_out,pkgs):
    return changes,cont
 
 def main(args):
-   pypi_version("frobotznik")
-
    if len(args)==0:
       print("Usage: update_exts <R- or Python- .eb file(s)>")
    else:
