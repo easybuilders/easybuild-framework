@@ -38,3 +38,4 @@ class CrayCCE(CrayPECray, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
+    CrayPECray.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'homp'})
