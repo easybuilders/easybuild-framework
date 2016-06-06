@@ -76,6 +76,7 @@ class CrayPECompiler(Compiler):
         'dynamic': '',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
+        'openmp': 'fopenmp',
     }
 
     COMPILER_CC = 'cc'
