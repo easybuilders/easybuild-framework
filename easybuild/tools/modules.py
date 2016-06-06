@@ -213,7 +213,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -616,7 +616,8 @@ class ModulesTool(object):
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
 
-        self.check_module_output(full_cmd, stdout, stderr)
+        if kwargs.get('check_output', True):
+            self.check_module_output(full_cmd, stdout, stderr)
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -929,11 +930,10 @@ class Lmod(ModulesTool):
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
-        fail_regex = re.compile('^stack traceback:', re.M)
         if stdout:
             self.log.debug("Output found in stdout, seems like '%s' ran fine", cmd)
-        elif fail_regex.search(stderr):
-            raise EasyBuildError("Empty stdout, '%s' found in stderr, seems like '%s' failed", fail_regex.pattern, cmd)
+        else:
+            raise EasyBuildError("Found empty stdout, seems like '%s' failed: %s", cmd, stderr)
 
     def available(self, mod_name=None):
         """
