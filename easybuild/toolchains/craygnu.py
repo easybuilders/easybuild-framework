@@ -38,4 +38,3 @@ class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
     NAME = 'CrayGNU'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-    CrayPEGCC.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'fopenmp'})

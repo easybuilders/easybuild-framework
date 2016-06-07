@@ -34,4 +34,3 @@ class CrayPGI(CrayPEPGI, CrayMPICH):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (PGI) (PrgEnv-pgi)."""
     NAME = 'CrayPGI'
     SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-    CrayPEPGI.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'mp'})
