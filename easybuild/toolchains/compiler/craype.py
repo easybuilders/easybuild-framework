@@ -137,7 +137,7 @@ class CrayPEGCC(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEGCC constructor."""
         super(CrayPEGCC, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'fopenmp'})
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'fopenmp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Gcc.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
@@ -150,7 +150,7 @@ class CrayPEIntel(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
         super(CrayPEIntel, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'fopenmp'})
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'fopenmp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
@@ -163,7 +163,7 @@ class CrayPEPGI(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEPGI constructor."""
         super(CrayPEPGI, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'mp'})
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'mp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Pgi.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
@@ -176,6 +176,6 @@ class CrayPECray(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
         super(CrayPECray, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP.update({'openmp': 'homp'})
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'homp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []
