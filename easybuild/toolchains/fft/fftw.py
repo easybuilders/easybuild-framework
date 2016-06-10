@@ -53,8 +53,12 @@ class Fftw(Fft):
         fftw_libs = ["fftw%s" % suffix]
         if self.options['usempi']:
             fftw_libs.insert(0, "fftw%s_mpi" % suffix)
+        fftw_libs_mt = ["fftw%s" % suffix]
+        if self.options['openmp']:
+            fftw_libs_mt.insert(0, "fftw%s_omp" % suffix)
 
         self.FFT_LIB = fftw_libs
+        self.FFT_LIB_MT = fftw_libs_mt
 
     def _set_fft_variables(self):
         self._set_fftw_variables()
@@ -66,3 +70,5 @@ class Fftw(Fft):
         self.variables.join('FFTW_LIB_DIR', 'FFT_LIB_DIR')
         if 'FFT_STATIC_LIBS' in self.variables:
             self.variables.join('FFTW_STATIC_LIBS', 'FFT_STATIC_LIBS')
+        if 'FFT_STATIC_LIBS_MT' in self.variables:
+            self.variables.join('FFTW_STATIC_LIBS_MT', 'FFT_STATIC_LIBS_MT')
