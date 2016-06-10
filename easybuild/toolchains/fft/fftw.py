@@ -54,7 +54,7 @@ class Fftw(Fft):
         if self.options['usempi']:
             fftw_libs.insert(0, "fftw%s_mpi" % suffix)
         fftw_libs_mt = ["fftw%s" % suffix]
-        if self.options['openmp']:
+        if self.options['openmp', False]:
             fftw_libs_mt.insert(0, "fftw%s_omp" % suffix)
 
         self.FFT_LIB = fftw_libs
