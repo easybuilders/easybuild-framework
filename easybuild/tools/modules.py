@@ -485,8 +485,9 @@ class ModulesTool(object):
             else:
                 restore_env(init_env)
 
-        # make sure $MODULEPATH is set correctly after purging
-        self.check_module_path()
+            # make sure $MODULEPATH is set correctly after purging
+            self.check_module_path()
+
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
