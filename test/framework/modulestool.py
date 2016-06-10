@@ -160,7 +160,7 @@ class ModulesToolTest(EnhancedTestCase):
             init_config(build_options=build_options)
 
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, lmod_abspath)
+            self.assertEqual(lmod.cmd, os.path.realpath(lmod_abspath))
 
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
@@ -177,12 +177,17 @@ class ModulesToolTest(EnhancedTestCase):
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
             fake_path = os.path.join(self.test_installpath, 'lmod')
-            write_file(fake_path, '#!/bin/bash\necho "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION)
+            fake_lmod_txt = '\n'.join([
+                '#!/bin/bash',
+                'echo "Modules based on Lua: Version %s " >&2' % Lmod.REQ_VERSION,
+                'echo "os.environ[\'FOO\'] = \'foo\'"',
+            ])
+            write_file(fake_path, fake_lmod_txt)
             os.chmod(fake_path, stat.S_IRUSR|stat.S_IXUSR)
             os.environ['LMOD_CMD'] = fake_path
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, fake_path)
+            self.assertEqual(lmod.cmd, os.path.realpath(fake_path))
 
             # use correct full path for 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
