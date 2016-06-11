@@ -179,6 +179,7 @@ FFT_MAP_CLASS = {
     ],
     LibraryList: [
         ('LIBFFT', 'FFT libraries'),
+        ('LIBFFT_MT', 'Multithreaded FFT libraries'),
     ],
     CommaStaticLibs: [
         ('FFT_STATIC_LIBS', 'Comma-separated list of static FFT libraries'),
