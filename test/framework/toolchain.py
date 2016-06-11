@@ -716,6 +716,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.options.update({'openmp': True})
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
