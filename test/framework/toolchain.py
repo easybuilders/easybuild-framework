@@ -675,6 +675,7 @@ class ToolchainTest(EnhancedTestCase):
 
         libblas_mt_goolfc = "-lopenblas -lgfortran"
         libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
+        libfft_mt_goolfc = "-lfftw3_omp -lfftw3 -lpthread"
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
         tc.prepare()
@@ -715,8 +716,10 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.options.update({'openmp': True})
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
 
     def test_independence(self):
