@@ -63,6 +63,7 @@ from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.environment import restore_env, unset_env_vars
+from easybuild.tools.filetools import mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -1173,6 +1174,18 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             current_tmpdir = tempfile.mkdtemp(prefix='eb-')
     except OSError, err:
         raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
+
+    # avoid having special characters like '[' and ']' in the tmpdir pathname,
+    # it is known to cause problems (e.g., with Python install tools, CUDA's nvcc, etc.);
+    # only common characteris like alphanumeric, '_', '-', '.' and '/' are retained; others are converted to '_'
+    special_chars_regex = r'[^\w/.-]'
+    if re.search(special_chars_regex, current_tmpdir):
+        current_tmpdir = re.sub(special_chars_regex, '_', current_tmpdir)
+        _log.info("Detected special characters in path to temporary directory, replacing them to avoid trouble: %s")
+        try:
+            os.makedirs(current_tmpdir)
+        except OSError as err:
+            raise EasyBuildError("Failed to create path to temporary directory %s: %s", current_tmpdir, err)
 
     _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
 
