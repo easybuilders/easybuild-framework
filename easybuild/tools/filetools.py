@@ -744,10 +744,14 @@ def apply_regex_substitutions(path, regex_subs):
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
-        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
-            for regex, subtxt in regex_subs:
-                line = regex.sub(subtxt, line)
-            sys.stdout.write(line)
+        try:
+            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+                for regex, subtxt in regex_subs:
+                    line = regex.sub(subtxt, line)
+                sys.stdout.write(line)
+
+        except OSError, err:
+            raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):
