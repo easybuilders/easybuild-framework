@@ -339,7 +339,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             print_error("One or more conflicts detected!")
             sys.exit(1)
         else:
-            print_msg("No conflicts detected.")
+            print_msg("\nNo conflicts detected!\n", prefix=False)
 
     # dump source script to set up build environment
     if options.dump_env_script:

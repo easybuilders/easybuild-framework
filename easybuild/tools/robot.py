@@ -67,6 +67,7 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
 
 def check_conflicts(easyconfigs, modtool):
     """Check for conflicts in dependency graphs for specified easyconfigs."""
+
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
     def mk_key(spec):
@@ -86,6 +87,10 @@ def check_conflicts(easyconfigs, modtool):
         runtime_deps = [d for d in deps if d not in build_deps]
 
         deps_for[mk_key(node)] = [build_deps, runtime_deps]
+
+    # add ghost entry that depends on each of the specified easyconfigs,
+    # since we want to check for conflicts between specified easyconfigs too
+    deps_for[(None, None)] = [[], [mk_key(e) for e in easyconfigs]]
 
     # iteratively expand list of dependencies
     last_deps_for = None
@@ -107,9 +112,12 @@ def check_conflicts(easyconfigs, modtool):
         # if not => CONFLICT!
         conflict = name1 == name2 and installver1 != installver2
         if conflict:
-            specname = '%s-%s' % (name, installver)
             vs_msg = "%s-%s vs %s-%s" % (name1, installver1, name2, installver2)
-            sys.stderr.write("Conflict found for dependencies of %s: %s\n" % (specname, vs_msg))
+            if name is None:
+                sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
+            else:
+                specname = '%s-%s' % (name, installver)
+                sys.stderr.write("Conflict found for dependencies of %s: %s\n" % (specname, vs_msg))
 
         return conflict
 

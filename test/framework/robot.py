@@ -944,6 +944,34 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue(conflicts)
         self.assertTrue("Conflict found for dependencies of goolf-1.4.10: GCC-4.6.4 vs GCC-4.7.2" in stderr)
 
+        # conflicts between specified easyconfigs are also detected
+
+        # direct conflict on software version
+        ecs, _ = parse_easyconfigs([
+            (os.path.join(test_easyconfigs, 'GCC-4.7.2.eb'), False),
+            (os.path.join(test_easyconfigs, 'GCC-4.9.3-2.25.eb'), False),
+        ])
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(conflicts)
+        self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.7.2 vs GCC-4.9.3-2.25" in stderr)
+
+        # indirect conflict on dependencies
+        ecs, _ = parse_easyconfigs([
+            (os.path.join(test_easyconfigs, 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
+            (os.path.join(test_easyconfigs, 'hwloc-1.6.2-GCC-4.6.4.eb'), False),
+        ])
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(conflicts)
+        self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.6.4 vs GCC-4.9.2" in stderr)
+
 
 def suite():
     """ returns all the testcases in this module """
