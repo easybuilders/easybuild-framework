@@ -66,7 +66,13 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
 
 
 def check_conflicts(easyconfigs, modtool):
-    """Check for conflicts in dependency graphs for specified easyconfigs."""
+    """
+    Check for conflicts in dependency graphs for specified easyconfigs.
+
+    @param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
+    @param modtool: ModulesTool instance to use
+    @return: True if one or more conflicts were found, False otherwise
+    """
 
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
 
