@@ -1899,6 +1899,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1970,6 +1973,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_toolchains(self):
         """Test --include-toolchains."""
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
