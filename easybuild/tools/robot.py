@@ -33,8 +33,11 @@ Dependency resolution functionality, a.k.a. robot.
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import os
+import sys
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
@@ -60,6 +63,81 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
         _log.info("Prepended list of robot search paths with %s: %s" % (pr_path, robot_path))
 
     return robot_path
+
+
+def check_conflicts(easyconfigs, modtool):
+    """
+    Check for conflicts in dependency graphs for specified easyconfigs.
+
+    @param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
+    @param modtool: ModulesTool instance to use
+    @return: True if one or more conflicts were found, False otherwise
+    """
+
+    ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
+
+    def mk_key(spec):
+        """Create key for dictionary with all dependencies."""
+        if 'ec' in spec:
+            spec = spec['ec']
+        return (spec['name'], det_full_ec_version(spec))
+
+    # construct a dictionary: (name, installver) tuple to (build) dependencies
+    deps_for = {}
+    for node in ordered_ecs:
+        # exclude external modules, since we can't check conflicts on them (we don't even know the software name)
+        build_deps = [mk_key(d) for d in node['builddependencies'] if not d.get('external_module', False)]
+        deps = [mk_key(d) for d in node['ec'].all_dependencies if not d.get('external_module', False)]
+
+        # separate runtime deps from build deps
+        runtime_deps = [d for d in deps if d not in build_deps]
+
+        deps_for[mk_key(node)] = [build_deps, runtime_deps]
+
+    # add ghost entry that depends on each of the specified easyconfigs,
+    # since we want to check for conflicts between specified easyconfigs too
+    deps_for[(None, None)] = [[], [mk_key(e) for e in easyconfigs]]
+
+    # iteratively expand list of dependencies
+    last_deps_for = None
+    while deps_for != last_deps_for:
+        last_deps_for = copy.deepcopy(deps_for)
+        for (key, (build_deps, runtime_deps)) in last_deps_for.items():
+            # extend runtime dependencies with non-build dependencies of own runtime dependencies
+            for dep in runtime_deps:
+                deps_for[key][1].extend([d for d in deps_for[dep][1] if d not in deps_for[dep][0]])
+            deps_for[key][1] = sorted(nub(deps_for[key][1]))
+            # extend build dependencies with non-build dependencies of own build dependencies
+            for dep in build_deps:
+                deps_for[key][0].extend([d for d in deps_for[dep][1] if d not in deps_for[dep][0]])
+            deps_for[key][0] = sorted(nub(deps_for[key][0]))
+
+    def is_conflict((name, installver), (name1, installver1), (name2, installver2)):
+        """Check whether dependencies with given name/(install) version conflict with each other."""
+        # dependencies with the same name should have the exact same install version
+        # if not => CONFLICT!
+        conflict = name1 == name2 and installver1 != installver2
+        if conflict:
+            vs_msg = "%s-%s vs %s-%s" % (name1, installver1, name2, installver2)
+            if name is None:
+                sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
+            else:
+                specname = '%s-%s' % (name, installver)
+                sys.stderr.write("Conflict found for dependencies of %s: %s\n" % (specname, vs_msg))
+
+        return conflict
+
+    # for each of the easyconfigs, check whether the dependencies (incl. build deps) contain any conflicts
+    res = False
+    for (key, (build_deps, runtime_deps)) in deps_for.items():
+        # also check whether module itself clashes with any of its dependencies
+        for i, dep1 in enumerate(build_deps + runtime_deps + [key]):
+            for dep2 in (build_deps + runtime_deps)[i+1:]:
+                # don't worry about conflicts between module itself and any of its build deps
+                if dep1 != key or dep2 not in build_deps:
+                    res |= is_conflict(key, dep1, dep2)
+
+    return res
 
 
 def dry_run(easyconfigs, modtool, short=False):

@@ -58,7 +58,7 @@ from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
-from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
@@ -227,11 +227,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, build_specs) = process_software_build_specs(options)
 
+    search_query = options.search or options.search_filename or options.search_short
+
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
     tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
-    auto_robot = try_to_generate or options.dep_graph or options.search or options.search_short
+    auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
     _log.debug("Full robot path: %s" % robot_path)
 
@@ -266,9 +268,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # search for easyconfigs, if a query is specified
-    query = options.search or options.search_filename or options.search_short
-    if query:
-        search_easyconfigs(query, short=options.search_short, filename_only=options.search_filename,
+    if search_query:
+        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
     # GitHub integration
@@ -292,8 +293,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search,
-                  options.search_filename, options.search_short, options.regtest, options.update_pr]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, search_query,
+                  options.regtest, options.update_pr]
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
@@ -307,7 +308,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
-                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+                        log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s" % paths)
 
     # run regtest
@@ -333,12 +334,19 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
+    if options.check_conflicts:
+        if check_conflicts(easyconfigs, modtool):
+            print_error("One or more conflicts detected!")
+            sys.exit(1)
+        else:
+            print_msg("\nNo conflicts detected!\n", prefix=False)
+
     # dump source script to set up build environment
     if options.dump_env_script:
         dump_env_script(easyconfigs)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.dry_run, options.dry_run_short, options.dump_env_script]):
+    if any(no_ec_opts + [options.check_conflicts, options.dry_run, options.dry_run_short, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
