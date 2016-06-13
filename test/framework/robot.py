@@ -972,6 +972,9 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue(conflicts)
         self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.6.4 vs GCC-4.9.2" in stderr)
 
+        # test use of check_inter_ec_conflicts
+        self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
+
 
 def suite():
     """ returns all the testcases in this module """

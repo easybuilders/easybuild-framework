@@ -65,12 +65,13 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
     return robot_path
 
 
-def check_conflicts(easyconfigs, modtool):
+def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
     """
     Check for conflicts in dependency graphs for specified easyconfigs.
 
     @param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
     @param modtool: ModulesTool instance to use
+    @param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
     @return: True if one or more conflicts were found, False otherwise
     """
 
@@ -94,9 +95,10 @@ def check_conflicts(easyconfigs, modtool):
 
         deps_for[mk_key(node)] = [build_deps, runtime_deps]
 
-    # add ghost entry that depends on each of the specified easyconfigs,
-    # since we want to check for conflicts between specified easyconfigs too
-    deps_for[(None, None)] = [[], [mk_key(e) for e in easyconfigs]]
+    if check_inter_ec_conflicts:
+        # add ghost entry that depends on each of the specified easyconfigs,
+        # since we want to check for conflicts between specified easyconfigs too
+        deps_for[(None, None)] = [[], [mk_key(e) for e in easyconfigs]]
 
     # iteratively expand list of dependencies
     last_deps_for = None
