@@ -1177,10 +1177,10 @@ def set_tmpdir(tmpdir=None, raise_error=False):
 
     # avoid having special characters like '[' and ']' in the tmpdir pathname,
     # it is known to cause problems (e.g., with Python install tools, CUDA's nvcc, etc.);
-    # only common characteris like alphanumeric, '_', '-', '.' and '/' are retained; others are converted to '_'
+    # only common characteris like alphanumeric, '_', '-', '.' and '/' are retained; others are converted to 'X'
     special_chars_regex = r'[^\w/.-]'
     if re.search(special_chars_regex, current_tmpdir):
-        current_tmpdir = re.sub(special_chars_regex, '_', current_tmpdir)
+        current_tmpdir = re.sub(special_chars_regex, 'X', current_tmpdir)
         _log.info("Detected special characters in path to temporary directory, replacing them to avoid trouble: %s")
         try:
             os.makedirs(current_tmpdir)

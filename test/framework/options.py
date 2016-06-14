@@ -2067,7 +2067,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             mytmpdir = set_tmpdir(tmpdir=tmpdir)
 
-            parent = re.sub('[^\w/.-]', '_', parent)
+            parent = re.sub('[^\w/.-]', 'X', parent)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
                 self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
