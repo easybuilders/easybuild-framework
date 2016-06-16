@@ -894,7 +894,12 @@ class EasyConfig(object):
         while self.template_values != prev_template_values:
             prev_template_values = copy.deepcopy(self.template_values)
             for key in self.template_values:
-                self.template_values[key] = self.template_values[key] % self.template_values
+                try:
+                    new_val = self.template_values[key] % self.template_values
+                    self.template_values[key] = new_val
+                except KeyError:
+                    # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
+                    pass
 
     def _generate_template_values(self, ignore=None, skip_lower=True):
         """Actual code to generate the template values"""
