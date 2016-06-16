@@ -441,6 +441,7 @@ class EasyConfig(object):
         # update templating dictionary
         self.generate_template_values()
 
+        # finalize dependencies w.r.t. minimal toolchains & module names
         self._finalize_dependencies()
 
         # indicate that this is a parsed easyconfig
@@ -871,15 +872,15 @@ class EasyConfig(object):
                     else:
                         self.log.debug("Obtained minimal toolchain: %s", tc)
 
-                    orig_dep['toolchain'] = tc
+                    dep['toolchain'] = orig_dep['toolchain'] = tc
 
-                if not orig_dep['external_module']:
+                if not dep['external_module']:
                     # make sure 'dummy' is set correctly
-                    orig_dep['dummy'] = orig_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+                    orig_dep['dummy'] = dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
 
                     # set module names
-                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(orig_dep)
-                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(orig_dep)
+                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
+                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
 
     def generate_template_values(self):
         """Try to generate all template values."""
