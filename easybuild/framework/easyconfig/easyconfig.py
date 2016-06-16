@@ -873,12 +873,13 @@ class EasyConfig(object):
 
                     orig_dep['toolchain'] = tc
 
-                # make sure 'dummy' is set correctly
-                orig_dep['dummy'] = orig_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+                if not orig_dep['external_module']:
+                    # make sure 'dummy' is set correctly
+                    orig_dep['dummy'] = orig_dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
 
-                # set module names
-                orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(orig_dep)
-                orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(orig_dep)
+                    # set module names
+                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(orig_dep)
+                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(orig_dep)
 
     def generate_template_values(self):
         """Try to generate all template values."""
