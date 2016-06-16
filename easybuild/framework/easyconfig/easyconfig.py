@@ -883,9 +883,17 @@ class EasyConfig(object):
 
     def generate_template_values(self):
         """Try to generate all template values."""
-        # TODO proper recursive code https://github.com/hpcugent/easybuild-framework/issues/474
+
         self._generate_template_values(skip_lower=True)
         self._generate_template_values(skip_lower=False)
+
+        # recursive call, until there are no more changes to template values;
+        # important since template values may include other templates
+        prev_template_values = None
+        while self.template_values != prev_template_values:
+            prev_template_values = copy.deepcopy(self.template_values)
+            for key in self.template_values:
+                self.template_values[key] = self.template_values[key] % self.template_values
 
     def _generate_template_values(self, ignore=None, skip_lower=True):
         """Actual code to generate the template values"""
