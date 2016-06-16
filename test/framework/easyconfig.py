@@ -1746,6 +1746,59 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(template_constant_dict(ec._config), expected)
 
+    def test_parse_deps_templates(self):
+        """Test whether handling of templates defined by dependencies is done correctly."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
+        shutil.copy2(os.path.join(test_ecs, 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
+        write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
+
+        ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "versionsuffix = '-Python-%(pyver)s'",
+            "homepage = 'http://example.com'",
+            "description = 'test'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "dependencies = [('Python', '2.7.10'), ('pytest', '1.2.3', versionsuffix)]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ec_txt)
+
+        pytest_ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'pytest'",
+            "version = '1.2.3'",
+            "versionsuffix = '-Python-%(pyver)s'",
+            "homepage = 'http://example.com'",
+            "description = 'test'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "dependencies = [('Python', '2.7.10')]",
+        ])
+        write_file(os.path.join(self.test_prefix, 'pytest-1.2.3-goolf-1.4.10-Python-2.7.10.eb'), pytest_ec_txt)
+
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': [test_ecs, self.test_prefix],
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        }
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
+
+        # check if parsing of easyconfig & resolving dependencies works correctly
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+
+        # verify module names of dependencies, by accessing raw config via _.config
+        expected = [
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/Python/2.7.10',
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/pytest/1.2.3-Python-2.7.10',
+        ]
+        dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
+        self.assertEqual(dep_full_mod_names, expected)
+
 
 def suite():
     """ returns all the testcases in this module """

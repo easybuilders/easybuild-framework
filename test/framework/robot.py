@@ -430,8 +430,10 @@ class RobotTest(EnhancedTestCase):
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2'),",  # available with gompi/1.4.10
             "   ('SQLite', '3.8.10.2'),",
             "]",
-            # toolchain as list line, for easy modification later
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            # toolchain as list line, for easy modification later;
+            # the use of %(version_major)s here is mainly to check if templates are being handled correctly
+            # (it doesn't make much sense, but it serves the purpose)
+            "toolchain = {'name': 'goolf', 'version': '%(version_major)s.4.10'}",
         ]
         write_file(barec, '\n'.join(barec_lines))
         bar = process_easyconfig(barec)[0]
