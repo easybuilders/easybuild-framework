@@ -380,11 +380,20 @@ class ModulesTool(object):
             self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
         # set the module path environment accordingly
-        if curr_module_paths() == self.mod_paths:
+        curr_mod_paths = curr_module_paths()
+        self.log.debug("Current module paths: %s; target module paths: %s", curr_mod_paths, self.mod_paths)
+        if curr_mod_paths == self.mod_paths:
             self.log.debug("Current value of $MODULEPATH already matches list of module path %s", self.mod_paths)
         else:
-            for mod_path in self.mod_paths[::-1]:
+            # filter out tail of paths that already matches tail of target
+            idx = 1
+            while(curr_mod_paths[-idx:] == self.mod_paths[-idx:]):
+                idx += 1
+            self.log.debug("Not prepending %d last entries of %s", idx-1, self.mod_paths)
+
+            for mod_path in self.mod_paths[::-1][idx-1:]:
                 self.prepend_module_path(mod_path)
+
             self.log.info("$MODULEPATH set via list of module paths (w/ 'module use'): %s" % os.environ['MODULEPATH'])
 
     def available(self, mod_name=None, extra_args=None):
