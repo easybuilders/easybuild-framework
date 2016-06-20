@@ -811,7 +811,7 @@ class EasyConfig(object):
         tc = copy.deepcopy(self['toolchain'])
         tc_spec = dependency['toolchain']
         if tc_spec is None:
-            self.log.debug("Inheriting parent toolchain %s for dependency %s (for now)", tc, dependency)
+            self.log.debug("Inheriting parent toolchain %s for dep %s (until deps are finalised)", tc, dependency)
             dependency['toolchain_inherited'] = True
 
         # (true) boolean value simply indicates that a dummy toolchain is used
@@ -857,7 +857,7 @@ class EasyConfig(object):
                 # reference to original dep dict, this is the one we should be updating
                 orig_dep = self._config[key][0][idx]
 
-                # minimize toolchains for dependencies with inherite toolchain, if requested
+                # minimize toolchains for dependencies with inherited toolchain, if requested
                 # this *must* be done after parsing all dependencies, to avoid problems with templates like %(pyver)s
                 if dep['toolchain_inherited'] and build_option('minimal_toolchains'):
 
