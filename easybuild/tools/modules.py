@@ -385,7 +385,7 @@ class ModulesTool(object):
         if curr_mod_paths == self.mod_paths:
             self.log.debug("Current value of $MODULEPATH already matches list of module path %s", self.mod_paths)
         else:
-            # filter out tail of paths that already matches tail of target
+            # filter out tail of paths that already matches tail of target, to avoid unnecessary 'unuse' commands
             idx = 1
             while(curr_mod_paths[-idx:] == self.mod_paths[-idx:]):
                 idx += 1
