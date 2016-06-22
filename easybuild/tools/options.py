@@ -41,6 +41,7 @@ import shutil
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from vsc.utils.fancylogger import setLogLevel
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
@@ -54,7 +55,7 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
+from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
 from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
@@ -268,6 +269,7 @@ class EasyBuildOptions(GeneralOption):
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
+            'devel': ("Enable including of development log messages", None, 'store_true', False),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
@@ -574,6 +576,10 @@ class EasyBuildOptions(GeneralOption):
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
         build_log.EXPERIMENTAL = self.options.experimental
+
+        # enable devel logging
+        if self.options.devel:
+            setLogLevel(DEVEL_LOG_LEVEL)
 
         # set strictness of run module
         if self.options.strict:
