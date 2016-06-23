@@ -306,6 +306,8 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
+            'zip-logs': ("Zip logs that are copied to install directory, using specified command",
+                         None, 'store_or_None', 'gzip'),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
