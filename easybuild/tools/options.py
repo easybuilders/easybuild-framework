@@ -274,6 +274,8 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
+            'extra-modules': ("List of extra modules to load after setting up the build environment",
+                              'strlist', 'extend', None),
             'fixed-installdir-naming-scheme': ("Use fixed naming scheme for installation directories", None,
                                                'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
