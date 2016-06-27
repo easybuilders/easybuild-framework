@@ -27,15 +27,11 @@ addons:
       - mercurial
       # for GC3Pie (optional dep for EasyBuild)
       - time
-      # for dbus-python/keyring
-      - dbus
-      - libdbus-1-3
-      - libdbus-glib-1-dev
 before_install:
     # keyring is required to provide GitHub token to EasyBuild;
     # keyring v5.7.1 is last version to be compatible with py2.6;
     # for recent versions of keyring, keyrings.alt must be installed too
-    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install keyring==5.7.1; else pip install keyring keyrings.alt; fi
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install keyring==5.7.1; else pip install 'keyring<=9.2' keyrings.alt; fi
     # GitPython 2.x may no longer be compatible with py2.6
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'GitPython<2.0'; else pip install GitPython; fi
     # optional Python packages for EasyBuild
