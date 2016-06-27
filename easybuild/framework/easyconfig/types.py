@@ -442,6 +442,7 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
+    'builddependencies': DEPENDENCIES,
     'dependencies': DEPENDENCIES,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
