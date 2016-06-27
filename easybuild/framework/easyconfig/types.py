@@ -32,7 +32,7 @@ Support for checking types of easyconfig parameter values.
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-
+from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -442,15 +442,15 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
-    'builddependencies': DEPENDENCIES,
-    'dependencies': DEPENDENCIES,
-    'hiddendependencies': DEPENDENCIES,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': NAME_VERSION_DICT,
     'version': basestring,
 }
+# add all dependency types as dependencies
+for dep in DEPENDENCY_PARAMETERS:
+    PARAMETER_TYPES[dep] = DEPENDENCIES
 
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
