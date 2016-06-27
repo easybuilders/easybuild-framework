@@ -2570,12 +2570,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_eb_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild')
         for zip_logs in ['', '--zip-logs', '--zip-logs=gzip', '--zip-logs=bzip2']:
 
-            out = self.eb_main(['toy-0.0.eb', '--force', zip_logs], do_build=True)
-            print out
+            shutil.rmtree(self.test_installpath)
 
-            print os.listdir(os.path.join(self.test_installpath))
-            print os.listdir(os.path.dirname(toy_eb_install_dir))
-            print os.listdir(toy_eb_install_dir)
+            args = ['toy-0.0.eb', '--force', '--debug']
+            if zip_logs:
+                args.append(zip_logs)
+            out = self.eb_main(args, do_build=True)
+
             logs = glob.glob(os.path.join(toy_eb_install_dir, 'easybuild-toy-0.0*log*'))
             self.assertEqual(len(logs), 1, "Found exactly 1 log file in %s: %s" % (toy_eb_install_dir, logs))
 
@@ -2583,7 +2584,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if zip_logs == '--zip-logs' or zip_logs_arg == 'gzip':
                 ext = 'log.gz'
             elif zip_logs_arg == 'bzip2':
-                ext = 'log.bz2xx'
+                ext = 'log.bz2'
             else:
                 ext = 'log'
 
