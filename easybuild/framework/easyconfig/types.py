@@ -444,6 +444,7 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 PARAMETER_TYPES = {
     'builddependencies': DEPENDENCIES,
     'dependencies': DEPENDENCIES,
+    'hiddendependencies': DEPENDENCIES,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
