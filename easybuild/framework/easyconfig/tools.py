@@ -56,7 +56,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.utilities import only_if_module_is_available, quote_str, quote_special_chars
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 # optional Python packages, these might be missing
@@ -374,7 +374,7 @@ def parse_easyconfigs(paths, validate=True):
     return easyconfigs, generated_ecs
 
 
-def stats_to_str(stats):
+def stats_to_str(stats, isyeb=False):
     """
     Pretty print build statistics to string.
     """
@@ -384,7 +384,10 @@ def stats_to_str(stats):
     txt = "{\n"
     pref = "    "
     for (k, v) in stats.items():
-        txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
+        if isyeb:
+            txt += "%s%s: %s,\n" % (pref, k, quote_special_chars(v))
+        else:
+            txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
     txt += "}"
     return txt
 

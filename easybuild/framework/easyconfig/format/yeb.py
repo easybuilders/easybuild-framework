@@ -46,6 +46,7 @@ _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 YAML_DIR = r'%YAML'
 YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
+EB_FORMAT_EXTENSION = '.eb'
 
 
 def yaml_join(loader, node):
