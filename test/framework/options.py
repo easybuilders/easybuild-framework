@@ -2059,12 +2059,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test set_tmpdir config function."""
         self.purge_environment()
 
-        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
+        def check_tmpdir(tmpdir):
+            """Test use of specified path for temporary directory"""
             parent = tmpdir
             if parent is None:
                 parent = tempfile.gettempdir()
 
             mytmpdir = set_tmpdir(tmpdir=tmpdir)
+
+            parent = re.sub('[^\w/.-]', 'X', parent)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
                 self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
@@ -2083,6 +2086,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
             shutil.rmtree(mytmpdir)
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
+
+
+        orig_tmpdir = tempfile.gettempdir()
+        cand_tmpdirs = [
+            None,
+            os.path.join(orig_tmpdir, 'foo'),
+            os.path.join(orig_tmpdir, '[1234]. bleh'),
+            os.path.join(orig_tmpdir, '[ab @cd]%/#*'),
+        ]
+        for tmpdir in cand_tmpdirs:
+            check_tmpdir(tmpdir)
 
     def test_minimal_toolchains(self):
         """End-to-end test for --minimal-toolchains."""

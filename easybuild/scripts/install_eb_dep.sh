@@ -12,6 +12,9 @@ PREFIX=$2
 PKG_NAME=`echo $PKG | sed 's/-[^-]*$//g'`
 PKG_VERSION=`echo $PKG | sed 's/.*-//g'`
 
+CONFIG_OPTIONS=
+PRECONFIG_CMD=
+
 if [ x$PKG_NAME == 'xmodules' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
     export PATH=$PREFIX/Modules/$PKG_VERSION/bin:$PATH
@@ -19,8 +22,9 @@ if [ x$PKG_NAME == 'xmodules' ]; then
 
 elif [ x$PKG_NAME == 'xlua' ]; then
     PKG_URL="http://downloads.sourceforge.net/project/lmod/${PKG}.tar.gz"
+    PRECONFIG_CMD="make clean"
     CONFIG_OPTIONS='--with-static=yes'
-    export PATH=$PREFIX/bin:$PATH
+    export PATH=$PWD/$PKG:$PREFIX/bin:$PATH
 
 elif [ x$PKG_NAME == 'xLmod' ]; then
     PKG_URL="https://github.com/TACC/Lmod/archive/${PKG_VERSION}.tar.gz"
@@ -44,5 +48,9 @@ wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
-    cd ${PKG} && ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
+    cd ${PKG}
+    if [[ ! -z $PRECONFIG_CMD ]]; then
+        eval ${PRECONFIG_CMD}
+    fi
+    ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
 fi
