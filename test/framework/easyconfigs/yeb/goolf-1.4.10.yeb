@@ -37,8 +37,6 @@ dependencies:
       toolchain: *comp_mpi_tc
     - FFTW: 3.3.3
       toolchain: *comp_mpi_tc
-
-builddependencies:
     - ScaLAPACK: 2.0.2
       versionsuffix: !join [-, *blas, *blas_suff]
       toolchain: *comp_mpi_tc
