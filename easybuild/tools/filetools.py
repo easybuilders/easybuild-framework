@@ -744,10 +744,14 @@ def apply_regex_substitutions(path, regex_subs):
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
-        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
-            for regex, subtxt in regex_subs:
-                line = regex.sub(subtxt, line)
-            sys.stdout.write(line)
+        try:
+            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+                for regex, subtxt in regex_subs:
+                    line = regex.sub(subtxt, line)
+                sys.stdout.write(line)
+
+        except OSError, err:
+            raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):
@@ -1231,7 +1235,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     Find FlexLM license.
 
     Considered specified list of environment variables;
-    checks for path to existing license file or valid license server specification.
+    checks for path to existing license file or valid license server specification;
+    duplicate paths are not retained in the returned list of license specs.
 
     If no license is found through environment variables, also consider 'lic_specs'.
 
@@ -1256,7 +1261,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     cand_lic_specs = {}
     for env_var in lic_env_vars:
         if env_var in os.environ:
-            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+            cand_lic_specs[env_var] = nub(os.environ[env_var].split(os.pathsep))
 
     # also consider provided license spec (last)
     # use None as key to indicate that these license specs do not have an environment variable associated with them
@@ -1297,8 +1302,9 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
 
-        # stop after finding valid license specs
+        # stop after finding valid license specs, filter out duplicates
         if valid_lic_specs:
+            valid_lic_specs = nub(valid_lic_specs)
             lic_env_var = env_var
             break
 

@@ -47,7 +47,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easyconfigs, get_easyblock_class
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.templates import to_template_str
+from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
 from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -596,6 +596,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '1.2.3',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
                 'dummy': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
@@ -609,6 +610,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '666',
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+                'toolchain_inherited': False,
                 'dummy': False,
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
@@ -622,6 +624,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '3.2.1',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
                 'dummy': False,
                 'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
@@ -635,6 +638,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '4.5.6',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
                 'dummy': False,
                 'short_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
                 'full_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
@@ -732,7 +736,8 @@ class EasyConfigTest(EnhancedTestCase):
         """ test easyconfig templating """
         inp = {
            'name': 'PI',
-           'version': '3.14',
+           # purposely using minor version that starts with a 0, to check for correct version_minor value
+           'version': '3.04',
            'namelower': 'pi',
            'cmd': 'tar xfvz %s',
         }
@@ -742,13 +747,13 @@ class EasyConfigTest(EnhancedTestCase):
             'name = "%(name)s"',
             'version = "%(version)s"',
             'versionsuffix = "-Python-%%(pyver)s"',
-            'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s"',
+            'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
             'source_urls = [(GOOGLECODE_SOURCE)]',
             'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, "%(cmd)s")]',
             'sanity_check_paths = {',
-            '   "files": ["lib/python%%(pyshortver)s/site-packages"],',
+            '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
             '}',
             'dependencies = [',
@@ -777,9 +782,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
-        self.assertEqual(eb['sanity_check_paths']['files'][0], 'lib/python2.7/site-packages')
+        self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
+        self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
-        self.assertEqual(eb['homepage'], "http://example.com/P/p")
+        self.assertEqual(eb['homepage'], "http://example.com/P/p/v3/")
         self.assertEqual(eb['modloadmsg'], "Java: 1.7.80, 1.7; Python: 2.7.10, 2.7; Perl: 5.22.0, 5.22; R: 3.2.3, 3.2")
         self.assertEqual(eb['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
@@ -1702,6 +1708,96 @@ class EasyConfigTest(EnhancedTestCase):
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
             self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+
+    def test_template_constant_dict(self):
+        """Test template_constant_dict function."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+
+        expected = {
+            'name': 'gzip',
+            'nameletter': 'g',
+            'toolchain_name': 'goolf',
+            'toolchain_version': '1.4.10',
+            'version': '1.5',
+            'version_major': '1',
+            'version_major_minor': '1.5',
+            'version_minor': '5',
+            'versionprefix': '',
+            'versionsuffix': '',
+        }
+        self.assertEqual(template_constant_dict(ec._config), expected)
+
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-deps.eb'))
+        # fiddle with version to check version_minor template ('0' should be retained)
+        ec['version'] = '0.01'
+
+        expected = {
+            'name': 'toy',
+            'nameletter': 't',
+            'toolchain_name': 'dummy',
+            'toolchain_version': 'dummy',
+            'version': '0.01',
+            'version_major': '0',
+            'version_major_minor': '0.01',
+            'version_minor': '01',
+            'versionprefix': '',
+            'versionsuffix': '-deps',
+        }
+        self.assertEqual(template_constant_dict(ec._config), expected)
+
+    def test_parse_deps_templates(self):
+        """Test whether handling of templates defined by dependencies is done correctly."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
+        shutil.copy2(os.path.join(test_ecs, 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
+        write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
+
+        ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "versionsuffix = '-Python-%(pyver)s'",
+            "homepage = 'http://example.com'",
+            "description = 'test'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "dependencies = [('Python', '2.7.10'), ('pytest', '1.2.3', versionsuffix)]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ec_txt)
+
+        pytest_ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'pytest'",
+            "version = '1.2.3'",
+            "versionsuffix = '-Python-%(pyver)s'",
+            "homepage = 'http://example.com'",
+            "description = 'test'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "dependencies = [('Python', '2.7.10')]",
+        ])
+        write_file(os.path.join(self.test_prefix, 'pytest-1.2.3-goolf-1.4.10-Python-2.7.10.eb'), pytest_ec_txt)
+
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': [test_ecs, self.test_prefix],
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        }
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
+
+        # check if parsing of easyconfig & resolving dependencies works correctly
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+
+        # verify module names of dependencies, by accessing raw config via _.config
+        expected = [
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/Python/2.7.10',
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/pytest/1.2.3-Python-2.7.10',
+        ]
+        dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
+        self.assertEqual(dep_full_mod_names, expected)
 
 
 def suite():

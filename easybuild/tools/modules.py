@@ -213,7 +213,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -249,7 +249,7 @@ class ModulesTool(object):
         """Check whether modules tool command is available."""
         cmd_path = which(self.cmd)
         if cmd_path is not None:
-            self.cmd = cmd_path
+            self.cmd = os.path.realpath(cmd_path)
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
@@ -485,8 +485,9 @@ class ModulesTool(object):
             else:
                 restore_env(init_env)
 
-        # make sure $MODULEPATH is set correctly after purging
-        self.check_module_path()
+            # make sure $MODULEPATH is set correctly after purging
+            self.check_module_path()
+
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
@@ -565,6 +566,10 @@ class ModulesTool(object):
         """Set path environment variable to the given list of paths."""
         os.environ[key] = os.pathsep.join(paths)
 
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
+
     def run_module(self, *args, **kwargs):
         """
         Run module command.
@@ -611,6 +616,9 @@ class ModulesTool(object):
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
+
+        if kwargs.get('check_output', True):
+            self.check_module_output(full_cmd, stdout, stderr)
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -920,6 +928,13 @@ class Lmod(ModulesTool):
         if not 'regex' in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
         super(Lmod, self).check_module_function(*args, **kwargs)
+
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if stdout:
+            self.log.debug("Output found in stdout, seems like '%s' ran fine", cmd)
+        else:
+            raise EasyBuildError("Found empty stdout, seems like '%s' failed: %s", cmd, stderr)
 
     def available(self, mod_name=None):
         """

@@ -67,6 +67,9 @@ EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', '
 # set print_debug to True for detailed progress info
 print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
 
+# install with --force in stage2?
+forced_install = os.environ.pop('EASYBUILD_BOOTSTRAP_FORCED', False)
+
 # don't add user site directory to sys.path (equivalent to python -s), see https://www.python.org/dev/peps/pep-0370/
 os.environ['PYTHONNOUSERSITE'] = '1'
 site.ENABLE_USER_SITE = False
@@ -469,13 +472,13 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     handle.close()
 
-    # unset $MODULEPATH, we don't care about already installed modules
-    os.environ['MODULEPATH'] = ''
-
     # set command line arguments for eb
     eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
+    if forced_install:
+        info("Performing FORCED installation, as requested...")
+        eb_args.append('--force')
 
     # make sure we don't leave any stuff behind in default path $HOME/.local/easybuild
     # and set build and install path explicitely
