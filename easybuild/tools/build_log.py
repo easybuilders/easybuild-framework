@@ -4,8 +4,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -169,7 +169,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
 
 # set format for logger
-LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
+LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
 # set the default LoggerClass to EasyBuildLog
@@ -219,7 +219,7 @@ def get_log(name=None):
     log.nosupport("Use of get_log function", '2.0')
 
 
-def print_msg(msg, log=None, silent=False, prefix=True):
+def print_msg(msg, log=None, silent=False, prefix=True, newline=True):
     """
     Print a message to stdout.
     """
@@ -227,9 +227,12 @@ def print_msg(msg, log=None, silent=False, prefix=True):
         log.info(msg)
     if not silent:
         if prefix:
-            print "%s %s" % (EB_MSG_PREFIX, msg)
-        else:
+            msg = ' '.join([EB_MSG_PREFIX, msg])
+
+        if newline:
             print msg
+        else:
+            print msg,
 
 
 def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):

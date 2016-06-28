@@ -4,8 +4,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -57,6 +57,10 @@ class IncludeTest(EnhancedTestCase):
         myeasyblocks = os.path.join(self.test_prefix, 'myeasyblocks')
         mkdir(os.path.join(myeasyblocks, 'generic'), parents=True)
 
+        # include __init__.py files that should be ignored, and shouldn't cause trouble (bug #1697)
+        write_file(os.path.join(myeasyblocks, '__init__.py'), "# dummy init, should not get included")
+        write_file(os.path.join(myeasyblocks, 'generic', '__init__.py'), "# dummy init, should not get included")
+
         myfoo_easyblock_txt = '\n'.join([
             "from easybuild.easyblocks.generic.configuremake import ConfigureMake",
             "class EB_Foo(ConfigureMake):",
@@ -71,8 +75,11 @@ class IncludeTest(EnhancedTestCase):
         ])
         write_file(os.path.join(myeasyblocks, 'generic', 'mybar.py'), mybar_easyblock_txt)
 
+        # hijack $HOME to test expanding ~ in locations passed to include_easyblocks
+        os.environ['HOME'] = myeasyblocks
+
         # expand set of known easyblocks with our custom ones
-        glob_paths = [os.path.join(myeasyblocks, '*'), os.path.join(myeasyblocks, '*/*.py')]
+        glob_paths = [os.path.join('~', '*'), os.path.join(myeasyblocks, '*/*.py')]
         included_easyblocks_path = include_easyblocks(self.test_prefix, glob_paths)
 
         expected_paths = ['__init__.py', 'easyblocks/__init__.py', 'easyblocks/myfoo.py',
@@ -113,6 +120,9 @@ class IncludeTest(EnhancedTestCase):
         myeasyblocks = os.path.join(self.test_prefix, 'myeasyblocks')
         mkdir(myeasyblocks)
 
+        # include __init__.py file that should be ignored, and shouldn't cause trouble (bug #1697)
+        write_file(os.path.join(myeasyblocks, '__init__.py'), "# dummy init, should not get included")
+
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
 
@@ -139,6 +149,9 @@ class IncludeTest(EnhancedTestCase):
 
         my_mns = os.path.join(self.test_prefix, 'my_mns')
         mkdir(my_mns)
+
+        # include __init__.py file that should be ignored, and shouldn't cause trouble (bug #1697)
+        write_file(os.path.join(my_mns, '__init__.py'), "# dummy init, should not get included")
 
         my_mns_txt = '\n'.join([
             "from easybuild.tools.module_naming_scheme import ModuleNamingScheme",
@@ -169,6 +182,10 @@ class IncludeTest(EnhancedTestCase):
         """Test include_toolchains()."""
         my_toolchains = os.path.join(self.test_prefix, 'my_toolchains')
         mkdir(my_toolchains)
+
+        # include __init__.py file that should be ignored, and shouldn't cause trouble (bug #1697)
+        write_file(os.path.join(my_toolchains, '__init__.py'), "# dummy init, should not get included")
+
         for subdir in ['compiler', 'fft', 'linalg', 'mpi']:
             mkdir(os.path.join(my_toolchains, subdir))
 

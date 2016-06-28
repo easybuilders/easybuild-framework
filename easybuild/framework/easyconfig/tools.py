@@ -4,8 +4,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -46,9 +46,10 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
@@ -56,6 +57,7 @@ from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
+from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -81,9 +83,8 @@ except ImportError:
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
 
-def skip_available(easyconfigs):
+def skip_available(easyconfigs, modtool):
     """Skip building easyconfigs for existing modules."""
-    modtool = modules_tool()
     module_names = [ec['full_mod_name'] for ec in easyconfigs]
     modules_exist = modtool.exist(module_names)
     retained_easyconfigs = []
@@ -96,7 +97,7 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
+def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=False):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
 
@@ -106,28 +107,36 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
     """
     ordered_ecs = []
     new_easyconfigs = []
-    modtool = modules_tool()
     # copy, we don't want to modify the origin list of available modules
     avail_modules = avail_modules[:]
     _log.debug("Finding resolved modules for %s (available modules: %s)", easyconfigs, avail_modules)
 
+    ec_mod_names = [ec['full_mod_name'] for ec in easyconfigs]
     for easyconfig in easyconfigs:
         new_ec = easyconfig.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            full_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
+            dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
             # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
             # since no corresponding easyconfig can be found for them
             if retain_all_deps and dep.get('external_module', False):
-                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep)
+                _log.debug("Treating dependency marked as external dependency as resolved: %s", dep_mod_name)
 
-            elif retain_all_deps and full_mod_name not in avail_modules:
+            elif retain_all_deps and dep_mod_name not in avail_modules:
                 # if all dependencies should be retained, include dep unless it has been already
-                _log.debug("Retaining new dep %s in 'retain all deps' mode", dep)
+                _log.debug("Retaining new dep %s in 'retain all deps' mode", dep_mod_name)
                 deps.append(dep)
 
-            elif full_mod_name not in avail_modules and not (dep['hidden'] and modtool.exist([full_mod_name])[0]):
+            # retain dep if it is (still) in the list of easyconfigs
+            elif dep_mod_name in ec_mod_names:
+                _log.debug("Dep %s is (still) in list of easyconfigs, retaining it", dep_mod_name)
+                deps.append(dep)
+
+            # retain dep if corresponding module is not available yet;
+            # fallback to checking with modtool.exist is required,
+            # for hidden modules and external modules where module name may be partial
+            elif dep_mod_name not in avail_modules and not modtool.exist([dep_mod_name], skip_avail=True)[0]:
                 # no module available (yet) => retain dependency as one to be resolved
                 _log.debug("No module available for dep %s, retaining it", dep)
                 deps.append(dep)
@@ -139,7 +148,10 @@ def find_resolved_modules(easyconfigs, avail_modules, retain_all_deps=False):
         if not new_ec['dependencies']:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            avail_modules.append(easyconfig['full_mod_name'])
+            mod_name = easyconfig['full_mod_name']
+            avail_modules.append(mod_name)
+            # remove module name from list, so dependencies can be marked as resolved
+            ec_mod_names.remove(mod_name)
 
         else:
             new_easyconfigs.append(new_ec)
@@ -420,7 +432,7 @@ def find_related_easyconfigs(path, ec):
 
     regexes = []
     for version_pattern in version_patterns:
-        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (name, version_pattern)
+        common_pattern = r'^\S+/%s-%s%%s\.eb$' % (re.escape(name), version_pattern)
         regexes.extend([
             common_pattern % (toolchain_pattern + versionsuffix),
             common_pattern % (toolchain_name_pattern + versionsuffix),
@@ -465,3 +477,64 @@ def review_pr(pr, colored=True, branch='develop'):
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
     return '\n'.join(lines)
+
+
+def dump_env_script(easyconfigs):
+    """
+    Dump source scripts that set up build environment for specified easyconfigs.
+
+    @param easyconfigs: list of easyconfigs to generate scripts for
+    """
+    ecs_and_script_paths = []
+    for easyconfig in easyconfigs:
+        script_path = '%s.env' % os.path.splitext(os.path.basename(easyconfig['spec']))[0]
+        ecs_and_script_paths.append((easyconfig['ec'], script_path))
+
+    # don't just overwrite existing scripts
+    existing_scripts = [s for (_, s) in ecs_and_script_paths if os.path.exists(s)]
+    if existing_scripts:
+        if build_option('force'):
+            _log.info("Found existing scripts, overwriting them: %s", ' '.join(existing_scripts))
+        else:
+            raise EasyBuildError("Script(s) already exists, not overwriting them (unless --force is used): %s",
+                                 ' '.join(existing_scripts))
+
+    orig_env = copy.deepcopy(os.environ)
+
+    for ec, script_path in ecs_and_script_paths:
+        # obtain EasyBlock instance
+        app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        app = app_class(ec)
+
+        # mimic dry run, and keep quiet
+        app.dry_run = app.silent = app.toolchain.dry_run = True
+
+        # prepare build environment (in dry run mode)
+        app.check_readiness_step()
+        app.prepare_step(start_dir=False)
+
+        # compose script
+        ecfile = os.path.basename(ec.path)
+        script_lines = [
+            "#!/bin/bash",
+            "# script to set up build environment as defined by EasyBuild v%s for %s" % (EASYBUILD_VERSION, ecfile),
+            "# usage: source %s" % os.path.basename(script_path),
+        ]
+
+        script_lines.extend(['', "# toolchain & dependency modules"])
+        if app.toolchain.modules:
+            script_lines.extend(["module load %s" % mod for mod in app.toolchain.modules])
+        else:
+            script_lines.append("# (no modules loaded)")
+
+        script_lines.extend(['', "# build environment"])
+        if app.toolchain.vars:
+            env_vars = sorted(app.toolchain.vars.items())
+            script_lines.extend(["export %s='%s'" % (var, val.replace("'", "\\'")) for (var, val) in env_vars])
+        else:
+            script_lines.append("# (no build environment defined)")
+
+        write_file(script_path, '\n'.join(script_lines))
+        print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
+
+        restore_env(orig_env)

@@ -4,8 +4,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -33,6 +33,7 @@ Command line options for eb
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import glob
 import os
 import re
@@ -58,6 +59,8 @@ from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
 from easybuild.tools.docs import avail_easyconfig_params, avail_easyconfig_templates, list_easyblocks, list_toolchains
+from easybuild.tools.environment import restore_env, unset_env_vars
+from easybuild.tools.filetools import mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -153,6 +156,8 @@ class EasyBuildOptions(GeneralOption):
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
+
+        self.with_include = kwargs.pop('with_include', True)
 
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
@@ -317,7 +322,7 @@ class EasyBuildOptions(GeneralOption):
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
-                                          'strlist', 'store', []),
+                                          'strlist', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'include-easyblocks': ("Location(s) of extra or customized easyblocks", 'strlist', 'store', []),
@@ -398,7 +403,10 @@ class EasyBuildOptions(GeneralOption):
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs."),
                                            None, 'store_true', False),
-            'dep-graph': ("Create dependency graph", None, "store", None, {'metavar': 'depgraph.<ext>'}),
+            'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
+            'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
+            'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
+                                None, 'store_true', False),
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
@@ -427,10 +435,12 @@ class EasyBuildOptions(GeneralOption):
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
+            'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
-            'github-user': ("GitHub username", None, 'store', None),
+            'github-user': ("GitHub username", str, 'store', None),
+            'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
                                str, 'store', None),
@@ -578,8 +588,9 @@ class EasyBuildOptions(GeneralOption):
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
 
-        # take --include options into account
-        self._postprocess_include()
+        # take --include options into account (unless instructed otherwise)
+        if self.with_include:
+            self._postprocess_include()
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
@@ -619,49 +630,13 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
-        self._postprocess_external_modules_metadata()
-
+        # handle configuration options that affect other configuration options
         self._postprocess_config()
 
         # show current configuration and exit, if requested
         if self.options.show_config or self.options.show_full_config:
             self.show_config()
             cleanup_and_exit(self.tmpdir)
-
-    def _postprocess_external_modules_metadata(self):
-        """Parse file(s) specifying metadata for external modules."""
-        # leave external_modules_metadata untouched if no files are provided
-        if not self.options.external_modules_metadata:
-            self.log.debug("No metadata provided for external modules.")
-            return
-
-        parsed_external_modules_metadata = ConfigObj()
-        for path in self.options.external_modules_metadata:
-            if os.path.exists(path):
-                self.log.debug("Parsing %s with external modules metadata", path)
-                try:
-                    parsed_external_modules_metadata.merge(ConfigObj(path))
-                except ConfigObjError, err:
-                    raise EasyBuildError("Failed to parse %s with external modules metadata: %s", path, err)
-            else:
-                raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", path)
-
-        # make sure name/version values are always lists, make sure they're equal length
-        for mod, entry in parsed_external_modules_metadata.items():
-            for key in ['name', 'version']:
-                if isinstance(entry.get(key), basestring):
-                    entry[key] = [entry[key]]
-                    self.log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
-                                   key, mod, entry[key])
-
-            # if both names and versions are available, lists must be of same length
-            names, versions = entry.get('name'), entry.get('version')
-            if names is not None and versions is not None and len(names) != len(versions):
-                raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
-                                     "names: %s; versions: %s", mod, names, versions)
-
-        self.options.external_modules_metadata = parsed_external_modules_metadata
-        self.log.debug("External modules metadata: %s", self.options.external_modules_metadata)
 
     def _postprocess_include(self):
         """Postprocess --include options."""
@@ -821,10 +796,27 @@ class EasyBuildOptions(GeneralOption):
 
     def show_config(self):
         """Show specified EasyBuild configuration, relative to default EasyBuild configuration."""
+        # keep copy of original environment, so we can restore it later
+        orig_env = copy.deepcopy(os.environ)
+
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
         include_opts = ['buildpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
+
+        def reparse_cfg(args=None, withcfg=True):
+            """
+            Utility function to reparse EasyBuild configuration.
+            @param args: command line arguments to pass to configuration parser
+            @param withcfg: whether or not to also consider configuration files
+            @return: dictionary with parsed configuration options, by option group
+            """
+            if args is None:
+                args = []
+            cfg = EasyBuildOptions(go_args=args, go_useconfigfiles=withcfg, envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                                   with_include=False)
+
+            return cfg.dict_by_prefix()
 
         def det_location(opt, prefix=''):
             """Determine location where option was defined."""
@@ -841,9 +833,15 @@ class EasyBuildOptions(GeneralOption):
 
             return loc
 
-        default_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None, go_useconfigfiles=False).dict_by_prefix()
-        cfgfile_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=None).dict_by_prefix()
-        env_opts_dict = EasyBuildOptions(go_args=[], envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
+        # modify environment such that no $EASYBUILD_* environment variables are defined
+        unset_env_vars([v for v in os.environ if v.startswith(CONFIG_ENV_VAR_PREFIX)], verbose=False)
+        no_eb_env = copy.deepcopy(os.environ)
+
+        default_opts_dict = reparse_cfg(withcfg=False)
+        cfgfile_opts_dict = reparse_cfg()
+
+        restore_env(orig_env)
+        env_opts_dict = reparse_cfg()
 
         # options relevant to config files should always be passed,
         # but we need to figure out first where these options were defined...
@@ -860,9 +858,12 @@ class EasyBuildOptions(GeneralOption):
             if self.options.show_full_config or opt in include_opts or not is_default:
                 opts_dict[opt] = (opt_val, det_location(opt))
 
-        # determine option dicts by selectively disabling configuration levels (but specify configfiles)
-        cfgfile_opts_dict = EasyBuildOptions(go_args=args, envvar_prefix=None).dict_by_prefix()
-        env_opts_dict = EasyBuildOptions(go_args=args, envvar_prefix=CONFIG_ENV_VAR_PREFIX).dict_by_prefix()
+        # determine option dicts by selectively disabling configuration levels (but enable use configfiles)
+        restore_env(no_eb_env)
+        cfgfile_opts_dict = reparse_cfg(args=args)
+
+        restore_env(orig_env)
+        env_opts_dict = reparse_cfg(args=args)
 
         # construct options dict to pretty print
         for prefix in sorted(default_opts_dict):
@@ -884,7 +885,7 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
 
-def parse_options(args=None):
+def parse_options(args=None, with_include=True):
     """wrapper function for option parsing"""
     if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
         # very early debug, to debug the generaloption itself
@@ -897,7 +898,8 @@ def parse_options(args=None):
 
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror)
+                                 go_args=args, error_env_options=True, error_env_option_method=raise_easybuilderror,
+                                 with_include=with_include)
     except Exception as err:
         raise EasyBuildError("Failed to parse configuration options: %s" % err)
 
@@ -993,6 +995,59 @@ def process_software_build_specs(options):
     return (try_to_generate, build_specs)
 
 
+def parse_external_modules_metadata(cfgs):
+    """
+    Parse metadata for external modules.
+
+    @param cfgs: list of config files providing metadata for external modules
+    @return parsed metadata for external modules
+    """
+
+    # use external modules metadata configuration files that are available by default, unless others are specified
+    if not cfgs:
+        # we expect to find *external_modules_metadata.cfg files in etc/
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        cfgs = glob.glob(os.path.join(topdir, 'etc', '*external_modules_metadata.cfg'))
+
+        if cfgs:
+            _log.info("Using default external modules metadata cfg files: %s", cfgs)
+        else:
+            _log.info("No default external modules metadata found")
+
+    # leave external_modules_metadata untouched if no files are provided
+    if not cfgs:
+        _log.debug("No metadata provided for external modules.")
+        return {}
+
+    parsed_metadata = ConfigObj()
+    for cfg in cfgs:
+        if os.path.isfile(cfg):
+            _log.debug("Parsing %s with external modules metadata", cfg)
+            try:
+                parsed_metadata.merge(ConfigObj(cfg))
+            except ConfigObjError as err:
+                raise EasyBuildError("Failed to parse %s with external modules metadata: %s", cfg, err)
+        else:
+            raise EasyBuildError("Specified path for file with external modules metadata does not exist: %s", cfg)
+
+    # make sure name/version values are always lists, make sure they're equal length
+    for mod, entry in parsed_metadata.items():
+        for key in ['name', 'version']:
+            if isinstance(entry.get(key), basestring):
+                entry[key] = [entry[key]]
+                _log.debug("Transformed external module metadata value %s for %s into a single-value list: %s",
+                           key, mod, entry[key])
+
+        # if both names and versions are available, lists must be of same length
+        names, versions = entry.get('name'), entry.get('version')
+        if names is not None and versions is not None and len(names) != len(versions):
+            raise EasyBuildError("Different length for lists of names/versions in metadata for external module %s: "
+                                 "names: %s; versions: %s", mod, names, versions)
+
+    _log.debug("External modules metadata: %s", parsed_metadata)
+    return parsed_metadata
+
+
 def set_tmpdir(tmpdir=None, raise_error=False):
     """Set temporary directory to be used by tempfile and others."""
     try:
@@ -1005,6 +1060,18 @@ def set_tmpdir(tmpdir=None, raise_error=False):
             current_tmpdir = tempfile.mkdtemp(prefix='eb-')
     except OSError, err:
         raise EasyBuildError("Failed to create temporary directory (tmpdir: %s): %s", tmpdir, err)
+
+    # avoid having special characters like '[' and ']' in the tmpdir pathname,
+    # it is known to cause problems (e.g., with Python install tools, CUDA's nvcc, etc.);
+    # only common characteris like alphanumeric, '_', '-', '.' and '/' are retained; others are converted to 'X'
+    special_chars_regex = r'[^\w/.-]'
+    if re.search(special_chars_regex, current_tmpdir):
+        current_tmpdir = re.sub(special_chars_regex, 'X', current_tmpdir)
+        _log.info("Detected special characters in path to temporary directory, replacing them to avoid trouble: %s")
+        try:
+            os.makedirs(current_tmpdir)
+        except OSError as err:
+            raise EasyBuildError("Failed to create path to temporary directory %s: %s", current_tmpdir, err)
 
     _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
 

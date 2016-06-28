@@ -4,8 +4,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -62,6 +62,7 @@ UNKNOWN = 'UNKNOWN'
 
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
+PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
 VENDORS = {
@@ -104,6 +105,36 @@ def get_avail_core_count():
 def get_core_count():
     """NO LONGER SUPPORTED: use get_avail_core_count() instead"""
     _log.nosupport("get_core_count() is replaced by get_avail_core_count()", '2.0')
+
+
+def get_total_memory():
+    """
+    Try to ascertain this node's total memory
+
+    @return: total memory as an integer, specifically a number of megabytes
+    """
+    memtotal = None
+    os_type = get_os_type()
+
+    if os_type == LINUX and os.path.exists(PROC_MEMINFO_FP):
+        _log.debug("Trying to determine total memory size on Linux via %s", PROC_MEMINFO_FP)
+        meminfo = read_file(PROC_MEMINFO_FP)
+        mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
+        if mem_mo:
+            memtotal = int(mem_mo.group(1)) / 1024
+
+    elif os_type == DARWIN:
+        cmd = "sysctl -n hw.memsize"
+        _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
+        out, ec = run_cmd(cmd, force_in_dry_run=True)
+        if ec == 0:
+            memtotal = int(out.strip()) / (1024**2)
+
+    if memtotal is None:
+        memtotal = UNKNOWN
+        _log.warning("Failed to determine total memory, returning %s", memtotal)
+
+    return memtotal
 
 
 def get_cpu_vendor():
@@ -333,7 +364,7 @@ def get_os_version():
             # SLES subversions can only be told apart based on kernel version,
             # see http://wiki.novell.com/index.php/Kernel_versions
             version_suffixes = {
-                "11": [
+                '11': [
                     ('2.6.27', ''),
                     ('2.6.32', '_SP1'),
                     ('3.0.101-63', '_SP4'),
@@ -343,9 +374,9 @@ def get_os_version():
                     ('3.0', '_SP2'),
                 ],
 
-                # Once SLES 12 SP1 comes out we'll need to make this stricter
-                "12": [
-                    ('3.12', ''),
+                '12': [
+                    ('3.12.28', ''),
+                    ('3.12.49', '_SP1'),
                 ],
             }
 
@@ -466,6 +497,7 @@ def get_system_info():
     python_version = '; '.join(sys.version.split('\n'))
     return {
         'core_count': get_avail_core_count(),
+        'total_memory': get_total_memory(),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),
