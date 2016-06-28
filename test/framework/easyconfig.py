@@ -806,6 +806,7 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
+
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
     def test_constant_doc(self):

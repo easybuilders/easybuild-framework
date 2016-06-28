@@ -51,6 +51,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS
 from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
@@ -310,19 +311,25 @@ def avail_easyconfig_templates_txt():
     for name in TEMPLATE_NAMES_EASYCONFIG:
         doc.append("%s%s: %s" % (INDENT_4SPACES, name[0], name[1]))
 
-    # step 2: add remaining config
+    # step 2: add SOFTWARE_VERSIONS
+    doc.append('Template names/values for (short) software versions')
+    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (INDENT_4SPACES, pref, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (INDENT_4SPACES, pref, name))
+
+    # step 3: add remaining config
     doc.append('Template names/values as set in easyconfig')
     for name in TEMPLATE_NAMES_CONFIG:
         doc.append("%s%s" % (INDENT_4SPACES, name))
 
-    # step 3. make lower variants
+    # step 4:  make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
         template_name = TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}
         doc.append("%s%s: lower case of value of %s" % (INDENT_4SPACES, template_name, name))
 
-    # step 4. template_values can/should be updated from outside easyconfig
-    # (eg the run_setp code in EasyBlock)
+    # step 5: template_values can/should be updated from outside easyconfig
+    # (eg the run_step code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
         doc.append("%s%s: %s" % (INDENT_4SPACES, name[0], name[1]))
@@ -344,6 +351,18 @@ def avail_easyconfig_templates_rst():
         [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
     ]
     doc = rst_title_and_table(title, table_titles, table_values)
+    doc.append('')
+
+    title = 'Template names/values for (short) software versions'
+    ver = []
+    ver_desc = []
+    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        ver.append('``%%(%sshortver)s``' % pref)
+        ver.append('``%%(%sver)s``' % pref)
+        ver_desc.append('short version for %s (<major>.<minor>)' % name)
+        ver_desc.append('full version for %s' % name)
+    table_values = [ver, ver_desc]
+    doc.extend(rst_title_and_table(title, table_titles, table_values))
     doc.append('')
 
     title = 'Template names/values as set in easyconfig'
