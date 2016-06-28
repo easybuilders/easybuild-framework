@@ -348,7 +348,6 @@ def to_dependency(dep):
     """
     # deal with dependencies coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
-
     if isinstance(dep, dict):
         depspec = {}
 
@@ -369,11 +368,11 @@ def to_dependency(dep):
             found_name_version = False
             for key, value in dep.items():
                 if key in ['name', 'version', 'versionsuffix']:
-                    depspec[key] = value
+                    depspec[key] = str(value)
                 elif key == 'toolchain':
                     depspec['toolchain'] = to_name_version_dict(value)
                 elif not found_name_version:
-                    depspec.update({'name': key, 'version': value})
+                    depspec.update({'name': key, 'version': str(value)})
                 else:
                     raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
 
