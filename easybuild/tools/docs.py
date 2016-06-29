@@ -171,7 +171,7 @@ def avail_easyconfig_licenses(output_format=FORMAT_TXT):
 
 def avail_easyconfig_licenses_txt():
     """Generate easyconfig license documentation in txt format"""
-    doc = ["Constants that can be used in easyconfigs"]
+    doc = ["License constants that can be used in easyconfigs"]
     for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
         lic_inst = lic()
         strver = ''
@@ -184,7 +184,7 @@ def avail_easyconfig_licenses_txt():
 
 def avail_easyconfig_licenses_rst():
     """Generate easyconfig license documentation in rst format"""
-    title = "Constants that can be used in easyconfigs"
+    title = "License constants that can be used in easyconfigs"
 
     table_titles = [
         "License name",
@@ -522,19 +522,25 @@ def list_toolchains_rst(tcs):
     title = "List of known toolchains"
 
     # figure out column names
-    table_titles = ["NAME", "COMPILER", "MPI"]
-    for d in tcs.values():
-        table_titles.extend(d.keys())
+    table_titles = ['name', 'compiler', 'MPI']
+    for tc in tcs.values():
+        table_titles.extend(tc.keys())
+
+    col_names = {
+        'COMPILER_CUDA': 'CUDA compiler',
+        'SCALAPACK': 'ScaLAPACK',
+    }
 
     table_titles = nub(table_titles)
 
     table_values = [[] for i in range(len(table_titles))]
-    table_values[0] = tcs.keys()
+    table_values[0] = ['**%s**' % tcname for tcname in tcs.keys()]
 
-    for i in range(len(table_titles)-1):
-        for d in tcs.values():
-            table_values[i+1].append(', '.join(d.get(table_titles[i+1], [])))
+    for idx in range(1, len(table_titles)):
+        for tc in tcs.values():
+            table_values[idx].append(', '.join(tc.get(table_titles[idx].upper(), [])))
 
+    table_titles = [col_names.get(col, col) for col in table_titles]
     doc = rst_title_and_table(title, table_titles, table_values)
 
     return '\n'.join(doc)
