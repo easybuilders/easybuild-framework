@@ -309,7 +309,7 @@ def avail_easyconfig_templates_txt():
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
     for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%s: %s" % (INDENT_4SPACES, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
 
     # step 2: add SOFTWARE_VERSIONS
     doc.append('Template names/values for (short) software versions')
@@ -320,19 +320,19 @@ def avail_easyconfig_templates_txt():
     # step 3: add remaining config
     doc.append('Template names/values as set in easyconfig')
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (INDENT_4SPACES, name))
+        doc.append("%s%%(%s)s" % (INDENT_4SPACES, name))
 
     # step 4:  make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
         template_name = TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}
-        doc.append("%s%s: lower case of value of %s" % (INDENT_4SPACES, template_name, name))
+        doc.append("%s%%(%s)s: lower case of value of %s" % (INDENT_4SPACES, template_name, name))
 
     # step 5: template_values can/should be updated from outside easyconfig
     # (eg the run_step code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (INDENT_4SPACES, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
 
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
@@ -347,7 +347,7 @@ def avail_easyconfig_templates_rst():
 
     title = 'Template names/values derived from easyconfig instance'
     table_values = [
-        ['``%s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
+        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
         [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
     ]
     doc = rst_title_and_table(title, table_titles, table_values)
@@ -368,19 +368,19 @@ def avail_easyconfig_templates_rst():
     title = 'Template names/values as set in easyconfig'
     doc.extend([title, '-' * len(title), ''])
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append('* ``%s``' % name)
+        doc.append('* ``%%(%s)s``' % name)
     doc.append('')
 
     title = 'Lowercase values of template values'
     table_values = [
-        ['``%s``' % TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name} for name in TEMPLATE_NAMES_LOWER],
+        ['``%%(%s)s``' % (TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}) for name in TEMPLATE_NAMES_LOWER],
         ['lower case of value of %s' % name for name in TEMPLATE_NAMES_LOWER],
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
 
     title = 'Template values set outside EasyBlock runstep'
     table_values = [
-        ['``%s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
         [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
