@@ -389,7 +389,7 @@ def stats_to_str(stats, isyeb=False):
             key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(stats[key])
         else:
             key, val = quote_str(key), quote_str(stats[key])
-        txt += "%s%s: %s,\n" % (pref, key, sep, val)
+        txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
 
