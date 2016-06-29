@@ -47,7 +47,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
-from easybuild.framework.eeasyconfig.format.yeb import quote_yaml_special_chars
+from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -384,12 +384,12 @@ def stats_to_str(stats, isyeb=False):
 
     txt = "{\n"
     pref = "    "
-    for key in sorted(stats)
+    for key in sorted(stats):
         if isyeb:
-            key, val = key, quote_yaml_special_chars(stats[key])
+            key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(stats[key])
         else:
             key, val = quote_str(key), quote_str(stats[key])
-        txt += "%s%s: %s,\n" % (pref, quote_str(key), val)
+        txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
 

@@ -85,6 +85,7 @@ class FileRepository(Repository):
         if yeb_format:
             extension = YEB_FORMAT_EXTENSION
             prefix = "buildstats: ["
+
         else:
             extension = EB_FORMAT_EXTENSION
             prefix = "buildstats = ["
@@ -98,15 +99,12 @@ class FileRepository(Repository):
         txt += read_file(cfg)
 
         # append a line to the eb file so that we don't have git merge conflicts
-        if not previous:
-            statscomment = "\n# Build statistics\n"
-            statsprefix = prefix
-            statssuffix = "]\n"
-        else:
-            # statstemplate = "\nbuildstats.append(%s)\n"
-            statscomment = ""
-            statsprefix = "\nbuildstats.append("
-            statssuffix = ")\n"
+        statscomment = "\n# Build statistics\n"
+        statsprefix = prefix
+        statssuffix = "]\n"
+        if previous:
+            # statstemplate v= "\nbuildstats.append(%s)\n"
+            stats.update(previous)
 
         txt += statscomment + statsprefix + stats_to_str(stats, isyeb=yeb_format) + statssuffix
         write_file(dest, txt)
