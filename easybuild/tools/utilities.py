@@ -95,7 +95,7 @@ def quote_py_str(val):
     return quote_str(val, escape_newline=True, prefer_single_quotes=True)
 
 
-def quote_special_chars(val):
+def quote_special_chars_yaml(val):
     """
     Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
     """
@@ -103,7 +103,7 @@ def quote_special_chars(val):
     if isinstance(val, basestring):
         if set(special_chars).intersection(val):
             return "'%s'" % val
-    
+
     return val
 
 def remove_unwanted_chars(inputstring):

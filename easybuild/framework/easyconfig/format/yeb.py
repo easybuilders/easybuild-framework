@@ -46,8 +46,7 @@ _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 YAML_DIR = r'%YAML'
 YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
-EB_FORMAT_EXTENSION = '.eb'
-
+YAML_SPECIAL_CHARS = ":{}[],&*#?|-<>=!%@\\"
 
 def yaml_join(loader, node):
     """
@@ -142,3 +141,13 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
+
+def quote_yaml_special_chars(val):
+        """
+        Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
+        """
+        if isinstance(val, basestring):
+            if set(special_chars).intersection(val):
+                return "'%s'" % val
+
+        return val

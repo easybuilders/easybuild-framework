@@ -47,6 +47,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.eeasyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -56,7 +57,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import only_if_module_is_available, quote_str, quote_special_chars
+from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 # optional Python packages, these might be missing
@@ -188,7 +189,7 @@ def dep_graph(filename, specs):
         all_nodes.add(spec['module'])
         spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
-        
+
         # Get the build dependencies for each spec so we can distinguish them later
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
         all_nodes.update(spec['ec'].build_dependencies)
@@ -383,11 +384,12 @@ def stats_to_str(stats, isyeb=False):
 
     txt = "{\n"
     pref = "    "
-    for (k, v) in stats.items():
+    for key in sorted(stats)
         if isyeb:
-            txt += "%s%s: %s,\n" % (pref, k, quote_special_chars(v))
+            key, val = key, quote_yaml_special_chars(stats[key])
         else:
-            txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
+            key, val = quote_str(key), quote_str(stats[key])
+        txt += "%s%s: %s,\n" % (pref, quote_str(key), val)
     txt += "}"
     return txt
 

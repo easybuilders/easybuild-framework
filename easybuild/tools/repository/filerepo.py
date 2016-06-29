@@ -40,8 +40,9 @@ import os
 import time
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
-from easybuild.framework.easyconfig.format.yeb import EB_FORMAT_EXTENSION, YEB_FORMAT_EXTENSION
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.tools import stats_to_str
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.repository.repository import Repository

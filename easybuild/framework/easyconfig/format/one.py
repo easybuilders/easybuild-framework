@@ -47,6 +47,8 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.utilities import quote_py_str
 
 
+EB_FORMAT_EXTENSION = '.eb'
+
 # dependency parameters always need to be reformatted, to correctly deal with dumping parsed dependencies
 REFORMAT_FORCED_PARAMS = ['sanity_check_paths'] + DEPENDENCY_PARAMETERS
 REFORMAT_SKIPPED_PARAMS = ['toolchain', 'toolchainopts']
