@@ -32,7 +32,7 @@ Support for checking types of easyconfig parameter values.
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-
+from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 
@@ -348,7 +348,6 @@ def to_dependency(dep):
     """
     # deal with dependencies coming for .eb easyconfig, typically in tuple format:
     #   (name, version[, versionsuffix[, toolchain]])
-
     if isinstance(dep, dict):
         depspec = {}
 
@@ -369,11 +368,11 @@ def to_dependency(dep):
             found_name_version = False
             for key, value in dep.items():
                 if key in ['name', 'version', 'versionsuffix']:
-                    depspec[key] = value
+                    depspec[key] = str(value)
                 elif key == 'toolchain':
                     depspec['toolchain'] = to_name_version_dict(value)
                 elif not found_name_version:
-                    depspec.update({'name': key, 'version': value})
+                    depspec.update({'name': key, 'version': str(value)})
                 else:
                     raise EasyBuildError("Found unexpected (key, value) pair: %s, %s", key, value)
 
@@ -442,13 +441,15 @@ EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
-    'dependencies': DEPENDENCIES,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': NAME_VERSION_DICT,
     'version': basestring,
 }
+# add all dependency types as dependencies
+for dep in DEPENDENCY_PARAMETERS:
+    PARAMETER_TYPES[dep] = DEPENDENCIES
 
 TYPE_CONVERSION_FUNCTIONS = {
     basestring: str,
