@@ -387,11 +387,9 @@ def stats_to_str(stats, isyeb=False):
     for key in sorted(stats):
         if isyeb:
             key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(stats[key])
-            sep = ':'
         else:
             key, val = quote_str(key), quote_str(stats[key])
-            sep = ' ='
-        txt += "%s%s%s %s,\n" % (pref, key, sep, val)
+        txt += "%s%s: %s,\n" % (pref, key, sep, val)
     txt += "}"
     return txt
 
