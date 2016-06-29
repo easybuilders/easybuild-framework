@@ -661,7 +661,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
         title = 'Example easyconfig for ``' + classname + '`` easyblock'
         doc.extend([title, '-' * len(title), '', '.. code::', ''])
         for line in read_file(os.path.join(path_to_examples, classname+'.eb')).split('\n'):
-            doc.append(INDENT_4SPACES + line.strip())
+            doc.append(INDENT_4SPACES + line)
         doc.append('')  # empty line after literal block
 
     return doc
