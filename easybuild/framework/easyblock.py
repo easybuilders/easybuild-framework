@@ -1560,6 +1560,11 @@ class EasyBlock(object):
             # version is expected to be something that makes sense
             env.setvar(get_software_version_env_var_name(name), version)
 
+        extra_modules = build_option('extra_modules')
+        if extra_modules:
+            self.log.info("Loading extra modules: %s", extra_modules)
+            self.modules_tool.load(extra_modules)
+
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
             self.guess_start_dir()
