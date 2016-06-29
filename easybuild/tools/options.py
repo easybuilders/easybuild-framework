@@ -41,18 +41,13 @@ import shutil
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
-from easybuild.framework.easyconfig.licenses import license_documentation
-from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
-from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
@@ -61,7 +56,9 @@ from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAUL
 from easybuild.tools.config import DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
-from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
+from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
+from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
+from easybuild.tools.docs import avail_easyconfig_params, avail_easyconfig_templates, list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
@@ -293,6 +290,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store_true', False),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
+            'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -405,9 +403,9 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'avail-easyconfig-params': (("Show all easyconfig parameters (include "
                                          "easyblock-specific ones by using -e)"),
-                                        'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
+                                        None, 'store_true', False, 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
-                                            "that can be used in easyconfigs"),
+                                            "that can be used in easyconfigs."),
                                            None, 'store_true', False),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
@@ -689,31 +687,31 @@ class EasyBuildOptions(GeneralOption):
 
         # dump supported configuration file constants
         if self.options.avail_cfgfile_constants:
-            msg += self.avail_cfgfile_constants()
+            msg += avail_cfgfile_constants(self.go_cfg_constants, self.options.output_format)
 
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
-            msg += avail_easyconfig_params(self.options.easyblock, self.options.avail_easyconfig_params)
+            msg += avail_easyconfig_params(self.options.easyblock, self.options.output_format)
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
-            msg += template_documentation()
+            msg += avail_easyconfig_templates(self.options.output_format)
 
         # dump easyconfig constant options
         if self.options.avail_easyconfig_constants:
-            msg += constant_documentation()
+            msg += avail_easyconfig_constants(self.options.output_format)
 
         # dump easyconfig license options
         if self.options.avail_easyconfig_licenses:
-            msg += license_documentation()
+            msg += avail_easyconfig_licenses(self.options.output_format)
 
         # dump available easyblocks
         if self.options.list_easyblocks:
-            msg += self.avail_easyblocks()
+            msg += list_easyblocks(self.options.list_easyblocks, self.options.output_format)
 
         # dump known toolchains
         if self.options.list_toolchains:
-            msg += self.avail_toolchains()
+            msg += list_toolchains(self.options.output_format)
 
         # dump known repository types
         if self.options.avail_repositories:
@@ -742,118 +740,6 @@ class EasyBuildOptions(GeneralOption):
 
         # cleanup tmpdir and exit
         cleanup_and_exit(self.tmpdir)
-
-    def avail_cfgfile_constants(self):
-        """
-        Return overview of constants supported in configuration files.
-        """
-        lines = [
-            "Constants available (only) in configuration files:",
-            "syntax: %(CONSTANT_NAME)s",
-        ]
-        for section in self.go_cfg_constants:
-            lines.append('')
-            if section != self.DEFAULTSECT:
-                section_title = "only in '%s' section:" % section
-                lines.append(section_title)
-            for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
-                lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
-        return '\n'.join(lines)
-
-    def avail_classes_tree(self, classes, class_names, locations, detailed, depth=0):
-        """Print list of classes as a tree."""
-        txt = []
-        for class_name in class_names:
-            class_info = classes[class_name]
-            if detailed:
-                mod = class_info['module']
-                loc = ''
-                if mod in locations:
-                    loc = '@ %s' % locations[mod]
-                txt.append("%s|-- %s (%s %s)" % ("|   " * depth, class_name, mod, loc))
-            else:
-                txt.append("%s|-- %s" % ("|   " * depth, class_name))
-            if 'children' in class_info:
-                txt.extend(self.avail_classes_tree(classes, class_info['children'], locations, detailed, depth + 1))
-        return txt
-
-    def avail_easyblocks(self):
-        """Get a class tree for easyblocks."""
-        detailed = self.options.list_easyblocks == "detailed"
-        module_regexp = re.compile(r"^([^_].*)\.py$")
-
-        # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
-        search_toolchain('')
-
-        locations = {}
-        for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
-            __import__(package)
-
-            # determine paths for this package
-            paths = sys.modules[package].__path__
-
-            # import all modules in these paths
-            for path in paths:
-                if os.path.exists(path):
-                    for f in os.listdir(path):
-                        res = module_regexp.match(f)
-                        if res:
-                            easyblock = '%s.%s' % (package, res.group(1))
-                            if easyblock not in locations:
-                                __import__(easyblock)
-                                locations.update({easyblock: os.path.join(path, f)})
-                            else:
-                                self.log.debug("%s already imported from %s, ignoring %s",
-                                               easyblock, locations[easyblock], path)
-
-        def add_class(classes, cls):
-            """Add a new class, and all of its subclasses."""
-            children = cls.__subclasses__()
-            classes.update({cls.__name__: {
-                'module': cls.__module__,
-                'children': [x.__name__ for x in children]
-            }})
-            for child in children:
-                add_class(classes, child)
-
-        roots = [EasyBlock, Extension]
-
-        classes = {}
-        for root in roots:
-            add_class(classes, root)
-
-        # Print the tree, start with the roots
-        txt = []
-        for root in roots:
-            root = root.__name__
-            if detailed:
-                mod = classes[root]['module']
-                loc = ''
-                if mod in locations:
-                    loc = ' @ %s' % locations[mod]
-                txt.append("%s (%s%s)" % (root, mod, loc))
-            else:
-                txt.append("%s" % root)
-            if 'children' in classes[root]:
-                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], locations, detailed))
-                txt.append("")
-
-        return '\n'.join(txt)
-
-    def avail_toolchains(self):
-        """Show list of known toolchains."""
-        _, all_tcs = search_toolchain('')
-        all_tcs_names = [x.NAME for x in all_tcs]
-        tclist = sorted(zip(all_tcs_names, all_tcs))
-
-        txt = ["List of known toolchains (toolchainname: module[,module...]):"]
-
-        for (tcname, tcc) in tclist:
-            tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = nub(sorted([e for es in tc.definition().values() for e in es]))
-            txt.append("\t%s: %s" % (tcname, ', '.join(tc_elems)))
-
-        return '\n'.join(txt)
 
     def avail_repositories(self):
         """Show list of known repository types."""
