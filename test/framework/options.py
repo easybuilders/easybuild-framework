@@ -2564,6 +2564,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         err_msg = "Different length for lists of names/versions in metadata for external module"
         self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
+    def test_zip_logs(self):
+        """Test use of --zip-logs"""
+
+        toy_eb_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild')
+        for zip_logs in ['', '--zip-logs', '--zip-logs=gzip', '--zip-logs=bzip2']:
+
+            shutil.rmtree(self.test_installpath)
+
+            args = ['toy-0.0.eb', '--force', '--debug']
+            if zip_logs:
+                args.append(zip_logs)
+            out = self.eb_main(args, do_build=True)
+
+            logs = glob.glob(os.path.join(toy_eb_install_dir, 'easybuild-toy-0.0*log*'))
+            self.assertEqual(len(logs), 1, "Found exactly 1 log file in %s: %s" % (toy_eb_install_dir, logs))
+
+            zip_logs_arg = zip_logs.split('=')[-1]
+            if zip_logs == '--zip-logs' or zip_logs_arg == 'gzip':
+                ext = 'log.gz'
+            elif zip_logs_arg == 'bzip2':
+                ext = 'log.bz2'
+            else:
+                ext = 'log'
+
+            self.assertTrue(logs[0].endswith(ext), "%s has correct '%s' extension for %s" % (logs[0], ext, zip_logs))
+
 
 def suite():
     """ returns all the testcases in this module """

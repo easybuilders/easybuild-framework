@@ -1560,6 +1560,11 @@ class EasyBlock(object):
             # version is expected to be something that makes sense
             env.setvar(get_software_version_env_var_name(name), version)
 
+        extra_modules = build_option('extra_modules')
+        if extra_modules:
+            self.log.info("Loading extra modules: %s", extra_modules)
+            self.modules_tool.load(extra_modules)
+
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
             self.guess_start_dir()
@@ -2479,7 +2484,9 @@ def build_and_install_one(ecdict, init_env):
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
     if application_log:
-        print_msg("Results of the build can be found in the log file %s" % application_log, log=_log, silent=silent)
+        # there may be multiple log files, or the file name may be different due to zipping
+        logs = glob.glob('%s*' % application_log)
+        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
 
     del app
 
