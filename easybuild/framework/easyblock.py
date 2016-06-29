@@ -2479,7 +2479,9 @@ def build_and_install_one(ecdict, init_env):
             dry_run_msg("(no ignored errors during dry run)\n", silent=silent)
 
     if application_log:
-        print_msg("Results of the build can be found in the log file %s" % application_log, log=_log, silent=silent)
+        # there may be multiple log files, or the file name may be different due to zipping
+        logs = glob.glob('%s*' % application_log)
+        print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
 
     del app
 

@@ -122,6 +122,7 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
+        'zip_logs',
     ],
     False: [
         'add_dummy_to_minimal_toolchains',
