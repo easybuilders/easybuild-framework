@@ -95,17 +95,6 @@ def quote_py_str(val):
     return quote_str(val, escape_newline=True, prefer_single_quotes=True)
 
 
-def quote_special_chars_yaml(val):
-    """
-    Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
-    """
-    special_chars = ":{}[],&*#?|-<>=!%@\\"
-    if isinstance(val, basestring):
-        if set(special_chars).intersection(val):
-            return "'%s'" % val
-
-    return val
-
 def remove_unwanted_chars(inputstring):
     """Remove unwanted characters from the given string and return a copy
 
