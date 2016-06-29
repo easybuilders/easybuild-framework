@@ -282,7 +282,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
 
         grpname = category[1]
         grouped_params[grpname] = {}
-        for name, (dflt, descr, cat) in params.items():
+        for name, (dflt, descr, cat) in sorted(params.items()):
             if cat == category:
                 if name in extra_params:
                     # mark easyblock-specific parameters
