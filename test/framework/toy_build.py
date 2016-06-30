@@ -109,7 +109,7 @@ class ToyBuildTest(EnhancedTestCase):
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def testtoy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
+    def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                        raise_error=False, test_report=None, versionsuffix=''):
         """Perform a toy build."""
         if extra_args is None:
@@ -175,7 +175,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         return outtxt
 
-    def testtoy_broken(self):
+    def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
         broken_toy_ec = os.path.join(tmpdir, "toy-broken.eb")
@@ -184,7 +184,7 @@ class ToyBuildTest(EnhancedTestCase):
         broken_toy_ec_txt += "checksums = ['clearywrongchecksum']"
         write_file(broken_toy_ec, broken_toy_ec_txt)
         error_regex = "Checksum verification .* failed"
-        self.assertErrorRegex(EasyBuildError, error_regex, self.testtoy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
+        self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
                               verify=False, fails=True, verbose=False, raise_error=True)
 
         # make sure log file is retained, also for failed build
@@ -197,13 +197,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test dumping full test report (doesn't raise an exception)
         test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
-        self.testtoy_build(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True, verbose=False,
+        self.test_toy_build(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True, verbose=False,
                             raise_error=True, test_report=test_report_fp)
 
         # cleanup
         shutil.rmtree(tmpdir)
 
-    def testtoy_tweaked(self):
+    def test_toy_tweaked(self):
         """Test toy build with tweaked easyconfig, for testing extra easyconfig parameters."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec_file = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
@@ -253,7 +253,7 @@ class ToyBuildTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-    def testtoy_buggy_easyblock(self):
+    def test_toy_buggy_easyblock(self):
         """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
         ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         kwargs = {
@@ -264,9 +264,9 @@ class ToyBuildTest(EnhancedTestCase):
             'verbose': False,
         }
         err_regex = r"Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*global name 'run_cmd'"
-        self.assertErrorRegex(EasyBuildError, err_regex, self.testtoy_build, **kwargs)
+        self.assertErrorRegex(EasyBuildError, err_regex, self.test_toy_build, **kwargs)
 
-    def testtoy_build_formatv2(self):
+    def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
         # set $MODULEPATH such that modules for specified dependencies are found
         modulepath = os.environ.get('MODULEPATH')
@@ -295,7 +295,7 @@ class ToyBuildTest(EnhancedTestCase):
         else:
             del os.environ['MODULEPATH']
 
-    def testtoy_build_with_blocks(self):
+    def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
         orig_sys_path = sys.path[:]
         # add directory in which easyconfig file can be found to Python search path, since we're not specifying it full path below
@@ -328,7 +328,7 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.rmtree(tmpdir)
         sys.path = orig_sys_path
 
-    def testtoy_build_formatv2_sections(self):
+    def test_toy_build_formatv2_sections(self):
         """Perform a toy build (format v2, using sections)."""
         versions = {
             '0.0': {'versionprefix': '', 'versionsuffix': ''},
@@ -360,7 +360,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             self.check_toy(self.test_installpath, outtxt, **specs)
 
-    def testtoy_download_sources(self):
+    def test_toy_download_sources(self):
         """Test toy build with sources that still need to be 'downloaded'."""
         tmpdir = tempfile.mkdtemp()
         # copy toy easyconfig file, and append source_urls to it
@@ -389,7 +389,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
-    def testtoy_permissions(self):
+    def test_toy_permissions(self):
         """Test toy build with custom umask settings."""
         toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         args = [
@@ -484,17 +484,17 @@ class ToyBuildTest(EnhancedTestCase):
         # restore original umask
         os.umask(orig_umask)
 
-    def testtoy_permissions_installdir(self):
+    def test_toy_permissions_installdir(self):
         """Test --read-only-installdir and --group-write-installdir."""
         # set umask hard to verify default reliably
         orig_umask = os.umask(0022)
 
-        self.testtoy_build()
+        self.test_toy_build()
         installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
         self.assertEqual(installdir_perms, 0755, "%s has default permissions" % self.test_installpath)
         shutil.rmtree(self.test_installpath)
 
-        self.testtoy_build(extra_args=['--read-only-installdir'])
+        self.test_toy_build(extra_args=['--read-only-installdir'])
         installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
         self.assertEqual(installdir_perms, 0555, "%s has read-only permissions" % self.test_installpath)
         installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy')).st_mode & 0777
@@ -502,14 +502,14 @@ class ToyBuildTest(EnhancedTestCase):
         adjust_permissions(os.path.join(self.test_installpath, 'software', 'toy', '0.0'), stat.S_IWUSR, add=True)
         shutil.rmtree(self.test_installpath)
 
-        self.testtoy_build(extra_args=['--group-writable-installdir'])
+        self.test_toy_build(extra_args=['--group-writable-installdir'])
         installdir_perms = os.stat(os.path.join(self.test_installpath, 'software', 'toy', '0.0')).st_mode & 0777
         self.assertEqual(installdir_perms, 0775, "%s has group write permissions" % self.test_installpath)
 
         # restore original umask
         os.umask(orig_umask)
 
-    def testtoy_gid_sticky_bits(self):
+    def test_toy_gid_sticky_bits(self):
         """Test setting gid and sticky bits."""
         subdirs = [
             (('',), False),
@@ -520,7 +520,7 @@ class ToyBuildTest(EnhancedTestCase):
             (('modules', 'all', 'toy'), False),
         ]
         # no gid/sticky bits by default
-        self.testtoy_build()
+        self.test_toy_build()
         for subdir, _ in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -528,7 +528,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
 
         # git/sticky bits are set, but only on (re)created directories
-        self.testtoy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
+        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, bits_set in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -541,7 +541,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # start with a clean slate, now gid/sticky bits should be set on everything
         shutil.rmtree(self.test_installpath)
-        self.testtoy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
+        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, _ in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -555,10 +555,10 @@ class ToyBuildTest(EnhancedTestCase):
         shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'), tmpdir)
         ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
         write_file(ec_file, "\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n", append=True)
-        self.testtoy_build(ec_file=ec_file)
+        self.test_toy_build(ec_file=ec_file)
         shutil.rmtree(tmpdir)
 
-    def testtoy_hierarchical(self):
+    def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
@@ -724,17 +724,17 @@ class ToyBuildTest(EnhancedTestCase):
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(os.path.exists(gompi_module_path), "%s found" % gompi_module_path)
 
-    def testtoy_advanced(self):
+    def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb')
-        self.testtoy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
-    def testtoy_hidden(self):
+    def test_toy_hidden(self):
         """Test installing a hidden module."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
-        self.testtoy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
+        self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
         # module file is hidden
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         if get_module_syntax() == 'Lua':
@@ -772,14 +772,14 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix)))
         self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix)))
 
-    def testtoy_archived_easyconfig(self):
+    def test_toy_archived_easyconfig(self):
         """Test archived easyconfig for a succesful build."""
         repositorypath = os.path.join(self.test_installpath, 'easyconfigs_archive')
         extra_args = [
             '--repository=FileRepository',
             '--repositorypath=%s' % repositorypath,
         ]
-        self.testtoy_build(raise_error=True, extra_args=extra_args)
+        self.test_toy_build(raise_error=True, extra_args=extra_args)
 
         archived_ec = os.path.join(repositorypath, 'toy', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(archived_ec))
@@ -787,9 +787,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(ec.name, 'toy')
         self.assertEqual(ec.version, '0.0')
 
-    def testtoy_module_fulltxt(self):
+    def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
-        self.testtoy_tweaked()
+        self.test_toy_tweaked()
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
         if get_module_syntax() == 'Lua':
@@ -881,7 +881,7 @@ class ToyBuildTest(EnhancedTestCase):
             write_file(os.path.join(modulepath, mod), "#%Module")
 
         self.reset_modulepath([modulepath, os.path.join(self.test_installpath, 'modules', 'all')])
-        self.testtoy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
+        self.test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
         self.modtool.load(['toy/0.0-external-deps'])
         # note build dependency is not loaded
@@ -894,17 +894,17 @@ class ToyBuildTest(EnhancedTestCase):
         extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
         extraectxt += "\nversionsuffix = '-external-deps-broken1'"
         write_file(toy_ec, ectxt + extraectxt)
-        self.assertErrorRegex(EasyBuildError, err_msg, self.testtoy_build, ec_file=toy_ec,
+        self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
                               raise_error=True, verbose=False)
 
         extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
         extraectxt += "\nversionsuffix = '-external-deps-broken2'"
         write_file(toy_ec, ectxt + extraectxt)
-        self.assertErrorRegex(EasyBuildError, err_msg, self.testtoy_build, ec_file=toy_ec,
+        self.assertErrorRegex(EasyBuildError, err_msg, self.test_toy_build, ec_file=toy_ec,
                               raise_error=True, verbose=False)
 
         # --dry-run still works when external modules are missing; external modules are treated as if they were there
-        outtxt = self.testtoy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
+        outtxt = self.test_toy_build(ec_file=toy_ec, verbose=True, extra_args=['--dry-run'], verify=False)
         self.assertTrue(re.search(r"^ \* \[ \] .* \(module: toy/0.0-external-deps-broken2\)", outtxt, re.M))
 
     def test_module_only(self):
@@ -1011,7 +1011,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--packagepath=%s' % pkgpath,
         ]
 
-        self.testtoy_build(extra_args=extra_args)
+        self.test_toy_build(extra_args=extra_args)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.321.foo' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
@@ -1021,17 +1021,17 @@ class ToyBuildTest(EnhancedTestCase):
         mock_fpm(self.test_prefix)
         pkgpath = os.path.join(self.test_prefix, 'packages')  # default path
 
-        self.testtoy_build(['--packagepath=%s' % pkgpath])
+        self.test_toy_build(['--packagepath=%s' % pkgpath])
         self.assertFalse(os.path.exists(pkgpath), "%s is not created without use of --package" % pkgpath)
 
-        self.testtoy_build(extra_args=['--package', '--skip'], verify=False)
+        self.test_toy_build(extra_args=['--package', '--skip'], verify=False)
 
         toypkg = os.path.join(pkgpath, 'toy-0.0-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.exists(toypkg), "%s is there" % toypkg)
 
     def test_regtest(self):
         """Test use of --regtest."""
-        self.testtoy_build(extra_args=['--regtest', '--sequential'], verify=False)
+        self.test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
 
         # just check whether module exists
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
@@ -1043,13 +1043,13 @@ class ToyBuildTest(EnhancedTestCase):
     def test_minimal_toolchains(self):
         """Test toy build with --minimal-toolchains."""
         # this test doesn't check for anything specific to using minimal toolchains, only side-effects
-        self.testtoy_build(extra_args=['--minimal-toolchains'])
+        self.test_toy_build(extra_args=['--minimal-toolchains'])
 
         # also check whether easyconfig is dumped to reprod/ subdir
         reprod_ec = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild', 'reprod', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(reprod_ec))
 
-    def testtoy_toy(self):
+    def test_toy_toy(self):
         """Test building two easyconfigs in a single go, with one depending on the other."""
         toy_ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec_file)
@@ -1069,7 +1069,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(ec2, ec2_txt)
 
-        self.testtoy_build(ec_file=self.test_prefix, verify=False)
+        self.test_toy_build(ec_file=self.test_prefix, verify=False)
 
         mod1 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-one')
         mod2 = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-two')
@@ -1084,7 +1084,7 @@ class ToyBuildTest(EnhancedTestCase):
         load1_regex = re.compile('load.*toy/0.0-one', re.M)
         self.assertTrue(load1_regex.search(mod2_txt), "Pattern '%s' found in: %s" % (load1_regex.pattern, mod2_txt))
 
-    def testtoy_sanity_check_commands(self):
+    def test_toy_sanity_check_commands(self):
         """Test toy build with extra sanity check commands."""
 
         self.setup_hierarchical_modules()
