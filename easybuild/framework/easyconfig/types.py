@@ -401,10 +401,11 @@ def to_dependencies(dep_list):
     return [to_dependency(dep) for dep in dep_list]
 
 def to_checksums(checksums):
-    # make sure we have a nested list of checksums
     if not isinstance(checksums[0], list):
-        checksums = [checksums]
-    return [to_list_of_strings_and_tuples(cs) for cs in checksums]
+        return to_list_of_strings_and_tuples(checksums)
+    else:
+        return [to_list_of_strings_and_tuples(cs) for cs in checksums]
+
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 
