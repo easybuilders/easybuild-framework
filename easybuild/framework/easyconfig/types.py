@@ -358,7 +358,6 @@ def to_dependencies(dep_list):
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
-
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, as_hashable({
@@ -379,6 +378,7 @@ DEPENDENCY_DICT = (dict, as_hashable({
     },
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
+
 CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT]
 
 # easy types, that can be verified with isinstance
