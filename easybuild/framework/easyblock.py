@@ -1485,7 +1485,6 @@ class EasyBlock(object):
                 expected_checksum = fil['checksum'] or '(none)'
                 self.dry_run_msg("* expected checksum for %s: %s", filename, expected_checksum)
             else:
-                print "verifying", fil['checksum']
                 if not verify_checksum(fil['path'], fil['checksum']):
                     raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
                 else:
