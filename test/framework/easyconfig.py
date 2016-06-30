@@ -54,6 +54,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
+from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -795,7 +796,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_templating_doc(self):
         """test templating documentation"""
-        doc = easyconfig.templates.template_documentation()
+        doc = avail_easyconfig_templates()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
@@ -805,11 +806,12 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
+
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
     def test_constant_doc(self):
         """test constant documentation"""
-        doc = easyconfig.constants.constant_documentation()
+        doc = avail_easyconfig_constants()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
                  easyconfig.constants.EASYCONFIG_CONSTANTS,

@@ -31,7 +31,7 @@ sanity_check_paths: {
     dirs: ['bin'],
 }
 
-postinstallcmds: ["echo TOY > %[installdir]s/README"]
+postinstallcmds: ["echo TOY > %(installdir)s/README"]
 
 moduleclass: tools
 # trailing comment, leave this here, it may trigger bugs with extract_comments()
