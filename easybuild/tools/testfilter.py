@@ -29,14 +29,13 @@ Overrides TestLoader to filter single tests
 """
 import sys
 import unittest
-from unittest import suite
 
 class TestLoaderFiltered(unittest.TestLoader):
 
     def loadTestsFromTestCase(self, testCaseClass, filters):
         """Return a suite of all tests cases contained in testCaseClass."""
 
-        if issubclass(testCaseClass, suite.TestSuite):
+        if issubclass(testCaseClass, unittest.TestSuite):
             raise TypeError("Test cases should not be derived from "\
                 "TestSuite. Maybe you meant to derive from"\
                 " TestCase?")
