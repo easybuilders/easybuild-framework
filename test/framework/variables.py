@@ -30,8 +30,9 @@ Unit tests for tools/variables.py.
 """
 
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.tools.variables import CommaList, StrList, Variables
 from easybuild.tools.toolchain.variables import CommandFlagList
 
@@ -90,7 +91,7 @@ class VariablesTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(VariablesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(VariablesTest, filter_tests())
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -33,7 +33,7 @@ import shutil
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
 import setuptools
 import vsc
@@ -42,6 +42,7 @@ import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.run import run_cmd
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 class ScriptsTest(EnhancedTestCase):
@@ -218,7 +219,7 @@ class ScriptsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ScriptsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ScriptsTest, filter_tests())
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -29,7 +29,7 @@ Unit tests for easyconfig/parser.py
 """
 import os
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
@@ -39,6 +39,7 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
@@ -201,10 +202,10 @@ class EasyConfigParserTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigParserTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigParserTest, filter_tests())
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -29,9 +29,10 @@ Unit tests for framework/easyconfig/tweak.py
 """
 import os
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 class TweakTest(EnhancedTestCase):
@@ -111,7 +112,7 @@ class TweakTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests in this file """
-    return TestLoader().loadTestsFromTestCase(TweakTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(TweakTest, filter_tests())
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

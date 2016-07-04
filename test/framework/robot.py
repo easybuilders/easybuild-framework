@@ -34,8 +34,7 @@ import shutil
 import tempfile
 from copy import deepcopy
 from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 
 import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
@@ -55,6 +54,7 @@ from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
 from easybuild.tools.robot import check_conflicts, resolve_dependencies
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from test.framework.utilities import find_full_path
 
 
@@ -980,7 +980,7 @@ class RobotTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RobotTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, filter_tests())
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

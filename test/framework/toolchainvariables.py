@@ -30,8 +30,9 @@ Unit tests for tools/toolchain/variables.py.
 """
 
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 from easybuild.tools.toolchain.variables import CommandFlagList
 
@@ -164,7 +165,7 @@ class ToolchainVariablesTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(ToolchainVariablesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainVariablesTest, filter_tests())
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

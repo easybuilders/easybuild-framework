@@ -32,7 +32,7 @@ import re
 import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.repository.filerepo import FileRepository
@@ -41,6 +41,7 @@ from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.tools.version import VERSION
 
 
@@ -163,8 +164,8 @@ class RepositoryTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RepositoryTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, filter_tests())
 
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

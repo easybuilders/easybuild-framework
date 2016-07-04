@@ -31,7 +31,7 @@ import os
 import re
 import stat
 from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
@@ -41,6 +41,7 @@ from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, submit_jobs
 from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 # test GC3Pie configuration with large resource specs
@@ -217,9 +218,9 @@ class ParallelBuildTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ParallelBuildTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, filter_tests())
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

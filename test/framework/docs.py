@@ -27,10 +27,12 @@ Unit tests for docs.py.
 """
 import inspect
 import re
-from unittest import TestLoader, main
+import sys
+from unittest import TextTestRunner
 
 from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst
 from easybuild.tools.utilities import import_available_modules
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from test.framework.utilities import EnhancedTestCase
 
 
@@ -97,10 +99,10 @@ class DocsTest(EnhancedTestCase):
 
 def suite():
     """ returns all test cases in this module """
-    return TestLoader().loadTestsFromTestCase(DocsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, filter_tests())
 
 if __name__ == '__main__':
     # also check the setUp for debug
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

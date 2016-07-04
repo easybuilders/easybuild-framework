@@ -33,8 +33,8 @@ import shutil
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
@@ -46,6 +46,7 @@ from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, ini
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 class EasyBuildConfigTest(EnhancedTestCase):
@@ -569,9 +570,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
 
 def suite():
-    return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildConfigTest, filter_tests())
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

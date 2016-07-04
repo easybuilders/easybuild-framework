@@ -29,7 +29,8 @@ Unit tests for easyconfig/format/format.py
 """
 from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from unittest import TextTestRunner
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -48,10 +49,10 @@ class EasyConfigFormatTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigFormatTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigFormatTest, filter_tests())
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

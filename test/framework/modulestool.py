@@ -34,8 +34,7 @@ import tempfile
 from vsc.utils import fancylogger
 
 from test.framework.utilities import EnhancedTestCase
-from unittest import main as unittestmain
-from unittest import TestLoader
+from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
 import easybuild.tools.options as eboptions
@@ -44,6 +43,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which, write_file
 from easybuild.tools.modules import modules_tool, Lmod
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from test.framework.utilities import init_config
 
 
@@ -214,9 +214,9 @@ class ModulesToolTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesToolTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, filter_tests())
 
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
 

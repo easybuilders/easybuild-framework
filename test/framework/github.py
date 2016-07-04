@@ -36,11 +36,12 @@ import shutil
 import string
 import tempfile
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 import easybuild.tools.github as gh
 
 try:
@@ -243,7 +244,7 @@ class GithubTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(GithubTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, filter_tests())
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

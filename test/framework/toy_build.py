@@ -37,8 +37,7 @@ import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from test.framework.package import mock_fpm
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
@@ -46,6 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -1130,9 +1130,9 @@ class ToyBuildTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests in this file """
-    return TestLoader().loadTestsFromTestCase(ToyBuildTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, filter_tests())
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

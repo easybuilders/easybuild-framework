@@ -31,7 +31,7 @@ Unit tests for systemtools.py
 import re
 from os.path import exists as orig_os_path_exists
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
@@ -42,6 +42,7 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 PROC_CPUINFO_TXT = None
@@ -519,7 +520,7 @@ class SystemToolsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(SystemToolsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, filter_tests())
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

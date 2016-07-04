@@ -31,12 +31,12 @@ import os
 import re
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 
 
 def raise_easybuilderror(msg, *args, **kwargs):
@@ -148,7 +148,7 @@ class BuildLogTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(BuildLogTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, filter_tests())
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

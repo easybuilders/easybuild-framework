@@ -32,8 +32,7 @@ import re
 import stat
 
 from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -41,6 +40,7 @@ from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
+from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 DEBUG = False
@@ -225,8 +225,8 @@ class PackageTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(PackageTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(PackageTest, filter_tests())
 
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
