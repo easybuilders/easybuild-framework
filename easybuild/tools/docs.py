@@ -557,32 +557,33 @@ def list_toolchains_txt(tcs):
 
 
 def avail_toolchain_opts(name, output_format=FORMAT_TXT):
-    """Show list of known toolchains."""
+    """Show list of known options for given toolchain."""
     tc_class, _ = search_toolchain(name)
     if not tc_class:
         return "Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name
-    tc = tc_class(version='1.0')
+    tc = tc_class(version='1.0') # version doesn't matter here, but needs to be defined
 
-    options = [tc.COMPILER_UNIQUE_OPTS, tc.COMPILER_SHARED_OPTS, tc.MPI_UNIQUE_OPTS, tc.MPI_SHARED_OPTS]
+    options = [tc.COMPILER_SHARED_OPTS, tc.COMPILER_UNIQUE_OPTS, tc.MPI_SHARED_OPTS, tc.MPI_UNIQUE_OPTS]
 
     tc_dict = {}
     for opt in options:
-        if opt: # can be None
+        if opt is not None:
             tc_dict.update(opt)
 
     return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
 
 
 def avail_toolchain_opts_rst(name, tc_dict):
-    """ Returns overview of all toolchains in rst format """
+    """ Returns overview of toolchain options in rst format """
     title = "Available options for %s toolchain:" % name
 
     table_titles = ['option', 'description', 'default']
 
-    table_values = [[] for i in range(len(table_titles))]
-    table_values[0] = ['``%s``' % opt_name for opt_name in tc_dict.keys()]
-    table_values[1] = ['%s' % val[1] for val in tc_dict.values()]
-    table_values[2] = ['``%s``' % val[0] for val in tc_dict.values()]
+    table_values = [
+        ['``%s``' % opt_name for opt_name in tc_dict.keys()],
+        ['%s' % val[1] for val in tc_dict.values()],
+        ['``%s``' % val[0] for val in tc_dict.values()],
+    ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
 
@@ -590,7 +591,7 @@ def avail_toolchain_opts_rst(name, tc_dict):
 
 
 def avail_toolchain_opts_txt(name, tc_dict):
-    """ Returns overview of all toolchains in txt format """
+    """ Returns overview of toolchain options in txt format """
     doc = ["Available options for %s toolchain:" % name]
     for opt_name in sorted(tc_dict.keys()):
         doc.append("%s%s: %s (default: %s)" % (INDENT_4SPACES, opt_name, tc_dict[opt_name][1], tc_dict[opt_name][0]))

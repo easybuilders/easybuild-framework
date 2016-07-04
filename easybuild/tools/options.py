@@ -407,8 +407,7 @@ class EasyBuildOptions(GeneralOption):
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs."),
                                            None, 'store_true', False),
-            'avail-toolchain-opts': (("Show options for toolchain",
-                                       'str', 'store', None)),
+            'avail-toolchain-opts': ("Show options for toolchain", 'str', 'store', None),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
@@ -717,7 +716,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump known toolchain options
         if self.options.avail_toolchain_opts:
-            msg += avail_toolchain_opts(str(self.options.avail_toolchain_opts), self.options.output_format)
+            msg += avail_toolchain_opts(self.options.avail_toolchain_opts, self.options.output_format)
 
         # dump known repository types
         if self.options.avail_repositories:
