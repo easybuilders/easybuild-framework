@@ -57,7 +57,7 @@ from easybuild.tools.config import DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
-from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
+from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses, avail_toolchain_opts
 from easybuild.tools.docs import avail_easyconfig_params, avail_easyconfig_templates, list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import mkdir
@@ -407,6 +407,8 @@ class EasyBuildOptions(GeneralOption):
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs."),
                                            None, 'store_true', False),
+            'avail-toolchain-opts': (("Show options for toolchain",
+                                       'str', 'store', None)),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
@@ -602,7 +604,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
-                self.options.show_default_configfiles,
+                self.options.show_default_configfiles, self.options.avail_toolchain_opts,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -712,6 +714,10 @@ class EasyBuildOptions(GeneralOption):
         # dump known toolchains
         if self.options.list_toolchains:
             msg += list_toolchains(self.options.output_format)
+
+        # dump known toolchain options
+        if self.options.avail_toolchain_opts:
+            msg += avail_toolchain_opts(str(self.options.avail_toolchain_opts), self.options.output_format)
 
         # dump known repository types
         if self.options.avail_repositories:

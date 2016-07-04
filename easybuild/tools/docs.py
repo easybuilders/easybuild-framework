@@ -46,7 +46,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, ActiveMNS
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS
 from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
@@ -552,6 +552,48 @@ def list_toolchains_txt(tcs):
     for name in sorted(tcs):
         tc_elems = nub(sorted([e for es in tcs[name].values() for e in es]))
         doc.append("\t%s: %s" % (name, ', '.join(tc_elems)))
+
+    return '\n'.join(doc)
+
+
+def avail_toolchain_opts(name, output_format=FORMAT_TXT):
+    """Show list of known toolchains."""
+    tc_class, _ = search_toolchain(name)
+    if not tc_class:
+        return "Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name
+    tc = tc_class(version='1.0')
+
+    options = [tc.COMPILER_UNIQUE_OPTS, tc.COMPILER_SHARED_OPTS, tc.MPI_UNIQUE_OPTS, tc.MPI_SHARED_OPTS]
+
+    tc_dict = {}
+    for opt in options:
+        if opt: # can be None
+            tc_dict.update(opt)
+
+    return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
+
+
+def avail_toolchain_opts_rst(name, tc_dict):
+    """ Returns overview of all toolchains in rst format """
+    title = "Available options for %s toolchain:" % name
+
+    table_titles = ['option', 'description', 'default']
+
+    table_values = [[] for i in range(len(table_titles))]
+    table_values[0] = ['``%s``' % opt_name for opt_name in tc_dict.keys()]
+    table_values[1] = ['%s' % val[1] for val in tc_dict.values()]
+    table_values[2] = ['``%s``' % val[0] for val in tc_dict.values()]
+
+    doc = rst_title_and_table(title, table_titles, table_values)
+
+    return '\n'.join(doc)
+
+
+def avail_toolchain_opts_txt(name, tc_dict):
+    """ Returns overview of all toolchains in txt format """
+    doc = ["Available options for %s toolchain:" % name]
+    for opt_name in sorted(tc_dict.keys()):
+        doc.append("%s%s: %s (default: %s)" % (INDENT_4SPACES, opt_name, tc_dict[opt_name][1], tc_dict[opt_name][0]))
 
     return '\n'.join(doc)
 
