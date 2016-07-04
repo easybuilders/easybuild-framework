@@ -175,6 +175,13 @@ class EnhancedTestCase(_EnhancedTestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
+        # save values of $PATH & $PYTHONPATH, so they can be restored later
+        # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
+        # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
+        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
+        self.env_path = os.environ['PATH']
+        self.env_pythonpath = os.environ['PYTHONPATH']
+
         self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
         reset_module_caches()
@@ -217,6 +224,13 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
+
+    def restore_env_path_pythonpath(self):
+        """
+        Restore $PATH & $PYTHONPATH in environment using saved values.
+        """
+        os.environ['PATH'] = self.env_path
+        os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
