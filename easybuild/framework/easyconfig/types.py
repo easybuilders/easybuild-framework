@@ -401,10 +401,10 @@ def to_dependencies(dep_list):
     return [to_dependency(dep) for dep in dep_list]
 
 def to_checksums(checksums):
-    if any(isinstance(checksum, list) for checksum in checksums):
-        return [to_list_of_strings_and_tuples(checksums) for cs in checksums]
+    if not any(isinstance(checksum, list) for checksum in checksums):
+        return to_list_of_strings_and_tuples(checksums)
     else:
-        return to_list_of_strings_and_tuples(cs)
+        return [to_list_of_strings_and_tuples(cs) for cs in checksums]
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
