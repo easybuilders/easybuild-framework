@@ -365,11 +365,18 @@ class TestLoaderFiltered(unittest.TestLoader):
         """Return a suite of all tests cases contained in test_case_class."""
 
         test_case_names = self.getTestCaseNames(test_case_class)
-        test_cases = []
+        test_cnt = len(test_case_names)
+        retained_test_names = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
                 if any(filt in test_case_name for filt in filters):
-                    test_cases.append(test_case_class(test_case_name))
+                    retained_test_names.append(test_case_name)
+
+            retained_tests = ', '.join(retained_test_names)
+            tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
+            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+
+            test_cases = [test_case_class(t) for t in retained_test_names]
         else:
             test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
 
