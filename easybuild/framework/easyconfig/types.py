@@ -401,10 +401,13 @@ def to_dependencies(dep_list):
     return [to_dependency(dep) for dep in dep_list]
 
 def to_checksums(checksums):
-    if not any(isinstance(checksum, list) for checksum in checksums):
-        return to_list_of_strings_and_tuples(checksums)
+    """Ensure correct element types for list of checksums: convert list elements to tuples."""
+    if all(isinstance(cs, (list, tuple)) for cs in checksums):
+        # if all elements are lists/tuples, we convert each individual element to a string/tuple list
+        res = [to_list_of_strings_and_tuples(cs) for cs in checksums]
     else:
-        return [to_list_of_strings_and_tuples(cs) for cs in checksums]
+        res = to_list_of_strings_and_tuples(checksums)
+    return res
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
