@@ -96,7 +96,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         # separate runtime deps from build deps
         runtime_deps = [d for d in deps if d not in build_deps]
 
-        deps_for[(node_key[0], node_key[1])] = (build_deps, runtime_deps)
+        deps_for[node_key] = (build_deps, runtime_deps)
 
     if check_inter_ec_conflicts:
         # add ghost entry that depends on each of the specified easyconfigs,
@@ -104,25 +104,28 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         deps_for[(None, None)] = ([], [mk_key(e) for e in easyconfigs])
 
     import pprint
-    pprint.PrettyPrinter(indent=4).pprint(deps_for)
+    #pprint.PrettyPrinter(indent=4).pprint(deps_for)
 
     # iteratively expand list of dependencies
     last_deps_for = None
     while deps_for != last_deps_for:
         last_deps_for = copy.deepcopy(deps_for)
+        # (Automake, _), [], [(Autoconf, _), (GCC, _)]
         for (key, (build_deps, runtime_deps)) in last_deps_for.items():
             # extend runtime dependencies with non-build dependencies of own runtime dependencies
+            # Autoconf
             for dep in runtime_deps:
-                deps_for[key][1].extend([d for d in deps_for[dep][1] if d not in deps_for[dep][0]])
+                # [], [M4, GCC]
+                deps_for[key][1].extend([d for d in deps_for[dep][1]])
 
             # extend build dependencies with non-build dependencies of own build dependencies
             for dep in build_deps:
-                deps_for[key][0].extend([d for d in deps_for[dep][1] if d not in deps_for[dep][0]])
+                deps_for[key][0].extend([d for d in deps_for[dep][1]])
 
             deps_for[key] = (sorted(nub(deps_for[key][0])), sorted(nub(deps_for[key][1])))
 
         import pprint
-        pprint.PrettyPrinter(indent=4).pprint(deps_for)
+        #pprint.PrettyPrinter(indent=4).pprint(deps_for)
 
     def is_conflict((name, installver), (name1, installver1), (name2, installver2)):
         """Check whether dependencies with given name/(install) version conflict with each other."""
@@ -130,7 +133,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         # if not => CONFLICT!
         conflict = name1 == name2 and installver1 != installver2
         if conflict:
-            vs_msg = "%s-%s => %s-%s vs %s-%s" % (name, installver, name1, installver1, name2, installver2)
+            vs_msg = "%s-%s vs %s-%s" % (name1, installver1, name2, installver2)
             if name is None:
                 sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
             else:
