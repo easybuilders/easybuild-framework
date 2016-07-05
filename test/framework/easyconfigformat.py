@@ -30,8 +30,7 @@ Unit tests for easyconfig/format/format.py
 import sys
 
 from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
-from easybuild.tools.testfilter import TestLoaderFiltered
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen

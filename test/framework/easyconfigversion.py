@@ -30,14 +30,13 @@ Unit tests for easyconfig/format/version.py
 import copy
 import sys
 
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 

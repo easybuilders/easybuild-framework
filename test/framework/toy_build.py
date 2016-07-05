@@ -35,7 +35,7 @@ import shutil
 import stat
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -45,7 +45,6 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 

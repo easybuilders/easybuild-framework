@@ -26,6 +26,7 @@
 Various test utility functions.
 
 @author: Kenneth Hoste (Ghent University)
+@author Caroline De Brouwer (Ghent University)
 """
 import copy
 import fileinput
@@ -34,6 +35,7 @@ import re
 import shutil
 import sys
 import tempfile
+import unittest
 from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
@@ -354,6 +356,31 @@ class EnhancedTestCase(_EnhancedTestCase):
                               r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
+
+
+class TestLoaderFiltered(unittest.TestLoader):
+    """Test load that supports filtering of tests based on name."""
+
+    def loadTestsFromTestCase(self, test_case_class, filters):
+        """Return a suite of all tests cases contained in test_case_class."""
+
+        test_case_names = self.getTestCaseNames(test_case_class)
+        test_cnt = len(test_case_names)
+        retained_test_names = []
+        if len(filters) > 0:
+            for test_case_name in test_case_names:
+                if any(filt in test_case_name for filt in filters):
+                    retained_test_names.append(test_case_name)
+
+            retained_tests = ', '.join(retained_test_names)
+            tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
+            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+
+            test_cases = [test_case_class(t) for t in retained_test_names]
+        else:
+            test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
+
+        return self.suiteClass(test_cases)
 
 
 def cleanup():

@@ -35,7 +35,7 @@ import re
 import tempfile
 import shutil
 import sys
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
@@ -47,7 +47,6 @@ from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import Lmod, curr_module_paths, get_software_root, get_software_version
 from easybuild.tools.modules import get_software_libdir, invalidate_module_caches_for, modules_tool
 from easybuild.tools.run import run_cmd
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 # number of modules included for testing purposes

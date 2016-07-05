@@ -29,11 +29,10 @@ Unit tests for easyconfig/licenses.py
 """
 import sys
 
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.licenses import License, LicenseVeryRestrictive, what_licenses
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class LicenseTest(EnhancedTestCase):

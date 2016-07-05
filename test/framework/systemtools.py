@@ -32,7 +32,7 @@ import re
 import sys
 
 from os.path import exists as orig_os_path_exists
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
@@ -44,7 +44,6 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 PROC_CPUINFO_TXT = None

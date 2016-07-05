@@ -30,7 +30,7 @@ Unit tests for general aspects of the EasyBuild framework
 import os
 import re
 import sys
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import vsc
@@ -38,7 +38,6 @@ import vsc
 import easybuild.framework
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.utilities import only_if_module_is_available
 
 

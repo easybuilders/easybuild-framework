@@ -31,9 +31,8 @@ import sys
 from unittest import TextTestRunner
 
 from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.utilities import import_available_modules
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 
 class DocsTest(EnhancedTestCase):

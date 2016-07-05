@@ -30,10 +30,9 @@ Unit tests for tools/variables.py.
 """
 import sys
 
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.variables import CommaList, StrList, Variables
 from easybuild.tools.toolchain.variables import CommandFlagList
 

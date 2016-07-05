@@ -29,14 +29,13 @@ Unit tests for easyconfig/format/convert.py
 """
 import sys
 
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
 from easybuild.framework.easyconfig.format.convert import Dependency, Patch, Patches
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class ConvertTest(EnhancedTestCase):

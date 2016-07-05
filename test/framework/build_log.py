@@ -31,13 +31,12 @@ import os
 import re
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 def raise_easybuilderror(msg, *args, **kwargs):

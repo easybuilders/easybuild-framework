@@ -34,7 +34,7 @@ import shutil
 import sys
 import tempfile
 from copy import deepcopy
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.framework.easyconfig.easyconfig as ecec
@@ -55,7 +55,6 @@ from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
 from easybuild.tools.robot import check_conflicts, resolve_dependencies
-from easybuild.tools.testfilter import TestLoaderFiltered
 from test.framework.utilities import find_full_path
 
 
