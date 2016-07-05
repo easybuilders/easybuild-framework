@@ -32,7 +32,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
@@ -42,7 +42,6 @@ from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.version import VERSION
 
 

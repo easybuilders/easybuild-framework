@@ -32,7 +32,7 @@ import os
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -45,7 +45,6 @@ from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, ini
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class EasyBuildConfigTest(EnhancedTestCase):

@@ -29,11 +29,10 @@ Unit tests for environment.py
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.environment as env
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class EnvironmentTest(EnhancedTestCase):

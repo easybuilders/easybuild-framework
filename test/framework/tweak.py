@@ -29,11 +29,10 @@ Unit tests for framework/easyconfig/tweak.py
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class TweakTest(EnhancedTestCase):

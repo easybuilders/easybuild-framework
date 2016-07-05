@@ -32,7 +32,7 @@ import re
 import stat
 import sys
 
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
@@ -41,7 +41,6 @@ from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 DEBUG = False

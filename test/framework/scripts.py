@@ -32,7 +32,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import setuptools
@@ -42,7 +42,6 @@ import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class ScriptsTest(EnhancedTestCase):

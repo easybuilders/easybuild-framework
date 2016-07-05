@@ -42,9 +42,8 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.utilities import quote_str
-from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):

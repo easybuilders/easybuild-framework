@@ -36,14 +36,13 @@ import stat
 import sys
 import tempfile
 import urllib2
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class FileToolsTest(EnhancedTestCase):

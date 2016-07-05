@@ -36,9 +36,8 @@ from easybuild.framework.easyconfig.format.version import VersionOperator, Toolc
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.toolchain.utilities import search_toolchain
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen

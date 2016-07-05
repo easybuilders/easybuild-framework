@@ -36,7 +36,7 @@ import shutil
 import sys
 import tempfile
 from distutils.version import LooseVersion
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -62,7 +62,6 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
 from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_shared_lib_ext
-from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 

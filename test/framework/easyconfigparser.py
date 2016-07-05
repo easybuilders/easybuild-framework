@@ -29,7 +29,7 @@ Unit tests for easyconfig/parser.py
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -40,7 +40,6 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')

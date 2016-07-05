@@ -34,7 +34,7 @@ import sys
 import tempfile
 from vsc.utils import fancylogger
 
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
@@ -44,7 +44,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which, write_file
 from easybuild.tools.modules import modules_tool, Lmod
-from easybuild.tools.testfilter import TestLoaderFiltered
 from test.framework.utilities import init_config
 
 

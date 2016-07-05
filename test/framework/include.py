@@ -29,12 +29,11 @@ Unit tests for eb command line options.
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
-from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 def up(path, cnt):
