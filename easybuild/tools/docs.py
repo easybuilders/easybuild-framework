@@ -53,6 +53,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPL
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS
 from easybuild.framework.extension import Extension
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -560,7 +561,7 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
     """Show list of known options for given toolchain."""
     tc_class, _ = search_toolchain(name)
     if not tc_class:
-        return "Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name
+        raise EasyBuildError("Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name)
     tc = tc_class(version='1.0') # version doesn't matter here, but needs to be defined
 
     options = [tc.COMPILER_SHARED_OPTS, tc.COMPILER_UNIQUE_OPTS, tc.MPI_SHARED_OPTS, tc.MPI_UNIQUE_OPTS]
