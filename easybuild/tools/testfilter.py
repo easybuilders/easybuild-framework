@@ -32,23 +32,16 @@ import unittest
 
 class TestLoaderFiltered(unittest.TestLoader):
 
-    def loadTestsFromTestCase(self, testCaseClass, filters):
-        """Return a suite of all tests cases contained in testCaseClass."""
+    def loadTestsFromTestCase(self, test_case_class, filters):
+        """Return a suite of all tests cases contained in test_case_class."""
 
-        if issubclass(testCaseClass, unittest.TestSuite):
-            raise TypeError("Test cases should not be derived from "\
-                "TestSuite. Maybe you meant to derive from"\
-                " TestCase?")
-        test_case_names = self.getTestCaseNames(testCaseClass)
+        test_case_names = self.getTestCaseNames(test_case_class)
         test_cases = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
-                for filt in filters:
-                    if filt in test_case_name:
-                        test_cases.append(testCaseClass(test_case_name))
+                if any(filt in test_case_name for filt in filters):
+                    test_cases.append(test_case_class(test_case_name))
         else:
-            test_cases = [testCaseClass(test_case_name) for test_case_name in test_case_names]
+            test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
 
-        loaded_suite = self.suiteClass(test_cases)
-
-        return loaded_suite
+        return self.suiteClass(test_cases)
