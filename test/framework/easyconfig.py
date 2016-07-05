@@ -33,10 +33,11 @@ import copy
 import os
 import re
 import shutil
+import sys
 import tempfile
 from distutils.version import LooseVersion
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
@@ -1804,11 +1805,11 @@ class EasyConfigTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # also check the setUp for debug
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

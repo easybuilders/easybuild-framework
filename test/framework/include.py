@@ -29,9 +29,8 @@ Unit tests for eb command line options.
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -225,7 +224,7 @@ class IncludeTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(IncludeTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
