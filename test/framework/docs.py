@@ -31,8 +31,8 @@ import sys
 from unittest import TextTestRunner
 
 from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst
+from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.utilities import import_available_modules
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from test.framework.utilities import EnhancedTestCase
 
 
@@ -99,7 +99,7 @@ class DocsTest(EnhancedTestCase):
 
 def suite():
     """ returns all test cases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
 
 if __name__ == '__main__':
     # also check the setUp for debug

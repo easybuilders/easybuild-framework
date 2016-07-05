@@ -34,6 +34,7 @@ import os
 import re
 import tempfile
 import shutil
+import sys
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TextTestRunner
 
@@ -45,8 +46,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import Lmod, curr_module_paths, get_software_root, get_software_version
 from easybuild.tools.modules import get_software_libdir, invalidate_module_caches_for, modules_tool
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.tools.run import run_cmd
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 # number of modules included for testing purposes
@@ -669,7 +670,7 @@ class ModulesTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

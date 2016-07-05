@@ -33,6 +33,7 @@ Unit tests for filetools.py
 import os
 import shutil
 import stat
+import sys
 import tempfile
 import urllib2
 from test.framework.utilities import EnhancedTestCase, init_config
@@ -42,7 +43,7 @@ from urllib2 import URLError
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -697,7 +698,7 @@ class FileToolsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

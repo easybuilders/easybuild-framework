@@ -29,6 +29,7 @@ Unit tests for general aspects of the EasyBuild framework
 """
 import os
 import re
+import sys
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner
 
@@ -37,7 +38,7 @@ import vsc
 import easybuild.framework
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.utilities import only_if_module_is_available
 
 
@@ -99,7 +100,7 @@ class GeneralTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

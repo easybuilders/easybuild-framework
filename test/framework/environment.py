@@ -28,11 +28,12 @@ Unit tests for environment.py
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import sys
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.environment as env
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class EnvironmentTest(EnhancedTestCase):
@@ -74,7 +75,7 @@ class EnvironmentTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

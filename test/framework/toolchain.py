@@ -31,6 +31,7 @@ Unit tests for toolchain support.
 import os
 import re
 import shutil
+import sys
 import tempfile
 from distutils.version import LooseVersion
 from unittest import TextTestRunner
@@ -43,7 +44,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -819,7 +820,7 @@ class ToolchainTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests"""
-    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

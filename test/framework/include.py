@@ -34,7 +34,7 @@ from unittest import TextTestRunner
 
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 def up(path, cnt):
@@ -225,7 +225,7 @@ class IncludeTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

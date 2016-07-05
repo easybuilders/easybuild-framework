@@ -30,6 +30,7 @@ Unit tests for repository.py.
 import os
 import re
 import shutil
+import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner
@@ -41,7 +42,7 @@ from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.version import VERSION
 
 
@@ -164,7 +165,7 @@ class RepositoryTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

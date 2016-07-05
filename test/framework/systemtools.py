@@ -29,6 +29,8 @@ Unit tests for systemtools.py
 @author: Ward Poelmans (Ghent University)
 """
 import re
+import sys
+
 from os.path import exists as orig_os_path_exists
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner
@@ -42,7 +44,7 @@ from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, g
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 PROC_CPUINFO_TXT = None
@@ -55,7 +57,7 @@ CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
- 
+
 processor : 1
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
@@ -64,18 +66,18 @@ CPU implementer : 0x41
 CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
-CPU revision : 5 
+CPU revision : 5
 """
 PROC_CPUINFO_TXT_POWER = """processor	: 0
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
 revision	: 2.3 (pvr 003f 0203)
- 
+
 processor	: 13
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
 revision	: 2.3 (pvr 003f 0203)
- 
+
 timebase	: 512000000
 platform	: pSeries
 model		: IBM,8205-E6C
@@ -520,7 +522,7 @@ class SystemToolsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

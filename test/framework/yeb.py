@@ -39,7 +39,7 @@ from easybuild.framework.easyconfig.format.yeb import is_yeb_format
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 try:
@@ -184,7 +184,7 @@ class YebTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(YebTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(YebTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

@@ -30,6 +30,7 @@ Unit tests for packaging support.
 import os
 import re
 import stat
+import sys
 
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TextTestRunner
@@ -40,7 +41,7 @@ from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 DEBUG = False
@@ -225,7 +226,7 @@ class PackageTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(PackageTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(PackageTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

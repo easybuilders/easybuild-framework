@@ -27,18 +27,18 @@ Unit tests for easyconfig/types.py
 
 @author: Kenneth Hoste (Ghent University)
 """
+import sys
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner
 
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
 from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
 from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_sanity_check_paths_dict
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -529,7 +529,7 @@ class TypeCheckingTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

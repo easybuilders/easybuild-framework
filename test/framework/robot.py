@@ -31,6 +31,7 @@ Unit tests for robot (dependency resolution).
 import os
 import re
 import shutil
+import sys
 import tempfile
 from copy import deepcopy
 from test.framework.utilities import EnhancedTestCase, init_config
@@ -54,7 +55,7 @@ from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
 from easybuild.tools.robot import check_conflicts, resolve_dependencies
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from test.framework.utilities import find_full_path
 
 
@@ -980,7 +981,7 @@ class RobotTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

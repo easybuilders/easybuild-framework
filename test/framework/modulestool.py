@@ -30,6 +30,7 @@ Unit tests for ModulesTool class.
 import os
 import re
 import stat
+import sys
 import tempfile
 from vsc.utils import fancylogger
 
@@ -43,7 +44,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which, write_file
 from easybuild.tools.modules import modules_tool, Lmod
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from test.framework.utilities import init_config
 
 
@@ -214,7 +215,7 @@ class ModulesToolTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

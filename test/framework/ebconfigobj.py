@@ -29,13 +29,14 @@ Unit tests for easyconfig/format/format EBConfigObj
 """
 import os
 import re
+import sys
 
 from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner
@@ -273,7 +274,7 @@ class TestEBConfigObj(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EBConfigObj, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(TestEBConfigObj, sys.argv[1:])
 
 
 if __name__ == '__main__':

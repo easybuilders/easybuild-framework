@@ -29,6 +29,7 @@ Unit tests for asyncprocess.py.
 """
 
 import os
+import sys
 import time
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner, TestSuite

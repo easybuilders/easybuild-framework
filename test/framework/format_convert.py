@@ -27,6 +27,8 @@ Unit tests for easyconfig/format/convert.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
+import sys
+
 from test.framework.utilities import EnhancedTestCase
 from unittest import TextTestRunner
 
@@ -34,7 +36,7 @@ from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
 from easybuild.framework.easyconfig.format.convert import Dependency, Patch, Patches
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class ConvertTest(EnhancedTestCase):
@@ -226,7 +228,7 @@ class ConvertTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ConvertTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(ConvertTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

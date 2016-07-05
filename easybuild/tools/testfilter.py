@@ -40,21 +40,15 @@ class TestLoaderFiltered(unittest.TestLoader):
                 "TestSuite. Maybe you meant to derive from"\
                 " TestCase?")
         test_case_names = self.getTestCaseNames(testCaseClass)
-
         test_cases = []
-        for test_case_name in test_case_names:
-            for f in filters:
-                if f in test_case_name:
-                    test_cases.append(testCaseClass(test_case_name))
+        if len(filters) > 0:
+            for test_case_name in test_case_names:
+                for filt in filters:
+                    if filt in test_case_name:
+                        test_cases.append(testCaseClass(test_case_name))
+        else:
+            test_cases = [testCaseClass(test_case_name) for test_case_name in test_case_names]
 
         loaded_suite = self.suiteClass(test_cases)
 
         return loaded_suite
-
-def filter_tests():
-    fstr = []
-    if len(sys.argv) == 1:
-        fstr.append('')
-    while len(sys.argv) > 1:
-        fstr.append(sys.argv.pop())
-    return fstr

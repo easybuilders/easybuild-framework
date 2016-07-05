@@ -46,7 +46,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -980,7 +980,7 @@ class EasyBlockTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())

@@ -42,7 +42,7 @@ import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.testfilter import TestLoaderFiltered, filter_tests
+from easybuild.tools.testfilter import TestLoaderFiltered
 
 
 class ScriptsTest(EnhancedTestCase):
@@ -219,7 +219,7 @@ class ScriptsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ScriptsTest, filter_tests())
+    return TestLoaderFiltered().loadTestsFromTestCase(ScriptsTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
