@@ -579,10 +579,11 @@ def avail_toolchain_opts_rst(name, tc_dict):
 
     table_titles = ['option', 'description', 'default']
 
+    tc_items = sorted(tc_dict.items())
     table_values = [
-        ['``%s``' % opt_name for opt_name in tc_dict.keys()],
-        ['%s' % val[1] for val in tc_dict.values()],
-        ['``%s``' % val[0] for val in tc_dict.values()],
+        ['``%s``' % val[0] for val in tc_items],
+        ['%s' % val[1][1] for val in tc_items],
+        ['``%s``' % val[1][0] for val in tc_items],
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
