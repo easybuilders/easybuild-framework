@@ -85,7 +85,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         return (spec['name'], det_full_ec_version(spec))
 
     # construct a dictionary: (name, installver) tuple to (build) dependencies
-    deps_for = {}
+    deps_for, dep_of = {}, {}
     for node in ordered_ecs:
         node_key = mk_key(node)
 
@@ -98,13 +98,14 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
         deps_for[node_key] = (build_deps, runtime_deps)
 
+        # keep track of reverse deps too
+        for dep in deps:
+            dep_of.setdefault(dep, set()).add(node_key)
+
     if check_inter_ec_conflicts:
         # add ghost entry that depends on each of the specified easyconfigs,
         # since we want to check for conflicts between specified easyconfigs too
         deps_for[(None, None)] = ([], [mk_key(e) for e in easyconfigs])
-
-    import pprint
-    #pprint.PrettyPrinter(indent=4).pprint(deps_for)
 
     # iteratively expand list of dependencies
     last_deps_for = None
@@ -124,16 +125,22 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
 
             deps_for[key] = (sorted(nub(deps_for[key][0])), sorted(nub(deps_for[key][1])))
 
-        import pprint
-        #pprint.PrettyPrinter(indent=4).pprint(deps_for)
+            # also track reverse deps (except for ghost entry)
+            if key != (None, None):
+                for dep in build_deps + runtime_deps:
+                    dep_of.setdefault(dep, set()).add(key)
 
-    def is_conflict((name, installver), (name1, installver1), (name2, installver2)):
+    def check_conflict((name, installver), dep1, dep2):
         """Check whether dependencies with given name/(install) version conflict with each other."""
         # dependencies with the same name should have the exact same install version
         # if not => CONFLICT!
-        conflict = name1 == name2 and installver1 != installver2
+        conflict = dep1[0] == dep2[0] and dep1[1] != dep2[1]
         if conflict:
-            vs_msg = "%s-%s vs %s-%s" % (name1, installver1, name2, installver2)
+            vs_msg = "%s-%s vs %s-%s " % (dep1 + dep2)
+            for dep in [dep1, dep2]:
+                if dep in dep_of:
+                    vs_msg += "\n\t%s-%s as dep of: " % dep + ', '.join('%s-%s' % d for d in sorted(dep_of[dep]))
+
             if name is None:
                 sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
             else:
@@ -150,7 +157,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
             for dep2 in (build_deps + runtime_deps)[i+1:]:
                 # don't worry about conflicts between module itself and any of its build deps
                 if dep1 != key or dep2 not in build_deps:
-                    res |= is_conflict(key, dep1, dep2)
+                    res |= check_conflict(key, dep1, dep2)
 
     return res
 
