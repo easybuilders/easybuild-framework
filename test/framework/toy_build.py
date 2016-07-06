@@ -1133,7 +1133,6 @@ class ToyBuildTest(EnhancedTestCase):
         filename = 'toy-0.0'
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         paths = [os.path.join(test_ecs_dir, '%s.eb' % filename), os.path.join(test_ecs_dir, 'yeb', '%s.yeb' % filename)]
-        result = []
 
         for path in paths:
             args = [
@@ -1141,12 +1140,16 @@ class ToyBuildTest(EnhancedTestCase):
                 '--experimental',
                 '--force',
             ]
-
             self.eb_main(args, do_build=True)
 
             # test eb build with dumped file
             args[0] = os.path.join(get_repositorypath()[0], 'toy', 'toy-0.0%s' % os.path.splitext(path)[-1])
             self.eb_main(args, do_build=True)
+            easybuild.tools.build_log.EXPERIMENTAL = True
+            ec = EasyConfig(args[0])
+            buildstats = ec.parser.get_config_dict()['buildstats']
+            self.assertTrue(all(isinstance(bs, dict) for bs in buildstats))
+
 
 
 def suite():
