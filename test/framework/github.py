@@ -34,9 +34,10 @@ import random
 import re
 import shutil
 import string
+import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 from easybuild.tools.build_log import EasyBuildError
@@ -243,7 +244,7 @@ class GithubTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(GithubTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

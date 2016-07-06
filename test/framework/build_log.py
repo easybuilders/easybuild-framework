@@ -29,10 +29,10 @@ Unit tests for EasyBuild log infrastructure
 """
 import os
 import re
+import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
@@ -148,7 +148,7 @@ class BuildLogTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(BuildLogTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

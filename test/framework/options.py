@@ -33,8 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 import easybuild.tools.build_log
@@ -54,7 +53,7 @@ from easybuild.tools.options import EasyBuildOptions, parse_external_modules_met
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from vsc.utils import fancylogger
 
 
@@ -62,7 +61,7 @@ EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
 name = foo, bar
 version = 1.2.3, 3.2.1
 prefix = FOOBAR_DIR
- 
+
 [foobar/2.0]
 name = foobar
 version = 2.0
@@ -216,8 +215,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # clear log file
         write_file(self.logfile, '')
-        
-        # check that --force and --rebuild work 
+
+        # check that --force and --rebuild work
         for arg in ['--force', '--rebuild']:
             outtxt = self.eb_main([eb_file, '--debug', arg])
             self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with %s" % arg)
@@ -1899,6 +1898,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1970,6 +1972,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_toolchains(self):
         """Test --include-toolchains."""
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2593,7 +2598,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(CommandLineOptionsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

@@ -30,10 +30,10 @@ Unit tests for packaging support.
 import os
 import re
 import stat
+import sys
 
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -225,8 +225,8 @@ class PackageTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(PackageTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(PackageTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

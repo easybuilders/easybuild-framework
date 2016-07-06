@@ -401,10 +401,13 @@ def to_dependencies(dep_list):
     return [to_dependency(dep) for dep in dep_list]
 
 def to_checksums(checksums):
-    if not isinstance(checksums[0], list):
-        return to_list_of_strings_and_tuples(checksums)
+    """Ensure correct element types for list of checksums: convert list elements to tuples."""
+    if all(isinstance(cs, (list, tuple)) for cs in checksums):
+        # if all elements are lists/tuples, we convert each individual element to a string/tuple list
+        res = [to_list_of_strings_and_tuples(cs) for cs in checksums]
     else:
-        return [to_list_of_strings_and_tuples(cs) for cs in checksums]
+        res = to_list_of_strings_and_tuples(checksums)
+    return res
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
@@ -442,7 +445,7 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 
 CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_PATHS_DICT,
-                    STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
+                  STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]

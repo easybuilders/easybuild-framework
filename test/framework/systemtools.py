@@ -29,9 +29,11 @@ Unit tests for systemtools.py
 @author: Ward Poelmans (Ghent University)
 """
 import re
+import sys
+
 from os.path import exists as orig_os_path_exists
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
@@ -54,7 +56,7 @@ CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
- 
+
 processor : 1
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
@@ -63,18 +65,18 @@ CPU implementer : 0x41
 CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
-CPU revision : 5 
+CPU revision : 5
 """
 PROC_CPUINFO_TXT_POWER = """processor	: 0
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
 revision	: 2.3 (pvr 003f 0203)
- 
+
 processor	: 13
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
 revision	: 2.3 (pvr 003f 0203)
- 
+
 timebase	: 512000000
 platform	: pSeries
 model		: IBM,8205-E6C
@@ -519,7 +521,7 @@ class SystemToolsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(SystemToolsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

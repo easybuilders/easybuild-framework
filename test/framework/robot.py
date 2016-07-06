@@ -31,11 +31,11 @@ Unit tests for robot (dependency resolution).
 import os
 import re
 import shutil
+import sys
 import tempfile
 from copy import deepcopy
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
@@ -980,7 +980,7 @@ class RobotTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RobotTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
