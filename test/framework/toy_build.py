@@ -1128,17 +1128,16 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(toy_modfile))
 
-    def test_toy_add_easyconfig(self):
+    def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
         filename = 'toy-0.0'
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         paths = [os.path.join(test_ecs_dir, '%s.eb' % filename), os.path.join(test_ecs_dir, 'yeb', '%s.yeb' % filename)]
-        ext = [EB_FORMAT_EXTENSION, YEB_FORMAT_EXTENSION]
         result = []
 
-        for i in range(2):
+        for path in paths:
             args = [
-                paths[i],
+                path,
                 '--experimental',
                 '--force',
             ]
@@ -1146,7 +1145,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.eb_main(args, do_build=True)
 
             # test eb build with dumped file
-            args[0] = os.path.join(get_repositorypath()[0], 'toy', 'toy-0.0%s' % ext[i])
+            args[0] = os.path.join(get_repositorypath()[0], 'toy', 'toy-0.0%s' % os.path.splitext(path)[-1])
             self.eb_main(args, do_build=True)
 
 
