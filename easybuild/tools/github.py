@@ -82,7 +82,6 @@ GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
-GITHUB_EASYCONFIGS_REPO_DEV = 'easybuild-easyconfigs-develop'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
@@ -327,12 +326,20 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         mkdir(path, parents=True)
 
     develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
-    os.chdir(develop)
+    if not os.path.isdir(develop):
+        raise EasyBuildError("Downloading of develop branch failed: not found in %s" % develop)
+    try:
+        os.chdir(develop)
+    except OSError:
+        _log.debug('Failed to change into directory %s: %s' % develop)
+
     patch_name = 'patch%s' % pr
     patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, str(pr)])
     patch = download_file(patch_name, patch_url + '.patch', path + '/' + patch_name)
 
     result = apply_patch(patch, develop, level=1)
+    if not result:
+        raise EasyBuildError("Patch of develop branch with pr %s failed" % pr)
 
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
     pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
@@ -377,11 +384,16 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     for (dirpath, _, filenames) in os.walk(path):
         tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
 
-    for file in all_files:
-        if not file in tmp_files:
-            raise EasyBuildError("Couldn't find file in %s: %s", path, file)
+    for patched in all_files:
+        if not patched in tmp_files:
+            raise EasyBuildError("Couldn't find file in %s: %s", path, patched)
 
-    ec_files = [os.path.join(path, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO_DEV, f) for f in patched_files]
+    ec_files = []
+    for f in patched_files:
+        if os.path.exists(os.path.join(develop, f)):
+            ec_files.append(os.path.join(develop, f))
+        else:
+            raise EasyBuildError("Coudln't find path to patched file %s" % os.path.join(develop, f))
 
     return ec_files
 
