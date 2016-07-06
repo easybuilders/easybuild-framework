@@ -188,7 +188,7 @@ def dep_graph(filename, specs):
         all_nodes.add(spec['module'])
         spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
-        
+
         # Get the build dependencies for each spec so we can distinguish them later
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
         all_nodes.update(spec['ec'].build_dependencies)
