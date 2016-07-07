@@ -343,7 +343,7 @@ def det_easyconfig_paths(orig_paths):
             if not ecs_to_find:
                 break
 
-    return ec_files
+    return [os.path.abspath(ec_file) for ec_file in ec_files]
 
 
 def parse_easyconfigs(paths, validate=True):
