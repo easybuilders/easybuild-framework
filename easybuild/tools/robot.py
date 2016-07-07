@@ -130,8 +130,14 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
                 for dep in build_deps + runtime_deps:
                     dep_of.setdefault(dep, set()).add(key)
 
-    def check_conflict((name, installver), dep1, dep2):
-        """Check whether dependencies with given name/(install) version conflict with each other."""
+    def check_conflict(parent, dep1, dep2):
+        """
+        Check whether dependencies with given name/(install) version conflict with each other.
+
+        @param parent: name & install version of 'parent' software
+        @param dep1: name & install version of 1st dependency
+        @param dep2: name & install version of 2nd dependency
+        """
         # dependencies with the same name should have the exact same install version
         # if not => CONFLICT!
         conflict = dep1[0] == dep2[0] and dep1[1] != dep2[1]
@@ -141,10 +147,10 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
                 if dep in dep_of:
                     vs_msg += "\n\t%s-%s as dep of: " % dep + ', '.join('%s-%s' % d for d in sorted(dep_of[dep]))
 
-            if name is None:
+            if parent[0] is None:
                 sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
             else:
-                specname = '%s-%s' % (name, installver)
+                specname = '%s-%s' % parent
                 sys.stderr.write("Conflict found for dependencies of %s: %s\n" % (specname, vs_msg))
 
         return conflict
