@@ -680,7 +680,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.robot is not None:
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
-            self.options.robot_paths = self.options.robot + self.options.robot_paths
+            self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
             self.options.robot = self.options.robot_paths
 
     def _postprocess_list_avail(self):
