@@ -188,7 +188,7 @@ def dep_graph(filename, specs):
         all_nodes.add(spec['module'])
         spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
-        
+
         # Get the build dependencies for each spec so we can distinguish them later
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
         all_nodes.update(spec['ec'].build_dependencies)
@@ -343,7 +343,7 @@ def det_easyconfig_paths(orig_paths):
             if not ecs_to_find:
                 break
 
-    return ec_files
+    return [os.path.abspath(ec_file) for ec_file in ec_files]
 
 
 def parse_easyconfigs(paths, validate=True):

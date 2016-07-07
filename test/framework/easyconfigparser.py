@@ -28,8 +28,9 @@ Unit tests for easyconfig/parser.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
@@ -201,10 +202,10 @@ class EasyConfigParserTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigParserTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigParserTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())
