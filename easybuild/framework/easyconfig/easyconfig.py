@@ -328,7 +328,7 @@ class EasyConfig(object):
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
-            hidden = build_option('hidden')
+            hidden = self['hidden'] or build_option('hidden')
         self.hidden = hidden
 
         # set installdir/module info

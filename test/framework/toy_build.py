@@ -728,8 +728,8 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
-    def test_toy_hidden(self):
-        """Test installing a hidden module."""
+    def test_toy_hidden_cmdline(self):
+        """Test installing a hidden module using the '--hidden' command line option."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
         self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
         # module file is hidden
@@ -740,6 +740,25 @@ class ToyBuildTest(EnhancedTestCase):
         # installed software is not hidden
         toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
         self.assertTrue(os.path.exists(toybin))
+
+    def test_toy_hidden_easyconfig(self):
+        """Test installing a hidden module using the 'hidden = True' easyconfig parameter."""
+        tmpdir = tempfile.mkdtemp()
+        # copy toy easyconfig file, and hiding option to it
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        shutil.copy2(ec_file, tmpdir)
+        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
+        write_file(ec_file, "\nhidden = True\n", append=True)
+        self.test_toy_build(ec_file=ec_file, verify=False)
+        # module file is hidden
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+        # installed software is not hidden
+        toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
+        self.assertTrue(os.path.exists(toybin))
+        shutil.rmtree(tmpdir)
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""

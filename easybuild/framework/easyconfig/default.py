@@ -88,6 +88,7 @@ DEFAULT_CONFIG = {
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
+    'hidden': [False, "Install module file as 'hidden' by prefixing its name with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
