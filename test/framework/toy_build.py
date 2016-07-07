@@ -1148,6 +1148,8 @@ class ToyBuildTest(EnhancedTestCase):
             easybuild.tools.build_log.EXPERIMENTAL = True
             ec = EasyConfig(args[0])
             buildstats = ec.parser.get_config_dict()['buildstats']
+            print buildstats
+
             self.assertTrue(all(isinstance(bs, dict) for bs in buildstats))
 
 
