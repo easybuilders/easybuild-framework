@@ -148,7 +148,8 @@ def quote_yaml_special_chars(val):
     """
     if isinstance(val, basestring):
         if "'" in val:
-            val = val.replace("'", "\\'")
+            if '"' in val:
+                val = val.replace('"', '\\"')
             val = "'%s'" % val
 
         elif YAML_SPECIAL_CHARS.intersection(val):
