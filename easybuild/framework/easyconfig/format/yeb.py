@@ -146,7 +146,10 @@ def quote_yaml_special_chars(val):
     """
     Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
     """
-    if isinstance(val, basestring) and YAML_SPECIAL_CHARS.intersection(val):
+    if isinstance(val, basestring):
+        if "'" in val:
+            val = '"%s"' % val
+        elif YAML_SPECIAL_CHARS.intersection(val):
             val = "'%s'" % val
 
     return val
