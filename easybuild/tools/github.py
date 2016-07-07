@@ -327,17 +327,18 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
     if not os.path.isdir(develop):
-        raise EasyBuildError('Downloading of develop branch failed: not found in %s', develop)
+        raise EasyBuildError("Downloading of develop branch failed: not found in %s", develop)
 
     patch_name = 'patch%s' % pr
-    patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, str(pr)])
-    patch = download_file(patch_name, patch_url + '.patch', path + '/' + patch_name)
+    patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, '%s.patch' % pr])
+    patch_path = os.path.join(patch_url, patch_name)
+    patch = download_file(patch_name, patch_url, patch_path)
     if patch is None:
-        raise EasyBuildError('Failed to download file %s to %s', patch_url + '.patch', path + '/' + patch_name)
+        raise EasyBuildError("Failed to download file %s to %s", patch_url, patch_path)
 
     result = apply_patch(patch, develop, level=1)
     if not result:
-        raise EasyBuildError('Patch of develop branch with pr %s fails', pr)
+        raise EasyBuildError("Patch of develop branch with pr %s fails", pr)
 
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
     pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
