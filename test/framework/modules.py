@@ -34,8 +34,9 @@ import os
 import re
 import tempfile
 import shutil
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
@@ -668,7 +669,7 @@ class ModulesTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

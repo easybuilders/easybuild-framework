@@ -400,6 +400,15 @@ def to_dependencies(dep_list):
     """
     return [to_dependency(dep) for dep in dep_list]
 
+def to_checksums(checksums):
+    """Ensure correct element types for list of checksums: convert list elements to tuples."""
+    if all(isinstance(cs, (list, tuple)) for cs in checksums):
+        # if all elements are lists/tuples, we convert each individual element to a string/tuple list
+        res = [to_list_of_strings_and_tuples(cs) for cs in checksums]
+    else:
+        res = to_list_of_strings_and_tuples(checksums)
+    return res
+
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 
@@ -433,16 +442,20 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'opt_keys': [],
     'req_keys': ['files', 'dirs'],
 }))
-CHECKABLE_TYPES = [DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST,
-                   TUPLE_OF_STRINGS]
+CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
+
+CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_PATHS_DICT,
+                  STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
 EASY_TYPES = [basestring, bool, dict, int, list, str, tuple]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
+    'checksums': CHECKSUMS,
     'name': basestring,
     'osdependencies': STRING_OR_TUPLE_LIST,
+    'patches': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
     'toolchain': NAME_VERSION_DICT,
     'version': basestring,
@@ -456,6 +469,7 @@ TYPE_CONVERSION_FUNCTIONS = {
     float: float,
     int: int,
     str: str,
+    CHECKSUMS: to_checksums,
     DEPENDENCIES: to_dependencies,
     NAME_VERSION_DICT: to_name_version_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,

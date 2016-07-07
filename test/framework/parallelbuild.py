@@ -30,8 +30,9 @@ Unit tests for parallelbuild.py
 import os
 import re
 import stat
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
@@ -217,9 +218,9 @@ class ParallelBuildTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ParallelBuildTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, sys.argv[1:])
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

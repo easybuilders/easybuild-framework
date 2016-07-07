@@ -30,12 +30,12 @@ Unit tests for ModulesTool class.
 import os
 import re
 import stat
+import sys
 import tempfile
 from vsc.utils import fancylogger
 
-from test.framework.utilities import EnhancedTestCase
-from unittest import main as unittestmain
-from unittest import TestLoader
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
 import easybuild.tools.options as eboptions
@@ -214,9 +214,9 @@ class ModulesToolTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesToolTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
 
