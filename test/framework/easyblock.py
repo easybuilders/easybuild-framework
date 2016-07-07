@@ -33,8 +33,8 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
@@ -979,7 +979,7 @@ class EasyBlockTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests in this file """
-    return TestLoader().loadTestsFromTestCase(EasyBlockTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

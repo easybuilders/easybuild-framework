@@ -32,8 +32,9 @@ Unit tests for filetools.py
 import os
 import re
 import signal
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.tools.build_log import EasyBuildError
@@ -174,9 +175,9 @@ class RunTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RunTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

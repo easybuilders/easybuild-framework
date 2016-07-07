@@ -30,9 +30,10 @@ Unit tests for repository.py.
 import os
 import re
 import shutil
+import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.repository.filerepo import FileRepository
@@ -163,8 +164,8 @@ class RepositoryTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RepositoryTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())
