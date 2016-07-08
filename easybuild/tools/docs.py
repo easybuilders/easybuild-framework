@@ -566,17 +566,12 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
 
     mpishared = []
     mpiunique = []
-    if hasattr(tc, 'MPI_SHARED_OPTS'):
-        mpishared = tc.MPI_SHARED_OPTS
-    if hasattr(tc, 'MPI_UNIQUE_OPTS'):
-        mpiunique = tc.MPI_UNIQUE_OPTS
-
-    options = [tc.COMPILER_SHARED_OPTS, tc.COMPILER_UNIQUE_OPTS, mpishared, mpiunique]
-
     tc_dict = {}
-    for opt in options:
-        if opt is not None:
-            tc_dict.update(opt)
+    for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
+        if hasattr(tc, cst):
+            opts = getattr(tc, cst)
+            if opts is not None:
+                tc_dict.update(opts)
 
     return generate_doc('avail_toolchain_opts_%s' % output_format, [name, tc_dict])
 
