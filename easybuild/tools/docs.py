@@ -564,7 +564,14 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
         raise EasyBuildError("Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name)
     tc = tc_class(version='1.0') # version doesn't matter here, but needs to be defined
 
-    options = [tc.COMPILER_SHARED_OPTS, tc.COMPILER_UNIQUE_OPTS, tc.MPI_SHARED_OPTS, tc.MPI_UNIQUE_OPTS]
+    mpishared = []
+    mpiunique = []
+    if hasattr(tc, 'MPI_SHARED_OPTS'):
+        mpishared = tc.MPI_SHARED_OPTS
+    if hasattr(tc, 'MPI_UNIQUE_OPTS'):
+        mpiunique = tc.MPI_UNIQUE_OPTS
+
+    options = [tc.COMPILER_SHARED_OPTS, tc.COMPILER_UNIQUE_OPTS, mpishared, mpiunique]
 
     tc_dict = {}
     for opt in options:
@@ -576,7 +583,7 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
 
 def avail_toolchain_opts_rst(name, tc_dict):
     """ Returns overview of toolchain options in rst format """
-    title = "Available options for %s toolchain:" % name
+    title = "Available options for %s toolchain" % name
 
     table_titles = ['option', 'description', 'default']
 
