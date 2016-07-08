@@ -411,7 +411,6 @@ def to_checksums(checksums):
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
-
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, as_hashable({
@@ -432,6 +431,7 @@ DEPENDENCY_DICT = (dict, as_hashable({
     'req_keys': ['name', 'version'],
 }))
 DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
+
 TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
 STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
