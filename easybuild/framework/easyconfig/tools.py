@@ -47,6 +47,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -374,7 +375,7 @@ def parse_easyconfigs(paths, validate=True):
     return easyconfigs, generated_ecs
 
 
-def stats_to_str(stats):
+def stats_to_str(stats, isyeb=False):
     """
     Pretty print build statistics to string.
     """
@@ -383,8 +384,15 @@ def stats_to_str(stats):
 
     txt = "{\n"
     pref = "    "
-    for (k, v) in stats.items():
-        txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
+    for key in sorted(stats):
+        if isyeb:
+            val = stats[key]
+            if isinstance(val, tuple):
+                val = list(val)
+            key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(val)
+        else:
+            key, val = quote_str(key), quote_str(stats[key])
+        txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
 
