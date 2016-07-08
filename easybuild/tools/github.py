@@ -314,16 +314,6 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
-    # check if pr* is used
-    force_patch = False
-    if pr.endswith('*'):
-        force_patch = True
-        pr = pr[:-1]
-    # convert to int
-    try:
-        pr = int(pr)
-    except ValueError:
-        raise EasyBuildError("PR number is not an integer")
 
     if github_user is None:
         github_user = build_option('github_user')
@@ -336,24 +326,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
-    develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
-    if not os.path.isdir(develop):
-        raise EasyBuildError("Downloading of develop branch failed: not found in %s", develop)
-
-    patch_name = 'patch%s' % pr
-    patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, '%s.patch' % pr])
-    patch_path = os.path.join(path, patch_name)
-    patch = download_file(patch_name, patch_url, patch_path)
-    if patch is None:
-        raise EasyBuildError("Failed to download file %s to %s", patch_url, patch_path)
-
-    result = apply_patch(patch, develop, level=1, log_ok=False, from_pr=pr, obliged=force_patch)
-    if not result:
-        # patching with develop failed, remove downloaded files
-        shutil.rmtree(develop)
-        os.remove(os.path.join(path, GITHUB_EB_MAIN, 'develop.tar.gz'))
-        os.remove(patch_path)
-
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
     pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
 
@@ -362,14 +334,32 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
-    # 'clean' on successful (or missing) test, 'unstable' on failed tests
+    dl_dev = False
+    # if PR is open and mergable, download develop and patch
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
+    closed = pr_data['state'] == GITHUB_STATE_CLOSED and pr_data['merged'] == False
+    # 'clean' on successful (or missing) test, 'unstable' on failed tests
     if not stable:
         _log.warning("Mergeable state for PR #%d is not '%s': %s.",
                      pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
-    for key, val in sorted(pr_data.items()):
-        _log.debug("\n%s:\n\n%s\n" % (key, val))
+    if stable and not closed:
+        # wether merged or not, download develop
+        develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
+        if not os.path.isdir(develop):
+            raise EasyBuildError("Downloading of develop branch failed: not found in %s", develop)
+        dl_dev = True
+
+        # not merged: download patch
+        if not pr_data['merged']:
+            patch_name = 'patch%s' % pr
+            patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, '%s.patch' % pr])
+            patch_path = os.path.join(path, patch_name)
+            patch = download_file(patch_name, patch_url, patch_path)
+            if patch is None:
+                raise EasyBuildError("Failed to download file %s to %s", patch_url, patch_path)
+
+            patched = apply_patch(patch, develop, level=1)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
@@ -381,6 +371,9 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
 
+    for key, val in sorted(pr_data.items()):
+        _log.debug("\n%s:\n\n%s\n" % (key, val))
+
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
     if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
@@ -390,7 +383,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
-    if not result:
+    if not stable or closed:
+        print "WARNING: Using unstable/closed PR on easybuild installation!"
         # obtain most recent version of patched files
         for patched_file in patched_files:
             # path to patch file, incl. subdir it is in
@@ -411,8 +405,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         if not patched in tmp_files:
             raise EasyBuildError("Couldn't find file in %s: %s", path, patched)
 
-    if result:
-        # if the merge succeeded, the paths to look for are different
+    if dl_dev:
+        # if we merged with develop, the paths to look for are different
         path = develop
         all_files = patched_files
 
