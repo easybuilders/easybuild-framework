@@ -18,7 +18,7 @@ bugfix release
     - add support for --extra-modules (#1821)
     - add type conversion for 'checksums' and 'patches' parameter in .yeb easyconfigs (#1826)
     - add support for filtering tests by name (#1828)
-    - add support for --avail-toolchain-opts (#1830)
+    - add support for --avail-toolchain-opts (#1830, #1839)
     - use absolute path for robot and easyconfig files (#1834)
 - various bug fixes, including:
     - fix installation of Lua in install_eb_dep.sh script (#1789)
@@ -31,6 +31,7 @@ bugfix release
     - skip unneeded unuse/use commands on tail of $MODULEPATH in check_module_path (#1813)
     - fix auto-convert for all *dependencies params in .yeb easyconfigs, ensure version is a string (#1818)
     - fix keyring version in Travis config (#1819)
+    - fix dumping of .yeb easyconfig files in easyconfigs archive (#1822)
     - fix format of supported easyconfig templates in help output (#1825)
     - stick to pydot 1.1.0 for Python 2.6 in Travis config (#1827)
 
