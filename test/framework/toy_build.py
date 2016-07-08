@@ -744,7 +744,7 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_hidden_easyconfig(self):
         """Test installing a hidden module using the 'hidden = True' easyconfig parameter."""
         tmpdir = tempfile.mkdtemp()
-        # copy toy easyconfig file, and hiding option to it
+        # copy toy easyconfig file, and add hiding option to it
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
         shutil.copy2(ec_file, tmpdir)
         ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
