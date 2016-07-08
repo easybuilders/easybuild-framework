@@ -145,14 +145,12 @@ def is_yeb_format(filename, rawcontent):
 def quote_yaml_special_chars(val):
     """
     Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
+    Single quotes inside the string are escaped by doubling them.
+    (see: http://symfony.com/doc/current/components/yaml/yaml_format.html#strings)
     """
     if isinstance(val, basestring):
-        if "'" in val:
-            if '"' in val:
-                val = val.replace('"', '\\"')
-            val = '"%s"' % val
-
-        elif YAML_SPECIAL_CHARS.intersection(val):
+        if "'" in val or YAML_SPECIAL_CHARS.intersection(val):
+            val = val.replace("'", "''")
             val = "'%s'" % val
 
     return val
