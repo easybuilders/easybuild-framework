@@ -869,7 +869,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         args = [
             # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
-            '--from-pr=1239',
+            '--from-pr=1239*',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),

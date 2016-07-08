@@ -130,7 +130,7 @@ class GithubTest(EnhancedTestCase):
             'animation-2.4-intel-2015b-R-3.2.1.eb',
         ]
         try:
-            ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+            ec_files = gh.fetch_easyconfigs_from_pr('2481*', path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
             self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
             self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in glob.glob(os.path.join(tmpdir, '*', '*'))]))
 

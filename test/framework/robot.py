@@ -614,7 +614,7 @@ class RobotTest(EnhancedTestCase):
             os.path.join(test_ecs_path, 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
             # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
-            '--from-pr=1239',
+            '--from-pr=1239*',
             'FFTW-3.3.4-gompi-2015a.eb',
             'gompi-2015a-test.eb',  # relative path, available in robot search path
             '--dry-run',

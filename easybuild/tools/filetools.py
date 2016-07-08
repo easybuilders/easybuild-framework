@@ -655,7 +655,7 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
-def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None, log_ok=True, from_pr=None, obliged=False):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
@@ -718,9 +718,16 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    result = run.run_cmd(patch_cmd, simple=True, path=adest)
+    result = run.run_cmd(patch_cmd, simple=True, path=adest, log_ok=log_ok)
+
     if not result:
-        raise EasyBuildError("Patching with patch %s failed", patch_file)
+        if from_pr is not None:
+            if not obliged:
+                raise EasyBuildError("Couldn't merge branch with develop. Maybe it's already merged? Try using "
+                                     "--from-pr %s* to make easybuild apply the patch without merging "
+                                     "with develop first.", from_pr)
+        else:
+            raise EasyBuildError("Patching with patch %s failed", patch_file)
 
     return result
 

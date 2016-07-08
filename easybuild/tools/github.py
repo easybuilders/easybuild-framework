@@ -47,8 +47,8 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -85,6 +85,7 @@ GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
+GITHUB_PR = 'pull'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
@@ -313,6 +314,17 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
+    # check if pr* is used
+    force_patch = False
+    if pr.endswith('*'):
+        force_patch = True
+        pr = pr[:-1]
+    # convert to int
+    try:
+        pr = int(pr)
+    except ValueError:
+        raise EasyBuildError("PR number is not an integer")
+
     if github_user is None:
         github_user = build_option('github_user')
     if path is None:
@@ -323,6 +335,24 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     else:
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
+
+    develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
+    if not os.path.isdir(develop):
+        raise EasyBuildError("Downloading of develop branch failed: not found in %s", develop)
+
+    patch_name = 'patch%s' % pr
+    patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, '%s.patch' % pr])
+    patch_path = os.path.join(path, patch_name)
+    patch = download_file(patch_name, patch_url, patch_path)
+    if patch is None:
+        raise EasyBuildError("Failed to download file %s to %s", patch_url, patch_path)
+
+    result = apply_patch(patch, develop, level=1, log_ok=False, from_pr=pr, obliged=force_patch)
+    if not result:
+        # patching with develop failed, remove downloaded files
+        shutil.rmtree(develop)
+        os.remove(os.path.join(path, GITHUB_EB_MAIN, 'develop.tar.gz'))
+        os.remove(patch_path)
 
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
     pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
@@ -360,14 +390,15 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
-    # obtain most recent version of patched files
-    for patched_file in patched_files:
-        # path to patch file, incl. subdir it is in
-        fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
-        sha = last_commit['sha']
-        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
-        _log.info("Downloading %s from %s" % (fn, full_url))
-        download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+    if not result:
+        # obtain most recent version of patched files
+        for patched_file in patched_files:
+            # path to patch file, incl. subdir it is in
+            fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
+            sha = last_commit['sha']
+            full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
+            _log.info("Downloading %s from %s" % (fn, full_url))
+            download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
 
     # sanity check: make sure all patched files are downloaded
     all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
@@ -376,10 +407,21 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     for (dirpath, _, filenames) in os.walk(path):
         tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
 
-    if not sorted(tmp_files) == sorted(all_files):
-        raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
+    for patched in all_files:
+        if not patched in tmp_files:
+            raise EasyBuildError("Couldn't find file in %s: %s", path, patched)
 
-    ec_files = [os.path.join(path, f) for f in tmp_files]
+    if result:
+        # if the merge succeeded, the paths to look for are different
+        path = develop
+        all_files = patched_files
+
+    ec_files = []
+    for f in all_files:
+        if os.path.exists(os.path.join(path, f)):
+            ec_files.append(os.path.join(path, f))
+        else:
+            raise EasyBuildError("Coudln't find path to patched file %s", os.path.join(path, f))
 
     return ec_files
 
