@@ -564,8 +564,6 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
         raise EasyBuildError("Couldn't find toolchain: '%s'. To see available toolchains, use --list-toolchains" % name)
     tc = tc_class(version='1.0') # version doesn't matter here, but needs to be defined
 
-    mpishared = []
-    mpiunique = []
     tc_dict = {}
     for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
         if hasattr(tc, cst):
