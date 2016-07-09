@@ -38,6 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
+from easybuild.tools.filetools import which
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -619,6 +620,11 @@ class Toolchain(object):
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
+
+        if build_option('use_ccache'):
+            ccache = which('ccache')
+            if ccache is None:
+                raise EasyBuildError("ccache binary not found in $PATH")
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies

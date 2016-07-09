@@ -148,6 +148,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_ccache',
         'use_existing_modules',
     ],
     True: [
