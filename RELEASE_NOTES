@@ -16,7 +16,7 @@ bugfix release
     - avoid special characters like '[', ']' in path to temporary directory (#1808)
     - add support for --zip-logs (#1820)
     - add support for --extra-modules (#1821)
-    - add type conversion for 'checksums' and 'patches' parameter in .yeb easyconfigs (#1826)
+    - add type conversion for 'checksums' and 'patches' parameter in .yeb easyconfigs (#1826, #1840)
     - add support for filtering tests by name (#1828)
     - add support for --avail-toolchain-opts (#1830, #1839)
     - use absolute path for robot and easyconfig files (#1834)
