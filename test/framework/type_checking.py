@@ -531,7 +531,11 @@ class TypeCheckingTest(EnhancedTestCase):
         test_inputs = [
             ['be662daa971a640e40be5c804d9d7d10'],
             ['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')],
+            [['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')]],
             [('md5', 'be662daa971a640e40be5c804d9d7d10')],
+            ['be662daa971a640e40be5c804d9d7d10', ('adler32', '0x998410035'), ('crc32', '0x1553842328'),
+             ('md5', 'be662daa971a640e40be5c804d9d7d10'), ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
+             ('size', 273)],
         ]
         for checksums in test_inputs:
             self.assertEqual(to_checksums(checksums), checksums)
