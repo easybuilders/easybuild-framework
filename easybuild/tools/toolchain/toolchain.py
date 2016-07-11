@@ -108,7 +108,7 @@ class Toolchain(object):
 
         # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
         self.dry_run = build_option('extended_dry_run', default=False)
-        self.hide_deps = build_option('hide_deps', default=None)
+        self.hide_toolchains = build_option('hide_toolchains', default=None) or []
 
         self.modules_tool = modules_tool()
         self.mns = mns
@@ -270,10 +270,7 @@ class Toolchain(object):
             name = self.name
         if version is None:
             version = self.version
-        if self.hide_deps:
-            hidden = name in self.hide_deps
-        else:
-            hidden = False
+        hidden = name in self.hide_toolchains
         return {
             'name': name,
             'version': version,
