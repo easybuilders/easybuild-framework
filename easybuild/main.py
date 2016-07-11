@@ -5,7 +5,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -56,12 +56,13 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
-from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
+from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 from easybuild.tools.version import this_is_easybuild
 
 
@@ -182,7 +183,7 @@ def handle_github_options(options, ec_paths):
     return done
 
 
-def main(args=None, logfile=None, do_build=None, testing=False):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
     @param args: command line arguments to use
@@ -226,11 +227,13 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, build_specs) = process_software_build_specs(options)
 
+    search_query = options.search or options.search_filename or options.search_short
+
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
     tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
-    auto_robot = try_to_generate or options.dep_graph or options.search or options.search_short
+    auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
     robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
     _log.debug("Full robot path: %s" % robot_path)
 
@@ -250,6 +253,9 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
 
+    if modtool is None:
+        modtool = modules_tool(testing=testing)
+
     if options.last_log:
         # print location to last log file, and exit
         last_log = find_last_log(logfile) or '(none)'
@@ -262,9 +268,8 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
     # search for easyconfigs, if a query is specified
-    query = options.search or options.search_filename or options.search_short
-    if query:
-        search_easyconfigs(query, short=options.search_short, filename_only=options.search_filename,
+    if search_query:
+        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
     # GitHub integration
@@ -277,7 +282,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
-    modlist = session_module_list(testing=testing)  # build options must be initialized first before 'module list' works
+    modlist = modtool.list()  # build options must be initialized first before 'module list' works
     init_session_state.update({'easybuild_configuration': eb_config})
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
@@ -288,8 +293,8 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, options.search,
-                  options.search_filename, options.search_short, options.regtest, options.update_pr]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, search_query,
+                  options.regtest, options.update_pr]
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
@@ -303,14 +308,14 @@ def main(args=None, logfile=None, do_build=None, testing=False):
         elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
-                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+                        log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     _log.debug("Paths: %s" % paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         # fallback: easybuild-easyconfigs install path
-        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths)
+        regtest_ok = regtest([path[0] for path in paths] or easyconfigs_pkg_paths, modtool)
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
@@ -322,25 +327,32 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, targetdir=tweaked_ecs_path)
+        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdir=tweaked_ecs_path)
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, short=not options.dry_run)
+        txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
+
+    if options.check_conflicts:
+        if check_conflicts(easyconfigs, modtool):
+            print_error("One or more conflicts detected!")
+            sys.exit(1)
+        else:
+            print_msg("\nNo conflicts detected!\n", prefix=False)
 
     # dump source script to set up build environment
     if options.dump_env_script:
         dump_env_script(easyconfigs)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.dry_run, options.dry_run_short, options.dump_env_script]):
+    if any(no_ec_opts + [options.check_conflicts, options.dry_run, options.dry_run_short, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # skip modules that are already installed unless forced
     if not (options.force or options.rebuild or options.extended_dry_run):
-        retained_ecs = skip_available(easyconfigs)
+        retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
                 print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
@@ -350,7 +362,7 @@ def main(args=None, logfile=None, do_build=None, testing=False):
     if len(easyconfigs) > 0:
         if options.robot:
             print_msg("resolving dependencies ...", log=_log, silent=testing)
-            ordered_ecs = resolve_dependencies(easyconfigs)
+            ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
     else:

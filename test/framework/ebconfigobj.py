@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -29,6 +29,7 @@ Unit tests for easyconfig/format/format EBConfigObj
 """
 import os
 import re
+import sys
 
 from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
@@ -36,8 +37,8 @@ from easybuild.framework.easyconfig.format.version import OrderedVersionOperator
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -272,10 +273,10 @@ class TestEBConfigObj(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(TestEBConfigObj)
+    return TestLoaderFiltered().loadTestsFromTestCase(TestEBConfigObj, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

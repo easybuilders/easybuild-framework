@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -26,6 +26,7 @@
 Various test utility functions.
 
 @author: Kenneth Hoste (Ghent University)
+@author Caroline De Brouwer (Ghent University)
 """
 import copy
 import fileinput
@@ -34,6 +35,7 @@ import re
 import shutil
 import sys
 import tempfile
+import unittest
 from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
@@ -52,7 +54,7 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
@@ -77,6 +79,7 @@ for key in os.environ.keys():
         del os.environ[key]
         newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
         os.environ[newkey] = val
+
 
 class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
@@ -150,6 +153,10 @@ class EnhancedTestCase(_EnhancedTestCase):
                 # keep track of 'easybuild' paths to inject into sys.path later
                 sys.path.append(os.path.join(path, 'easybuild'))
 
+        # required to make sure the 'easybuild' dir in the sandbox is picked up;
+        # this relates to the other 'reload' statements below
+        reload(easybuild)
+
         # this is strictly required to make the test modules in the sandbox available, due to declare_namespace
         fixup_namespace_packages(os.path.join(testdir, 'sandbox'))
 
@@ -170,10 +177,16 @@ class EnhancedTestCase(_EnhancedTestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
-        modtool = modules_tool()
-        # purge out any loaded modules with original $MODULEPATH before running each test
-        modtool.purge()
+        # save values of $PATH & $PYTHONPATH, so they can be restored later
+        # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
+        # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
+        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
+        self.env_path = os.environ['PATH']
+        self.env_pythonpath = os.environ['PYTHONPATH']
+
+        self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
+        reset_module_caches()
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -214,17 +227,24 @@ class EnhancedTestCase(_EnhancedTestCase):
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
 
+    def restore_env_path_pythonpath(self):
+        """
+        Restore $PATH & $PYTHONPATH in environment using saved values.
+        """
+        os.environ['PATH'] = self.env_path
+        os.environ['PYTHONPATH'] = self.env_pythonpath
+
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
-        modtool = modules_tool()
-        for modpath in os.environ.get('MODULEPATH', '').split(os.pathsep):
-            modtool.remove_module_path(modpath)
+        for modpath in curr_module_paths():
+            self.modtool.remove_module_path(modpath, set_mod_paths=False)
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
         os.environ['MODULEPATH'] = ''
         for modpath in modpaths:
-            modtool.add_module_path(modpath)
+            self.modtool.add_module_path(modpath, set_mod_paths=False)
+        self.modtool.set_mod_paths()
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
                 reset_env=True, raise_systemexit=False, testing=True):
@@ -243,7 +263,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main(args=args, logfile=logfile, do_build=do_build, testing=testing)
+            main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
         except SystemExit:
             if raise_systemexit:
                 raise err
@@ -260,12 +280,12 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.chdir(self.cwd)
 
         # make sure config is reinitialized
-        init_config()
+        init_config(with_include=False)
 
         # restore environment to what it was before running main,
         # changes may have been made by eb_main (e.g. $TMPDIR & co)
         if reset_env:
-            modify_env(os.environ, env_before)
+            modify_env(os.environ, env_before, verbose=False)
             tempfile.tempdir = None
 
         if myerr and raise_error:
@@ -310,6 +330,17 @@ class EnhancedTestCase(_EnhancedTestCase):
                               line)
                 sys.stdout.write(line)
 
+        # make sure paths for 'module use' commands exist; required for modulecmd
+        mod_subdirs = [
+            os.path.join('Compiler', 'GCC', '4.7.2'),
+            os.path.join('Compiler', 'GCC', '4.8.3'),
+            os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+            os.path.join('MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
+        ]
+        for mod_subdir in mod_subdirs:
+            mkdir(os.path.join(mod_prefix, mod_subdir), parents=True)
+
     def setup_categorized_hmns_modules(self):
         """Setup categorized hierarchical modules to run tests on."""
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
@@ -341,6 +372,31 @@ class EnhancedTestCase(_EnhancedTestCase):
                 sys.stdout.write(line)
 
 
+class TestLoaderFiltered(unittest.TestLoader):
+    """Test load that supports filtering of tests based on name."""
+
+    def loadTestsFromTestCase(self, test_case_class, filters):
+        """Return a suite of all tests cases contained in test_case_class."""
+
+        test_case_names = self.getTestCaseNames(test_case_class)
+        test_cnt = len(test_case_names)
+        retained_test_names = []
+        if len(filters) > 0:
+            for test_case_name in test_case_names:
+                if any(filt in test_case_name for filt in filters):
+                    retained_test_names.append(test_case_name)
+
+            retained_tests = ', '.join(retained_test_names)
+            tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
+            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+
+            test_cases = [test_case_class(t) for t in retained_test_names]
+        else:
+            test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
+
+        return self.suiteClass(test_cases)
+
+
 def cleanup():
     """Perform cleanup of singletons and caches."""
     # clear Singleton instances, to start afresh
@@ -355,13 +411,13 @@ def cleanup():
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
 
-def init_config(args=None, build_options=None):
+def init_config(args=None, build_options=None, with_include=True):
     """(re)initialize configuration"""
 
     cleanup()
 
     # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options(args=args)
+    eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     # initialize build options

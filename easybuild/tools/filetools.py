@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -43,11 +43,13 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
 import urllib2
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
+from xml.etree import ElementTree
 
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg
@@ -237,6 +239,54 @@ def det_common_path_prefix(paths):
         return prefix.rstrip(os.path.sep) or None
     else:
         return None
+
+
+def is_alt_pypi_url(url):
+    """Determine whether specified URL is already an alternate PyPI URL, i.e. whether it contains a hash."""
+    # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+    alt_url_regex = re.compile('/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/[^/]+$')
+    res = bool(alt_url_regex.search(url))
+    _log.debug("Checking whether '%s' is an alternate PyPI URL using pattern '%s'...: %s",
+               url, alt_url_regex.pattern, res)
+    return res
+
+
+def derive_alt_pypi_url(url):
+    """Derive alternate PyPI URL for given URL, using 'simple' PyPI API."""
+    # see also https://www.python.org/dev/peps/pep-0503/
+    alt_pypi_url = None
+
+    # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
+    pkg_name, pkg_source = url.strip().split('/')[-2:]
+
+    # e.g. https://pypi.python.org/simple/easybuild
+    # cfr. https://wiki.python.org/moin/PyPISimple
+    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+
+    tmpdir = tempfile.mkdtemp()
+    links_html = os.path.join(tmpdir, '%s_links.html' % pkg_name)
+    res = download_file(os.path.basename(links_html), simple_url, links_html)
+    if res is None:
+        _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
+    else:
+        parsed_html = ElementTree.parse(links_html)
+        if hasattr(parsed_html, 'iter'):
+            links = [a.attrib['href'] for a in parsed_html.iter('a')]
+        else:
+            links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+
+        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
+        for link in links:
+            res = regex.match(link)
+            if res:
+                # e.g. .../5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
+                alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
+                break
+
+        if not alt_pypi_url:
+            _log.debug("Failed to extract hash using pattern '%s' from list of links: %s", regex.pattern, links)
+
+    return alt_pypi_url
 
 
 def download_file(filename, url, path, forced=False):
@@ -694,10 +744,14 @@ def apply_regex_substitutions(path, regex_subs):
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
-        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
-            for regex, subtxt in regex_subs:
-                line = regex.sub(subtxt, line)
-            sys.stdout.write(line)
+        try:
+            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+                for regex, subtxt in regex_subs:
+                    line = regex.sub(subtxt, line)
+                sys.stdout.write(line)
+
+        except OSError, err:
+            raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):
@@ -887,7 +941,7 @@ def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []
     for glob_path in glob_paths:
-        paths.extend([f for f in glob.glob(glob_path) if os.path.isfile(f)])
+        paths.extend([f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)])
 
     return nub(paths)
 
@@ -947,6 +1001,9 @@ def rmtree2(path, n=3):
         except OSError, err:
             _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
             time.sleep(2)
+
+            # make sure write permissions are enabled on entire directory
+            adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
     if not ok:
         raise EasyBuildError("Failed to remove path %s with shutil.rmtree, even after %d attempts.", path, n)
     else:
@@ -955,6 +1012,9 @@ def rmtree2(path, n=3):
 
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
+
+    zip_log_cmd = build_option('zip_logs')
+
     mkdir(os.path.dirname(target_logfile), parents=True)
     src_logfile_len = len(src_logfile)
     try:
@@ -978,6 +1038,10 @@ def move_logs(src_logfile, target_logfile):
             # move log to target path
             shutil.move(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
+
+            if zip_log_cmd:
+                run.run_cmd("%s %s" % (zip_log_cmd, new_log_path))
+                _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
 
     except (IOError, OSError), err:
         raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
@@ -1178,7 +1242,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     Find FlexLM license.
 
     Considered specified list of environment variables;
-    checks for path to existing license file or valid license server specification.
+    checks for path to existing license file or valid license server specification;
+    duplicate paths are not retained in the returned list of license specs.
 
     If no license is found through environment variables, also consider 'lic_specs'.
 
@@ -1203,7 +1268,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     cand_lic_specs = {}
     for env_var in lic_env_vars:
         if env_var in os.environ:
-            cand_lic_specs[env_var] = os.environ[env_var].split(os.pathsep)
+            cand_lic_specs[env_var] = nub(os.environ[env_var].split(os.pathsep))
 
     # also consider provided license spec (last)
     # use None as key to indicate that these license specs do not have an environment variable associated with them
@@ -1244,8 +1309,9 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
                     except IOError as err:
                         _log.warning("License file %s found, but failed to open it for reading: %s", lic_file, err)
 
-        # stop after finding valid license specs
+        # stop after finding valid license specs, filter out duplicates
         if valid_lic_specs:
+            valid_lic_specs = nub(valid_lic_specs)
             lic_env_var = env_var
             break
 

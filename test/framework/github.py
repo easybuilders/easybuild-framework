@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -34,9 +34,10 @@ import random
 import re
 import shutil
 import string
+import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 from easybuild.tools.build_log import EasyBuildError
@@ -145,6 +146,10 @@ class GithubTest(EnhancedTestCase):
 
     def test_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
+        if self.github_token is None:
+            print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
+            return
+
         sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
         sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
@@ -152,6 +157,10 @@ class GithubTest(EnhancedTestCase):
 
     def test_download_repo(self):
         """Test download_repo function."""
+        if self.github_token is None:
+            print "Skipping test_download_repo, no GitHub token available?"
+            return
+
         # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix)
         repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
@@ -235,7 +244,7 @@ class GithubTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(GithubTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

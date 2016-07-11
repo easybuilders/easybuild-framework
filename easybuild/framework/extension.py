@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -67,10 +67,6 @@ class Extension(object):
         self.patches = self.ext.get('patches', [])
         self.options = copy.deepcopy(self.ext.get('options', {}))
 
-        # don't re-prepare the build environment when doing a dry run, since it'll be the same as for the parent
-        if not build_option('extended_dry_run'):
-            self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True)
-
         self.sanity_check_fail_msgs = []
 
     @property
@@ -118,9 +114,9 @@ class Extension(object):
         """
 
         try:
-            os.chdir(build_path())
+            os.chdir(self.installdir)
         except OSError, err:
-            raise EasyBuildError("Failed to change directory: %s", err)
+            raise EasyBuildError("Failed to change %s: %s", self.installdir, err)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False
