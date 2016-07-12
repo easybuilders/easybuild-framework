@@ -593,13 +593,15 @@ class Toolchain(object):
         """
         tmpdir = tempfile.mkdtemp()
 
-        compilers = [
-            'gcc', 'g++', 'gfortran',
-            self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC,
-        ]
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            compiler = ['gcc', 'g++', 'gfortran']
+        else:
+            compilers = [self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
         for comp in compilers:
-            os.symlink(path, os.path.join(tmpdir, comp))
+            comp_s = os.path.join(tmpdir, comp)
+            if not os.path.exists(comp_s)
+                os.symlink(path, comp_s)
 
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
 
