@@ -593,7 +593,12 @@ class Toolchain(object):
         """
         tmpdir = tempfile.mkdtemp()
 
-        for comp in self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC:
+        compilers = [
+            'gcc', 'g++', 'gfortran',
+            self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC,
+        ]
+
+        for comp in compilers:
             os.symlink(path, os.path.join(tmpdir, comp))
 
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
