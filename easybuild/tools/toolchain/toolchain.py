@@ -600,7 +600,7 @@ class Toolchain(object):
 
         for comp in compilers:
             comp_s = os.path.join(tmpdir, comp)
-            if not os.path.exists(comp_s)
+            if not os.path.exists(comp_s):
                 os.symlink(path, comp_s)
 
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
