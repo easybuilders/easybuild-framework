@@ -585,6 +585,19 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def symlink_compilers(self, path):
+        """
+        Create a symlink for each compiler to binary/script at specified path.
+
+        @param path: path to symlink to
+        """
+        tmpdir = tempfile.mkdtemp()
+
+        for comp in self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC:
+            os.symlink(path, os.path.join(tmpdir, comp)
+
+        os.environ['PATH'] = '%s:%s' % (path, os.getenv('PATH'))
+
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -625,6 +638,8 @@ class Toolchain(object):
             ccache = which('ccache')
             if ccache is None:
                 raise EasyBuildError("ccache binary not found in $PATH")
+
+            self.symlink_compilers(ccache)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
