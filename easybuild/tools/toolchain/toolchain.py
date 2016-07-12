@@ -594,7 +594,7 @@ class Toolchain(object):
         tmpdir = tempfile.mkdtemp()
 
         for comp in self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC:
-            os.symlink(path, os.path.join(tmpdir, comp)
+            os.symlink(path, os.path.join(tmpdir, comp))
 
         os.environ['PATH'] = '%s:%s' % (path, os.getenv('PATH'))
 
