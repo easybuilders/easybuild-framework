@@ -594,7 +594,7 @@ class Toolchain(object):
         tmpdir = tempfile.mkdtemp()
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
-            compiler = ['gcc', 'g++', 'gfortran']
+            compilers = ['gcc', 'g++', 'gfortran']
         else:
             compilers = [self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
