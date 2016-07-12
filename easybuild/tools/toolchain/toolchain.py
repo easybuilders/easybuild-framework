@@ -596,7 +596,7 @@ class Toolchain(object):
         for comp in self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC:
             os.symlink(path, os.path.join(tmpdir, comp))
 
-        os.environ['PATH'] = '%s:%s' % (path, os.getenv('PATH'))
+        setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
 
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
