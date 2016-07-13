@@ -641,10 +641,13 @@ class Toolchain(object):
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
-        if build_option('use_ccache'):
+        if build_option('use_compiler_cache'):
             ccache = which('ccache')
             if ccache is None:
                 raise EasyBuildError("ccache binary not found in $PATH")
+
+            os.environ["CCACHE_DIR"] = build_option('use_compiler_cache')
+            os.environ["CCACHE_TEMPDIR"] = os.path.join(build_option('use_compiler_cache'), 'tmp')
 
             self.symlink_compilers(ccache)
 
