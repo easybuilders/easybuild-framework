@@ -47,12 +47,11 @@ fi
 echo "Installing ${PKG} @ ${PREFIX}..."
 mkdir -p ${PREFIX}
 set +e
-wget ${PKG_URL}
+wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 if [ $? -ne 0 ] && [ ! -z $BACKUP_PKG_URL ]; then
-    wget ${BACKUP_PKG_URL}
+    wget ${BACKUP_PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 fi
 set -e
-tar xfz *${PKG_VERSION}.tar.gz
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
