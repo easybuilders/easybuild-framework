@@ -213,7 +213,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -249,7 +249,7 @@ class ModulesTool(object):
         """Check whether modules tool command is available."""
         cmd_path = which(self.cmd)
         if cmd_path is not None:
-            self.cmd = cmd_path
+            self.cmd = os.path.realpath(cmd_path)
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
@@ -380,11 +380,20 @@ class ModulesTool(object):
             self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
         # set the module path environment accordingly
-        if curr_module_paths() == self.mod_paths:
+        curr_mod_paths = curr_module_paths()
+        self.log.debug("Current module paths: %s; target module paths: %s", curr_mod_paths, self.mod_paths)
+        if curr_mod_paths == self.mod_paths:
             self.log.debug("Current value of $MODULEPATH already matches list of module path %s", self.mod_paths)
         else:
-            for mod_path in self.mod_paths[::-1]:
+            # filter out tail of paths that already matches tail of target, to avoid unnecessary 'unuse' commands
+            idx = 1
+            while(curr_mod_paths[-idx:] == self.mod_paths[-idx:]):
+                idx += 1
+            self.log.debug("Not prepending %d last entries of %s", idx-1, self.mod_paths)
+
+            for mod_path in self.mod_paths[::-1][idx-1:]:
                 self.prepend_module_path(mod_path)
+
             self.log.info("$MODULEPATH set via list of module paths (w/ 'module use'): %s" % os.environ['MODULEPATH'])
 
     def available(self, mod_name=None, extra_args=None):
@@ -485,8 +494,9 @@ class ModulesTool(object):
             else:
                 restore_env(init_env)
 
-        # make sure $MODULEPATH is set correctly after purging
-        self.check_module_path()
+            # make sure $MODULEPATH is set correctly after purging
+            self.check_module_path()
+
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
@@ -565,6 +575,10 @@ class ModulesTool(object):
         """Set path environment variable to the given list of paths."""
         os.environ[key] = os.pathsep.join(paths)
 
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
+
     def run_module(self, *args, **kwargs):
         """
         Run module command.
@@ -611,6 +625,9 @@ class ModulesTool(object):
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
+
+        if kwargs.get('check_output', True):
+            self.check_module_output(full_cmd, stdout, stderr)
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -920,6 +937,13 @@ class Lmod(ModulesTool):
         if not 'regex' in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
         super(Lmod, self).check_module_function(*args, **kwargs)
+
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if stdout:
+            self.log.debug("Output found in stdout, seems like '%s' ran fine", cmd)
+        else:
+            raise EasyBuildError("Found empty stdout, seems like '%s' failed: %s", cmd, stderr)
 
     def available(self, mod_name=None):
         """

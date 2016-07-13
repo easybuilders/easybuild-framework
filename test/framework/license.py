@@ -27,8 +27,10 @@ Unit tests for easyconfig/licenses.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.licenses import License, LicenseVeryRestrictive, what_licenses
 
@@ -66,10 +68,10 @@ class LicenseTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(LicenseTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(LicenseTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

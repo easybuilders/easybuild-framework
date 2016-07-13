@@ -744,10 +744,14 @@ def apply_regex_substitutions(path, regex_subs):
         for i, (regex, subtxt) in enumerate(regex_subs):
             regex_subs[i] = (re.compile(regex), subtxt)
 
-        for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
-            for regex, subtxt in regex_subs:
-                line = regex.sub(subtxt, line)
-            sys.stdout.write(line)
+        try:
+            for line in fileinput.input(path, inplace=1, backup='.orig.eb'):
+                for regex, subtxt in regex_subs:
+                    line = regex.sub(subtxt, line)
+                sys.stdout.write(line)
+
+        except OSError, err:
+            raise EasyBuildError("Failed to patch %s: %s", path, err)
 
 
 def modify_env(old, new):
@@ -1008,6 +1012,9 @@ def rmtree2(path, n=3):
 
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
+
+    zip_log_cmd = build_option('zip_logs')
+
     mkdir(os.path.dirname(target_logfile), parents=True)
     src_logfile_len = len(src_logfile)
     try:
@@ -1031,6 +1038,10 @@ def move_logs(src_logfile, target_logfile):
             # move log to target path
             shutil.move(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
+
+            if zip_log_cmd:
+                run.run_cmd("%s %s" % (zip_log_cmd, new_log_path))
+                _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
 
     except (IOError, OSError), err:
         raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",

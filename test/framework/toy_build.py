@@ -35,16 +35,17 @@ import shutil
 import stat
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax
+from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -1127,12 +1128,36 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(toy_modfile))
 
+    def test_toy_dumped_easyconfig(self):
+        """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
+        filename = 'toy-0.0'
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        paths = [os.path.join(test_ecs_dir, '%s.eb' % filename), os.path.join(test_ecs_dir, 'yeb', '%s.yeb' % filename)]
+
+        for path in paths:
+            args = [
+                path,
+                '--experimental',
+                '--force',
+            ]
+            self.eb_main(args, do_build=True)
+
+            # test eb build with dumped file
+            args[0] = os.path.join(get_repositorypath()[0], 'toy', 'toy-0.0%s' % os.path.splitext(path)[-1])
+            self.eb_main(args, do_build=True)
+            easybuild.tools.build_log.EXPERIMENTAL = True
+            ec = EasyConfig(args[0])
+            buildstats = ec.parser.get_config_dict()['buildstats']
+
+            self.assertTrue(all(isinstance(bs, dict) for bs in buildstats))
+
+
 
 def suite():
     """ return all the tests in this file """
-    return TestLoader().loadTestsFromTestCase(ToyBuildTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

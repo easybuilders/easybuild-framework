@@ -47,6 +47,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -188,7 +189,7 @@ def dep_graph(filename, specs):
         all_nodes.add(spec['module'])
         spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
-        
+
         # Get the build dependencies for each spec so we can distinguish them later
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
         all_nodes.update(spec['ec'].build_dependencies)
@@ -343,7 +344,7 @@ def det_easyconfig_paths(orig_paths):
             if not ecs_to_find:
                 break
 
-    return ec_files
+    return [os.path.abspath(ec_file) for ec_file in ec_files]
 
 
 def parse_easyconfigs(paths, validate=True):
@@ -374,7 +375,7 @@ def parse_easyconfigs(paths, validate=True):
     return easyconfigs, generated_ecs
 
 
-def stats_to_str(stats):
+def stats_to_str(stats, isyeb=False):
     """
     Pretty print build statistics to string.
     """
@@ -383,8 +384,15 @@ def stats_to_str(stats):
 
     txt = "{\n"
     pref = "    "
-    for (k, v) in stats.items():
-        txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
+    for key in sorted(stats):
+        if isyeb:
+            val = stats[key]
+            if isinstance(val, tuple):
+                val = list(val)
+            key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(val)
+        else:
+            key, val = quote_str(key), quote_str(stats[key])
+        txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
 

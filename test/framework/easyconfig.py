@@ -33,10 +33,11 @@ import copy
 import os
 import re
 import shutil
+import sys
 import tempfile
 from distutils.version import LooseVersion
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
@@ -54,6 +55,7 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
+from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -596,6 +598,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '1.2.3',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
                 'dummy': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
@@ -609,6 +612,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '666',
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+                'toolchain_inherited': False,
                 'dummy': False,
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
@@ -622,6 +626,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '3.2.1',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
                 'dummy': False,
                 'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
                 'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
@@ -635,6 +640,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'version': '4.5.6',
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
+                'toolchain_inherited': True,
                 'dummy': False,
                 'short_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
                 'full_mod_name': 'testbuildonly/.4.5.6-GCC-4.4.5',
@@ -791,7 +797,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_templating_doc(self):
         """test templating documentation"""
-        doc = easyconfig.templates.template_documentation()
+        doc = avail_easyconfig_templates()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
             easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
@@ -801,11 +807,12 @@ class EasyConfigTest(EnhancedTestCase):
             easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
             easyconfig.templates.TEMPLATE_CONSTANTS,
         ]
+
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
     def test_constant_doc(self):
         """test constant documentation"""
-        doc = easyconfig.constants.constant_documentation()
+        doc = avail_easyconfig_constants()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
                  easyconfig.constants.EASYCONFIG_CONSTANTS,
@@ -1742,14 +1749,67 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(template_constant_dict(ec._config), expected)
 
+    def test_parse_deps_templates(self):
+        """Test whether handling of templates defined by dependencies is done correctly."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
+        shutil.copy2(os.path.join(test_ecs, 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
+        write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
+
+        ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'test'",
+            "version = '1.2.3'",
+            "versionsuffix = '-Python-%(pyver)s'",
+            "homepage = 'http://example.com'",
+            "description = 'test'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "dependencies = [('Python', '2.7.10'), ('pytest', '1.2.3', versionsuffix)]",
+        ])
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, ec_txt)
+
+        pytest_ec_txt = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'pytest'",
+            "version = '1.2.3'",
+            "versionsuffix = '-Python-%(pyver)s'",
+            "homepage = 'http://example.com'",
+            "description = 'test'",
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "dependencies = [('Python', '2.7.10')]",
+        ])
+        write_file(os.path.join(self.test_prefix, 'pytest-1.2.3-goolf-1.4.10-Python-2.7.10.eb'), pytest_ec_txt)
+
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': [test_ecs, self.test_prefix],
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        }
+        init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
+
+        # check if parsing of easyconfig & resolving dependencies works correctly
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+
+        # verify module names of dependencies, by accessing raw config via _.config
+        expected = [
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/Python/2.7.10',
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/pytest/1.2.3-Python-2.7.10',
+        ]
+        dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
+        self.assertEqual(dep_full_mod_names, expected)
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # also check the setUp for debug
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

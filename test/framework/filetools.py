@@ -33,10 +33,11 @@ Unit tests for filetools.py
 import os
 import shutil
 import stat
+import sys
 import tempfile
 import urllib2
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
@@ -578,6 +579,17 @@ class FileToolsTest(EnhancedTestCase):
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
 
+        # passing empty list of substitions is a no-op
+        ft.write_file(testfile, testtxt)
+        ft.apply_regex_substitutions(testfile, [])
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, testtxt)
+
+        # clean error on non-existing file
+        error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
+        path = os.path.join(self.test_prefix, 'nosuchfile.txt')
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
         lic_file1 = os.path.join(self.test_prefix, 'one.lic')
@@ -685,7 +697,7 @@ class FileToolsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(FileToolsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

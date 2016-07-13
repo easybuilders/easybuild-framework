@@ -30,8 +30,9 @@ Unit tests for module_generator.py.
 """
 
 import os
+import sys
 import tempfile
-from unittest import TestLoader, TestSuite, TextTestRunner
+from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
@@ -42,7 +43,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import quote_str
-from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
@@ -62,7 +63,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb = EasyBlock(ec)
         self.modgen = self.MODULE_GENERATOR_CLASS(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
-        
+
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
     def test_descr(self):
@@ -753,12 +754,12 @@ class LuaModuleGeneratorTest(ModuleGeneratorTest):
 def suite():
     """ returns all the testcases in this module """
     suite = TestSuite()
-    suite.addTests(TestLoader().loadTestsFromTestCase(TclModuleGeneratorTest))
-    suite.addTests(TestLoader().loadTestsFromTestCase(LuaModuleGeneratorTest))
+    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(TclModuleGeneratorTest, sys.argv[1:]))
+    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(LuaModuleGeneratorTest, sys.argv[1:]))
     return suite
 
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    TextTestRunner().run(suite())
+    TextTestRunner(verbosity=1).run(suite())

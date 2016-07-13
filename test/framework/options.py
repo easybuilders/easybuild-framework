@@ -33,8 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestLoader
-from unittest import main as unittestmain
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 import easybuild.tools.build_log
@@ -54,7 +53,7 @@ from easybuild.tools.options import EasyBuildOptions, parse_external_modules_met
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from vsc.utils import fancylogger
 
 
@@ -62,7 +61,7 @@ EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
 name = foo, bar
 version = 1.2.3, 3.2.1
 prefix = FOOBAR_DIR
- 
+
 [foobar/2.0]
 name = foobar
 version = 2.0
@@ -216,8 +215,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # clear log file
         write_file(self.logfile, '')
-        
-        # check that --force and --rebuild work 
+
+        # check that --force and --rebuild work
         for arg in ['--force', '--rebuild']:
             outtxt = self.eb_main([eb_file, '--debug', arg])
             self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with %s" % arg)
@@ -1899,6 +1898,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1970,6 +1972,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_toolchains(self):
         """Test --include-toolchains."""
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2059,12 +2064,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test set_tmpdir config function."""
         self.purge_environment()
 
-        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
+        def check_tmpdir(tmpdir):
+            """Test use of specified path for temporary directory"""
             parent = tmpdir
             if parent is None:
                 parent = tempfile.gettempdir()
 
             mytmpdir = set_tmpdir(tmpdir=tmpdir)
+
+            parent = re.sub('[^\w/.-]', 'X', parent)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
                 self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
@@ -2083,6 +2091,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
             shutil.rmtree(mytmpdir)
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
+
+
+        orig_tmpdir = tempfile.gettempdir()
+        cand_tmpdirs = [
+            None,
+            os.path.join(orig_tmpdir, 'foo'),
+            os.path.join(orig_tmpdir, '[1234]. bleh'),
+            os.path.join(orig_tmpdir, '[ab @cd]%/#*'),
+        ]
+        for tmpdir in cand_tmpdirs:
+            check_tmpdir(tmpdir)
 
     def test_minimal_toolchains(self):
         """End-to-end test for --minimal-toolchains."""
@@ -2550,10 +2569,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
         err_msg = "Different length for lists of names/versions in metadata for external module"
         self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
+    def test_zip_logs(self):
+        """Test use of --zip-logs"""
+
+        toy_eb_install_dir = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'easybuild')
+        for zip_logs in ['', '--zip-logs', '--zip-logs=gzip', '--zip-logs=bzip2']:
+
+            shutil.rmtree(self.test_installpath)
+
+            args = ['toy-0.0.eb', '--force', '--debug']
+            if zip_logs:
+                args.append(zip_logs)
+            out = self.eb_main(args, do_build=True)
+
+            logs = glob.glob(os.path.join(toy_eb_install_dir, 'easybuild-toy-0.0*log*'))
+            self.assertEqual(len(logs), 1, "Found exactly 1 log file in %s: %s" % (toy_eb_install_dir, logs))
+
+            zip_logs_arg = zip_logs.split('=')[-1]
+            if zip_logs == '--zip-logs' or zip_logs_arg == 'gzip':
+                ext = 'log.gz'
+            elif zip_logs_arg == 'bzip2':
+                ext = 'log.bz2'
+            else:
+                ext = 'log'
+
+            self.assertTrue(logs[0].endswith(ext), "%s has correct '%s' extension for %s" % (logs[0], ext, zip_logs))
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(CommandLineOptionsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

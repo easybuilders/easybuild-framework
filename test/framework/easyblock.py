@@ -33,8 +33,8 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
@@ -950,10 +950,36 @@ class EasyBlockTest(EnhancedTestCase):
         err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
         self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
+    def test_prepare_step(self):
+        """Test prepare step (setting up build environment)."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy'), parents=True)
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+        eb.prepare_step()
+        self.assertEqual(self.modtool.list(), [])
+
+        os.environ['THIS_IS_AN_UNWANTED_ENV_VAR'] = 'foo'
+        eb.cfg['unwanted_env_vars'] = ['THIS_IS_AN_UNWANTED_ENV_VAR']
+
+        eb.cfg['allow_system_deps'] = [('Python', '1.2.3')]
+
+        init_config(build_options={'extra_modules': ['GCC/4.7.2']})
+
+        eb.prepare_step()
+
+        self.assertEqual(os.environ.get('THIS_IS_AN_UNWANTED_ENV_VAR'), None)
+        self.assertEqual(os.environ.get('EBROOTPYTHON'), 'Python')
+        self.assertEqual(os.environ.get('EBVERSIONPYTHON'), '1.2.3')
+        self.assertEqual(len(self.modtool.list()), 1)
+        self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/4.7.2')
+
 
 def suite():
     """ return all the tests in this file """
-    return TestLoader().loadTestsFromTestCase(EasyBlockTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -31,10 +31,11 @@ Unit tests for toolchain support.
 import os
 import re
 import shutil
+import sys
 import tempfile
 from distutils.version import LooseVersion
-from unittest import TestLoader, main
-from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
+from unittest import TextTestRunner
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 import easybuild.tools.build_log
 import easybuild.tools.modules as modules
@@ -675,6 +676,7 @@ class ToolchainTest(EnhancedTestCase):
 
         libblas_mt_goolfc = "-lopenblas -lgfortran"
         libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
+        libfft_mt_goolfc = "-lfftw3_omp -lfftw3 -lpthread"
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
         tc.prepare()
@@ -715,8 +717,10 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.options.update({'openmp': True})
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
+        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
         self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
 
     def test_independence(self):
@@ -815,7 +819,7 @@ class ToolchainTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(ToolchainTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

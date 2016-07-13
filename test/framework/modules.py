@@ -34,8 +34,9 @@ import os
 import re
 import tempfile
 import shutil
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
@@ -625,10 +626,50 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
         self.assertTrue(modules_dir in out)
 
+    def test_load_in_hierarchy(self):
+        """Test whether loading a module in a module hierarchy results in loading the correct module."""
+        self.setup_hierarchical_modules()
+
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        core_mod_dir = os.path.join(mod_dir, 'Core')
+
+        # create an extra (dummy) hwloc module in Core
+        hwloc_mod = os.path.join(core_mod_dir, 'hwloc', '1.6.2')
+        write_file(hwloc_mod, "#%Module\nsetenv EBROOTHWLOC /path/to/dummy/hwloc")
+
+        # set up $MODULEPATH to point to top of hierarchy
+        self.modtool.use(core_mod_dir)
+
+        self.assertEqual(os.environ.get('EBROOTHWLOC'), None)
+
+        # check whether dummy hwloc is loaded
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertEqual(os.environ['EBROOTHWLOC'], '/path/to/dummy/hwloc')
+
+        # make sure that compiler-dependent hwloc test module exists
+        gcc_mod_dir = os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2')
+        self.assertTrue(os.path.exists(os.path.join(gcc_mod_dir, 'hwloc', '1.6.2')))
+
+        # test loading of compiler-dependent hwloc test module
+        self.modtool.purge()
+        self.modtool.use(gcc_mod_dir)
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
+
+        # ensure that correct module is loaded when hierarchy is defined by loading the GCC module
+        # (side-effect is that ModulesTool instance doesn't track the change being made to $MODULEPATH)
+        # verifies bug fixed in https://github.com/hpcugent/easybuild-framework/pull/1795
+        self.modtool.purge()
+        self.modtool.unuse(gcc_mod_dir)
+        self.modtool.load(['GCC/4.7.2'])
+        self.assertEqual(os.environ['EBROOTGCC'], '/tmp/software/Core/GCC/4.7.2')
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())
