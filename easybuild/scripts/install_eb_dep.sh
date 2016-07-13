@@ -17,11 +17,13 @@ PRECONFIG_CMD=
 
 if [ x$PKG_NAME == 'xmodules' ]; then
     PKG_URL="http://prdownloads.sourceforge.net/modules/${PKG}.tar.gz"
+    BACKUP_PKG_URL="http://hpcugent.github.io/easybuild/files/${PKG}.tar.gz"
     export PATH=$PREFIX/Modules/$PKG_VERSION/bin:$PATH
     export MOD_INIT=$HOME/Modules/$PKG_VERSION/init/bash
 
 elif [ x$PKG_NAME == 'xlua' ]; then
     PKG_URL="http://downloads.sourceforge.net/project/lmod/${PKG}.tar.gz"
+    BACKUP_PKG_URL="http://hpcugent.github.io/easybuild/files/${PKG}.tar.gz"
     PRECONFIG_CMD="make clean"
     CONFIG_OPTIONS='--with-static=yes'
     export PATH=$PWD/$PKG:$PREFIX/bin:$PATH
@@ -44,7 +46,11 @@ fi
 
 echo "Installing ${PKG} @ ${PREFIX}..."
 mkdir -p ${PREFIX}
-wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
+wget ${PKG_URL}
+if [ $? -ne 0 ] && [ ! -z $BACKUP_PKG_URL ]; then
+    wget ${BACKUP_PKG_URL}
+fi
+tar xfz *${PKG_VERSION}.tar.gz
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
