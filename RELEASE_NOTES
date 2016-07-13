@@ -20,6 +20,7 @@ bugfix release
     - add support for filtering tests by name (#1828)
     - add support for --avail-toolchain-opts (#1830, #1839)
     - use absolute path for robot and easyconfig files (#1834)
+    - add backup URL for tarballs hosted on SourceForge in install_eb_deps.sh script (#1843)
 - various bug fixes, including:
     - fix installation of Lua in install_eb_dep.sh script (#1789)
     - fix OpenMP flag for Cray compiler wrappers (#1794)
