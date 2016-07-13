@@ -305,7 +305,7 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
-            'use-compiler-cache': ("Enable use of ccache to speed up compilation", str, 'store', False),
+            'use-compiler-cache': ("Enable use of ccache and f90cache to speed up compilation", str, 'store', False),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",

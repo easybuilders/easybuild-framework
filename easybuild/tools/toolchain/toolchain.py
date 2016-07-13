@@ -49,6 +49,9 @@ from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
+CCAHCE = 'ccache'
+F90CAHCE = 'f90cache'
+
 
 class Toolchain(object):
     """General toolchain class"""
@@ -585,25 +588,30 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
-    def symlink_compilers(self, path):
+    def symlink_compilers(self, paths):
         """
         Create a symlink for each compiler to binary/script at specified path.
 
-        @param path: path to symlink to
+        @param paths: dictionary containing mapping from types of caches (ccache, f90cache) to path to symlink to
         """
         tmpdir = tempfile.mkdtemp()
+        compilers = {}
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
-            compilers = ['gcc', 'g++', 'gfortran']
+            compilers[CCACHE] = ['gcc', 'g++']
+            compilers[F90CACHE] = ['gfortran']
         else:
-            compilers = [self.COMPILER_CC, self.COMPILER_CXX, self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+            compilers[CCACHE] = [self.COMPILER_CC, self.COMPILER_CXX]
+            compilers[F90CACHE] = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
-        for comp in compilers:
-            comp_s = os.path.join(tmpdir, comp)
-            if not os.path.exists(comp_s):
-                os.symlink(path, comp_s)
+        for key, comp_list in compilers.items():
+            for comp in comp_list:
+                comp_s = os.path.join(tmpdir, comp)
+                if not os.path.exists(comp_s):
+                    os.symlink(paths[key], comp_s)
 
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
+
 
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
@@ -642,14 +650,18 @@ class Toolchain(object):
                 self._setenv_variables(onlymod, verbose=not silent)
 
         if build_option('use_compiler_cache'):
-            ccache = which('ccache')
-            if ccache is None:
-                raise EasyBuildError("ccache binary not found in $PATH")
+            paths = {}
+            for cache in [CCACHE, F90CACHE]:
+                cache_path = which(cache)
+                if cache_path is None:
+                    raise EasyBuildError("%s binary not found in $PATH", cache)
+                paths[cache] = cache_path
 
-            os.environ["CCACHE_DIR"] = build_option('use_compiler_cache')
-            os.environ["CCACHE_TEMPDIR"] = os.path.join(build_option('use_compiler_cache'), 'tmp')
+            for cachename in ["CCACHE", "F90CACHE"]:
+                os.environ["%s_DIR" % cachename] = build_option('use_compiler_cache')
+                os.environ["%s_TEMPDIR" % cachename] = os.path.join(build_option('use_compiler_cache'), 'tmp')
 
-            self.symlink_compilers(ccache)
+            self.symlink_compilers(paths)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
