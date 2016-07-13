@@ -619,7 +619,8 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     diff_stat = git_repo.git.diff(cached=True, stat=True)
     if not diff_stat:
-        raise EasyBuildError("No changed files found. Refused to make empty pull request.")
+        raise EasyBuildError("No changed files found when comparing to current develop branch."
+                             "Refused to make empty pull request.")
 
     # commit
     if commit_msg:

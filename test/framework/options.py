@@ -48,7 +48,8 @@ from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
-from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR, fetch_github_token
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
+from easybuild.tools.github import fetch_github_token
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
@@ -2358,7 +2359,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # get file from develop branch
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, 'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.8.eb'])
+        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
+                                       'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.8.eb'])
         ec = download_file('zlib-1.2.8.eb', full_url, path=os.path.join(test_ecs_dir, 'zlib-1.2.8.eb'), forced=True)
 
         # try to open new pr with unchanged file
@@ -2371,7 +2373,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         self.mock_stdout(True)
-        error_msg = 'No changed files found. Refused to make empty pull request.'
+        error_msg = "No changed files found when comparing to current develop branch."
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
         self.mock_stdout(False)
 
