@@ -2358,10 +2358,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         # get file from develop branch
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
                                        'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.8.eb'])
-        ec = download_file('zlib-1.2.8.eb', full_url, path=os.path.join(test_ecs_dir, 'zlib-1.2.8.eb'), forced=True)
+        ec = download_file('zlib-1.2.8.eb', full_url, path=os.path.join(self.test_prefix, 'zlib-1.2.8.eb'), forced=True)
 
         # try to open new pr with unchanged file
         os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
@@ -2376,8 +2375,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = "No changed files found when comparing to current develop branch."
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
         self.mock_stdout(False)
-
-        os.remove(os.path.join(test_ecs_dir, 'zlib-1.2.8.eb'))
 
 
     def test_show_config(self):
