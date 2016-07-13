@@ -49,6 +49,7 @@ mkdir -p ${PREFIX}
 set +e
 wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 if [ $? -ne 0 ] && [ ! -z $BACKUP_PKG_URL ]; then
+    rm -f *${PKG_VERSION}.tar.gz
     wget ${BACKUP_PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 fi
 set -e
