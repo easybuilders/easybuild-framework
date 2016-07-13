@@ -35,8 +35,9 @@ from easybuild.framework.easyconfig.types import as_hashable, check_element_type
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
 from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
 from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
-from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
-from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_sanity_check_paths_dict
+from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
+from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_name_version_dict
+from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
 from easybuild.tools.build_log import EasyBuildError
 
 
@@ -524,6 +525,20 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': 'foo', 'dirs': []})
         error_msg = "Expected elements to be of type string, tuple or list"
         self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': [], 'dirs': [1]})
+
+    def test_to_checksums(self):
+        """Test to_checksums function."""
+        test_inputs = [
+            ['be662daa971a640e40be5c804d9d7d10'],
+            ['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')],
+            [['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')]],
+            [('md5', 'be662daa971a640e40be5c804d9d7d10')],
+            ['be662daa971a640e40be5c804d9d7d10', ('adler32', '0x998410035'), ('crc32', '0x1553842328'),
+             ('md5', 'be662daa971a640e40be5c804d9d7d10'), ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
+             ('size', 273)],
+        ]
+        for checksums in test_inputs:
+            self.assertEqual(to_checksums(checksums), checksums)
 
 
 def suite():

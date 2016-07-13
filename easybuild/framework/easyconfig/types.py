@@ -400,13 +400,24 @@ def to_dependencies(dep_list):
     """
     return [to_dependency(dep) for dep in dep_list]
 
+
 def to_checksums(checksums):
     """Ensure correct element types for list of checksums: convert list elements to tuples."""
-    if all(isinstance(cs, (list, tuple)) for cs in checksums):
-        # if all elements are lists/tuples, we convert each individual element to a string/tuple list
-        res = [to_list_of_strings_and_tuples(cs) for cs in checksums]
-    else:
-        res = to_list_of_strings_and_tuples(checksums)
+    res = []
+    for checksum in checksums:
+        # each list entry can be:
+        # * a string (MD5 checksum)
+        # * a tuple with 2 elements: checksum type + checksum value
+        # * a list of checksums (i.e. multiple checksums for a single file)
+        if isinstance(checksum, basestring):
+            res.append(checksum)
+        elif isinstance(checksum, (list, tuple)):
+            # 2 elements + only string/int values => a checksum tuple
+            if len(checksum) == 2 and all(isinstance(x, (basestring, int)) for x in checksum):
+                res.append(tuple(checksum))
+            else:
+                res.append(to_checksums(checksum))
+
     return res
 
 
