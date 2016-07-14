@@ -2354,21 +2354,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
         if self.github_token is None:
-            print "Skipping test_new_pr, no GitHub token available?"
+            print "Skipping test_empty_pr, no GitHub token available?"
             return
 
         # get file from develop branch
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
                                        'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.8.eb'])
-        ec = download_file('zlib-1.2.8.eb', full_url, path=os.path.join(self.test_prefix, 'zlib-1.2.8.eb'), forced=True)
+        ec_fn = os.path.basename(full_url)
+        ec = download_file(ec_fn, full_url, path=os.path.join(self.test_prefix, ec_fn))
 
         # try to open new pr with unchanged file
-        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
         args = [
             '--new-pr',
             '--experimental',
             ec,
             '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
 
         self.mock_stdout(True)
