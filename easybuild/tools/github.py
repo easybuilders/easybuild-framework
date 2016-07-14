@@ -334,32 +334,22 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
-    dl_dev = False
     # if PR is open and mergable, download develop and patch
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
-    closed = pr_data['state'] == GITHUB_STATE_CLOSED and pr_data['merged'] == False
-    # 'clean' on successful (or missing) test, 'unstable' on failed tests
+    closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_data['merged']
+
+    # 'clean' on successful (or missing) test, 'unstable' on failed tests or merge conflict
     if not stable:
         _log.warning("Mergeable state for PR #%d is not '%s': %s.",
                      pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
-    if stable and not closed:
-        # wether merged or not, download develop
+    if (stable or pr_data['merged']) and not closed:
+        # whether merged or not, download develop
         develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
         if not os.path.isdir(develop):
-            raise EasyBuildError("Downloading of develop branch failed: not found in %s", develop)
-        dl_dev = True
-
-        # not merged: download patch
-        if not pr_data['merged']:
-            patch_name = 'patch%s' % pr
-            patch_url = URL_SEPARATOR.join([GITHUB_URL, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, GITHUB_PR, '%s.patch' % pr])
-            patch_path = os.path.join(path, patch_name)
-            patch = download_file(patch_name, patch_url, patch_path)
-            if patch is None:
-                raise EasyBuildError("Failed to download file %s to %s", patch_url, patch_path)
-
-            patched = apply_patch(patch, develop, level=1)
+            raise EasyBuildError("Downloading of %s/develop branch failed: not found in %s",
+                                  GITHUB_EASYCONFIGS_REPO, develop)
+        path = develop
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
@@ -383,8 +373,9 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
-    if not stable or closed:
-        print "WARNING: Using unstable/closed PR on easybuild installation!"
+    if not(pr_data['merged']):
+        if not stable or closed:
+            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s***\n" % pr
         # obtain most recent version of patched files
         for patched_file in patched_files:
             # path to patch file, incl. subdir it is in
@@ -392,7 +383,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
             sha = last_commit['sha']
             full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
             _log.info("Downloading %s from %s" % (fn, full_url))
-            download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+            download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
 
     # sanity check: make sure all patched files are downloaded
     all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
@@ -405,19 +396,16 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         if not patched in tmp_files:
             raise EasyBuildError("Couldn't find file in %s: %s", path, patched)
 
-    if dl_dev:
-        # if we merged with develop, the paths to look for are different
-        path = develop
-        all_files = patched_files
-
     ec_files = []
-    for f in all_files:
-        if os.path.exists(os.path.join(path, f)):
-            ec_files.append(os.path.join(path, f))
+    for patched in patched_files:
+        if os.path.exists(os.path.join(path, patched)):
+            ec_files.append(os.path.join(path, patched))
         else:
             raise EasyBuildError("Coudln't find path to patched file %s", os.path.join(path, f))
 
+    print ec_files
     return ec_files
+
 
 
 def create_gist(txt, fn, descr=None, github_user=None):

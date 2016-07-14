@@ -718,11 +718,12 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    result = run.run_cmd(patch_cmd, simple=True, path=adest, log_ok=False)
+    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
 
-    if not result:
-        raise EasyBuildError("Couldn't apply patch")
+    if ec:
+        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, out, result)
 
+    result = ec == 0
     return result
 
 
