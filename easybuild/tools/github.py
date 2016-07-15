@@ -626,7 +626,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
                 raise EasyBuildError("Failed to determine software name to which patch file %s relates", patch_path)
 
         print_msg("copying patch files to %s..." % target_dir)
-        copy_patch_files(patch_specs, target_dir)
+        patch_info = copy_patch_files(patch_specs, target_dir)
 
     # checkout target branch
     if pr_branch is None:
@@ -641,6 +641,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # stage
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
+
+    _log.debug("Staging all %d new/modified patch files", len(patch_info))
+    git_repo.index.add(patch_info)
 
     # overview of modifications
     if build_option('extended_dry_run'):

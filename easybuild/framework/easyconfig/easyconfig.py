@@ -1431,9 +1431,11 @@ def copy_patch_files(patch_specs, target_dir):
     @param patch_specs: list of tuples with patch file location and name of software they are for
     @param target_dir: target directory
     """
+    patched_files = []
     for patch_path, soft_name in patch_specs:
-        _copy_file_to_easyconfigs_dir(patch_path, target_dir, soft_name, os.path.basename(patch_path))
+        patched_files.append(_copy_file_to_easyconfigs_dir(patch_path, target_dir, soft_name, os.path.basename(patch_path)))
 
+    return patched_files
 
 class ActiveMNS(object):
     """Wrapper class for active module naming scheme."""
