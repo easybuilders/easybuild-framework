@@ -863,7 +863,7 @@ def check_github():
             git_check &= attr in dir(git)
 
         if git_check:
-            check_res = "OK"
+            check_res = "OK (gitpython version %s)" % sys.modules['git'].__version__
         else:
             check_res = "FAIL (import ok, but module doesn't provide what is expected)"
     else:
@@ -896,7 +896,10 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        check_res = "FAIL (unexpected exception: %s)" % push_err
+        if sys.modules['git'].__version__ < "1.0.0":
+            check_res = "FAIL (outdated gitpython module, try updating first)"
+        else:
+            check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
         check_res = "FAIL (no GitHub user specified)"
 
