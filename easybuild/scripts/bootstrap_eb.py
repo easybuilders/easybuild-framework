@@ -5,7 +5,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -66,6 +66,9 @@ EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', '
 
 # set print_debug to True for detailed progress info
 print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
+
+# install with --force in stage2?
+forced_install = os.environ.pop('EASYBUILD_BOOTSTRAP_FORCED', False)
 
 # don't add user site directory to sys.path (equivalent to python -s), see https://www.python.org/dev/peps/pep-0370/
 os.environ['PYTHONNOUSERSITE'] = '1'
@@ -201,9 +204,10 @@ def check_module_command(tmpdir):
                 break
 
     if easybuild_modules_tool is None:
+        mod_cmds = [m for (m, _) in known_module_commands]
         msg = [
             "Could not find any module command, make sure one available in your $PATH.",
-            "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
+            "Known module commands are checked in order, and include: %s" % ', '.join(mod_cmds),
             "Check the output of 'type module' to determine the location of the module command you are using.",
         ]
         error('\n'.join(msg))
@@ -468,13 +472,13 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     handle.close()
 
-    # unset $MODULEPATH, we don't care about already installed modules
-    os.environ['MODULEPATH'] = ''
-
     # set command line arguments for eb
     eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
+    if forced_install:
+        info("Performing FORCED installation, as requested...")
+        eb_args.append('--force')
 
     # make sure we don't leave any stuff behind in default path $HOME/.local/easybuild
     # and set build and install path explicitely

@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -29,9 +29,8 @@ Unit tests for eb command line options.
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -75,8 +74,11 @@ class IncludeTest(EnhancedTestCase):
         ])
         write_file(os.path.join(myeasyblocks, 'generic', 'mybar.py'), mybar_easyblock_txt)
 
+        # hijack $HOME to test expanding ~ in locations passed to include_easyblocks
+        os.environ['HOME'] = myeasyblocks
+
         # expand set of known easyblocks with our custom ones
-        glob_paths = [os.path.join(myeasyblocks, '*'), os.path.join(myeasyblocks, '*/*.py')]
+        glob_paths = [os.path.join('~', '*'), os.path.join(myeasyblocks, '*/*.py')]
         included_easyblocks_path = include_easyblocks(self.test_prefix, glob_paths)
 
         expected_paths = ['__init__.py', 'easyblocks/__init__.py', 'easyblocks/myfoo.py',
@@ -222,7 +224,7 @@ class IncludeTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(IncludeTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(IncludeTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
