@@ -94,7 +94,6 @@ class Toolchain(object):
         @param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
         @param modtool: ModulesTool instance to use
         """
-
         self.base_init()
 
         self.dependencies = []
@@ -105,7 +104,6 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
-
         if version is None:
             version = self.VERSION
         if version is None:
@@ -595,13 +593,12 @@ class Toolchain(object):
         @param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
                       tuple ('path/to/cache', [commands to symlink to this cache])
         """
+        print 'symlinking.........'
         tmpdir = tempfile.mkdtemp()
         compilers = {}
 
-
-
         for key, comp_list in compilers.items():
-            for comp in comp_list:
+           for comp in comp_list:
                 comp_s = os.path.join(tmpdir, comp)
                 if not os.path.exists(comp_s):
                     os.symlink(paths[key], comp_s)
@@ -645,15 +642,18 @@ class Toolchain(object):
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
+        print build_option('use_compiler_cache')
         if build_option('use_compiler_cache'):
             self.prepare_compiler_cache()
 
     def prepare_compiler_cache(self):
+        print "prepare compiler cache"
         paths = {}
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             gcc = ['gcc', 'g++']
             fortr =  ['gfortran']
+            print "if dummy"
         else:
             gcc = [self.COMPILER_CC, self.COMPILER_CXX]
             fortr = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
@@ -675,7 +675,8 @@ class Toolchain(object):
         for cachename in ["CCACHE", "F90CACHE"]:
             os.environ["%s_DIR" % cachename] = compiler_cache
             os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
-        print "doing the do"
+
+        print "preparing compiler cache"
         self.symlink_compilers(paths)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):

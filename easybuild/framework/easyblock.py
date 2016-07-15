@@ -114,7 +114,6 @@ class EasyBlock(object):
     # static class method for extra easyconfig parameter definitions
     # this makes it easy to access the information without needing an instance
     # subclasses of EasyBlock should call this method with a dictionary
-
     @staticmethod
     def extra_options(extra=None):
         """
@@ -1544,6 +1543,7 @@ class EasyBlock(object):
 
         @param start_dir: guess start directory based on unpacked sources
         """
+        print "prep step"
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
 

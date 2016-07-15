@@ -31,6 +31,8 @@ Unit tests for toolchain support.
 import os
 import re
 import shutil
+import stat
+import subprocess
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -43,7 +45,9 @@ import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import write_file
+from easybuild.tools.environment import setvar
+from easybuild.tools.filetools import write_file, read_file
+from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -815,6 +819,38 @@ class ToolchainTest(EnhancedTestCase):
         liblapack = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core "
         liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
         self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
+
+    def test_ccache(self):
+        """Test ccache"""
+        # generate shell script to mock ccache, f90cache
+        for cachename in ['ccache', 'f90cache']:
+            path = os.path.join(self.test_prefix, '%s.sh' % cachename)
+            txt = [
+                "#!/bin/bash",
+                "",
+                "echo $@",
+                "eval \"$@\"",
+            ]
+            script = '\n'.join(txt)
+            write_file(path, script)
+
+            # make script executable
+            st = os.stat(path)
+            os.chmod(path, st.st_mode | stat.S_IEXEC)
+            setvar('PATH', '%s:%s' % (path, os.getenv('PATH')))
+
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        args = [
+            eb_file,
+            "--use-compiler-cache",
+            self.test_prefix,
+            "--force"
+        ]
+
+        self.eb_main(args)
+
+
 
 
 def suite():
