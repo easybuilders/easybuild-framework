@@ -44,11 +44,13 @@ import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
 from easybuild.tools.filetools import which, write_file
+from easybuild.tools.modules import modules_tool
+from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -595,8 +597,13 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # copy files to right place
+    deps = resolve_dependencies([process_easyconfig(ec)[0] for ec in paths], modules_tool())
+
     file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+
+    # dont save info on dependencies
+    dep_paths = [dep['spec'] for dep in deps if dep['spec'] not in paths]
+    dep_info = copy_easyconfigs(dep_paths, os.path.join(git_working_dir, pr_target_repo))
 
     # checkout target branch
     if pr_branch is None:
@@ -611,6 +618,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # stage
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
+    git_repo.index.add(dep_info['paths_in_repo'])
 
     # overview of modifications
     if build_option('extended_dry_run'):
