@@ -642,8 +642,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
 
-    _log.debug("Staging all %d new/modified patch files", len(patch_info))
-    git_repo.index.add(patch_info)
+    if patch_paths:
+        _log.debug("Staging all %d new/modified patch files", len(patch_info))
+        git_repo.index.add(patch_info)
 
     # overview of modifications
     if build_option('extended_dry_run'):
