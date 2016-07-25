@@ -44,7 +44,7 @@ import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
@@ -569,14 +569,18 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # we need files to create the PR with
     if paths:
         non_existing_paths = []
+        existing_paths = []
         for path in paths:
             if not os.path.exists(path):
                 non_existing_paths.append(path)
-
-        if non_existing_paths:
-            raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
+            else:
+                existing_paths.append(path)
+        #if non_existing_paths:
+            # raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
     else:
         raise EasyBuildError("No paths specified")
+
+    paths = existing_paths
 
     pr_target_repo = build_option('pr_target_repo')
 
@@ -595,12 +599,40 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # copy files to right place
+    temp_files = []
+    for (dirpath, _, filenames) in os.walk(git_working_dir):
+          temp_files.extend([os.path.join(dirpath, f) for f in filenames])
+
+    deleted_paths = []
+    for path in non_existing_paths:
+        # check if the file exists in downloaded repo
+        fn = os.path.basename(path)
+        found = False
+        for temp_file in temp_files:
+            if fn in temp_file:
+                deleted_paths.append(temp_file)
+                found = True
+
+        if not found:
+            raise EasyBuildError("Path doesn't exist or deleted file isn't found in target branch")
+
+    # copy edited/added files to right place
     file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+    # update file_info for deleted files
+    for deleted in deleted_paths:
+        file_info['paths_in_repo'].append(deleted)
+        file_info['new'].append(False)
+        ecs = process_easyconfig(deleted, validate=False)
+        if len(ecs) == 1:
+            file_info['ecs'].append(ecs[0]['ec'])
+
+    if len(paths) > 0:
+        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+    else:
+        name_version = os.path.basename(non_existing_paths[0])
 
     # checkout target branch
     if pr_branch is None:
-        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
 
     # create branch to commit to and push;
@@ -611,6 +643,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # stage
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
+
+    # stage deleted files
+    git_repo.index.remove(deleted_paths)
 
     # overview of modifications
     if build_option('extended_dry_run'):
