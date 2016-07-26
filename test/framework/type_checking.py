@@ -199,9 +199,14 @@ class TypeCheckingTest(EnhancedTestCase):
         """ Test toolchain string to dict conversion """
         # normal cases
         self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_name_version_dict("intel, 2015a, True"), {'name': 'intel', 'version': '2015a', 'hidden': True})
         self.assertEqual(to_name_version_dict(('intel', '2015a')), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_name_version_dict(('intel', '2015a', 'True')), {'name': 'intel', 'version': '2015a', 'hidden': True})
         self.assertEqual(to_name_version_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+        self.assertEqual(to_name_version_dict(['gcc', '4.7', 'True']), {'name': 'gcc', 'version': '4.7', 'hidden': True})
         tc = {'name': 'intel', 'version': '2015a'}
+        self.assertEqual(to_name_version_dict(tc), tc)
+        tc = {'name': 'intel', 'version': '2015a', 'hidden': True}
         self.assertEqual(to_name_version_dict(tc), tc)
 
         # wrong type
@@ -209,10 +214,15 @@ class TypeCheckingTest(EnhancedTestCase):
                               to_name_version_dict, 1000)
 
         # wrong number of elements
-        errstr = "Can not convert .* to name and version .*. Expected 2 elements"
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, a")
+        errstr = "Can not convert .* to name and version .*. Expected 2 or 3 elements"
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, True, a")
         self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', '7'])
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', 'True', '7'])
+
+        # invalid truth value
+        errstr = "invalid truth value .*"
+        self.assertErrorRegex(ValueError, errstr, to_name_version_dict, "intel, 2015, foo")
+        self.assertErrorRegex(ValueError, errstr, to_name_version_dict, ['gcc', '4', '7'])
 
         # missing keys
         self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_name_version_dict, {'name': 'intel'})
