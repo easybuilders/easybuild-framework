@@ -81,6 +81,7 @@ GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
+GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
@@ -584,8 +585,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, pr_target_repo)
 
-    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+    if pr_target_repo != GITHUB_EASYCONFIGS_REPO and pr_target_repo != GITHUB_EASYBLOCKS_REPO:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
+
+    easyblocks = pr_target_repo == GITHUB_EASYBLOCKS_REPO
 
     if start_branch is None:
         start_branch = build_option('pr_target_branch')
@@ -596,7 +599,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
-    file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+    if easyblocks:
+        copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+    else:
+        file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
 
     # checkout target branch
     if pr_branch is None:
@@ -657,6 +663,12 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
                                  pr_branch, my_remote, github_url)
 
     return file_info, git_repo, pr_branch, diff_stat
+
+
+def copy_easyblocks(paths, targetdir):
+    # circular dependencies ugh
+    from easybuild.framework.easyblock import EasyBlock
+    print "new pr for easyblock"
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -1059,3 +1071,4 @@ def validate_github_token(token, github_user):
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
 
     return sanity_check and token_test
+
