@@ -668,7 +668,7 @@ class EasyBlock(object):
                     raise EasyBuildError("Couldn't find file %s anywhere, and downloading it didn't work either... "
                                          "Paths attempted (in order): %s ", filename, ', '.join(failedpaths))
 
-    # a
+    #
     # GETTER/SETTER UTILITY FUNCTIONS
     #
     @property

@@ -31,6 +31,8 @@ Utility module for working with github
 """
 import base64
 import getpass
+import imp
+import inspect
 import os
 import random
 import re
@@ -47,8 +49,8 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import det_patched_files, decode_class_name, download_file, extract_file, mkdir
+from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -77,6 +79,8 @@ except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
 
+EB_PREFIX = 'EB_'
+GENERIC_EB = 'generic'
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
@@ -91,6 +95,7 @@ GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
+PYTHON_EXTENSION = 'py'
 URL_SEPARATOR = '/'
 
 
@@ -600,13 +605,14 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # copy files to right place
     if easyblocks:
-        copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+        name_version, file_info = copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+
     else:
         file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
 
     # checkout target branch
     if pr_branch is None:
-        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
 
     # create branch to commit to and push;
@@ -665,10 +671,49 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     return file_info, git_repo, pr_branch, diff_stat
 
 
-def copy_easyblocks(paths, targetdir):
-    # circular dependencies ugh
-    from easybuild.framework.easyblock import EasyBlock
-    print "new pr for easyblock"
+def copy_easyblocks(paths, target_dir):
+    file_info = {
+        'paths_in_repo': [],
+        'new': [],
+        'ebs' : [],
+    }
+
+    subdir = os.path.join('easybuild', 'easyblocks')
+    if os.path.exists(os.path.join(target_dir, subdir)):
+        for path in paths:
+            fn = os.path.basename(path).split('.')[0]
+
+            mod = imp.load_source(fn, path)
+            clsmembers = inspect.getmembers(mod, inspect.isclass)
+            classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
+
+            if len(classnames) > 1:
+                raise EasyBuildError("Invalid EB file")
+
+            cn = classnames[0]
+            eb_name = decode_class_name(cn).lower() # TODO not fully right yet. - to _ (and others??)
+            if cn.startswith(EB_PREFIX):
+                # regular eb file
+                letter = fn.lower()[0]
+                target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
+            else:
+                # generic
+                target_path = os.path.join(subdir, GENERIC_EB, "%s.%s" % (eb_name.lower(), PYTHON_EXTENSION))
+
+            full_target_path = os.path.join(target_dir, target_path)
+            file_info['paths_in_repo'].append(full_target_path)
+            file_info['ebs'].append(eb_name)
+            try:
+                file_info['new'].append(not os.path.exists(full_target_path))
+
+                mkdir(os.path.dirname(full_target_path), parents=True)
+                shutil.copy2(path, full_target_path)
+                _log.info("%s copied to %s", path, full_target_path)
+
+            except OSError as err:
+                raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+
+    return eb_name, file_info
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -698,24 +743,36 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
                                                                     commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
-    toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-    toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-    toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
-
-    # only use most common module class(es) in moduleclass label of PR title
-    classes = [ec['moduleclass'] for ec in file_info['ecs']]
-    classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-    class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
     if title is None:
-        # mention software name/version in PR title (only first 3)
-        names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-        if len(names_and_versions) <= 3:
-            main_title = ', '.join(names_and_versions)
-        else:
-            main_title = ', '.join(names_and_versions[:3] + ['...'])
+        if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
 
-        title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+            toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
+            toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+            toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+
+            # only use most common module class(es) in moduleclass label of PR title
+            classes = [ec['moduleclass'] for ec in file_info['ecs']]
+            classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+            class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+
+            if title is None:
+                # mention software name/version in PR title (only first 3)
+                names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+                if len(names_and_versions) <= 3:
+                    main_title = ', '.join(names_and_versions)
+                else:
+                    main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+                title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+            names = file_info['ebs']
+            if len(names) <= 3:
+                main_title = ', '.join(names)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
+            title = "EasyBlock for %s" % main_title
+
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
@@ -1071,4 +1128,3 @@ def validate_github_token(token, github_user):
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
 
     return sanity_check and token_test
-
