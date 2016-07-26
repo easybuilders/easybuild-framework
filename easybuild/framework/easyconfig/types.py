@@ -30,6 +30,7 @@ Support for checking types of easyconfig parameter values.
 @author: Kenneth Hoste (Ghent University)
 """
 from vsc.utils import fancylogger
+from distutils.util import strtobool
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
@@ -257,12 +258,14 @@ def convert_value_type(val, typ):
 
 def to_name_version_dict(spec):
     """
-    Convert a comma-separated string or 2-element list of strings to a dictionary with name/version keys.
-    If the specified value is a dict already, the keys are checked to be only name/version.
+    Convert a comma-separated string or 2/3-element list of strings to a dictionary with name/version keys, and
+    optionally a hidden key. If the specified value is a dict already, the keys are checked to be only
+    name/version/hidden.
 
     For example: "intel, 2015a" => {'name': 'intel', 'version': '2015a'}
+                 "foss, 2016a, True" => {'name': 'foss', 'version': '2016a', 'hidden': True}
 
-    @param spec: a comma-separated string with two values, or a 2-element list of strings, or a dict
+    @param spec: a comma-separated string with two or three values, or a 2/3-element list of strings, or a dict
     """
     # check if spec is a string or a list of two values; else, it can not be converted
     if isinstance(spec, basestring):
@@ -272,15 +275,20 @@ def to_name_version_dict(spec):
         # 2-element list
         if len(spec) == 2:
             res = {'name': spec[0].strip(), 'version': spec[1].strip()}
+        # 3-element list
+        elif len(spec) == 3:
+            res = {'name': spec[0].strip(), 'version': spec[1].strip(), 'hidden': strtobool(spec[2].strip())}
         else:
-            raise EasyBuildError("Can not convert list %s to name and version dict. Expected 2 elements", spec)
+            raise EasyBuildError("Can not convert list %s to name and version dict. Expected 2 or 3 elements", spec)
 
     elif isinstance(spec, dict):
         # already a dict, check keys
-        if sorted(spec.keys()) == ['name', 'version']:
+        sorted_keys = sorted(spec.keys())
+        if sorted_keys == ['name', 'version'] or sorted_keys == ['hidden', 'name', 'version']:
             res = spec
         else:
-            raise EasyBuildError("Incorrect set of keys in provided dictionary, should be only name/version: %s", spec)
+            raise EasyBuildError("Incorrect set of keys in provided dictionary, should be only name/version/hidden: %s",
+                                 spec)
 
     else:
         raise EasyBuildError("Conversion of %s (type %s) to name and version dict is not supported", spec, type(spec))
@@ -425,8 +433,12 @@ def to_checksums(checksums):
 # specific type: dict with only name/version as keys, and with string values
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
 NAME_VERSION_DICT = (dict, as_hashable({
-    'elem_types': [str],
-    'opt_keys': [],
+    'elem_types': {
+        'hidden': [bool],
+        'name': [str],
+        'version': [str],
+    },
+    'opt_keys': ['hidden'],
     'req_keys': ['name', 'version'],
 }))
 DEPENDENCY_DICT = (dict, as_hashable({

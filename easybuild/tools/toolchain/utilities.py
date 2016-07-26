@@ -132,7 +132,7 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
         if not tc_class:
             all_tcs_names = ','.join([x.NAME for x in all_tcs])
             raise EasyBuildError("Toolchain %s not found, available toolchains: %s", tc['name'], all_tcs_names)
-        tc_inst = tc_class(version=tc['version'], mns=mns, tcdeps=tcdeps, modtool=modtool)
+        tc_inst = tc_class(version=tc['version'], mns=mns, tcdeps=tcdeps, modtool=modtool, hidden=tc.get('hidden', False))
         tc_dict = tc_inst.as_dict()
         _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
 
