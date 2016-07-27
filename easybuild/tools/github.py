@@ -605,7 +605,8 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # copy files to right place
     if easyblocks:
-        name_version, file_info = copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+        file_info = copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+        name_version = file_info['ebs'][0]
 
     else:
         file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
@@ -713,7 +714,7 @@ def copy_easyblocks(paths, target_dir):
             except OSError as err:
                 raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
 
-    return eb_name, file_info
+    return file_info
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -755,15 +756,14 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
             classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
             class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
-            if title is None:
-                # mention software name/version in PR title (only first 3)
-                names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-                if len(names_and_versions) <= 3:
-                    main_title = ', '.join(names_and_versions)
-                else:
-                    main_title = ', '.join(names_and_versions[:3] + ['...'])
+            # mention software name/version in PR title (only first 3)
+            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            if len(names_and_versions) <= 3:
+                main_title = ', '.join(names_and_versions)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
 
-                title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+            title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
 
         elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
             names = file_info['ebs']
