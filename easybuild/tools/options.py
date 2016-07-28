@@ -303,6 +303,7 @@ class EasyBuildOptions(GeneralOption):
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
+            'update': ("Update easybuild installation", None, 'store_true', False),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",

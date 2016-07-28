@@ -147,6 +147,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'sticky_bit',
         'upload_test_report',
+        'update',
         'update_modules_tool_cache',
         'use_existing_modules',
     ],

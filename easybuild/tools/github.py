@@ -1,4 +1,4 @@
-##
+ ##
 # Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
@@ -1059,3 +1059,15 @@ def validate_github_token(token, github_user):
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
 
     return sanity_check and token_test
+
+
+def find_easybuild_eb():
+    """
+    Fetches the latest EasyBuild version eb file from GitHub
+    """
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN)
+    eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
+    fn = sorted(os.listdir(eb_parent_path))[-1]
+
+    eb_file = os.path.join(eb_parent_path, fn)
+    return eb_file
