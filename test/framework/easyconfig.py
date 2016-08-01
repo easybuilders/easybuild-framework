@@ -1718,6 +1718,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
 
         expected = {
+            'github_account': None,
             'name': 'gzip',
             'nameletter': 'g',
             'toolchain_name': 'goolf',
@@ -1736,6 +1737,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['version'] = '0.01'
 
         expected = {
+            'github_account': None,
             'name': 'toy',
             'nameletter': 't',
             'toolchain_name': 'dummy',
