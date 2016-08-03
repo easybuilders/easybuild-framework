@@ -1,4 +1,4 @@
- ##
+##
 # Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
@@ -41,6 +41,7 @@ import sys
 import tempfile
 import time
 import urllib2
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
@@ -1067,7 +1068,15 @@ def find_easybuild_eb():
     """
     dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN)
     eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
-    fn = sorted(os.listdir(eb_parent_path))[-1]
+    files = os.listdir(eb_parent_path)
+
+    # find most recent version
+    file_versions = []
+    for eb_file in files:
+        version = eb_file.split('-', 1)[1]
+        file_versions.append((eb_file, version.split('.eb', 1)[0]))
+
+    fn = sorted(file_versions, key=lambda x: LooseVersion(x[1]))[-1][0]
 
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
