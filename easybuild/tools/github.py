@@ -865,7 +865,7 @@ def check_github():
             git_check &= attr in dir(git)
 
         if git_check:
-            check_res = "OK (gitpython version %s)" % git.__version__
+            check_res = "OK (GitPython version %s)" % git.__version__
         else:
             check_res = "FAIL (import ok, but module doesn't provide what is expected)"
     else:
