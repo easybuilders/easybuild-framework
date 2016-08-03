@@ -899,7 +899,7 @@ def check_github():
             check_res = "OK"
     elif github_user:
         if LooseVersion(git.__version__) < LooseVersion('1.0'):
-            check_res = "FAIL (outdated gitpython module, try updating first)"
+            check_res = "FAIL (outdated GitPython module, try updating first)"
         else:
             check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
