@@ -41,6 +41,8 @@ import sys
 import tempfile
 import time
 import urllib2
+
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
