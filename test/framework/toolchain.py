@@ -828,11 +828,11 @@ class ToolchainTest(EnhancedTestCase):
 
             txt = [
                 "#!/bin/bash",
-                "",
-                ""
-                "echo 'CCACHE WRAPPER'",
-                "eval \"$@\""
-                "exit 1"
+                "echo 'This is a ccache wrapper'",
+                "NAME=${0##*/}",
+                "comm=$(which -a $NAME | sed 1d)",
+                "$comm $@",
+                "exit 0"
             ]
             script = '\n'.join(txt)
             fn = os.path.join(path, '%s' % cachename)
@@ -853,11 +853,12 @@ class ToolchainTest(EnhancedTestCase):
             "--force",
             ]
 
+        self.mock_stdout(True)
         self.eb_main(args, raise_error=True, do_build=True)
+        out = self.get_stdout()
+        self.mock_stdout(False)
 
-        print txt
-
-
+        # self.assertEqual(out, "This is a ccache wrapper")
 
 
 def suite():

@@ -601,7 +601,6 @@ class Toolchain(object):
                 if not os.path.exists(comp_s):
                     os.symlink(links[0], comp_s)
 
-        print paths
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
 
 
