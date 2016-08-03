@@ -249,7 +249,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         'try_to_generate': try_to_generate,
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
-    print build_options['valid_stops']
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
@@ -299,7 +298,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths)
-    print "determined ec paths"
     if paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in paths]
@@ -323,7 +321,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     # read easyconfig files
-    print "reading ec files"
     easyconfigs, generated_ecs = parse_easyconfigs(paths)
 
     # tweak obtained easyconfig files, if requested
@@ -387,7 +384,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when testing)
-    print "building"
     exit_on_failure = not options.dump_test_report and not options.upload_test_report
     if not testing or (testing and do_build):
         ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)

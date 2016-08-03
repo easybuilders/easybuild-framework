@@ -824,20 +824,25 @@ class ToolchainTest(EnhancedTestCase):
         """Test ccache"""
         # generate shell script to mock ccache, f90cache
         for cachename in ['ccache', 'f90cache']:
-            path = os.path.join(self.test_prefix, '%s.sh' % cachename)
+            path = os.path.join(self.test_prefix, '%s' % cachename)
+
             txt = [
                 "#!/bin/bash",
                 "",
-                "echo $@",
-                "eval \"$@\"",
+                ""
+                "echo 'CCACHE WRAPPER'",
+                "eval \"$@\""
+                "exit 1"
             ]
             script = '\n'.join(txt)
-            write_file(path, script)
+            fn = os.path.join(path, '%s' % cachename)
+            write_file(fn, script)
 
             # make script executable
-            st = os.stat(path)
-            os.chmod(path, st.st_mode | stat.S_IEXEC)
+            st = os.stat(fn)
+            os.chmod(fn, st.st_mode | stat.S_IEXEC)
             setvar('PATH', '%s:%s' % (path, os.getenv('PATH')))
+
 
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
 
@@ -845,10 +850,12 @@ class ToolchainTest(EnhancedTestCase):
             eb_file,
             "--use-compiler-cache",
             self.test_prefix,
-            "--force"
-        ]
+            "--force",
+            ]
 
-        self.eb_main(args)
+        self.eb_main(args, raise_error=True, do_build=True)
+
+        print txt
 
 
 

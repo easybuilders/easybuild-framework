@@ -1543,7 +1543,6 @@ class EasyBlock(object):
 
         @param start_dir: guess start directory based on unpacked sources
         """
-        print "prep step"
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
 

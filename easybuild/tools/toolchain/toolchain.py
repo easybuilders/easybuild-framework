@@ -593,16 +593,15 @@ class Toolchain(object):
         @param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
                       tuple ('path/to/cache', [commands to symlink to this cache])
         """
-        print 'symlinking.........'
         tmpdir = tempfile.mkdtemp()
-        compilers = {}
 
-        for key, comp_list in compilers.items():
-           for comp in comp_list:
+        for key, links in paths.items():
+            for comp in links[1]:
                 comp_s = os.path.join(tmpdir, comp)
                 if not os.path.exists(comp_s):
-                    os.symlink(paths[key], comp_s)
+                    os.symlink(links[0], comp_s)
 
+        print paths
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
 
 
@@ -642,18 +641,15 @@ class Toolchain(object):
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
-        print build_option('use_compiler_cache')
         if build_option('use_compiler_cache'):
             self.prepare_compiler_cache()
 
     def prepare_compiler_cache(self):
-        print "prepare compiler cache"
         paths = {}
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             gcc = ['gcc', 'g++']
             fortr =  ['gfortran']
-            print "if dummy"
         else:
             gcc = [self.COMPILER_CC, self.COMPILER_CXX]
             fortr = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
@@ -676,7 +672,6 @@ class Toolchain(object):
             os.environ["%s_DIR" % cachename] = compiler_cache
             os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
 
-        print "preparing compiler cache"
         self.symlink_compilers(paths)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):

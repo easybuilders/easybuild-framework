@@ -809,7 +809,6 @@ class EasyConfig(object):
 
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
-        print "parse tc"
         tc_spec = dependency['toolchain']
         if tc_spec is None:
             self.log.debug("Inheriting parent toolchain %s for dep %s (until deps are finalised)", tc, dependency)
