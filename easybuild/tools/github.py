@@ -47,7 +47,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
@@ -353,7 +353,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_filepath = os.path.join(path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
-    os.remove(diff_filepath)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
@@ -373,14 +372,17 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     if not(pr_data['merged']):
         if not stable or closed:
             print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s ***\n" % pr
-        # obtain most recent version of patched files
-        for patched_file in patched_files:
-            # path to patch file, incl. subdir it is in
-            fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
-            sha = last_commit['sha']
-            full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
-            _log.info("Downloading %s from %s" % (fn, full_url))
-            download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
+            # obtain most recent version of patched files
+            for patched_file in patched_files:
+                # path to patch file, incl. subdir it is in
+                fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
+                sha = last_commit['sha']
+                full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
+                _log.info("Downloading %s from %s" % (fn, full_url))
+        else:
+            apply_patch(diff_filepath, path, level=1)
+
+    os.remove(diff_filepath)
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []

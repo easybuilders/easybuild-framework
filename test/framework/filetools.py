@@ -697,18 +697,17 @@ class FileToolsTest(EnhancedTestCase):
     def test_apply_patch(self):
         """ Test apply_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = tempfile.mkdtemp()
+        tmpdir = self.test_prefix
         path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
         toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
-        toy_patch_broken = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_broken.patch')
 
         self.assertTrue(ft.apply_patch(toy_patch, path))
-        patched = ft.read_file(os.path.join(path, 'toy.source'))
+        patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
         pattern = "I'm a toy, and very proud of it"
         self.assertTrue(pattern in patched)
 
-        # faulty patch file
-        self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch_broken, path)
+        # trying the patch again should fail
+        self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
 
 def suite():
