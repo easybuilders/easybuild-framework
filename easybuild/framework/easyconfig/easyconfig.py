@@ -328,7 +328,7 @@ class EasyConfig(object):
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
-            hidden = build_option('hidden')
+            hidden = self['hidden'] or build_option('hidden')
         self.hidden = hidden
 
         # set installdir/module info
@@ -1233,7 +1233,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 'dependencies': [],
                 'builddependencies': [],
                 'hiddendependencies': [],
-                'hidden': hidden,
+                'hidden': ec.hidden,
             })
             if len(blocks) > 1:
                 easyconfig['original_spec'] = path
