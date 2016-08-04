@@ -898,10 +898,9 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        req_gp_ver = '1.0'
-        if LooseVersion(git.__version__) < LooseVersion(req_gp_ver):
-            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (git.__version__,
-                         req_gp_ver)
+        gp_ver, req_gp_ver = git.__version__, '1.0'
+        if LooseVersion(gp_ver) < LooseVersion(req_gp_ver):
+            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (gp_ver, req_gp_ver)
         else:
             check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
