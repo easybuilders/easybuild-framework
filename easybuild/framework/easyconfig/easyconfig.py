@@ -849,6 +849,8 @@ class EasyConfig(object):
     def _finalize_dependencies(self):
         """Finalize dependency parameters, after initial parsing."""
 
+        filter_deps = build_option('filter_deps')
+
         for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
             # to update the original dep dict, we need to index with idx into self._config[key][0]...
@@ -856,6 +858,10 @@ class EasyConfig(object):
 
                 # reference to original dep dict, this is the one we should be updating
                 orig_dep = self._config[key][0][idx]
+
+                if filter_deps and orig_dep['name'] in filter_deps:
+                    self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
+                    continue
 
                 # minimize toolchains for dependencies with inherited toolchain, if requested
                 # this *must* be done after parsing all dependencies, to avoid problems with templates like %(pyver)s
