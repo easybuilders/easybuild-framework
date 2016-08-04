@@ -41,6 +41,8 @@ import sys
 import tempfile
 import time
 import urllib2
+
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
@@ -866,7 +868,7 @@ def check_github():
             git_check &= attr in dir(git)
 
         if git_check:
-            check_res = "OK"
+            check_res = "OK (GitPython version %s)" % git.__version__
         else:
             check_res = "FAIL (import ok, but module doesn't provide what is expected)"
     else:
@@ -899,7 +901,11 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        check_res = "FAIL (unexpected exception: %s)" % push_err
+        gp_ver, req_gp_ver = git.__version__, '1.0'
+        if LooseVersion(gp_ver) < LooseVersion(req_gp_ver):
+            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (gp_ver, req_gp_ver)
+        else:
+            check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
         check_res = "FAIL (no GitHub user specified)"
 
