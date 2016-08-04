@@ -182,7 +182,7 @@ def get_toolchain_hierarchy(parent_toolchain):
             easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
 
             # include deps and toolchains of deps of this dep
-            for depdep in easyconfig['dependencies']:
+            for depdep in easyconfig.dependencies():
                 cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
 
@@ -646,7 +646,7 @@ class EasyConfig(object):
                 else:
                     self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
                     tc_ec = process_easyconfig(tc_ecfile)[0]
-                    tcdeps = tc_ec['dependencies']
+                    tcdeps = tc_ec['ec'].dependencies()
                     self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
 
             self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'],
