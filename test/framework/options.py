@@ -1491,7 +1491,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # clear log file
         open(self.logfile, 'w').write('')
 
-        # filter deps (including a non-existing dep, i.e. zlib)
+        # hide deps (including a non-existing dep, i.e. zlib)
         args.append('--hide-deps=FFTW,ScaLAPACK,zlib')
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(re.search('module: GCC/4.7.2', outtxt))
@@ -1503,6 +1503,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(r'module: ScaLAPACK/\.2\.0\.2-gompi', outtxt))
         # zlib is not a dep at all
         self.assertFalse(re.search(r'module: zlib', outtxt))
+
+    def test_hide_toolchains(self):
+        """Test use of --hide-toolchains."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec_file = os.path.join(test_ecs_dir, 'gzip-1.6-GCC-4.9.2.eb')
+        args = [
+            ec_file,
+            '--dry-run',
+            '--hide-toolchains=GCC',
+        ]
+        outtxt = self.eb_main(args)
+        self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
+        self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""

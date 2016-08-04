@@ -1802,6 +1802,25 @@ class EasyConfigTest(EnhancedTestCase):
         dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
         self.assertEqual(dep_full_mod_names, expected)
 
+    def test_hidden_toolchain(self):
+        """Test hiding of toolchain via easyconfig parameter."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec_txt = read_file(os.path.join(test_ecs_dir, 'gzip-1.6-GCC-4.9.2.eb'))
+
+        new_tc = "toolchain = {'name': 'GCC', 'version': '4.9.2', 'hidden': True}"
+        ec_txt = re.sub("toolchain = .*", new_tc, ec_txt, re.M)
+
+        ec_file = os.path.join(self.test_prefix, 'test.eb')
+        write_file(ec_file, ec_txt)
+
+        args = [
+            ec_file,
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args)
+        self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
+        self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+
 
 def suite():
     """ returns all the testcases in this module """
