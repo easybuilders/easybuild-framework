@@ -569,14 +569,20 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # we need files to create the PR with
     if paths:
         non_existing_paths = []
+        delete_files = []
         existing_paths = []
         for path in paths:
             if not os.path.exists(path):
-                non_existing_paths.append(path)
+                if path.startswith(':'):
+                    delete_files.append(path[1:])
+                else:
+                    non_existing_paths.append(path)
             else:
                 existing_paths.append(path)
-        #if non_existing_paths:
-            # raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
+
+        if non_existing_paths:
+            raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
+
     else:
         raise EasyBuildError("No paths specified")
 
@@ -604,9 +610,8 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
           temp_files.extend([os.path.join(dirpath, f) for f in filenames])
 
     deleted_paths = []
-    for path in non_existing_paths:
+    for fn in delete_files:
         # check if the file exists in downloaded repo
-        fn = os.path.basename(path)
         found = False
         for temp_file in temp_files:
             if fn in temp_file:
@@ -618,18 +623,11 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # copy edited/added files to right place
     file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
-    # update file_info for deleted files
-    for deleted in deleted_paths:
-        file_info['paths_in_repo'].append(deleted)
-        file_info['new'].append(False)
-        ecs = process_easyconfig(deleted, validate=False)
-        if len(ecs) == 1:
-            file_info['ecs'].append(ecs[0]['ec'])
 
     if len(paths) > 0:
         name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
     else:
-        name_version = os.path.basename(non_existing_paths[0])
+        name_version = os.path.basename(delete_files[0])
 
     # checkout target branch
     if pr_branch is None:
@@ -731,14 +729,19 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        # mention software name/version in PR title (only first 3)
-        names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-        if len(names_and_versions) <= 3:
-            main_title = ', '.join(names_and_versions)
-        else:
-            main_title = ', '.join(names_and_versions[:3] + ['...'])
+        if file_info['ecs']:
+            # mention software name/version in PR title (only first 3)
+            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            if len(names_and_versions) <= 3:
+                main_title = ', '.join(names_and_versions)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
 
-        title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+            title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+        else:
+            raise EasyBuildError("Don't know how to make a PR title for this PR. "
+                                 "Please include a title (use --pr-title)")
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
