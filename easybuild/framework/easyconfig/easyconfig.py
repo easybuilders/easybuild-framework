@@ -167,7 +167,7 @@ def get_toolchain_hierarchy(parent_toolchain):
         # considers deps + toolchains of deps + deps of deps + toolchains of deps of deps
         # consider both version and versionsuffix for dependencies
         cands = []
-        for dep in parsed_ec['dependencies']:
+        for dep in parsed_ec.dependencies():
             # include dep and toolchain of dep as candidates
             cands.extend([
                 {'name': dep['name'], 'version': dep['version'] + dep['versionsuffix']},
