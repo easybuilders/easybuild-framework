@@ -1252,8 +1252,6 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 tc = ec.toolchain.as_dict()
                 _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
                 easyconfig['dependencies'].append(tc)
-                if tc['hidden']:
-                    easyconfig['hiddendependencies'].append(tc)
 
     if cache_key is not None:
         _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
