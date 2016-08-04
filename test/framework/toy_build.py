@@ -743,11 +743,10 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_hidden_easyconfig(self):
         """Test installing a hidden module using the 'hidden = True' easyconfig parameter."""
-        tmpdir = tempfile.mkdtemp()
         # copy toy easyconfig file, and add hiding option to it
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
-        shutil.copy2(ec_file, tmpdir)
-        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
+        shutil.copy2(ec_file, self.test_prefix)
+        ec_file = os.path.join(self.test_prefix, 'toy-0.0.eb')
         write_file(ec_file, "\nhidden = True\n", append=True)
         self.test_toy_build(ec_file=ec_file, verify=False)
         # module file is hidden
@@ -758,7 +757,6 @@ class ToyBuildTest(EnhancedTestCase):
         # installed software is not hidden
         toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
         self.assertTrue(os.path.exists(toybin))
-        shutil.rmtree(tmpdir)
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""
