@@ -623,7 +623,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             if soft_name:
                 patch_specs.append((patch_path, soft_name))
             else:
-                raise EasyBuildError("Failed to determine software name to which patch file %s relates", patch_path)
+                soft_name = scan_all_easyconfigs(patch_file)
+                if not soft_name:
+                    raise EasyBuildError("Failed to determine software name to which patch file %s relates", patch_path)
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
@@ -691,6 +693,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
                                  pr_branch, my_remote, github_url)
 
     return file_info, git_repo, pr_branch, diff_stat
+
+
+def scan_all_easyconfigs(patch_name):
+    return None
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
