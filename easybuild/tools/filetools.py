@@ -721,10 +721,9 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
 
     if ec:
-        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, out, result)
+        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
 
-    result = ec == 0
-    return result
+    return ec == 0
 
 
 def apply_regex_substitutions(path, regex_subs):

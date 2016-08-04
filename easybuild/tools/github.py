@@ -302,6 +302,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
+
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
@@ -345,11 +346,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if (stable or pr_data['merged']) and not closed:
         # whether merged or not, download develop
-        develop = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
-        if not os.path.isdir(develop):
-            raise EasyBuildError("Downloading of %s/develop branch failed: not found in %s",
-                                  GITHUB_EASYCONFIGS_REPO, develop)
-        path = develop
+        path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
@@ -375,7 +372,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if not(pr_data['merged']):
         if not stable or closed:
-            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s***\n" % pr
+            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s ***\n" % pr
         # obtain most recent version of patched files
         for patched_file in patched_files:
             # path to patch file, incl. subdir it is in
@@ -386,16 +383,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
             download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
 
     # sanity check: make sure all patched files are downloaded
-    all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
-
-    tmp_files = []
-    for (dirpath, _, filenames) in os.walk(path):
-        tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
-
-    for patched in all_files:
-        if not patched in tmp_files:
-            raise EasyBuildError("Couldn't find file in %s: %s", path, patched)
-
     ec_files = []
     for patched in patched_files:
         if os.path.exists(os.path.join(path, patched)):
@@ -403,7 +390,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         else:
             raise EasyBuildError("Coudln't find path to patched file %s", os.path.join(path, f))
 
-    print ec_files
     return ec_files
 
 
