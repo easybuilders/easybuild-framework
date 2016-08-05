@@ -69,6 +69,11 @@ class TypeCheckingTest(EnhancedTestCase):
         # check type checking of toolchain (non-trivial type: dict with only name/version keys & string values)
         toolchain = {'name': 'goolf', 'version': '1.4.10'}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        # check type checking of toolchain (non-trivial type: dict with name/version keys & string values + hidden spec)
+        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': True}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': False}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
         # missing 'version' key
         self.assertEqual(check_type_of_param_value('toolchain', {'name': 'intel'}), (False, None))
         # non-string value for 'version'
@@ -78,6 +83,9 @@ class TypeCheckingTest(EnhancedTestCase):
         # check auto-converting of toolchain value
         toolchain = {'name': 'intel', 'version': '2015a'}
         for tcspec in ["intel, 2015a", ['intel', '2015a'], toolchain]:
+            self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
+        toolchain = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        for tcspec in ["intel, 2015a, True", ['intel', '2015a', 'True'], toolchain]:
             self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
 
     def test_check_type_of_param_value_deps(self):
