@@ -1366,7 +1366,7 @@ def det_easyconfig_location(path, target_dir, soft_name, target_file):
     @param path: path of file to copy
     @param target_dir: (parent) target directory, should contain easybuild/easyconfigs subdirectory
     @param soft_name: software name (to determine location to copy to)
-    @aram target_file: target file name
+    @param target_file: target file name
     @return: full path to the right location
     """
     subdir = os.path.join('easybuild', 'easyconfigs')
@@ -1433,17 +1433,25 @@ def copy_patch_files(patch_specs, target_dir):
     @param patch_specs: list of tuples with patch file location and name of software they are for
     @param target_dir: target directory
     """
-    patched_files = []
+    patched_files = {
+        'files': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
     for patch_path, soft_name in patch_specs:
         target_path = det_easyconfig_location(patch_path, target_dir, soft_name, os.path.basename(patch_path))
-        patched_files.append(target_path)
+        patched_files['new'].append(not os.path.exists(target_path))
 
         try:
             mkdir(os.path.dirname(target_path), parents=True)
             shutil.copy2(patch_path, target_path)
             _log.info("%s copied to %s", patch_path, target_path)
+
         except OSError as err:
             raise EasyBuildError("Failed to copy %s to %s: %s", patch_path, target_path, err)
+
+        patched_files['files'].append(os.path.splitext(os.path.basename(patch_path))[0])
+        patched_files['paths_in_repo'].append(target_path)
 
     return patched_files
 

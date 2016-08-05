@@ -44,7 +44,7 @@ import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, copy_easyconfigs, copy_patch_files
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file, is_patch_file, mkdir, read_file
@@ -618,13 +618,16 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
                     soft_name = ec.name
                     break
 
-            # FIXME: try harder if software name wasn't found yet?
-
             if soft_name:
                 patch_specs.append((patch_path, soft_name))
             else:
+                # fall back on scanning all eb files for patches
+                print "Matching easyconfig not found: determining where patch file belongs (this may take a while)..."
                 soft_name = scan_all_easyconfigs(patch_file)
-                if not soft_name:
+                if soft_name:
+                    patch_specs.append((patch_path, soft_name))
+                else:
+                    # still nothing found
                     raise EasyBuildError("Failed to determine software name to which patch file %s relates", patch_path)
 
         print_msg("copying patch files to %s..." % target_dir)
@@ -632,8 +635,12 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # checkout target branch
     if pr_branch is None:
-        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+        if ec_paths:
+            name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+        else:
+            name_version = patch_info['files'][0]
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
+
 
     # create branch to commit to and push;
     # use force to avoid errors if branch already exists (OK since this is a local temporary copy of the repo)
@@ -645,8 +652,8 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     git_repo.index.add(file_info['paths_in_repo'])
 
     if patch_paths:
-        _log.debug("Staging all %d new/modified patch files", len(patch_info))
-        git_repo.index.add(patch_info)
+        _log.debug("Staging all %d new/modified patch files", len(patch_info['files']))
+        git_repo.index.add(patch_info['paths_in_repo'])
 
     # overview of modifications
     if build_option('extended_dry_run'):
@@ -692,11 +699,39 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  pr_branch, my_remote, github_url)
 
-    return file_info, git_repo, pr_branch, diff_stat
+    return file_info, patch_info, git_repo, pr_branch, diff_stat
 
 
-def scan_all_easyconfigs(patch_name):
-    return None
+def scan_all_easyconfigs(patch_names):
+    """
+    Scan all easyconfigs in the robot path to determine which software a patch file belongs to
+
+    @param patch_name: name of the patch file
+    """
+    robot_path = build_option('robot_path')[0]
+    soft_name = ""
+    found = False
+    counter = 0
+    for (dirpath, _, filenames) in os.walk(robot_path):
+        if found:
+            break
+        for filename in [fn for fn in filenames if ".eb" in fn]:
+            rawtxt = read_file(os.path.join(dirpath, filename))
+            if "patches" in rawtxt and "TEMPLATE" not in filename:
+                try:
+                    ec = EasyConfig(os.path.join(dirpath, filename), validate=False)
+                    ec._generate_template_values()
+                    if patch_name in ec.asdict()['patches']:
+                        soft_name = ec.asdict()['name']
+                        found = True
+                except EasyBuildError:
+                    pass
+            sys.stdout.write('\r%s easyconfigs checked' % counter)
+            sys.stdout.flush()
+            counter = counter+1
+
+    print ''
+    return soft_name
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -721,9 +756,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
-                                                                    target_account=pr_target_account,
-                                                                    commit_msg=commit_msg)
+    file_info, patch_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+                                                                                target_account=pr_target_account,
+                                                                                commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
@@ -735,15 +770,24 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
-    if title is None:
-        # mention software name/version in PR title (only first 3)
-        names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-        if len(names_and_versions) <= 3:
-            main_title = ', '.join(names_and_versions)
-        else:
-            main_title = ', '.join(names_and_versions[:3] + ['...'])
 
-        title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+    if title is None:
+        if file_info['ecs']:
+            # mention software name/version in PR title (only first 3)
+            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            if len(names_and_versions) <= 3:
+                main_title = ', '.join(names_and_versions)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+            title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+        elif patch_info['files']:
+            if len(patch_info['files']) <= 3:
+                title = ', '.join(patch_info['files'])
+            else:
+                title = ', '.join(patch_info['files'][:3] + ['...'])
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
@@ -809,7 +853,7 @@ def update_pr(pr, paths, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
+    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
                                                 target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
