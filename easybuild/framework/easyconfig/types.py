@@ -447,7 +447,6 @@ TOOLCHAIN_DICT = (dict, as_hashable({
     'opt_keys': ['hidden'],
     'req_keys': ['name', 'version'],
 }))
-NAME_VERSION_DICT = TOOLCHAIN_DICT    # *DEPRECATED* in favor of TOOLCHAIN_DICT
 DEPENDENCY_DICT = (dict, as_hashable({
     'elem_types': {
         'full_mod_name': [str],
