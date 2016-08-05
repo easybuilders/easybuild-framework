@@ -256,7 +256,7 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_name_version_dict(spec):
+def to_toolchain_dict(spec):
     """
     Convert a comma-separated string or 2/3-element list of strings to a dictionary with name/version keys, and
     optionally a hidden key. If the specified value is a dict already, the keys are checked to be only
@@ -279,7 +279,7 @@ def to_name_version_dict(spec):
         elif len(spec) == 3:
             res = {'name': spec[0].strip(), 'version': spec[1].strip(), 'hidden': strtobool(spec[2].strip())}
         else:
-            raise EasyBuildError("Can not convert list %s to name and version dict. Expected 2 or 3 elements", spec)
+            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 or 3 elements", spec)
 
     elif isinstance(spec, dict):
         # already a dict, check keys
@@ -291,9 +291,15 @@ def to_name_version_dict(spec):
                                  spec)
 
     else:
-        raise EasyBuildError("Conversion of %s (type %s) to name and version dict is not supported", spec, type(spec))
+        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", spec, type(spec))
 
     return res
+
+
+def to_name_version_dict(spec):
+    """Deprecated in favor of to_toolchain_dict."""
+    _log.deprecated("to_name_version_dict; use to_toolchain_dict instead.", '2.9')
+    return to_toolchain_dict(spec)
 
 
 def to_list_of_strings_and_tuples(spec):
@@ -378,7 +384,7 @@ def to_dependency(dep):
                 if key in ['name', 'version', 'versionsuffix']:
                     depspec[key] = str(value)
                 elif key == 'toolchain':
-                    depspec['toolchain'] = to_name_version_dict(value)
+                    depspec['toolchain'] = to_toolchain_dict(value)
                 elif not found_name_version:
                     depspec.update({'name': key, 'version': str(value)})
                 else:
@@ -430,9 +436,9 @@ def to_checksums(checksums):
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
-# specific type: dict with only name/version as keys, and with string values
+# specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
-NAME_VERSION_DICT = (dict, as_hashable({
+TOOLCHAIN_DICT = (dict, as_hashable({
     'elem_types': {
         'hidden': [bool],
         'name': [str],
@@ -441,12 +447,13 @@ NAME_VERSION_DICT = (dict, as_hashable({
     'opt_keys': ['hidden'],
     'req_keys': ['name', 'version'],
 }))
+NAME_VERSION_DICT = TOOLCHAIN_DICT    # *DEPRECATED* in favor of TOOLCHAIN_DICT
 DEPENDENCY_DICT = (dict, as_hashable({
     'elem_types': {
         'full_mod_name': [str],
         'name': [str],
         'short_mod_name': [str],
-        'toolchain': [NAME_VERSION_DICT],
+        'toolchain': [TOOLCHAIN_DICT],
         'version': [str],
         'versionsuffix': [str],
     },
@@ -467,7 +474,7 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 }))
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_PATHS_DICT,
+CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
                   STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
@@ -480,7 +487,7 @@ PARAMETER_TYPES = {
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
-    'toolchain': NAME_VERSION_DICT,
+    'toolchain': TOOLCHAIN_DICT,
     'version': basestring,
 }
 # add all dependency types as dependencies
@@ -494,7 +501,7 @@ TYPE_CONVERSION_FUNCTIONS = {
     str: str,
     CHECKSUMS: to_checksums,
     DEPENDENCIES: to_dependencies,
-    NAME_VERSION_DICT: to_name_version_dict,
+    TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
     STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
 }
