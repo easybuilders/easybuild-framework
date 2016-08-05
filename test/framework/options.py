@@ -2350,6 +2350,35 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_new_pr_delete(self):
+        if self.github_token is None:
+            print "Skipping test_new_pr_delete, no GitHub token available?"
+            return
+
+        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
+        args = [
+            '--new-pr',
+            '--experimental',
+            ':bzip2-1.0.6.eb',
+            '-D',
+            '--disable-cleanup-tmpdir',
+            '--pr-title=delete bzip2-1.6.0',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r'title: "delete bzip2-1.6.0"',
+            r"1 file changed, [0-9]+ deletions\(-\)",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+
     def test_show_config(self):
         """"Test --show-config and --show-full-config."""
 
