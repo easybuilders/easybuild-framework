@@ -385,6 +385,11 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         else:
             apply_patch(diff_filepath, path, level=1)
 
+    # FIXME: easyconfigs are expected to be located directly in 'path', not in a subdirectory deeper down
+    # this path was added to the robot search path, so we should stick to this
+    # TODO: copy patched files from (patched) develop download to 'path' unless they were downloaded from the PR branch,
+    # and somehow also include develop in the robot search path (required for deps...)
+
     os.remove(diff_filepath)
 
     # sanity check: make sure all patched files are downloaded
