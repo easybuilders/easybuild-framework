@@ -79,7 +79,8 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None, hidden=False):
+    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None,
+                 hidden=False):
         """
         Toolchain constructor.
 

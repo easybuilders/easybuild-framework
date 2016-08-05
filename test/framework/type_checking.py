@@ -198,14 +198,21 @@ class TypeCheckingTest(EnhancedTestCase):
     def test_to_name_version_dict(self):
         """ Test toolchain string to dict conversion """
         # normal cases
-        self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version_dict("intel, 2015a, True"), {'name': 'intel', 'version': '2015a', 'hidden': True})
         self.assertEqual(to_name_version_dict(('intel', '2015a')), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version_dict(('intel', '2015a', 'True')), {'name': 'intel', 'version': '2015a', 'hidden': True})
+        self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
         self.assertEqual(to_name_version_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
-        self.assertEqual(to_name_version_dict(['gcc', '4.7', 'True']), {'name': 'gcc', 'version': '4.7', 'hidden': True})
+
+        # incl. hidden spec
+        expected = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        self.assertEqual(to_name_version_dict("intel, 2015a, True"), expected)
+        expected = {'name': 'intel', 'version': '2015a', 'hidden': False}
+        self.assertEqual(to_name_version_dict(('intel', '2015a', 'False')), expected)
+        expected = {'name': 'gcc', 'version': '4.7', 'hidden': True}
+        self.assertEqual(to_name_version_dict(['gcc', '4.7', 'True']), expected)
+
         tc = {'name': 'intel', 'version': '2015a'}
         self.assertEqual(to_name_version_dict(tc), tc)
+
         tc = {'name': 'intel', 'version': '2015a', 'hidden': True}
         self.assertEqual(to_name_version_dict(tc), tc)
 
@@ -217,7 +224,7 @@ class TypeCheckingTest(EnhancedTestCase):
         errstr = "Can not convert .* to name and version .*. Expected 2 or 3 elements"
         self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, True, a")
         self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', 'True', '7'])
+        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', 'False', '7'])
 
         # invalid truth value
         errstr = "invalid truth value .*"
