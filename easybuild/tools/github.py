@@ -379,6 +379,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
                 sha = last_commit['sha']
                 full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
                 _log.info("Downloading %s from %s" % (fn, full_url))
+                download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
         else:
             apply_patch(diff_filepath, path, level=1)
 
@@ -390,7 +391,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         if os.path.exists(os.path.join(path, patched)):
             ec_files.append(os.path.join(path, patched))
         else:
-            raise EasyBuildError("Coudln't find path to patched file %s", os.path.join(path, f))
+            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, patched))
 
     return ec_files
 
