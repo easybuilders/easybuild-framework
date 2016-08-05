@@ -298,7 +298,7 @@ def to_toolchain_dict(spec):
 
 def to_name_version_dict(spec):
     """Deprecated in favor of to_toolchain_dict."""
-    _log.deprecated("to_name_version_dict; use to_toolchain_dict instead.", '2.9')
+    _log.deprecated("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
     return to_toolchain_dict(spec)
 
 
