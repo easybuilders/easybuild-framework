@@ -49,8 +49,8 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -87,6 +87,7 @@ GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
+GITHUB_PR = 'pull'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
@@ -303,6 +304,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
+
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
@@ -315,6 +317,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
+
     if github_user is None:
         github_user = build_option('github_user')
     if path is None:
@@ -334,24 +337,30 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
-    # 'clean' on successful (or missing) test, 'unstable' on failed tests
+    # if PR is open and mergable, download develop and patch
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
+    closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_data['merged']
+
+    # 'clean' on successful (or missing) test, 'unstable' on failed tests or merge conflict
     if not stable:
         _log.warning("Mergeable state for PR #%d is not '%s': %s.",
                      pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
-    for key, val in sorted(pr_data.items()):
-        _log.debug("\n%s:\n\n%s\n" % (key, val))
+    if (stable or pr_data['merged']) and not closed:
+        # whether merged or not, download develop
+        path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
     diff_filepath = os.path.join(path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
-    os.remove(diff_filepath)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
+
+    for key, val in sorted(pr_data.items()):
+        _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
@@ -362,28 +371,32 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
-    # obtain most recent version of patched files
-    for patched_file in patched_files:
-        # path to patch file, incl. subdir it is in
-        fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
-        sha = last_commit['sha']
-        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
-        _log.info("Downloading %s from %s" % (fn, full_url))
-        download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+    if not(pr_data['merged']):
+        if not stable or closed:
+            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s ***\n" % pr
+            # obtain most recent version of patched files
+            for patched_file in patched_files:
+                # path to patch file, incl. subdir it is in
+                fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
+                sha = last_commit['sha']
+                full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
+                _log.info("Downloading %s from %s" % (fn, full_url))
+                download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
+        else:
+            apply_patch(diff_filepath, path, level=1)
+
+    os.remove(diff_filepath)
 
     # sanity check: make sure all patched files are downloaded
-    all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
-
-    tmp_files = []
-    for (dirpath, _, filenames) in os.walk(path):
-        tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
-
-    if not sorted(tmp_files) == sorted(all_files):
-        raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
-
-    ec_files = [os.path.join(path, f) for f in tmp_files]
+    ec_files = []
+    for patched in patched_files:
+        if os.path.exists(os.path.join(path, patched)):
+            ec_files.append(os.path.join(path, patched))
+        else:
+            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, patched))
 
     return ec_files
+
 
 
 def create_gist(txt, fn, descr=None, github_user=None):
