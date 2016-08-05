@@ -699,10 +699,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  pr_branch, my_remote, github_url)
 
-    return file_info, patch_info, git_repo, pr_branch, diff_stat
+    return file_info, git_repo, pr_branch, diff_stat
 
 
-def scan_all_easyconfigs(patch_names):
+def scan_all_easyconfigs(patch_name):
     """
     Scan all easyconfigs in the robot path to determine which software a patch file belongs to
 
@@ -756,9 +756,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, patch_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
-                                                                                target_account=pr_target_account,
-                                                                                commit_msg=commit_msg)
+    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+                                                                    target_account=pr_target_account,
+                                                                    commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
@@ -769,7 +769,6 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     classes = [ec['moduleclass'] for ec in file_info['ecs']]
     classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
 
 
     if title is None:
@@ -783,11 +782,10 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
 
             title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
 
-        elif patch_info['files']:
-            if len(patch_info['files']) <= 3:
-                title = ', '.join(patch_info['files'])
-            else:
-                title = ', '.join(patch_info['files'][:3] + ['...'])
+        else:
+            raise EasyBuildError("Don't know how to make a PR title for this PR. "
+                                 "Please include a title (use --pr-title)")
+
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
@@ -853,7 +851,7 @@ def update_pr(pr, paths, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
+    _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
                                                 target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
