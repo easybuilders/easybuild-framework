@@ -2350,6 +2350,49 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+
+    def test_new_pr_dependencies(self):
+        """Test use of --new-pr to delete easyconfigs."""
+
+        if self.github_token is None:
+            print "Skipping test_new_pr_dependencies, no GitHub token available?"
+            return
+
+        # copy toy test easyconfig
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        openmpi = os.path.join(self.test_prefix, 'OpenMPI-1.6.4-GCC-4.7.2.eb')
+        shutil.copy2(os.path.join(test_ecs_dir, 'OpenMPI-1.6.4-GCC-4.7.2.eb'), openmpi)
+        hwloc_ec = os.path.join(self.test_prefix, 'hwloc-1.6.2-GCC-4.7.2.eb')
+        hwloc_txt = read_file(os.path.join(test_ecs_dir, 'hwloc-1.6.2-GCC-4.7.2.eb'))
+        comment = "# a comment"
+        write_file(hwloc_ec, '\n'.join([comment, hwloc_txt]))
+
+
+        args = [
+            '--new-pr',
+            '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            openmpi,
+            '-D',
+            '--disable-cleanup-tmpdir',
+        ]
+
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^\* overview of changes:",
+            r".*/hwloc-1.6.2-GCC-4.7.2.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/OpenMPI-1.6.4-GCC-4.7.2.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*2 files changed",
+        ]
+
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_show_config(self):
         """"Test --show-config and --show-full-config."""
 
