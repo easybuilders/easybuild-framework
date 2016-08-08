@@ -50,6 +50,12 @@ function usage {
   printf "\n  Note: the current user will be moved into the container, and will be used to bootstrap EasyBuild\n"
   printf "\n  If the current user is not a member of the specified group, that might be a problem.\n"
   printf "\n  Ex: %s --image-name ubuntu:14.04/amd64 --container-name eb-trusty-master --toolchain foss-2016a\n\n" "$0"
+  printf "\nExplanation:\n"
+  printf "\n  This script uses the LXC/LXD system found in Ubuntu to create a container of the specified image."
+  printf "\n  It then populates that container with EasyBuild and Lmod (and requried dependencies)."
+  printf "\n  It should work for a single user w/o having to enter user/group information, but we use it within a"
+  printf "\n  group and therefore have multiple users who will instantiate the resulting container to do easyconfig"
+  printf "\n  building or dev work.\n"
   exit 1
 }
 # debugging
