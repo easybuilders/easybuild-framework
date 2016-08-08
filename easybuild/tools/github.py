@@ -31,6 +31,7 @@ Utility module for working with github
 """
 import base64
 import getpass
+import glob
 import os
 import random
 import re
@@ -348,11 +349,14 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if (stable or pr_data['merged']) and not closed:
         # whether merged or not, download develop
-        path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
+        dl_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
+
+    else:
+        dl_path = path
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
-    diff_filepath = os.path.join(path, diff_fn)
+    diff_filepath = os.path.join(dl_path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
 
@@ -383,17 +387,25 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
                 _log.info("Downloading %s from %s" % (fn, full_url))
                 download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
         else:
-            apply_patch(diff_filepath, path, level=1)
+            apply_patch(diff_filepath, dl_path, level=1)
+
+    if dl_path != path:
+        for eb_file in glob.glob(os.path.join(dl_path, 'easybuild', 'easyconfigs', '*')):
+            os.symlink(eb_file, os.path.join(path, os.path.basename(eb_file)))
+        check_path = dl_path
+
+    else:
+        check_path = path
 
     os.remove(diff_filepath)
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []
     for patched in patched_files:
-        if os.path.exists(os.path.join(path, patched)):
-            ec_files.append(os.path.join(path, patched))
+        if os.path.exists(os.path.join(check_path, patched)):
+            ec_files.append(os.path.join(check_path, patched))
         else:
-            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, patched))
+            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(check_path, patched))
 
     return ec_files
 
