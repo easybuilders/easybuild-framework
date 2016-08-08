@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
+# python3 declarations for python2
+from __future__ import absolute_import,division,print_function,unicode_literals
+
 import sys,os,re,time
 import json,requests
 import shutil
+
+import xmlrpclib
 
 # global dictionary of R packages and their respective dependencies
 r_dict={}
@@ -15,7 +20,7 @@ def cran_version(package):
    if package not in r_dict:
       cran_url="http://crandb.r-pkg.org/"
 
-      print("cran url",cran_url+package)
+      #print("cran url",cran_url+package)
       resp=requests.get(url=cran_url+package)
       data=json.loads(resp.text)
       try:
@@ -28,17 +33,17 @@ def cran_version(package):
                depends.remove('R')
             if len(depends) > 0:
                dependency_list = dependency_list + depends
-               print("Depends:",depends)
+               #print("Depends:",depends)
          if u'Imports' in data:
             imports = data[u'Imports'].keys()
             if len(imports) > 0:
                dependency_list = dependency_list + imports
-               print("Imports:",imports)
+               #print("Imports:",imports)
          if len(dependency_list) > 0:
             r_dict[package].append(list(set(dependency_list)))
       except KeyError:
          print("Warning: could not find R package:",package)
-         print("CRAN response:",data)
+         #print("CRAN response:",data)
          r_dict[package]=[]
  
    return r_dict[package]
@@ -63,19 +68,17 @@ def pypi_version(package):
    global py_dict
 
    if package not in py_dict:
-      pypi_url="http://pypi.python.org/pypi/"
-
-      #print("pypi url",pypi_url+package+"/json")
-      resp=requests.get(url=pypi_url+package+"/json")
-      try:
-         data=json.loads(resp.text)
-         py_dict[package]=[data['info']['version']]
-         if 'requires_dist' in data['info']:
-            req=parse_pypi_requires(data['info']['requires_dist'])
+      client=xmlrpclib.ServerProxy('https://pypi.python.org/pypi')
+      xml_vers=client.package_releases(package)
+      if xml_vers:
+         py_dict[package]=[xml_vers[0]]
+         xml_info=client.release_data(package,xml_vers[0])
+         if 'requires_dist' in xml_info:
+            req=parse_pypi_requires(xml_info['requires_dist'])
             if req:
                py_dict[package].append(req)
                #print("requires_dist:",req)
-      except:
+      else:
          print("Warning: could not find Python package:",package)
          py_dict[package]=[]
 
@@ -83,6 +86,9 @@ def pypi_version(package):
   
 def q(s):
    return("'"+s+"'")
+
+def s(s):
+   return("/"+s+"/")
 
 # write simplest R exts_list record
 # fp, 3 params from original, new version
@@ -96,7 +102,7 @@ def get_temp():
 def update_updated():
    return('# package versions updated '+time.strftime("%b %d %Y")+'\n')
 
-def parse_ez(ez_file,parse_func):
+def parse_ez(ez_file,parse_func,suffix=".updated"):
    not_exts_list=True
    changes=0
    pkgs=[]
@@ -127,7 +133,7 @@ def parse_ez(ez_file,parse_func):
             f_out.write(line)
 
    if changes>0:
-      shutil.move(temp,ez_file)
+      shutil.move(temp,ez_file+suffix)
    else:
       os.remove(temp)
 
@@ -139,19 +145,19 @@ def parse_r_params(params,indent,f_out,pkgs):
    current=cran_version(params[0])
      
    # 2 items means dependency list 
-   print(params[0],"cran_version returned",len(current))
+   #print(params[0],"cran_version returned",len(current))
    if len(current)==2:
-      print(params[0],"needs",current[1])
+      #print(params[0],"needs",current[1])
       missing=list(set(current[1])-set(pkgs))
       for m in missing:
-         print("missing",m)
+         #print("missing",m)
          changed=parse_r_params([m,"0","ext_options"],indent,f_out,pkgs)
          if changed>0:
             pkgs.append(m)
             changes=changes+changed
 
    if current!=[] and params[1]!=current[0]:
-      print("wrote",params[0],"to file! version",params[1],"to",current[0])
+      #print("wrote",params[0],"to file! version",params[1],"to",current[0])
       write3(f_out,indent,params,current[0])
       changes=changes+1
 
@@ -193,7 +199,7 @@ def create_py_group(package):
 
    new_entry=py_template
    new_entry[0][1]="("+q(package)+", '0', {"
-   new_entry[1][1]="'source_urls': ["+q(pypi_url+package[0]+'/'+package+'/],')
+   new_entry[1][1]="'source_urls': ["+q(pypi_url+package[0]+s(package))+'],'
 
    return new_entry
 
@@ -210,7 +216,7 @@ def dump_py_group(f,group,finalize=False):
 # if not dump to file else
 # get package version, etc
 def parse_py_group(f,group,pkgs):
-   print("DEBUG: parse_py_group: ",repr(group))
+   #print("DEBUG: parse_py_group: ",repr(group))
    params_re="([^', \(\)]+)"
 
    params=re.findall(params_re,group[0][1])
@@ -230,13 +236,12 @@ def parse_py_group(f,group,pkgs):
       # if package has associated dependencies
       if len(current)==2:
          missing=list(set(current[1])-set(pkgs))
-         print("parent",group)
+         #print("parent",group)
          for m in missing:
-            print("missing",m)
+            #print("missing",m)
             m_group=create_py_group(m)
-            print("m_group",m_group)
+            #print("m_group",m_group)
             dump_py_group(f,m_group,True)
-            #parse_py_group(f,m_group,pkgs)
 
       if current==[] or current[0]==params[1]:
          dump_py_group(f,group)
@@ -269,7 +274,7 @@ def parse_py(cleaned,indent,changes,f_out,pkgs):
 
 def main(args):
    if len(args)==0:
-      print("Usage: ezupdate <R- or Python- .eb file(s)>")
+      print("Usage: update_exts <R- or Python- .eb file(s)>")
    else:
       for arg in args:
          base=os.path.basename(arg)
