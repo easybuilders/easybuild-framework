@@ -607,8 +607,6 @@ class RobotTest(EnhancedTestCase):
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
-        # put gompi-2015a.eb easyconfig in place that shouldn't be considered (paths via --from-pr have precedence)
-        write_file(os.path.join(self.test_prefix, 'gompi-2015a.eb'), gompi_2015a_txt)
 
         args = [
             os.path.join(test_ecs_path, 'toy-0.0.eb'),
