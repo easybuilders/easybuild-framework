@@ -26,14 +26,14 @@
 """
 Easyconfig module that contains the EasyConfig class.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Alan O'Cais (Juelich Supercomputing Centre)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Alan O'Cais (Juelich Supercomputing Centre)
 """
 
 import copy
@@ -141,7 +141,7 @@ def get_toolchain_hierarchy(parent_toolchain):
     The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
     build option is enabled.
 
-    @param parent_toolchain: dictionary with name/version of parent toolchain
+    :param parent_toolchain: dictionary with name/version of parent toolchain
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
@@ -238,13 +238,13 @@ class EasyConfig(object):
                  auto_convert_value_types=True):
         """
         initialize an easyconfig.
-        @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
-        @param extra_options: dictionary with extra variables that can be set for this specific instance
-        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
-        @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
-        @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
-        @param rawtxt: raw contents of easyconfig file
-        @param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
+        :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
+        :param extra_options: dictionary with extra variables that can be set for this specific instance
+        :param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
+        :param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
+        :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        :param rawtxt: raw contents of easyconfig file
+        :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
         """
         self.template_values = None
@@ -729,8 +729,8 @@ class EasyConfig(object):
         ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden',
          'external_module']
 
-        @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
-        @param build_only: indicate whether this is a build-only dependency
+        :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        :param build_only: indicate whether this is a build-only dependency
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -1189,10 +1189,10 @@ def resolve_template(value, tmpl_dict):
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
-    @param path: path to easyconfig file
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    @param validate: whether or not to perform validation
-    @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+    :param path: path to easyconfig file
+    :param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    :param validate: whether or not to perform validation
+    :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 

@@ -25,7 +25,7 @@
 """
 EasyBuild support for gmpich2 compiler toolchain (includes GCC and MPICH2).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gcc import GccToolchain

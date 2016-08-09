@@ -27,8 +27,8 @@ This describes the easyconfig format version 1.X
 
 This is the original pure python code, to be exec'ed rather then parsed
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -128,10 +128,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         Construct formatted string representation of iterable parameter (list/tuple/dict), including comments.
 
-        @param param_name: parameter name
-        @param param_val: parameter value
-        @param outer: reformat for top-level parameter, or not
-        @param addlen: # characters to add to line length
+        :param param_name: parameter name
+        :param param_val: parameter value
+        :param outer: reformat for top-level parameter, or not
+        :param addlen: # characters to add to line length
         """
         param_strval = str(param_val)
         res = param_strval
@@ -252,10 +252,10 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         Dump easyconfig in format v1.
 
-        @param ecfg: EasyConfig instance
-        @param default_values: default values for easyconfig parameters
-        @param templ_const: known template constants
-        @param templ_val: known template values
+        :param ecfg: EasyConfig instance
+        :param default_values: default values for easyconfig parameters
+        :param templ_const: known template constants
+        :param templ_val: known template values
         """
         # include header comments first
         dump = self.comments['header'][:]
