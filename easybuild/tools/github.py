@@ -31,7 +31,6 @@ Utility module for working with github
 """
 import base64
 import getpass
-import glob
 import os
 import random
 import re
