@@ -137,6 +137,8 @@ class GithubTest(EnhancedTestCase):
             for (dirpath, _, filenames) in os.walk(tmpdir):
                 tmp_files.extend([f for f in filenames])
 
+            print ec_files
+            print tmp_files
             self.assertTrue(all(ecf in tmp_files for ecf in [os.path.basename(f) for f in ec_files]))
 
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
