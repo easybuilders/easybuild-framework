@@ -945,7 +945,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
                 (test_ecs_path, 'toy/0.0'),  # not included in PR
-                (test_ecs_path, 'GCC/4.9.2'),  # not included in PR
+                (tmpdir, 'GCC/4.9.2'),  # not included in PR
                 (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
                 (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
                 (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
