@@ -2259,10 +2259,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # purposely picked one with non-default toolchain/versionsuffix
         shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
 
-        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
         args = [
             '--new-pr',
             '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
             '-D',
             '--disable-cleanup-tmpdir',
@@ -2329,6 +2329,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # we need a PR where the base branch is still available ('develop', in this case)
             '--update-pr=2237',
             '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
             '-D',
             # only to speed things up
@@ -2351,14 +2352,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_delete(self):
+        """Test use of --new-pr to delete easyconfigs."""
+
         if self.github_token is None:
             print "Skipping test_new_pr_delete, no GitHub token available?"
             return
 
-        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
         args = [
             '--new-pr',
             '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             ':bzip2-1.0.6.eb',
             '-D',
             '--disable-cleanup-tmpdir',
