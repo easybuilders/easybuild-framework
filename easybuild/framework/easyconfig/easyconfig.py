@@ -167,7 +167,7 @@ def get_toolchain_hierarchy(parent_toolchain):
         # considers deps + toolchains of deps + deps of deps + toolchains of deps of deps
         # consider both version and versionsuffix for dependencies
         cands = []
-        for dep in parsed_ec['dependencies']:
+        for dep in parsed_ec['ec'].dependencies():
             # include dep and toolchain of dep as candidates
             cands.extend([
                 {'name': dep['name'], 'version': dep['version'] + dep['versionsuffix']},
@@ -182,7 +182,7 @@ def get_toolchain_hierarchy(parent_toolchain):
             easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
 
             # include deps and toolchains of deps of this dep
-            for depdep in easyconfig['dependencies']:
+            for depdep in easyconfig.dependencies():
                 cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
 
@@ -328,7 +328,7 @@ class EasyConfig(object):
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
-            hidden = build_option('hidden')
+            hidden = self['hidden'] or build_option('hidden')
         self.hidden = hidden
 
         # set installdir/module info
@@ -646,7 +646,7 @@ class EasyConfig(object):
                 else:
                     self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
                     tc_ec = process_easyconfig(tc_ecfile)[0]
-                    tcdeps = tc_ec['dependencies']
+                    tcdeps = tc_ec['ec'].dependencies()
                     self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
 
             self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'],
@@ -849,6 +849,8 @@ class EasyConfig(object):
     def _finalize_dependencies(self):
         """Finalize dependency parameters, after initial parsing."""
 
+        filter_deps = build_option('filter_deps')
+
         for key in DEPENDENCY_PARAMETERS:
             # loop over a *copy* of dependency dicts (with resolved templates);
             # to update the original dep dict, we need to index with idx into self._config[key][0]...
@@ -856,6 +858,10 @@ class EasyConfig(object):
 
                 # reference to original dep dict, this is the one we should be updating
                 orig_dep = self._config[key][0][idx]
+
+                if filter_deps and orig_dep['name'] in filter_deps:
+                    self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
+                    continue
 
                 # minimize toolchains for dependencies with inherited toolchain, if requested
                 # this *must* be done after parsing all dependencies, to avoid problems with templates like %(pyver)s
@@ -1227,7 +1233,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 'dependencies': [],
                 'builddependencies': [],
                 'hiddendependencies': [],
-                'hidden': hidden,
+                'hidden': ec.hidden,
             })
             if len(blocks) > 1:
                 easyconfig['original_spec'] = path

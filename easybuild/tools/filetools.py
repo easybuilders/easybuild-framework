@@ -718,11 +718,12 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    result = run.run_cmd(patch_cmd, simple=True, path=adest)
-    if not result:
-        raise EasyBuildError("Patching with patch %s failed", patch_file)
+    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
 
-    return result
+    if ec:
+        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
+
+    return ec == 0
 
 
 def apply_regex_substitutions(path, regex_subs):
