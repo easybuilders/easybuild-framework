@@ -64,6 +64,7 @@ _log = fancylogger.getLogger('tools.docs')
 
 
 INDENT_4SPACES = ' ' * 4
+INDENT_2SPACES = ' ' * 2
 
 DETAILED = 'detailed'
 SIMPLE = 'simple'
@@ -412,9 +413,15 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
             txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
                         format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
         else:
-            txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth + format_strings['sep'] + class_name)
+            txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
+                       format_strings['sep'] + class_name)
         if 'children' in class_info:
-            txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
+            if len(class_info['children']) > 0:
+                if format_strings.get('newline') is not None:
+                    txt.append(format_strings['newline'])
+                txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
+                if format_strings.get('newline') is not None:
+                    txt.append(format_strings['newline'])
     return txt
 
 
@@ -430,8 +437,9 @@ def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
         FORMAT_RST : {
             'det_root_templ': "* **%s** (%s%s)",
             'root_templ': "* **%s**",
-            'zero_indent': INDENT_4SPACES,
-            'indent': INDENT_4SPACES,
+            'zero_indent': INDENT_2SPACES,
+            'indent': INDENT_2SPACES,
+            'newline': '',
             'sep': '* ',
         }
     }
@@ -497,10 +505,12 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
         else:
             txt.append(format_strings['root_templ'] % root)
 
+        if format_strings.get('newline') is not None:
+                txt.append(format_strings['newline'])
         if 'children' in classes[root]:
             txt.extend(avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
-            txt.append("")
-
+            if format_strings.get('newline') is not None:
+                txt.append(format_strings['newline'])
     return '\n'.join(txt)
 
 
