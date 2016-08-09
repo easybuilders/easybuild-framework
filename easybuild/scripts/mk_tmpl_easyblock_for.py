@@ -26,7 +26,7 @@
 """
 Script to create a template easyblock Python module, for a given software package.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 import datetime

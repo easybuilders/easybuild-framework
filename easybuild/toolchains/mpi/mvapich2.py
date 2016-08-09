@@ -25,8 +25,8 @@
 """
 Support for MVAPICH2 as toolchain MPI library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.mpi.mpich2 import Mpich2

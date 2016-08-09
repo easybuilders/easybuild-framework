@@ -25,7 +25,7 @@
 """
 EasyBuild support for iiqmpi compiler toolchain (includes Intel compilers, QLogicMPI).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.iccifort import IccIfort

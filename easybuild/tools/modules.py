@@ -28,12 +28,12 @@ This python module implements the environment modules functionality:
  - checking for available modules
  - ...
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: David Brown (Pacific Northwest National Laboratory)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: David Brown (Pacific Northwest National Laboratory)
 """
 import os
 import re
@@ -149,7 +149,7 @@ class ModulesTool(object):
     def __init__(self, mod_paths=None, testing=False):
         """
         Create a ModulesTool object
-        @param mod_paths: A list of paths where the modules can be located
+        :param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
         # this can/should be set to True during testing
@@ -297,7 +297,7 @@ class ModulesTool(object):
         """
         Set mod_paths, based on $MODULEPATH unless a list of module paths is specified.
 
-        @param mod_paths: list of entries for $MODULEPATH to use
+        :param mod_paths: list of entries for $MODULEPATH to use
         """
         # make sure we don't have the same path twice, using nub
         if mod_paths is None:
@@ -324,8 +324,8 @@ class ModulesTool(object):
         """
         Add specified module path (using 'module use') if it's not there yet.
 
-        @param path: path to add to $MODULEPATH via 'use'
-        @param set_mod_paths: (re)set self.mod_paths
+        :param path: path to add to $MODULEPATH via 'use'
+        :param set_mod_paths: (re)set self.mod_paths
         """
         if path not in curr_module_paths():
             # add module path via 'module use' and make sure self.mod_paths is synced
@@ -337,8 +337,8 @@ class ModulesTool(object):
         """
         Remove specified module path (using 'module unuse').
 
-        @param path: path to remove from $MODULEPATH via 'unuse'
-        @param set_mod_paths: (re)set self.mod_paths
+        :param path: path to remove from $MODULEPATH via 'unuse'
+        :param set_mod_paths: (re)set self.mod_paths
         """
         # remove module path via 'module unuse' and make sure self.mod_paths is synced
         if path in curr_module_paths():
@@ -351,8 +351,8 @@ class ModulesTool(object):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
-        @param path: path to prepend to $MODULEPATH
-        @param set_mod_paths: (re)set self.mod_paths
+        :param path: path to prepend to $MODULEPATH
+        :param set_mod_paths: (re)set self.mod_paths
         """
         # generic approach: remove the path first (if it's there), then add it again (to the front)
         modulepath = curr_module_paths()
@@ -401,7 +401,7 @@ class ModulesTool(object):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        @param mod_name: a (partial) module name for filtering (default: None)
+        :param mod_name: a (partial) module name for filtering (default: None)
         """
         if extra_args is None:
             extra_args = []
@@ -432,15 +432,15 @@ class ModulesTool(object):
         """
         Check if modules with specified names exists.
 
-        @param mod_names: list of module names
-        @param mod_exists_regex_template: template regular expression to search 'module show' output with
-        @param skip_avail: skip checking through 'module avail', only check via 'module show'
+        :param mod_names: list of module names
+        :param mod_exists_regex_template: template regular expression to search 'module show' output with
+        :param skip_avail: skip checking through 'module avail', only check via 'module show'
         """
         def mod_exists_via_show(mod_name):
             """
             Helper function to check whether specified module name exists through 'module show'.
 
-            @param mod_name: module name
+            :param mod_name: module name
             """
             mod_exists_regex = mod_exists_regex_template % re.escape(mod_name)
             txt = self.show(mod_name)
@@ -477,10 +477,10 @@ class ModulesTool(object):
         """
         Load all requested modules.
 
-        @param modules: list of modules to load
-        @param mod_paths: list of module paths to activate before loading
-        @param purge: whether or not a 'module purge' should be run before loading
-        @param init_env: original environment to restore after running 'module purge'
+        :param modules: list of modules to load
+        :param mod_paths: list of module paths to activate before loading
+        :param purge: whether or not a 'module purge' should be run before loading
+        :param init_env: original environment to restore after running 'module purge'
         """
         if mod_paths is None:
             mod_paths = []
@@ -541,8 +541,8 @@ class ModulesTool(object):
         """
         Get info from the module file for the specified module.
 
-        @param mod_name: module name
-        @param regex: (compiled) regular expression, with one group
+        :param mod_name: module name
+        :param regex: (compiled) regular expression, with one group
         """
         if self.exist([mod_name], skip_avail=True)[0]:
             modinfo = self.show(mod_name)
@@ -559,8 +559,8 @@ class ModulesTool(object):
         """
         Get the path of the module file for the specified module
 
-        @param mod_name: module name
-        @param strip_ext: strip (.lua) extension from module fileame (if present)"""
+        :param mod_name: module name
+        :param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
@@ -703,7 +703,7 @@ class ModulesTool(object):
         Only direct $MODULEPATH extensions are found, no recursion if performed for modules that load other modules.
         Modules with an empty list of $MODULEPATH extensions are included in the result.
 
-        @param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
+        :param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
         @return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
         """
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
@@ -763,11 +763,11 @@ class ModulesTool(object):
         * 3rd iteration: try to find module that extends $MODULEPATH with '<prefix>/Core'
                          => '<prefix>/Core' is in top_paths, so stop recursion
 
-        @param top_paths: list of potentation 'top of module tree' (absolute) paths
-        @param mod_name: (short) module name for starting point (only used in log messages)
-        @param full_mod_subdir: absolute path to module subdirectory for starting point
-        @param deps: list of dependency modules for module at starting point
-        @param modpath_exts: list of module path extensions for each of the dependency modules
+        :param top_paths: list of potentation 'top of module tree' (absolute) paths
+        :param mod_name: (short) module name for starting point (only used in log messages)
+        :param full_mod_subdir: absolute path to module subdirectory for starting point
+        :param deps: list of dependency modules for module at starting point
+        :param modpath_exts: list of module path extensions for each of the dependency modules
         """
         # copy environment so we can restore it
         env = os.environ.copy()
@@ -886,7 +886,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        @param name: a (partial) module name for filtering (default: None)
+        :param name: a (partial) module name for filtering (default: None)
         """
         mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
         # strip off slash at beginning, if it's there
@@ -899,8 +899,8 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """
         Remove specified module path (using 'module unuse').
 
-        @param path: path to remove from $MODULEPATH via 'unuse'
-        @param set_mod_paths: (re)set self.mod_paths
+        :param path: path to remove from $MODULEPATH via 'unuse'
+        :param set_mod_paths: (re)set self.mod_paths
         """
         # remove module path via 'module use' and make sure self.mod_paths is synced
         # modulecmd.tcl keeps track of how often a path was added via 'module use',
@@ -950,7 +950,7 @@ class Lmod(ModulesTool):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        @param name: a (partial) module name for filtering (default: None)
+        :param name: a (partial) module name for filtering (default: None)
         """
         extra_args = []
         if StrictVersion(self.version) >= StrictVersion('5.7.5'):
@@ -1002,8 +1002,8 @@ class Lmod(ModulesTool):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
-        @param path: path to prepend to $MODULEPATH
-        @param set_mod_paths: (re)set self.mod_paths
+        :param path: path to prepend to $MODULEPATH
+        :param set_mod_paths: (re)set self.mod_paths
         """
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
@@ -1016,8 +1016,8 @@ class Lmod(ModulesTool):
         """
         Check if modules with specified names exists.
 
-        @param mod_names: list of module names
-        @param skip_avail: skip checking through 'module avail', only check via 'module show'
+        :param mod_names: list of module names
+        :param skip_avail: skip checking through 'module avail', only check via 'module show'
         """
         # module file may be either in Tcl syntax (no file extension) or Lua sytax (.lua extension);
         # the current configuration for matters little, since the module may have been installed with a different cfg;
@@ -1062,8 +1062,8 @@ def get_software_libdir(name, only_one=True, fs=None):
     It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
 
     @param: name of the software package
-    @param only_one: indicates whether only one lib path is expected to be found
-    @param fs: only retain library subdirs that contain one of the files in this list
+    :param only_one: indicates whether only one lib path is expected to be found
+    :param fs: only retain library subdirs that contain one of the files in this list
     """
     lib_subdirs = ['lib', 'lib64']
     root = get_software_root(name)

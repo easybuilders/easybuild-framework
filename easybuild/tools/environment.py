@@ -25,8 +25,8 @@
 """
 Utility module for modifying os.environ
 
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -85,7 +85,7 @@ def setvar(key, value, verbose=True):
     put key in the environment with value
     tracks added keys until write_changes has been called
 
-    @param verbose: include message in dry run output for defining this environment variable
+    :param verbose: include message in dry run output for defining this environment variable
     """
     if key in os.environ:
         oldval_info = "previous value: '%s'" % os.environ[key]

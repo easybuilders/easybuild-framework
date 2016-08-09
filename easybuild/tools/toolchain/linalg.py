@@ -25,8 +25,8 @@
 """
 Toolchain linalg module. Contains all (scalable) linear algebra related classes
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.build_log import EasyBuildError

@@ -25,11 +25,11 @@
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 import os
 import re
@@ -241,10 +241,10 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
 
     Define DRY_RUN_*DIR constants, so they can be used in dry_run_msg to replace fake build/install dirs.
 
-    @param prefix: prefix of fake build/install dirs, that can be stripped off when printing
-    @param builddir: fake build dir
-    @param software_installdir: fake software install directory
-    @param module_installdir: fake module install directory
+    :param prefix: prefix of fake build/install dirs, that can be stripped off when printing
+    :param builddir: fake build dir
+    :param software_installdir: fake software install directory
+    :param module_installdir: fake module install directory
     """
     global DRY_RUN_BUILD_DIR
     DRY_RUN_BUILD_DIR = (re.compile(builddir), builddir[len(prefix):])
