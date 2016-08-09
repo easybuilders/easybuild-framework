@@ -25,9 +25,9 @@
 """
 Utility module for working with github
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Toon Willems (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Toon Willems (Ghent University)
 """
 import base64
 import getpass
@@ -101,12 +101,12 @@ class Githubfs(object):
 
     def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
         """Construct a new githubfs object
-        @param githubuser: the github user's repo we want to use.
-        @param reponame: The name of the repository we want to use.
-        @param branchname: Then name of the branch to use (defaults to master)
-        @param username: (optional) your github username.
-        @param password: (optional) your github password.
-        @param token:    (optional) a github api token.
+        :param githubuser: the github user's repo we want to use.
+        :param reponame: The name of the repository we want to use.
+        :param branchname: Then name of the branch to use (defaults to master)
+        :param username: (optional) your github username.
+        :param password: (optional) your github password.
+        :param token:    (optional) a github api token.
         """
         if token is None:
             token = fetch_github_token(username)
@@ -215,9 +215,9 @@ class GithubError(Exception):
 def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
     Helper method, for performing get requests to GitHub API.
-    @param request_f: function that should be called to compose request, providing a RestClient instance
-    @param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
-    @param token: GitHub token to use
+    :param request_f: function that should be called to compose request, providing a RestClient instance
+    :param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
+    :param token: GitHub token to use
     @return: tuple with return status and data
     """
     if github_user is None:
@@ -241,11 +241,11 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, token=None):
     """
     Fetch latest SHA1 for a specified repository and branch.
-    @param repo: GitHub repository
-    @param account: GitHub account
-    @param branch: branch to fetch latest SHA1 for
-    @param github_user: name of GitHub user to use
-    @param token: GitHub token to use
+    :param repo: GitHub repository
+    :param account: GitHub account
+    :param branch: branch to fetch latest SHA1 for
+    :param github_user: name of GitHub user to use
+    :param token: GitHub token to use
     @return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
@@ -269,10 +269,10 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
 def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
-    @param repo: repo to download
-    @param branch: branch to download
-    @param account: GitHub account to download repo from
-    @param path: path to extract to
+    :param repo: repo to download
+    :param branch: branch to download
+    :param account: GitHub account to download repo from
+    :param path: path to extract to
     """
     # make sure path exists, create it if necessary
     if path is None:
@@ -444,9 +444,9 @@ def init_repo(path, repo_name, silent=False):
     """
     Initialize a new Git repository at the specified location.
 
-    @param path: location where Git repository should be initialized
-    @param repo_name: name of Git repository
-    @param silent: keep quiet (don't print any messages)
+    :param path: location where Git repository should be initialized
+    :param repo_name: name of Git repository
+    :param silent: keep quiet (don't print any messages)
     """
     repo_path = os.path.join(path, repo_name)
 
@@ -478,11 +478,11 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     """
     Set up repository by checking out specified branch from repository at specified URL.
 
-    @param git_repo: git.Repo instance
-    @param github_url: URL to GitHub repository
-    @param target_account: name of GitHub account that owns GitHub repository at specified URL
-    @param branch_name: name of branch to check out
-    @param silent: keep quiet (don't print any messages)
+    :param git_repo: git.Repo instance
+    :param github_url: URL to GitHub repository
+    :param target_account: name of GitHub account that owns GitHub repository at specified URL
+    :param branch_name: name of branch to check out
+    :param silent: keep quiet (don't print any messages)
     """
     _log.debug("Cloning from %s", github_url)
 
@@ -534,12 +534,12 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
     """
     Set up repository by checking out specified branch for specfied GitHub account/repository.
 
-    @param git_repo: git.Repo instance
-    @param target_account: name of GitHub account that owns GitHub repository
-    @param target_repo: name of GitHib repository
-    @param branch_name: name of branch to check out
-    @param silent: keep quiet (don't print any messages)
-    @param git_only: only use git@github.com repo URL, skip trying https://github.com first
+    :param git_repo: git.Repo instance
+    :param target_account: name of GitHub account that owns GitHub repository
+    :param target_repo: name of GitHib repository
+    :param branch_name: name of branch to check out
+    :param silent: keep quiet (don't print any messages)
+    :param git_only: only use git@github.com repo URL, skip trying https://github.com first
     """
     tmpl_github_urls = [
         'git@github.com:%s/%s.git',
@@ -1020,8 +1020,8 @@ def install_github_token(github_user, silent=False):
     """
     Install specified GitHub token for specified user.
 
-    @param github_user: GitHub user to install token for
-    @param silent: keep quiet (don't print any messages)
+    :param github_user: GitHub user to install token for
+    :param silent: keep quiet (don't print any messages)
     """
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to install GitHub token")

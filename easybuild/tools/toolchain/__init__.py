@@ -47,8 +47,8 @@ TooclchainVariables: list of environment variables that are set when the toolcha
 This module initializes the tools.toolchain package of EasyBuild,
 which contains toolchain related modules.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import pkg_resources
 pkg_resources.declare_namespace(__name__)

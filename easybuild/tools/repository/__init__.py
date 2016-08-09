@@ -25,8 +25,8 @@
 """
 Declares easybuild.tools.repository namespace, in an extendable way.
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import pkg_resources
 pkg_resources.declare_namespace(__name__)
