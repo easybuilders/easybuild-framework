@@ -84,6 +84,7 @@ GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
+GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
@@ -606,8 +607,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, pr_target_repo)
 
-    if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
+    if not pr_target_repo in [GITHUB_EASYCONFIGS_REPO, GITHUB_FRAMEWORK_REPO,]:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
+
+    framework = pr_target_repo == GITHUB_FRAMEWORK_REPO
 
     if start_branch is None:
         start_branch = build_option('pr_target_branch')
@@ -618,11 +621,16 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("git status: %s", git_repo.git.status())
 
     # copy files to right place
-    file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+    if framework:
+        file_info = copy_framework_files(paths, os.path.join(git_working_dir, pr_target_repo))
+        name_version = file_info['files'][0]
+
+    else:
+        file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
 
     # checkout target branch
     if pr_branch is None:
-        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
 
     # create branch to commit to and push;
@@ -684,6 +692,50 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     return file_info, git_repo, pr_branch, diff_stat
 
 
+def copy_framework_files(paths, target_dir):
+    file_info = {
+        'paths_in_repo': [],
+        'new': [],
+        'files' : [],
+    }
+
+
+    dirs = [x[0] for x in os.walk(target_dir)]
+    paths = [os.path.abspath(path) for path in paths]
+
+    target_path = None
+    for path in paths:
+        fn = os.path.basename(path)
+        dirnames = os.path.dirname(path).split(os.path.sep)
+
+        if 'easybuild-framework' in dirnames:
+            ind = dirnames.index('easybuild-framework') + 1
+            parent_dir = os.path.join(*dirnames[ind:])
+
+            if os.path.exists(os.path.join(target_dir, parent_dir)):
+                target_path = os.path.join(target_dir, parent_dir)
+
+        if target_path is None:
+            raise EasyBuildError("Couldn't find parent folder of updated file: %s" % path)
+
+        full_target_path = os.path.join(target_path, os.path.basename(path))
+
+        file_info['paths_in_repo'].append(full_target_path)
+        file_info['files'].append(os.path.basename(path).split('.')[0])
+
+        try:
+            file_info['new'].append(not os.path.exists(full_target_path))
+
+            mkdir(os.path.dirname(full_target_path), parents=True)
+            shutil.copy2(path, full_target_path)
+            _log.info("%s copied to %s", path, full_target_path)
+
+        except OSError as err:
+            raise EasyBuildError("Failed to copy %s to %s: %s", path, full_target_path, err)
+
+    return file_info
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_pr(paths, title=None, descr=None, commit_msg=None):
     """Open new pull request using specified files."""
@@ -711,24 +763,34 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
                                                                     commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
-    toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-    toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-    toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
-
-    # only use most common module class(es) in moduleclass label of PR title
-    classes = [ec['moduleclass'] for ec in file_info['ecs']]
-    classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-    class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
     if title is None:
-        # mention software name/version in PR title (only first 3)
-        names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-        if len(names_and_versions) <= 3:
-            main_title = ', '.join(names_and_versions)
-        else:
-            main_title = ', '.join(names_and_versions[:3] + ['...'])
+        if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
 
-        title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+            toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
+            toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+            toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+
+            # only use most common module class(es) in moduleclass label of PR title
+            classes = [ec['moduleclass'] for ec in file_info['ecs']]
+            classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+            class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+
+            # mention software name/version in PR title (only first 3)
+            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            if len(names_and_versions) <= 3:
+                main_title = ', '.join(names_and_versions)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
+
+            title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+        elif pr_target_repo == GITHUB_FRAMEWORK_REPO:
+            names = file_info['files']
+            if len(names) <= 3:
+                main_title = ', '.join(names)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
+            title = "Changes to %s" % main_title
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
