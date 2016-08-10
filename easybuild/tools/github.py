@@ -1073,10 +1073,13 @@ def find_easybuild_eb():
     # find most recent version
     file_versions = []
     for eb_file in files:
-        version = eb_file.split('-', 1)[1]
-        file_versions.append((eb_file, version.split('.eb', 1)[0]))
+        txt = read_file(os.path.join(eb_parent_path, eb_file))
+        for line in txt.split('\n'):
+            if re.search(r'^version =', line):
+                version = line.split('= ')[-1].replace('"', '').replace("'", '')
+                file_versions.append((LooseVersion(version), eb_file))
 
-    fn = sorted(file_versions, key=lambda x: LooseVersion(x[1]))[-1][0]
+    fn = sorted(file_versions)[-1][1]
 
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
