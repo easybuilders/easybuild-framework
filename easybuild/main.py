@@ -26,14 +26,14 @@
 """
 Main entry point for EasyBuild: build software from .eb input file
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import copy
 import os
@@ -157,8 +157,8 @@ def handle_github_options(options, ec_paths):
     """
     Handle options related to GitHub integration, if any are set.
 
-    @param options: parsed EasyBuild options
-    @param ec_paths: list of paths to easyconfig files
+    :param options: parsed EasyBuild options
+    :param ec_paths: list of paths to easyconfig files
     """
     done = True
 
@@ -186,10 +186,10 @@ def handle_github_options(options, ec_paths):
 def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
-    @param args: command line arguments to use
-    @param logfile: log file to use
-    @param do_build: whether or not to actually perform the build
-    @param testing: enable testing mode
+    :param args: command line arguments to use
+    :param logfile: log file to use
+    :param do_build: whether or not to actually perform the build
+    :param testing: enable testing mode
     """
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
     init_session_state = session_state()
