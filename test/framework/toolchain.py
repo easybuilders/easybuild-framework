@@ -848,8 +848,7 @@ class ToolchainTest(EnhancedTestCase):
 
         args = [
             eb_file,
-            "--use-compiler-cache",
-            self.test_prefix,
+            "--use-compiler-cache=%s" % self.test_prefix,
             "--force",
             "--debug",
             ]
@@ -858,9 +857,9 @@ class ToolchainTest(EnhancedTestCase):
 
         patterns = [
             "This is a ccache wrapper",
-            "Command %s found at %s" % (cachename, path)
+            "Command %s found at .*%s" % (cachename, os.path.dirname(path))
         ]
-        self.assertTrue(all([pattern in out for pattern in patterns]))
+        self.assertTrue(all([re.search(pattern, out) for pattern in patterns]))
 
 
 def suite():

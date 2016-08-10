@@ -590,16 +590,19 @@ class Toolchain(object):
         """
         Create a symlink for each compiler to binary/script at specified path.
 
-        @param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
+        :param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
                       tuple ('path/to/cache', [commands to symlink to this cache])
         """
         tmpdir = tempfile.mkdtemp()
 
-        for key, links in paths.items():
-            for comp in links[1]:
+        for _, (path, comps) in paths.items():
+            for comp in comps:
                 comp_s = os.path.join(tmpdir, comp)
                 if not os.path.exists(comp_s):
-                    os.symlink(links[0], comp_s)
+                    try:
+                        os.symlink(path, comp_s)
+                    except OSError as err:
+                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, comp_s, err)
 
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
 
@@ -644,18 +647,21 @@ class Toolchain(object):
             self.prepare_compiler_cache()
 
     def prepare_compiler_cache(self):
+        """
+        Prepare paths and variables for using compiler caches (ccache, f90cache)
+        """
         paths = {}
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
-            gcc = ['gcc', 'g++']
-            fortr =  ['gfortran']
+            c_comps = ['gcc', 'g++']
+            fortran_comps =  ['gfortran']
         else:
-            gcc = [self.COMPILER_CC, self.COMPILER_CXX]
-            fortr = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
+            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
         compilers = {
-            CCACHE : gcc,
-            F90CACHE : fortr,
+            CCACHE : c_comps,
+            F90CACHE : fortran_comps,
         }
 
         for cache in [CCACHE, F90CACHE]:
@@ -666,9 +672,9 @@ class Toolchain(object):
                 paths[cache] = (cache_path, compilers[cache])
 
         # set paths for caches
-        compiler_cache = build_option('use_compiler_cache')
+        comp_cache_path = build_option('use_compiler_cache')
         for cachename in ["CCACHE", "F90CACHE"]:
-            os.environ["%s_DIR" % cachename] = compiler_cache
+            os.environ["%s_DIR" % cachename] = comp_cache_path
             os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
 
         self.symlink_compilers(paths)
