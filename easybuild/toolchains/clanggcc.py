@@ -28,7 +28,7 @@
 """
 EasyBuild support for Clang + GCC compiler toolchain.  Clang uses libstdc++.  GFortran is used for Fortran code.
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 import os

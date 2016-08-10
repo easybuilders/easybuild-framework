@@ -28,9 +28,9 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-@author: Toon Willems (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Stijn De Weirdt (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import math
 import os
@@ -63,10 +63,10 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     built: e.g. they have no unresolved dependencies.  This function
     will build them in parallel by submitting jobs.
 
-    @param build_command: build command to use
-    @param easyconfigs: list of easyconfig files
-    @param output_dir: output directory
-    @param prepare_first: prepare by runnning fetch step first for each easyconfig
+    :param build_command: build command to use
+    :param easyconfigs: list of easyconfig files
+    :param output_dir: output directory
+    :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
 
@@ -119,10 +119,10 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
 def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     """
     Submit jobs.
-    @param ordered_ecs: list of easyconfigs, in the order they should be processed
-    @param cmd_line_opts: list of command line options (in 'longopt=value' form)
-    @param testing: If `True`, skip actual job submission
-    @param prepare_first: prepare by runnning fetch step first for each easyconfig
+    :param ordered_ecs: list of easyconfigs, in the order they should be processed
+    :param cmd_line_opts: list of command line options (in 'longopt=value' form)
+    :param testing: If `True`, skip actual job submission
+    :param prepare_first: prepare by runnning fetch step first for each easyconfig
     """
     curdir = os.getcwd()
 
@@ -147,10 +147,10 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     """
     Creates a job to build a *single* easyconfig.
 
-    @param job_backend: A factory object for querying server parameters and creating actual job objects
-    @param build_command: format string for command, full path to an easyconfig file will be substituted in it
-    @param easyconfig: easyconfig as processed by process_easyconfig
-    @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
+    :param job_backend: A factory object for querying server parameters and creating actual job objects
+    :param build_command: format string for command, full path to an easyconfig file will be substituted in it
+    :param easyconfig: easyconfig as processed by process_easyconfig
+    :param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
 
     returns the job
     """
@@ -202,7 +202,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
 def prepare_easyconfig(ec):
     """
     Prepare for building specified easyconfig (fetch sources)
-    @param ec: parsed easyconfig (EasyConfig instance)
+    :param ec: parsed easyconfig (EasyConfig instance)
     """
     try:
         easyblock_instance = get_easyblock_instance(ec)

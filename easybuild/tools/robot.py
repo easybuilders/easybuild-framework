@@ -25,13 +25,13 @@
 """
 Dependency resolution functionality, a.k.a. robot.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -69,9 +69,9 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
     """
     Check for conflicts in dependency graphs for specified easyconfigs.
 
-    @param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
-    @param modtool: ModulesTool instance to use
-    @param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
+    :param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
+    :param modtool: ModulesTool instance to use
+    :param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
     @return: True if one or more conflicts were found, False otherwise
     """
 
@@ -134,9 +134,9 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         """
         Check whether dependencies with given name/(install) version conflict with each other.
 
-        @param parent: name & install version of 'parent' software
-        @param dep1: name & install version of 1st dependency
-        @param dep2: name & install version of 2nd dependency
+        :param parent: name & install version of 'parent' software
+        :param dep1: name & install version of 1st dependency
+        :param dep2: name & install version of 2nd dependency
         """
         # dependencies with the same name should have the exact same install version
         # if not => CONFLICT!
@@ -175,9 +175,9 @@ def dry_run(easyconfigs, modtool, short=False):
     * [x] for available
     * [F] for forced
     * [R] for rebuild
-    @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
-    @param modtool: ModulesTool instance to use
-    @param short: use short format for overview: use a variable for common prefixes
+    :param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
+    :param modtool: ModulesTool instance to use
+    :param short: use short format for overview: use a variable for common prefixes
     """
     lines = []
     if build_option('robot_path') is None:
@@ -226,9 +226,9 @@ def dry_run(easyconfigs, modtool, short=False):
 def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
-    @param easyconfigs: list of easyconfigs
-    @param modtool: ModulesTool instance to use
-    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
+    :param easyconfigs: list of easyconfigs
+    :param modtool: ModulesTool instance to use
+    :param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
     robot = build_option('robot_path')

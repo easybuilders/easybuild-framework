@@ -25,8 +25,8 @@
 """
 MPI support for the Cray Programming Environment (craype).
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.craype import CrayPECompiler
 from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH, TC_CONSTANT_MPI_TYPE_MPICH

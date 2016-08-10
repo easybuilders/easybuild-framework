@@ -22,7 +22,7 @@ created from a pull-request and if that PR is closed/merged, it will delete the 
 You need a github token for this. The script uses the same username and token
 as easybuild. Optionally, you can specify a different github username.
 
-@author: Ward Poelmans
+:author: Ward Poelmans
 """
 
 

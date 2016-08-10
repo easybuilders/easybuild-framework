@@ -25,7 +25,7 @@
 """
 Module with useful functions for getting system information
 
-@author: Jens Timmerman (Ghent University)
+:author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
 import fcntl

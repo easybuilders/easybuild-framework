@@ -25,13 +25,13 @@
 """
 Command line options for eb
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import glob
@@ -97,7 +97,7 @@ def cleanup_and_exit(tmpdir):
     """
     Clean up temporary directory and exit.
 
-    @param tmpdir: path to temporary directory to clean up
+    :param tmpdir: path to temporary directory to clean up
     """
     try:
         shutil.rmtree(tmpdir)
@@ -110,7 +110,7 @@ def pretty_print_opts(opts_dict):
     """
     Pretty print options dict.
 
-    @param opts_dict: dictionary with option names as keys, and (value, location) tuples as values
+    :param opts_dict: dictionary with option names as keys, and (value, location) tuples as values
     """
 
     # rewrite option names/values a bit for pretty printing
@@ -817,8 +817,8 @@ class EasyBuildOptions(GeneralOption):
         def reparse_cfg(args=None, withcfg=True):
             """
             Utility function to reparse EasyBuild configuration.
-            @param args: command line arguments to pass to configuration parser
-            @param withcfg: whether or not to also consider configuration files
+            :param args: command line arguments to pass to configuration parser
+            :param withcfg: whether or not to also consider configuration files
             @return: dictionary with parsed configuration options, by option group
             """
             if args is None:
@@ -1009,7 +1009,7 @@ def parse_external_modules_metadata(cfgs):
     """
     Parse metadata for external modules.
 
-    @param cfgs: list of config files providing metadata for external modules
+    :param cfgs: list of config files providing metadata for external modules
     @return parsed metadata for external modules
     """
 

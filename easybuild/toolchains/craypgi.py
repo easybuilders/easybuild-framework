@@ -24,7 +24,7 @@
 ##
 """
 CrayPGI toolchain: Cray compilers (PGI) and MPI via Cray compiler drivers (PrgEnv-pgi) minus LibSci minus Cray FFTW
-@author: Jg Piccinali (CSCS)
+:author: Jg Piccinali (CSCS)
 """
 from easybuild.toolchains.compiler.craype import CrayPEPGI
 from easybuild.toolchains.mpi.craympich import CrayMPICH

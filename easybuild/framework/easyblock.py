@@ -26,14 +26,14 @@
 Generic EasyBuild support for building and installing software.
 The EasyBlock class should serve as a base class for all easyblocks.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 import copy
@@ -134,7 +134,7 @@ class EasyBlock(object):
     def __init__(self, ec):
         """
         Initialize the EasyBlock instance.
-        @param ec: a parsed easyconfig file (EasyConfig instance)
+        :param ec: a parsed easyconfig file (EasyConfig instance)
         """
 
         # keep track of original working directory, so we can go back there
@@ -297,9 +297,9 @@ class EasyBlock(object):
         """
         Obtain checksum for given filename.
 
-        @param checksums: a list or tuple of checksums (or None)
-        @param filename: name of the file to obtain checksum for
-        @param index: index of file in list
+        :param checksums: a list or tuple of checksums (or None)
+        :param filename: name of the file to obtain checksum for
+        :param index: index of file in list
         """
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, (list, tuple)):
@@ -895,7 +895,7 @@ class EasyBlock(object):
         """
         Make the dependencies for the module file.
 
-        @param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
+        :param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
         deps = []
         mns = ActiveMNS()
@@ -960,8 +960,8 @@ class EasyBlock(object):
         """
         Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
 
-        @param altroot: path to use to define $EBROOT*
-        @param altversion: version to use to define $EBVERSION*
+        :param altroot: path to use to define $EBROOT*
+        :param altversion: version to use to define $EBVERSION*
         """
         lines = ['']
 
@@ -1542,7 +1542,7 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
 
-        @param start_dir: guess start directory based on unpacked sources
+        :param start_dir: guess start directory based on unpacked sources
         """
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
@@ -1968,7 +1968,7 @@ class EasyBlock(object):
         """
         Generate module file
 
-        @param fake: generate 'fake' module in temporary location, rather than actual module file
+        :param fake: generate 'fake' module in temporary location, rather than actual module file
         """
         modpath = self.module_generator.prepare(fake=fake)
 
@@ -2302,8 +2302,8 @@ def print_dry_run_note(loc, silent=True):
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
-    @param ecdict: dictionary contaning parsed easyconfig + metadata
-    @param init_env: original environment (used to reset environment)
+    :param ecdict: dictionary contaning parsed easyconfig + metadata
+    :param init_env: original environment (used to reset environment)
     """
     silent = build_option('silent')
 
@@ -2496,7 +2496,7 @@ def build_and_install_one(ecdict, init_env):
 def get_easyblock_instance(ecdict):
     """
     Get an instance for this easyconfig
-    @param easyconfig: parsed easyconfig (EasyConfig instance)
+    :param easyconfig: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """

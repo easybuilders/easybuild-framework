@@ -28,7 +28,7 @@
 """
 EasyBuild support for gmvolf compiler toolchain (includes GCC, MVAPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.gmvapich2 import Gmvapich2
