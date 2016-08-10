@@ -25,13 +25,13 @@
 """
 Easyconfig module that provides functionality for tweaking existing eaysconfig (.eb) files.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import copy
 import glob
@@ -272,8 +272,8 @@ def pick_version(req_ver, avail_vers):
     This function returns both the version to be used, which is equal to the required version
     if it was specified, and the version picked that matches that closest.
 
-    @param req_ver: required version
-    @param avail_vers: list of available versions
+    :param req_ver: required version
+    :param avail_vers: list of available versions
     """
 
     if not avail_vers:
@@ -306,9 +306,9 @@ def find_matching_easyconfigs(name, installver, paths):
     """
     Find easyconfigs that match specified name/installversion in specified list of paths.
 
-    @param name: software name
-    @param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
-    @param paths: list of paths to search easyconfigs in
+    :param name: software name
+    :param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
+    :param paths: list of paths to search easyconfigs in
     """
     ec_files = []
     for path in paths:
@@ -574,9 +574,9 @@ def obtain_ec_for(specs, paths, fp=None):
     Either select between available ones, or use the best suited available one
     to generate a new easyconfig file.
 
-    @param specs: list of available easyconfig files
-    @param paths: a list of paths where easyconfig files can be found
-    @param fp: the desired file name
+    :param specs: list of available easyconfig files
+    :param paths: a list of paths where easyconfig files can be found
+    :param fp: the desired file name
     """
 
     # ensure that at least name is specified

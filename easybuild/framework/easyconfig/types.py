@@ -26,8 +26,8 @@
 """
 Support for checking types of easyconfig parameter values.
 
-@author: Caroline De Brouwer (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Caroline De Brouwer (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from vsc.utils import fancylogger
 
@@ -53,8 +53,8 @@ def check_element_types(elems, allowed_types):
     """
     Check whether types of elements of specified (iterable) value are as expected.
 
-    @param elems: iterable value (list or dict) of elements
-    @param allowed_types: allowed types per element; either a simple list, or a dict of allowed_types by element name
+    :param elems: iterable value (list or dict) of elements
+    :param allowed_types: allowed types per element; either a simple list, or a dict of allowed_types by element name
     """
     # combine elements with their list of allowed types
     elems_and_allowed_types = None
@@ -135,8 +135,8 @@ def is_value_of_type(value, expected_type):
     Check whether specified value matches a particular very specific (non-trivial) type,
     which is specified by means of a 2-tuple: (parent type, tuple with additional type requirements).
 
-    @param value: value to check the type of
-    @param expected_type: type of value to check against
+    :param value: value to check the type of
+    :param expected_type: type of value to check against
     """
     type_ok = False
 
@@ -189,9 +189,9 @@ def check_type_of_param_value(key, val, auto_convert=False):
     """
     Check value type of specified easyconfig parameter.
 
-    @param key: name of easyconfig parameter
-    @param val: easyconfig parameter value, of which type should be checked
-    @param auto_convert: try to automatically convert to expected value type if required
+    :param key: name of easyconfig parameter
+    :param val: easyconfig parameter value, of which type should be checked
+    :param auto_convert: try to automatically convert to expected value type if required
     """
     type_ok, newval = False, None
     expected_type = PARAMETER_TYPES.get(key)
@@ -224,8 +224,8 @@ def convert_value_type(val, typ):
     """
     Try to convert type of provided value to specific type.
 
-    @param val: value to convert type of
-    @param typ: target type
+    :param val: value to convert type of
+    :param typ: target type
     """
     res = None
 
@@ -262,7 +262,7 @@ def to_name_version_dict(spec):
 
     For example: "intel, 2015a" => {'name': 'intel', 'version': '2015a'}
 
-    @param spec: a comma-separated string with two values, or a 2-element list of strings, or a dict
+    :param spec: a comma-separated string with two values, or a 2-element list of strings, or a dict
     """
     # check if spec is a string or a list of two values; else, it can not be converted
     if isinstance(spec, basestring):

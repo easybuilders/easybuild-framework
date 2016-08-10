@@ -26,7 +26,7 @@
 """
 This module implements easyconfig specific formats and their conversions.
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings

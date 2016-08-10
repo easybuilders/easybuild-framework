@@ -25,8 +25,8 @@
 """
 Support for Intel MKL as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
 
