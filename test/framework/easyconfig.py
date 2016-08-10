@@ -1035,6 +1035,31 @@ class EasyConfigTest(EnhancedTestCase):
         opts = init_config(args=['--filter-deps=zlib,ncurses'])
         self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
 
+        # make sure --filter-deps is honored when combined with --minimal-toolchains,
+        # i.e. that toolchain for dependencies which are filtered out is not being minized
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'minimal_toolchains': True,
+            'robot_path': [test_ecs_dir],
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        ec_file = os.path.join(self.test_prefix, 'test.eb')
+        shutil.copy2(os.path.join(test_ecs_dir, 'OpenMPI-1.6.4-GCC-4.6.4.eb'), ec_file)
+
+        ec_txt = read_file(ec_file)
+        ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
+        write_file(ec_file, ec_txt)
+
+        self.assertErrorRegex(EasyBuildError, "No easyconfig for .* that matches toolchain hierarchy",
+                              EasyConfig, ec_file, validate=False)
+
+        build_options.update({'filter_deps': ['deptobefiltered']})
+        init_config(build_options=build_options)
+        ec = EasyConfig(ec_file, validate=False)
+        self.assertEqual(ec.dependencies(), [])
+
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')

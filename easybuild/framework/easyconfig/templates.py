@@ -27,8 +27,8 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import re
 from vsc.utils import fancylogger
@@ -90,7 +90,7 @@ TEMPLATE_CONSTANTS = [
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
     ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
-     'github source url'),
+     'GitHub source url'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',

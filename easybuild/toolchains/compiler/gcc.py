@@ -25,8 +25,8 @@
 """
 Support for GCC (GNU Compiler Collection) as toolchain compiler.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 import easybuild.tools.systemtools as systemtools

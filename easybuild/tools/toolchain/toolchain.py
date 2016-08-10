@@ -27,8 +27,8 @@ The toolchain module with the abstract Toolchain class.
 
 Creating a new toolchain should be as simple as possible.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -83,12 +83,12 @@ class Toolchain(object):
         """
         Toolchain constructor.
 
-        @param name: toolchain name
-        @param version: toolchain version
-        @param mns: module naming scheme to use
-        @param class_constants: toolchain 'constants' to define
-        @param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
-        @param modtool: ModulesTool instance to use
+        :param name: toolchain name
+        :param version: toolchain version
+        :param mns: module naming scheme to use
+        :param class_constants: toolchain 'constants' to define
+        :param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
+        :param modtool: ModulesTool instance to use
         """
 
         self.base_init()
@@ -409,9 +409,9 @@ class Toolchain(object):
         """
         Set environment variables picked up by utility functions for dependencies specified as external modules.
 
-        @param name: software name
-        @param version: software version
-        @param metadata: dictionary with software metadata ('prefix' for software installation prefix)
+        :param name: software name
+        :param version: software version
+        :param metadata: dictionary with software metadata ('prefix' for software installation prefix)
         """
 
         self.log.debug("Defining $EB* environment variables for software named %s", name)
@@ -593,8 +593,8 @@ class Toolchain(object):
         @param: onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
-        @param silent: keep quiet, or not (mostly relates to extended dry run output)
-        @param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
+        :param silent: keep quiet, or not (mostly relates to extended dry run output)
+        :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         """
         if loadmod:
             self._load_modules(silent=silent)

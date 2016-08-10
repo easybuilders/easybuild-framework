@@ -26,8 +26,8 @@
 Support for Cray's LibSci library, which provides BLAS/LAPACK support.
 cfr. https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 

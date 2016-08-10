@@ -31,8 +31,8 @@ Map values can be string with named templates
         %(opt)s : option name
         %(value)s : option value
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from vsc.utils import fancylogger
