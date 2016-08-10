@@ -694,6 +694,21 @@ class FileToolsTest(EnhancedTestCase):
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
 
+    def test_apply_patch(self):
+        """ Test apply_patch """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        tmpdir = self.test_prefix
+        path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+
+        self.assertTrue(ft.apply_patch(toy_patch, path))
+        patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        pattern = "I'm a toy, and very proud of it"
+        self.assertTrue(pattern in patched)
+
+        # trying the patch again should fail
+        self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
 
 def suite():
     """ returns all the testcases in this module """

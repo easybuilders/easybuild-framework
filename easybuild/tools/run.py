@@ -25,13 +25,13 @@
 """
 Tools to run commands.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import os
 import re
@@ -64,16 +64,16 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             force_in_dry_run=False, verbose=True):
     """
     Run specified command (in a subshell)
-    @param cmd: command to run
-    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    @param log_all: always log command output and exit code
-    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    @param inp: the input given to the command via stdin
-    @param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
-    @param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
-    @param path: path to execute the command in; current working directory is used if unspecified
-    @param force_in_dry_run: force running the command during dry run
-    @param verbose: include message on running the command in dry run output
+    :param cmd: command to run
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_all: always log command output and exit code
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param inp: the input given to the command via stdin
+    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
+    :param path: path to execute the command in; current working directory is used if unspecified
+    :param force_in_dry_run: force running the command during dry run
+    :param verbose: include message on running the command in dry run output
     """
     cwd = os.getcwd()
 
@@ -152,15 +152,15 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None, maxhits=50):
     """
     Run specified interactive command (in a subshell)
-    @param cmd: command to run
-    @param qa: dictionary which maps question to answers
-    @param no_qa: list of patters that are not questions
-    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    @param log_all: always log command output and exit code
-    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
-    @param std_qa: dictionary which maps question regex patterns to answers
-    @param path: path to execute the command is; current working directory is used if unspecified
+    :param cmd: command to run
+    :param qa: dictionary which maps question to answers
+    :param no_qa: list of patters that are not questions
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_all: always log command output and exit code
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param std_qa: dictionary which maps question regex patterns to answers
+    :param path: path to execute the command is; current working directory is used if unspecified
     """
     cwd = os.getcwd()
 
@@ -365,13 +365,13 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
     Parse command output and construct return value.
-    @param cmd: executed command
-    @param stdouterr: combined stdout/stderr of executed command
-    @param ec: exit code of executed command
-    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    @param log_all: always log command output and exit code
-    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param cmd: executed command
+    :param stdouterr: combined stdout/stderr of executed command
+    :param ec: exit code of executed command
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param log_all: always log command output and exit code
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False

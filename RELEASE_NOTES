@@ -3,9 +3,44 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.8.2 (July 13th 2016)
+-----------------------
+
+bugfix release
+- various small enhancements, including:
+    - add support for rst output for --list-* and --avail-* (#1339)
+    - add support for 'eb --check-conflicts' (#1747, #1807, #1833)
+    - ensure nice error message when non-existing path is passed to apply_regex_substitutions (#1788)
+    - add check for module output, empty stdout is a sign of trouble with Lmod (#1793)
+    - add multi-threaded FFT to toolchain (#1802)
+    - avoid special characters like '[', ']' in path to temporary directory (#1808)
+    - add support for --zip-logs (#1820)
+    - add support for --extra-modules (#1821)
+    - add type conversion for 'checksums' and 'patches' parameter in .yeb easyconfigs (#1826, #1840)
+    - add support for filtering tests by name (#1828)
+    - add support for --avail-toolchain-opts (#1830, #1839)
+    - use absolute path for robot and easyconfig files (#1834)
+    - add backup URL for tarballs hosted on SourceForge in install_eb_deps.sh script (#1843)
+- various bug fixes, including:
+    - fix installation of Lua in install_eb_dep.sh script (#1789)
+    - fix OpenMP flag for Cray compiler wrappers (#1794)
+    - only reset $MODULEPATH before loading a module if environment was reset (#1795)
+    - include vsc-install as dependency in setup.py (#1805)
+    - cache $PATH & $PYTHONPATH in test setUp, restore them in tests where 'eb' is used (#1806)
+    - don't reset $MODULEPATH in stage 2 of bootstrap script, support forced installation during stage 2 (#1810)
+    - fix issue with templates defined by deps being required while still parsing deps (#1812)
+    - skip unneeded unuse/use commands on tail of $MODULEPATH in check_module_path (#1813)
+    - fix auto-convert for all *dependencies params in .yeb easyconfigs, ensure version is a string (#1818)
+    - fix keyring version in Travis config (#1819)
+    - fix dumping of .yeb easyconfig files in easyconfigs archive (#1822)
+    - fix format of supported easyconfig templates in help output (#1825)
+    - stick to pydot 1.1.0 for Python 2.6 in Travis config (#1827)
+
+
 v2.8.1 (May 30th 2016)
 ----------------------
 
+bugfix release
 - various bug fixes, including:
     - fix error message on missing module command in bootstrap script (#1772)
     - expand ~ in paths specified to --include-* (#1774)
