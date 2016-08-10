@@ -25,9 +25,9 @@
 """
 Utility module for working with github
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Toon Willems (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Toon Willems (Ghent University)
 """
 import base64
 import getpass
@@ -41,14 +41,16 @@ import sys
 import tempfile
 import time
 import urllib2
+
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -85,6 +87,7 @@ GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
+GITHUB_PR = 'pull'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
@@ -98,12 +101,12 @@ class Githubfs(object):
 
     def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
         """Construct a new githubfs object
-        @param githubuser: the github user's repo we want to use.
-        @param reponame: The name of the repository we want to use.
-        @param branchname: Then name of the branch to use (defaults to master)
-        @param username: (optional) your github username.
-        @param password: (optional) your github password.
-        @param token:    (optional) a github api token.
+        :param githubuser: the github user's repo we want to use.
+        :param reponame: The name of the repository we want to use.
+        :param branchname: Then name of the branch to use (defaults to master)
+        :param username: (optional) your github username.
+        :param password: (optional) your github password.
+        :param token:    (optional) a github api token.
         """
         if token is None:
             token = fetch_github_token(username)
@@ -212,9 +215,9 @@ class GithubError(Exception):
 def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
     Helper method, for performing get requests to GitHub API.
-    @param request_f: function that should be called to compose request, providing a RestClient instance
-    @param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
-    @param token: GitHub token to use
+    :param request_f: function that should be called to compose request, providing a RestClient instance
+    :param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
+    :param token: GitHub token to use
     @return: tuple with return status and data
     """
     if github_user is None:
@@ -238,11 +241,11 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, token=None):
     """
     Fetch latest SHA1 for a specified repository and branch.
-    @param repo: GitHub repository
-    @param account: GitHub account
-    @param branch: branch to fetch latest SHA1 for
-    @param github_user: name of GitHub user to use
-    @param token: GitHub token to use
+    :param repo: GitHub repository
+    :param account: GitHub account
+    :param branch: branch to fetch latest SHA1 for
+    :param github_user: name of GitHub user to use
+    :param token: GitHub token to use
     @return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
@@ -266,10 +269,10 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
 def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
-    @param repo: repo to download
-    @param branch: branch to download
-    @param account: GitHub account to download repo from
-    @param path: path to extract to
+    :param repo: repo to download
+    :param branch: branch to download
+    :param account: GitHub account to download repo from
+    :param path: path to extract to
     """
     # make sure path exists, create it if necessary
     if path is None:
@@ -301,6 +304,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
+
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
@@ -313,6 +317,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
+
     if github_user is None:
         github_user = build_option('github_user')
     if path is None:
@@ -332,24 +337,30 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
-    # 'clean' on successful (or missing) test, 'unstable' on failed tests
+    # if PR is open and mergable, download develop and patch
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
+    closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_data['merged']
+
+    # 'clean' on successful (or missing) test, 'unstable' on failed tests or merge conflict
     if not stable:
         _log.warning("Mergeable state for PR #%d is not '%s': %s.",
                      pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
-    for key, val in sorted(pr_data.items()):
-        _log.debug("\n%s:\n\n%s\n" % (key, val))
+    if (stable or pr_data['merged']) and not closed:
+        # whether merged or not, download develop
+        path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', path=path)
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
     diff_filepath = os.path.join(path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
-    os.remove(diff_filepath)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
+
+    for key, val in sorted(pr_data.items()):
+        _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
@@ -360,28 +371,32 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
-    # obtain most recent version of patched files
-    for patched_file in patched_files:
-        # path to patch file, incl. subdir it is in
-        fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
-        sha = last_commit['sha']
-        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
-        _log.info("Downloading %s from %s" % (fn, full_url))
-        download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+    if not(pr_data['merged']):
+        if not stable or closed:
+            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s ***\n" % pr
+            # obtain most recent version of patched files
+            for patched_file in patched_files:
+                # path to patch file, incl. subdir it is in
+                fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
+                sha = last_commit['sha']
+                full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
+                _log.info("Downloading %s from %s" % (fn, full_url))
+                download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
+        else:
+            apply_patch(diff_filepath, path, level=1)
+
+    os.remove(diff_filepath)
 
     # sanity check: make sure all patched files are downloaded
-    all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
-
-    tmp_files = []
-    for (dirpath, _, filenames) in os.walk(path):
-        tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
-
-    if not sorted(tmp_files) == sorted(all_files):
-        raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
-
-    ec_files = [os.path.join(path, f) for f in tmp_files]
+    ec_files = []
+    for patched in patched_files:
+        if os.path.exists(os.path.join(path, patched)):
+            ec_files.append(os.path.join(path, patched))
+        else:
+            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, patched))
 
     return ec_files
+
 
 
 def create_gist(txt, fn, descr=None, github_user=None):
@@ -429,9 +444,9 @@ def init_repo(path, repo_name, silent=False):
     """
     Initialize a new Git repository at the specified location.
 
-    @param path: location where Git repository should be initialized
-    @param repo_name: name of Git repository
-    @param silent: keep quiet (don't print any messages)
+    :param path: location where Git repository should be initialized
+    :param repo_name: name of Git repository
+    :param silent: keep quiet (don't print any messages)
     """
     repo_path = os.path.join(path, repo_name)
 
@@ -463,11 +478,11 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     """
     Set up repository by checking out specified branch from repository at specified URL.
 
-    @param git_repo: git.Repo instance
-    @param github_url: URL to GitHub repository
-    @param target_account: name of GitHub account that owns GitHub repository at specified URL
-    @param branch_name: name of branch to check out
-    @param silent: keep quiet (don't print any messages)
+    :param git_repo: git.Repo instance
+    :param github_url: URL to GitHub repository
+    :param target_account: name of GitHub account that owns GitHub repository at specified URL
+    :param branch_name: name of branch to check out
+    :param silent: keep quiet (don't print any messages)
     """
     _log.debug("Cloning from %s", github_url)
 
@@ -519,12 +534,12 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
     """
     Set up repository by checking out specified branch for specfied GitHub account/repository.
 
-    @param git_repo: git.Repo instance
-    @param target_account: name of GitHub account that owns GitHub repository
-    @param target_repo: name of GitHib repository
-    @param branch_name: name of branch to check out
-    @param silent: keep quiet (don't print any messages)
-    @param git_only: only use git@github.com repo URL, skip trying https://github.com first
+    :param git_repo: git.Repo instance
+    :param target_account: name of GitHub account that owns GitHub repository
+    :param target_repo: name of GitHib repository
+    :param branch_name: name of branch to check out
+    :param silent: keep quiet (don't print any messages)
+    :param git_only: only use git@github.com repo URL, skip trying https://github.com first
     """
     tmpl_github_urls = [
         'git@github.com:%s/%s.git',
@@ -618,6 +633,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         print_msg(git_repo.git.diff(cached=True) + '\n', log=_log, prefix=False)
 
     diff_stat = git_repo.git.diff(cached=True, stat=True)
+    if not diff_stat:
+        raise EasyBuildError("No changed files found when comparing to current develop branch."
+                             "Refused to make empty pull request.")
 
     # commit
     if commit_msg:
@@ -863,7 +881,7 @@ def check_github():
             git_check &= attr in dir(git)
 
         if git_check:
-            check_res = "OK"
+            check_res = "OK (GitPython version %s)" % git.__version__
         else:
             check_res = "FAIL (import ok, but module doesn't provide what is expected)"
     else:
@@ -896,7 +914,11 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        check_res = "FAIL (unexpected exception: %s)" % push_err
+        gp_ver, req_gp_ver = git.__version__, '1.0'
+        if LooseVersion(gp_ver) < LooseVersion(req_gp_ver):
+            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (gp_ver, req_gp_ver)
+        else:
+            check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
         check_res = "FAIL (no GitHub user specified)"
 
@@ -998,8 +1020,8 @@ def install_github_token(github_user, silent=False):
     """
     Install specified GitHub token for specified user.
 
-    @param github_user: GitHub user to install token for
-    @param silent: keep quiet (don't print any messages)
+    :param github_user: GitHub user to install token for
+    :param silent: keep quiet (don't print any messages)
     """
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to install GitHub token")

@@ -25,8 +25,8 @@
 """
 Toolchain mpi module. Contains all MPI related classes
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import tempfile

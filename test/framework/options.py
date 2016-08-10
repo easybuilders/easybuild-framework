@@ -47,7 +47,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
+from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -2362,6 +2363,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_empty_pr(self):
+        """Test use of --new-pr (dry run only) with no changes"""
+        if self.github_token is None:
+            print "Skipping test_empty_pr, no GitHub token available?"
+            return
+
+        # get file from develop branch
+        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
+                                       'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.8.eb'])
+        ec_fn = os.path.basename(full_url)
+        ec = download_file(ec_fn, full_url, path=os.path.join(self.test_prefix, ec_fn))
+
+        # try to open new pr with unchanged file
+        args = [
+            '--new-pr',
+            '--experimental',
+            ec,
+            '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+
+        self.mock_stdout(True)
+        error_msg = "No changed files found when comparing to current develop branch."
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
+        self.mock_stdout(False)
+
 
     def test_show_config(self):
         """"Test --show-config and --show-full-config."""

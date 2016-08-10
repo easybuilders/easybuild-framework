@@ -26,8 +26,8 @@
 EasyBuild support for gimkl compiler toolchain (includes GCC, Intel MPI,
 Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gimpi import Gimpi

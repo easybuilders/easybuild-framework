@@ -5,7 +5,7 @@
 """
 EasyBuild support for xlompi compiler toolchain (includes IBM XL compilers (xlc, xlf) and OpenMPI).
 
-@author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
+:author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
 """
 from easybuild.toolchains.compiler.ibmxl import IBMXL
 from easybuild.toolchains.mpi.openmpi import OpenMPI

@@ -27,14 +27,14 @@
 Easyconfig module that provides functionality for dealing with easyconfig (.eb) files,
 alongside the EasyConfig class to represent parsed easyconfig files.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import glob
@@ -102,9 +102,9 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
 
-    @param easyconfigs: list of parsed easyconfigs
-    @param avail_modules: list of available modules
-    @param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
+    :param easyconfigs: list of parsed easyconfigs
+    :param avail_modules: list of available modules
+    :param retain_all_deps: retain all dependencies, regardless of whether modules are available for them or not
     """
     ordered_ecs = []
     new_easyconfigs = []
@@ -288,7 +288,7 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
 def det_easyconfig_paths(orig_paths):
     """
     Determine paths to easyconfig files.
-    @param orig_paths: list of original easyconfig paths
+    :param orig_paths: list of original easyconfig paths
     @return: list of paths to easyconfig files
     """
     from_pr = build_option('from_pr')
@@ -464,9 +464,9 @@ def find_related_easyconfigs(path, ec):
 def review_pr(pr, colored=True, branch='develop'):
     """
     Print multi-diff overview between easyconfigs in specified PR and specified branch.
-    @param pr: pull request number in easybuild-easyconfigs repo to review
-    @param colored: boolean indicating whether a colored multi-diff should be generated
-    @param branch: easybuild-easyconfigs branch to compare with
+    :param pr: pull request number in easybuild-easyconfigs repo to review
+    :param colored: boolean indicating whether a colored multi-diff should be generated
+    :param branch: easybuild-easyconfigs branch to compare with
     """
     tmpdir = tempfile.mkdtemp()
 
@@ -491,7 +491,7 @@ def dump_env_script(easyconfigs):
     """
     Dump source scripts that set up build environment for specified easyconfigs.
 
-    @param easyconfigs: list of easyconfigs to generate scripts for
+    :param easyconfigs: list of easyconfigs to generate scripts for
     """
     ecs_and_script_paths = []
     for easyconfig in easyconfigs:
