@@ -38,6 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
+from easybuild.tools.filetools import which
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -47,6 +48,9 @@ from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
+
+CCACHE = 'ccache'
+F90CACHE = 'f90cache'
 
 
 class Toolchain(object):
@@ -90,7 +94,6 @@ class Toolchain(object):
         :param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
         :param modtool: ModulesTool instance to use
         """
-
         self.base_init()
 
         self.dependencies = []
@@ -101,7 +104,6 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
-
         if version is None:
             version = self.VERSION
         if version is None:
@@ -584,6 +586,27 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def symlink_compilers(self, paths):
+        """
+        Create a symlink for each compiler to binary/script at specified path.
+
+        :param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
+                      tuple ('path/to/cache', [commands to symlink to this cache])
+        """
+        tmpdir = tempfile.mkdtemp()
+
+        for _, (path, comps) in paths.items():
+            for comp in comps:
+                comp_s = os.path.join(tmpdir, comp)
+                if not os.path.exists(comp_s):
+                    try:
+                        os.symlink(path, comp_s)
+                    except OSError as err:
+                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, comp_s, err)
+
+        setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
+
+
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -619,6 +642,42 @@ class Toolchain(object):
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
+
+        if build_option('use_compiler_cache'):
+            self.prepare_compiler_cache()
+
+    def prepare_compiler_cache(self):
+        """
+        Prepare paths and variables for using compiler caches (ccache, f90cache)
+        """
+        paths = {}
+
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            c_comps = ['gcc', 'g++']
+            fortran_comps =  ['gfortran']
+        else:
+            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
+            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+
+        compilers = {
+            CCACHE : c_comps,
+            F90CACHE : fortran_comps,
+        }
+
+        for cache in [CCACHE, F90CACHE]:
+            cache_path = which(cache)
+            if cache_path is None:
+                raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+            else:
+                paths[cache] = (cache_path, compilers[cache])
+
+        # set paths for caches
+        comp_cache_path = build_option('use_compiler_cache')
+        for cachename in ["CCACHE", "F90CACHE"]:
+            os.environ["%s_DIR" % cachename] = comp_cache_path
+            os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
+
+        self.symlink_compilers(paths)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
