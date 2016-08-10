@@ -28,8 +28,8 @@ This describes the easyconfig format versions 2.x
 
 This is a mix between version 1.0 and configparser-style configuration
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import re
@@ -76,7 +76,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def _check_docstring(self):
         """
         Verify docstring.
-        field @author: people who contributed to the easyconfig
+        field :author: people who contributed to the easyconfig
         field @maintainer: people who can be contacted in case of problems
         """
         authors = []

@@ -25,8 +25,8 @@
 """
 CrayGNU toolchain: GCC and MPI via Cray compiler drivers + LibSci (PrgEnv-gnu) and Cray FFTW
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.craype import CrayPEGCC
 from easybuild.toolchains.linalg.libsci import LibSci

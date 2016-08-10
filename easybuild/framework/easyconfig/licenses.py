@@ -27,8 +27,8 @@
 Easyconfig licenses module that provides all licenses that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from vsc.utils import fancylogger
