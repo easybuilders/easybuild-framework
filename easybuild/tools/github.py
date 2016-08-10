@@ -380,11 +380,11 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
             # obtain most recent version of patched files
             for patched_file in patched_files:
                 # path to patch file, incl. subdir it is in
-                fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
+                fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
                 sha = last_commit['sha']
                 full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
                 _log.info("Downloading %s from %s" % (fn, full_url))
-                download_file(fn, full_url, path=os.path.join(path, patched_file), forced=True)
+                download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
         else:
             apply_patch(diff_filepath, final_path, level=1)
 
@@ -395,11 +395,12 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []
-    for patched in patched_files:
-        if os.path.exists(os.path.join(final_path, patched)):
-            ec_files.append(os.path.join(final_path, patched))
+    for patched_file in patched_files:
+        fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+        if os.path.exists(os.path.join(path, fn)):
+            ec_files.append(os.path.join(path, fn))
         else:
-            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(final_path, patched))
+            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, fn))
 
     return ec_files
 

@@ -629,7 +629,7 @@ class RobotTest(EnhancedTestCase):
             (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
-            ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # part of PR easyconfigs
+            ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
             ('.*/files_pr1239', 'gompi/2015a'),  # part of PR easyconfigs
             (test_ecs_path, 'GCC/4.9.2'),  # dependency for PR easyconfigs, found in robot search path
         ]
