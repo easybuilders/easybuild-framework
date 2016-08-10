@@ -607,8 +607,6 @@ class RobotTest(EnhancedTestCase):
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
-        # put gompi-2015a.eb easyconfig in place that shouldn't be considered (paths via --from-pr have precedence)
-        write_file(os.path.join(self.test_prefix, 'gompi-2015a.eb'), gompi_2015a_txt)
 
         args = [
             os.path.join(test_ecs_path, 'toy-0.0.eb'),
@@ -626,14 +624,13 @@ class RobotTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-        from_pr_prefix = os.path.join(self.test_prefix, '.*', 'files_pr1239')
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
-            (from_pr_prefix, 'FFTW/3.3.4-gompi-2015a'),  # part of PR easyconfigs
-            (from_pr_prefix, 'gompi/2015a'),  # part of PR easyconfigs
+            ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
+            ('.*/files_pr1239', 'gompi/2015a'),  # part of PR easyconfigs
             (test_ecs_path, 'GCC/4.9.2'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
