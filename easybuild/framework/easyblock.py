@@ -114,7 +114,6 @@ class EasyBlock(object):
     # static class method for extra easyconfig parameter definitions
     # this makes it easy to access the information without needing an instance
     # subclasses of EasyBlock should call this method with a dictionary
-
     @staticmethod
     def extra_options(extra=None):
         """
