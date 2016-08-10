@@ -49,6 +49,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
 from easybuild.tools.filetools import det_patched_files, decode_class_name, download_file, extract_file, mkdir
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
@@ -79,7 +80,6 @@ except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
 
-EB_PREFIX = 'EB_'
 GENERIC_EB = 'generic'
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
@@ -693,7 +693,7 @@ def copy_easyblocks(paths, target_dir):
 
             cn = classnames[0]
             eb_name = decode_class_name(cn).lower() # TODO not fully right yet. - to _ (and others??)
-            if cn.startswith(EB_PREFIX):
+            if cn.startswith(EASYBLOCK_CLASS_PREFIX):
                 # regular eb file
                 letter = fn.lower()[0]
                 target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
