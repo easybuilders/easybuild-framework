@@ -1255,9 +1255,9 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
             # add toolchain as dependency too
             if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-                dep = ec.toolchain.as_dict()
-                _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
-                easyconfig['dependencies'].append(dep)
+                tc = ec.toolchain.as_dict()
+                _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
+                easyconfig['dependencies'].append(tc)
 
     if cache_key is not None:
         _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]

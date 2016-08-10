@@ -155,7 +155,7 @@ class YebTest(EnhancedTestCase):
         # only test bad cases - the right ones are tested with the test files in test_parse_yeb
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
-        expected = r'Can not convert list .* to name and version dict. Expected 2 elements'
+        expected = r'Can not convert list .* to toolchain dict. Expected 2 or 3 elements'
         self.assertErrorRegex(EasyBuildError, expected, EasyConfig, os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
 
     def test_external_module_toolchain(self):
