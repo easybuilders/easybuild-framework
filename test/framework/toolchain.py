@@ -851,14 +851,16 @@ class ToolchainTest(EnhancedTestCase):
             "--use-compiler-cache",
             self.test_prefix,
             "--force",
+            "--debug",
             ]
 
-        self.mock_stdout(True)
-        self.eb_main(args, raise_error=True, do_build=True)
-        out = self.get_stdout()
-        self.mock_stdout(False)
+        out = self.eb_main(args, raise_error=True, do_build=True)
 
-        # self.assertEqual(out, "This is a ccache wrapper")
+        patterns = [
+            "This is a ccache wrapper",
+            "Command %s found at %s" % (cachename, path)
+        ]
+        self.assertTrue(all([pattern in out for pattern in patterns]))
 
 
 def suite():
