@@ -637,7 +637,7 @@ class ModulesTool(object):
             self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                            key, os.environ.get(key, ''), environ[key])
 
-        cmd_list = self.compose_cmd_list(args[0], arg[1:])
+        cmd_list = self.compose_cmd_list(args[0], args[1:])
         full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
