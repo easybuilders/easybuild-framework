@@ -33,10 +33,10 @@ from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
-from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
+from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT
 from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
 from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
-from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_name_version_dict
+from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_toolchain_dict
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
 from easybuild.tools.build_log import EasyBuildError
 
@@ -69,6 +69,11 @@ class TypeCheckingTest(EnhancedTestCase):
         # check type checking of toolchain (non-trivial type: dict with only name/version keys & string values)
         toolchain = {'name': 'goolf', 'version': '1.4.10'}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        # check type checking of toolchain (non-trivial type: dict with name/version keys & string values + hidden spec)
+        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': True}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': False}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
         # missing 'version' key
         self.assertEqual(check_type_of_param_value('toolchain', {'name': 'intel'}), (False, None))
         # non-string value for 'version'
@@ -78,6 +83,9 @@ class TypeCheckingTest(EnhancedTestCase):
         # check auto-converting of toolchain value
         toolchain = {'name': 'intel', 'version': '2015a'}
         for tcspec in ["intel, 2015a", ['intel', '2015a'], toolchain]:
+            self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
+        toolchain = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        for tcspec in ["intel, 2015a, True", ['intel', '2015a', 'True'], toolchain]:
             self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
 
     def test_check_type_of_param_value_deps(self):
@@ -195,27 +203,44 @@ class TypeCheckingTest(EnhancedTestCase):
             pass
         self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
 
-    def test_to_name_version_dict(self):
+    def test_to_toolchain_dict(self):
         """ Test toolchain string to dict conversion """
         # normal cases
-        self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version_dict(('intel', '2015a')), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+        self.assertEqual(to_toolchain_dict(('intel', '2015a')), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_toolchain_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_toolchain_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+
+        # incl. hidden spec
+        expected = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        self.assertEqual(to_toolchain_dict("intel, 2015a, True"), expected)
+        expected = {'name': 'intel', 'version': '2015a', 'hidden': False}
+        self.assertEqual(to_toolchain_dict(('intel', '2015a', 'False')), expected)
+        expected = {'name': 'gcc', 'version': '4.7', 'hidden': True}
+        self.assertEqual(to_toolchain_dict(['gcc', '4.7', 'True']), expected)
+
         tc = {'name': 'intel', 'version': '2015a'}
-        self.assertEqual(to_name_version_dict(tc), tc)
+        self.assertEqual(to_toolchain_dict(tc), tc)
+
+        tc = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        self.assertEqual(to_toolchain_dict(tc), tc)
 
         # wrong type
-        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to name and version dict is not supported",
-                              to_name_version_dict, 1000)
+        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
+                              to_toolchain_dict, 1000)
 
         # wrong number of elements
-        errstr = "Can not convert .* to name and version .*. Expected 2 elements"
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, a")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', '7'])
+        errstr = "Can not convert .* to toolchain dict. Expected 2 or 3 elements"
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, True, a")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', 'False', '7'])
+
+        # invalid truth value
+        errstr = "invalid truth value .*"
+        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, "intel, 2015, foo")
+        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
 
         # missing keys
-        self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_name_version_dict, {'name': 'intel'})
+        self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_toolchain_dict, {'name': 'intel'})
 
     def test_to_dependency(self):
         """ Test dependency dict to tuple conversion """
@@ -315,13 +340,13 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type("foo", int))
 
         # toolchain type check
-        self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, NAME_VERSION_DICT))
+        self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, TOOLCHAIN_DICT))
         # version value should be string, not int
-        self.assertFalse(is_value_of_type({'name': 'intel', 'version': 100}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': 100}, TOOLCHAIN_DICT))
         # missing version key
-        self.assertFalse(is_value_of_type({'name': 'intel', 'foo': 'bar'}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel', 'foo': 'bar'}, TOOLCHAIN_DICT))
         # extra key, shouldn't be there
-        self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, TOOLCHAIN_DICT))
 
         # dependency type check
         self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, DEPENDENCY_DICT))
@@ -332,7 +357,7 @@ class TypeCheckingTest(EnhancedTestCase):
             'versionsuffix': 'foo',
         }, DEPENDENCY_DICT))
         # no version key
-        self.assertFalse(is_value_of_type({'name': 'intel'}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel'}, TOOLCHAIN_DICT))
         # too many keys
         self.assertFalse(is_value_of_type({
             'name': 'intel',

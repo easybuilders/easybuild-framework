@@ -25,7 +25,7 @@
 """
 Module with various utility functions
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import glob
 import os
@@ -69,7 +69,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False):
     foo becomes 'foo', foo'bar becomes "foo'bar",
     foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
 
-    @param escape_newline: wrap strings that include a newline in triple quotes
+    :param escape_newline: wrap strings that include a newline in triple quotes
     """
 
     if isinstance(val, basestring):
@@ -107,7 +107,7 @@ def import_available_modules(namespace):
     """
     Import all available module in the specified namespace.
 
-    @param namespace: The namespace to import modules from.
+    :param namespace: The namespace to import modules from.
     """
     modules = []
     for path in sys.path:

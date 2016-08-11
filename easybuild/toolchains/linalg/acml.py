@@ -25,8 +25,8 @@
 """
 Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 import os

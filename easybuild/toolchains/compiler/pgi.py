@@ -28,7 +28,7 @@
 """
 Support for PGI compilers (pgcc, pgc++, pgfortran) as toolchain compilers.
 
-@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from distutils.version import LooseVersion

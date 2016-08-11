@@ -25,8 +25,8 @@
 """
 Support for Intel compilers (icc, ifort) as toolchain compilers.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion

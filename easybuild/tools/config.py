@@ -25,13 +25,13 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import glob
@@ -96,6 +96,7 @@ BUILD_OPTIONS_CMDLINE = {
         'extra_modules',
         'filter_deps',
         'hide_deps',
+        'hide_toolchains',
         'from_pr',
         'git_working_dirs_path',
         'pr_branch_name',
@@ -148,6 +149,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_compiler_cache',
         'use_existing_modules',
     ],
     True: [
@@ -506,11 +508,11 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     """
     Generate a filename to be used for logging
 
-    @param name: software name ('%(name)s')
-    @param version: software version ('%(version)s')
-    @param add_salt: add salt (5 random characters)
-    @param date: string representation of date to use ('%(date)s')
-    @param timestamp: timestamp to use ('%(time)s')
+    :param name: software name ('%(name)s')
+    :param version: software version ('%(version)s')
+    :param add_salt: add salt (5 random characters)
+    :param date: string representation of date to use ('%(date)s')
+    :param timestamp: timestamp to use ('%(time)s')
     """
     if date is None:
         date = time.strftime("%Y%m%d")
@@ -544,7 +546,7 @@ def find_last_log(curlog):
     """
     Find location to last log file that is still available.
 
-    @param curlog: location to log file of current session
+    :param curlog: location to log file of current session
     @return: path to last log file (or None if no log files were found)
     """
     variables = ConfigurationVariables()

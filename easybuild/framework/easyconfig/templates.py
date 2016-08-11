@@ -27,8 +27,8 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import re
 from vsc.utils import fancylogger

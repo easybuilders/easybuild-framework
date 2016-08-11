@@ -25,8 +25,8 @@
 """
 Implementation of a categorized module naming scheme using module classes.
 
-@author: Maxime Schmitt (University of Luxembourg)
-@author: Xavier Besseron (University of Luxembourg)
+:author: Maxime Schmitt (University of Luxembourg)
+:author: Xavier Besseron (University of Luxembourg)
 """
 
 import os
@@ -44,7 +44,7 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         """
         Determine full module name from given easyconfig, according to the thematic module naming scheme.
 
-        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
+        :param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
 
         @return: string representing full module name, e.g.: 'biology/ABySS/1.3.4-goolf-1.4.10'
         """
