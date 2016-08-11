@@ -639,7 +639,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             if len(hits) == 1:
                 deleted_paths.append(hits[0])
             else:
-                raise EasyBuildError("Path doesn't exist or deleted file isn't found in target branch: %s", fn)
+                raise EasyBuildError("Path doesn't exist or file to delete isn't found in target branch: %s", fn)
 
     # copy edited/added files to right place
     file_info = copy_easyconfigs(existing_paths, repo_path)
@@ -753,7 +753,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if file_info['ecs']:
+        if any(file_info['new']):
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
