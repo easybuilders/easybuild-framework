@@ -579,23 +579,23 @@ class ModulesTool(object):
         """Check output of 'module' command, see if if is potentially invalid."""
         self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
 
-    def compose_cmd_list(self, subcmd, args, opts=None):
+    def compose_cmd_list(self, args, opts=None):
         """
         Compose full module command to run, based on provided arguments
 
-        :param subcmd: module subcommand to run
         :param args: list of arguments for module command
         :return: list of strings representing the full module command to run
         """
         if opts is None:
             opts = []
 
-        cmdlist = [self.cmd, 'python', subcmd]
+        cmdlist = [self.cmd, 'python']
 
-        if subcmd in ('available', 'avail', 'list',):
+        if args[0] in ('available', 'avail', 'list',):
             # run these in terse mode for easier machine reading
             opts.append(self.TERSE_OPTION)
 
+        # inject options at specified location
         for idx, opt in opts:
             args.insert(idx, opt)
 
@@ -637,7 +637,7 @@ class ModulesTool(object):
             self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                            key, os.environ.get(key, ''), environ[key])
 
-        cmd_list = self.compose_cmd_list(args[0], args[1:])
+        cmd_list = self.compose_cmd_list(args)
         full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
@@ -968,7 +968,7 @@ class Lmod(ModulesTool):
         else:
             raise EasyBuildError("Found empty stdout, seems like '%s' failed: %s", cmd, stderr)
 
-    def compose_cmd_list(self, subcmd, args, opts=None):
+    def compose_cmd_list(self, args, opts=None):
         """
         Compose full module command to run, based on provided arguments
 
@@ -982,7 +982,7 @@ class Lmod(ModulesTool):
             opts.append((0, self.SHOW_HIDDEN_OPTION))
             args = [a for a in args if a != self.SHOW_HIDDEN_OPTION]
 
-        return super(Lmod, self).compose_cmd_list(subcmd, args, opts=opts)
+        return super(Lmod, self).compose_cmd_list(args, opts=opts)
 
     def available(self, mod_name=None):
         """
