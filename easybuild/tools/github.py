@@ -673,7 +673,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     diff_stat = git_repo.git.diff(cached=True, stat=True)
     if not diff_stat:
-        raise EasyBuildError("No changed files found when comparing to current develop branch."
+        raise EasyBuildError("No changed files found when comparing to current develop branch. "
                              "Refused to make empty pull request.")
 
     # commit
@@ -753,7 +753,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if any(file_info['new']):
+        if file_info['ecs'] and any(file_info['new']):
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
