@@ -579,18 +579,46 @@ class ModulesTool(object):
         """Check output of 'module' command, see if if is potentially invalid."""
         self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
 
+    def compose_cmd_list(self, subcmd, args, opts=None):
+        """
+        Compose full module command to run, based on provided arguments
+
+        :param subcmd: module subcommand to run
+        :param args: list of arguments for module command
+        :return: list of strings representing the full module command to run
+        """
+        if opts is None:
+            opts = []
+
+        cmdlist = [self.cmd, 'python', subcmd]
+
+        if subcmd in ('available', 'avail', 'list',):
+            # run these in terse mode for easier machine reading
+            opts.append(self.TERSE_OPTION)
+
+        for idx, opt in opts:
+            args.insert(idx, opt)
+
+        # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
+        if self.COMMAND_SHELL is not None:
+            if not isinstance(self.COMMAND_SHELL, (list, tuple)):
+                raise EasyBuildError("COMMAND_SHELL needs to be list or tuple, now %s (value %s)",
+                                     type(self.COMMAND_SHELL), self.COMMAND_SHELL)
+            cmdlist = self.COMMAND_SHELL + cmdlist
+
+        return cmdlist + args
+
     def run_module(self, *args, **kwargs):
         """
         Run module command.
+
+        :param args: list of arguments for module command; first argument should be the subcommand to run
+        :param kwargs: dictionary with options that control certain aspects of how to run the module command
         """
         if isinstance(args[0], (list, tuple,)):
             args = args[0]
         else:
             args = list(args)
-
-        if args[0] in ('available', 'avail', 'list',):
-            # run these in terse mode for easier machine reading
-            args.insert(*self.TERSE_OPTION)
 
         module_path_key = None
         if 'mod_paths' in kwargs:
@@ -609,18 +637,11 @@ class ModulesTool(object):
             self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                            key, os.environ.get(key, ''), environ[key])
 
-        # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
-        cmdlist = [self.cmd, 'python']
-        if self.COMMAND_SHELL is not None:
-            if not isinstance(self.COMMAND_SHELL, (list, tuple)):
-                raise EasyBuildError("COMMAND_SHELL needs to be list or tuple, now %s (value %s)",
-                                     type(self.COMMAND_SHELL), self.COMMAND_SHELL)
-            cmdlist = self.COMMAND_SHELL + cmdlist
-
-        full_cmd = ' '.join(cmdlist + args)
+        cmd_list = self.compose_cmd_list(args[0], arg[1:])
+        full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
+        proc = subprocess.Popen(cmd_list, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
@@ -921,6 +942,8 @@ class Lmod(ModulesTool):
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
+    SHOW_HIDDEN_OPTION = '--show_hidden'
+
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
@@ -945,6 +968,22 @@ class Lmod(ModulesTool):
         else:
             raise EasyBuildError("Found empty stdout, seems like '%s' failed: %s", cmd, stderr)
 
+    def compose_cmd_list(self, subcmd, args, opts=None):
+        """
+        Compose full module command to run, based on provided arguments
+
+        :param args: list of arguments for module command
+        :return: list of strings representing the full module command to run
+        """
+        if opts is None:
+            opts = []
+
+        if self.SHOW_HIDDEN_OPTION in args:
+            opts.append((0, self.SHOW_HIDDEN_OPTION))
+            args.remove(self.SHOW_HIDDEN_OPTION)
+
+        return super(Lmod, self).compose_cmd_list(subcmd, args, opts=opts)
+
     def available(self, mod_name=None):
         """
         Return a list of available modules for the given (partial) module name;
@@ -955,7 +994,7 @@ class Lmod(ModulesTool):
         extra_args = []
         if StrictVersion(self.version) >= StrictVersion('5.7.5'):
             # make hidden modules visible for recent version of Lmod
-            extra_args = ['--show_hidden']
+            extra_args = [self.SHOW_HIDDEN_OPTION]
 
         mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
 
