@@ -83,7 +83,8 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None):
+    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None,
+                 hidden=False):
         """
         Toolchain constructor.
 
@@ -93,6 +94,7 @@ class Toolchain(object):
         :param class_constants: toolchain 'constants' to define
         :param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
         :param modtool: ModulesTool instance to use
+        :param hidden: bool indicating whether toolchain is hidden or not
         """
         self.base_init()
 
@@ -119,6 +121,8 @@ class Toolchain(object):
 
         # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
         self.dry_run = build_option('extended_dry_run', default=False)
+        hidden_toolchains = build_option('hide_toolchains', default=None) or []
+        self.hidden = hidden or (name in hidden_toolchains)
 
         self.modules_tool = modtool
 
@@ -288,7 +292,7 @@ class Toolchain(object):
             'versionsuffix': '',
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
-            'hidden': False,
+            'hidden': self.hidden,
             'full_mod_name': self.mod_full_name,
             'short_mod_name': self.mod_short_name,
         }
