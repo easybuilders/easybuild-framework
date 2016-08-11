@@ -277,7 +277,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             eb_file = find_easybuild_eb()
             orig_paths.append(eb_file)
         else:
-            raise EasyBuildError("Update option isn't compatible with other easyconfig files")
+            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
+                                 "other easyconfigs")
 
     # GitHub integration
     cleanup_and_exit = handle_github_options(options, orig_paths)
