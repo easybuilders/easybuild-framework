@@ -980,7 +980,7 @@ class Lmod(ModulesTool):
 
         if self.SHOW_HIDDEN_OPTION in args:
             opts.append((0, self.SHOW_HIDDEN_OPTION))
-            args.remove(self.SHOW_HIDDEN_OPTION)
+            args = [a for a in args if a != self.SHOW_HIDDEN_OPTION]
 
         return super(Lmod, self).compose_cmd_list(subcmd, args, opts=opts)
 
