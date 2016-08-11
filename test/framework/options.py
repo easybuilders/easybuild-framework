@@ -2366,29 +2366,41 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_dependencies(self):
-        """Test use of --new-pr to delete easyconfigs."""
+        """Test use of --new-pr with automatic dependency lookup."""
 
         if self.github_token is None:
             print "Skipping test_new_pr_dependencies, no GitHub token available?"
             return
 
-        # copy toy test easyconfig
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        openmpi = os.path.join(self.test_prefix, 'OpenMPI-1.6.4-GCC-4.7.2.eb')
-        shutil.copy2(os.path.join(test_ecs_dir, 'OpenMPI-1.6.4-GCC-4.7.2.eb'), openmpi)
-        hwloc_ec = os.path.join(self.test_prefix, 'hwloc-1.6.2-GCC-4.7.2.eb')
-        hwloc_txt = read_file(os.path.join(test_ecs_dir, 'hwloc-1.6.2-GCC-4.7.2.eb'))
-        comment = "# a comment"
-        write_file(hwloc_ec, '\n'.join([comment, hwloc_txt]))
+        foo_eb = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "foo"',
+            'version = "1.0"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'dependencies = [("bar", "2.0")]'
+        ])
+        bar_eb = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "bar"',
+            'version = "2.0"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+        ])
 
+        write_file(os.path.join(self.test_prefix, 'foo-1.0.eb'), foo_eb)
+        write_file(os.path.join(self.test_prefix, 'bar-2.0.eb'), bar_eb)
 
         args = [
             '--new-pr',
             '--experimental',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            openmpi,
+            os.path.join(self.test_prefix, 'foo-1.0.eb'),
             '-D',
             '--disable-cleanup-tmpdir',
+            '-r%s' % self.test_prefix,
         ]
 
         self.mock_stdout(True)
@@ -2398,8 +2410,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs = [
             r"^\* overview of changes:",
-            r".*/hwloc-1.6.2-GCC-4.7.2.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/OpenMPI-1.6.4-GCC-4.7.2.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/foo-1\.0\.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/bar-2\.0\.eb\s+\|\s+[0-9]+\s+\++",
             r"^\s*2 files changed",
         ]
 

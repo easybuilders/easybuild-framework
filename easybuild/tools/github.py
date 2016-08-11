@@ -619,13 +619,33 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    deps = resolve_dependencies([process_easyconfig(ec)[0] for ec in paths], modules_tool())
 
     file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
 
-    # dont save info on dependencies
-    dep_paths = [dep['spec'] for dep in deps if dep['spec'] not in paths]
-    dep_info = copy_easyconfigs(dep_paths, os.path.join(git_working_dir, pr_target_repo))
+    dep_info = {
+        'ecs': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    # if robot is on, resolve dependencies
+    if build_option('robot'):
+        try:
+            deps = resolve_dependencies([process_easyconfig(ec)[0] for ec in paths], modules_tool())
+        except EasyBuildError as err:
+            raise EasyBuildError("Couldn't resolve dependencies within the current robot search path. "
+                                 "Try specifying the robot path with option -r. (%s)" % err)
+
+        # don't save info on dependencies
+        abs_paths = [os.path.abspath(path) for path in paths]
+        dep_paths = [dep['spec'] for dep in deps if dep['spec'] not in abs_paths]
+        all_dep_info = copy_easyconfigs(dep_paths, os.path.join(git_working_dir, pr_target_repo))
+
+        # only consider new dependency files
+        for i in range(0, len(all_dep_info['ecs'])):
+            if all_dep_info['new'][i]:
+                for key in dep_info.keys():
+                    dep_info[key].append(all_dep_info[key][i])
 
     # checkout target branch
     if pr_branch is None:
