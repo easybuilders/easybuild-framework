@@ -96,6 +96,7 @@ BUILD_OPTIONS_CMDLINE = {
         'extra_modules',
         'filter_deps',
         'hide_deps',
+        'hide_toolchains',
         'from_pr',
         'git_working_dirs_path',
         'pr_branch_name',
