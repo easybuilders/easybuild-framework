@@ -31,6 +31,7 @@ Utility module for working with github
 """
 import base64
 import getpass
+import glob
 import os
 import random
 import re
@@ -591,12 +592,20 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # we need files to create the PR with
     if paths:
         non_existing_paths = []
+        delete_files = []
+        existing_paths = []
         for path in paths:
             if not os.path.exists(path):
-                non_existing_paths.append(path)
+                if path.startswith(':'):
+                    delete_files.append(path[1:])
+                else:
+                    non_existing_paths.append(path)
+            else:
+                existing_paths.append(path)
 
         if non_existing_paths:
             raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
+
     else:
         raise EasyBuildError("No paths specified")
 
@@ -605,6 +614,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, pr_target_repo)
+    repo_path = os.path.join(git_working_dir, pr_target_repo)
 
     if pr_target_repo != GITHUB_EASYCONFIGS_REPO:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
@@ -617,12 +627,30 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # copy files to right place
-    file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+    # determine path to files to delete (if any)
+    deleted_paths = []
+    for fn in delete_files:
+        fullpath = os.path.join(repo_path, fn)
+        if os.path.exists(fullpath):
+            deleted_paths.append(fullpath)
+        else:
+            # if no existing relative path is specified, assume just the easyconfig file name is provided
+            hits = glob.glob(os.path.join(repo_path, 'easybuild', 'easyconfigs', '*', '*', fn))
+            if len(hits) == 1:
+                deleted_paths.append(hits[0])
+            else:
+                raise EasyBuildError("Path doesn't exist or file to delete isn't found in target branch: %s", fn)
+
+    # copy edited/added files to right place
+    file_info = copy_easyconfigs(existing_paths, repo_path)
+
+    if existing_paths:
+        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+    else:
+        name_version = os.path.basename(delete_files[0])
 
     # checkout target branch
     if pr_branch is None:
-        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
 
     # create branch to commit to and push;
@@ -634,6 +662,10 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
 
+    # stage deleted files
+    if deleted_paths:
+        git_repo.index.remove(deleted_paths)
+
     # overview of modifications
     if build_option('extended_dry_run'):
         print_msg("\nFull patch:\n", log=_log, prefix=False)
@@ -641,7 +673,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     diff_stat = git_repo.git.diff(cached=True, stat=True)
     if not diff_stat:
-        raise EasyBuildError("No changed files found when comparing to current develop branch."
+        raise EasyBuildError("No changed files found when comparing to current develop branch. "
                              "Refused to make empty pull request.")
 
     # commit
@@ -681,7 +713,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  pr_branch, my_remote, github_url)
 
-    return file_info, git_repo, pr_branch, diff_stat
+    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -706,9 +738,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
-                                                                    target_account=pr_target_account,
-                                                                    commit_msg=commit_msg)
+    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+                                                                                   target_account=pr_target_account,
+                                                                                   commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
@@ -721,14 +753,19 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        # mention software name/version in PR title (only first 3)
-        names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-        if len(names_and_versions) <= 3:
-            main_title = ', '.join(names_and_versions)
-        else:
-            main_title = ', '.join(names_and_versions[:3] + ['...'])
+        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
+            # mention software name/version in PR title (only first 3)
+            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            if len(names_and_versions) <= 3:
+                main_title = ', '.join(names_and_versions)
+            else:
+                main_title = ', '.join(names_and_versions[:3] + ['...'])
 
-        title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+            title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+
+        else:
+            raise EasyBuildError("Don't know how to make a PR title for this PR. "
+                                 "Please include a title (use --pr-title)")
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
@@ -794,8 +831,8 @@ def update_pr(pr, paths, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
-                                                target_account=account, commit_msg=commit_msg)
+    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
+                                                   target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 

@@ -2274,10 +2274,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # purposely picked one with non-default toolchain/versionsuffix
         shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
 
-        os.environ['EASYBUILD_GITHUB_USER'] = GITHUB_TEST_ACCOUNT
         args = [
             '--new-pr',
             '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
             '-D',
             '--disable-cleanup-tmpdir',
@@ -2344,6 +2344,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # we need a PR where the base branch is still available ('develop', in this case)
             '--update-pr=2237',
             '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
             '-D',
             # only to speed things up
@@ -2360,6 +2361,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
             r"^\s*1 file changed",
             r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_new_pr_delete(self):
+        """Test use of --new-pr to delete easyconfigs."""
+
+        if self.github_token is None:
+            print "Skipping test_new_pr_delete, no GitHub token available?"
+            return
+
+        args = [
+            '--new-pr',
+            '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            ':bzip2-1.0.6.eb',
+            '-D',
+            '--disable-cleanup-tmpdir',
+            '--pr-title=delete bzip2-1.6.0',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r'title: "delete bzip2-1.6.0"',
+            r"1 file changed, [0-9]+ deletions\(-\)",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -2390,7 +2421,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = "No changed files found when comparing to current develop branch."
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
         self.mock_stdout(False)
-
 
     def test_show_config(self):
         """"Test --show-config and --show-full-config."""
