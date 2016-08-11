@@ -713,7 +713,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  pr_branch, my_remote, github_url)
 
-    return file_info, git_repo, pr_branch, diff_stat
+    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
@@ -738,9 +738,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
-                                                                    target_account=pr_target_account,
-                                                                    commit_msg=commit_msg)
+    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+                                                                                   target_account=pr_target_account,
+                                                                                   commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
@@ -753,7 +753,7 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if file_info['ecs'] and all(file_info['new']):
+        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
@@ -831,8 +831,8 @@ def update_pr(pr, paths, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
-                                                target_account=account, commit_msg=commit_msg)
+    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
+                                                   target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
