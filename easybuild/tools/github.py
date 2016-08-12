@@ -42,7 +42,6 @@ import sys
 import tempfile
 import time
 import urllib2
-
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
@@ -1227,3 +1226,31 @@ def validate_github_token(token, github_user):
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
 
     return sanity_check and token_test
+
+
+def find_easybuild_easyconfig():
+    """
+    Fetches the latest EasyBuild version eb file from GitHub
+    """
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN)
+    eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
+    files = os.listdir(eb_parent_path)
+
+    # find most recent version
+    file_versions = []
+    for eb_file in files:
+        txt = read_file(os.path.join(eb_parent_path, eb_file))
+        for line in txt.split('\n'):
+            if re.search(r'^version\s*=', line):
+                scope = {}
+                exec(line, scope)
+                version = scope['version']
+                file_versions.append((LooseVersion(version), eb_file))
+
+    if file_versions:
+        fn = sorted(file_versions)[-1][1]
+    else:
+        raise EasyBuildError("Couldn't find any EasyBuild easyconfigs")
+
+    eb_file = os.path.join(eb_parent_path, fn)
+    return eb_file
