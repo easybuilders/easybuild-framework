@@ -1333,6 +1333,11 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
 
 def copy_file(path, target_path):
+    """
+    Copy a file from path to target_path
+    :param path: the original filepath
+    :param target_path: path to copy the file to
+    """
 
     try:
         mkdir(os.path.dirname(target_path), parents=True)

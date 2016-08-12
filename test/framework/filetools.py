@@ -715,6 +715,16 @@ class FileToolsTest(EnhancedTestCase):
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
+    def test_copy_file(self):
+        """ Test copy_file """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        tmpdir = self.test_prefix
+        to_copy = os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')
+        target_path = os.path.join(tmpdir, 'toy-0.0.eb')
+        ft.copy_file(to_copy, target_path)
+        self.assertTrue(os.path.exists(target_path))
+        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
 
 def suite():
     """ returns all the testcases in this module """

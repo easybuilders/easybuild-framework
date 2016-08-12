@@ -243,7 +243,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
     def test_find_patches(self):
-        """ Test for scan_all_easyconfigs """
+        """ Test for find_software_name_for_patch """
         testdir = os.path.dirname(os.path.abspath(__file__))
         ec_path = os.path.join(testdir, 'easyconfigs')
         init_config(build_options={

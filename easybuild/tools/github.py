@@ -659,9 +659,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             else:
                 raise EasyBuildError("Path doesn't exist or file to delete isn't found in target branch: %s", fn)
 
-    # copy edited/added files to right place
-    file_info = copy_easyconfigs(ec_paths, repo_path)
-
     # checkout target branch
     if pr_branch is None:
         if ec_paths:
@@ -758,7 +755,7 @@ def det_patch_specs(patch_paths, file_info):
             # fall back on scanning all eb files for patches
             print "Matching easyconfig for %s not found on the first try:" % patch_path,
             print "scanning all easyconfigs to determine where patch file belongs (this may take a while)..."
-            soft_name = scan_all_easyconfigs(patch_file)
+            soft_name = find_software_name_for_patch(patch_file)
             if soft_name:
                 patch_specs.append((patch_path, soft_name))
             else:
@@ -768,15 +765,28 @@ def det_patch_specs(patch_paths, file_info):
     return patch_specs
 
 
-def scan_all_easyconfigs(patch_name):
+def find_software_name_for_patch(patch_name):
     """
-    Scan all easyconfigs in the robot path to determine which software a patch file belongs to
+    Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
 
-    @param patch_name: name of the patch file
+    :param patch_name: name of the patch file
+    :return: name of the software that this patch file belongs to (if found)
     """
+
+    def is_patch_for(patch_name, ec):
+        """Check whether specified patch matches any patch in the provided EasyConfig instance."""
+        res = False
+        for patch in ec['patches']:
+            if isinstance(patch, (tuple, list)):
+                patch = patch[0]
+            if patch == patch_name:
+                res = True
+                break
+
+        return res
+
     robot_paths = build_option('robot_path')
-    soft_name = ""
-    found = False
+    soft_name = None
 
     all_ecs = []
     for robot_path in robot_paths:
@@ -789,23 +799,22 @@ def scan_all_easyconfigs(patch_name):
                         all_ecs.append(path)
 
     nr_of_ecs = len(all_ecs)
-    for idx, filename in enumerate(all_ecs):
-        if found:
+    for idx, path in enumerate(all_ecs):
+        if soft_name:
             break
-        rawtxt = read_file(filename)
+        rawtxt = read_file(path)
         try:
-            ecs = process_easyconfig(filename, validate=False)
+            ecs = process_easyconfig(path, validate=False)
             for ec in ecs:
-                if patch_name in ec['ec']['patches']:
+                if is_patch_for(patch_name, ec['ec']):
                     soft_name = ec['ec']['name']
-                    found = True
                     break
         except EasyBuildError as err:
             _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
         sys.stdout.write('\r%s of %s easyconfigs checked' % (idx+1, nr_of_ecs))
         sys.stdout.flush()
 
-    print ''
+    sys.stdout.write('\n')
     return soft_name
 
 
