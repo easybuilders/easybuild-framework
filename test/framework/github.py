@@ -246,6 +246,7 @@ class GithubTest(EnhancedTestCase):
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[1-9]+\.[1-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(re.search(regex, path))
+        self.assertTrue(os.path.exists(path))
 
 
 def suite():

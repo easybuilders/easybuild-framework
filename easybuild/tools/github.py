@@ -1102,8 +1102,10 @@ def find_easybuild_eb():
     for eb_file in files:
         txt = read_file(os.path.join(eb_parent_path, eb_file))
         for line in txt.split('\n'):
-            if re.search(r'^version =', line):
-                version = line.split('= ')[-1].replace('"', '').replace("'", '')
+            if re.search(r'^version\s*=', line):
+                scope = {}
+                exec(line, scope)
+                version = scope['version']
                 file_versions.append((LooseVersion(version), eb_file))
 
     fn = sorted(file_versions)[-1][1]

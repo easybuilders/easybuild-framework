@@ -137,7 +137,7 @@ BUILD_OPTIONS_CMDLINE = {
         'force',
         'group_writable_installdir',
         'hidden',
-        'latest_self',
+        'install_latest_eb_release',
         'minimal_toolchains',
         'module_only',
         'package',

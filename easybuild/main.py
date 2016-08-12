@@ -272,13 +272,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
-    if options.latest_self:
-        if not orig_paths:
-            eb_file = find_easybuild_eb()
-            orig_paths.append(eb_file)
-        else:
+    if options.install_latest_eb_release:
+        if orig_paths:
             raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
                                  "other easyconfigs")
+        else:
+            eb_file = find_easybuild_eb()
+            orig_paths.append(eb_file)
 
     # GitHub integration
     cleanup_and_exit = handle_github_options(options, orig_paths)
