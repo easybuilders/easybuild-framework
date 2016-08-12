@@ -628,9 +628,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     if pr_target_repo not in [GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_FRAMEWORK_REPO,]:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
-    easyblocks = pr_target_repo == GITHUB_EASYBLOCKS_REPO
-    framework = pr_target_repo == GITHUB_FRAMEWORK_REPO
-
     if start_branch is None:
         start_branch = build_option('pr_target_branch')
 
@@ -646,15 +643,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-
-    if easyblocks:
-        file_info = copy_easyblocks(ec_paths, os.path.join(git_working_dir, pr_target_repo))
-
-    elif framework:
-        file_info = copy_framework_files(ec_paths, os.path.join(git_working_dir, pr_target_repo))
-
-    else:
-        file_info = copy_easyconfigs(ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
 
     # figure out to which software name patches relate, and copy them to the right place
     if patch_paths:
@@ -1319,3 +1308,10 @@ def validate_github_token(token, github_user):
         _log.info("GitHub token can be used for authenticated GitHub access, validation passed")
 
     return sanity_check and token_test
+
+# copy fucntions for --new-pr
+COPY_FUNCTIONS = {
+    GITHUB_EASYCONFIGS_REPO: copy_easyconfigs,
+    GITHUB_EASYBLOCKS_REPO: copy_easyblocks,
+    GITHUB_FRAMEWORK_REPO: copy_framework_files,
+}
