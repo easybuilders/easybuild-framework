@@ -323,7 +323,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        if options.robot:
+        if options.robot and not ((options.dry_run or options.dry_run_short) and not (options.new_pr or options.update_pr)):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
