@@ -89,7 +89,7 @@ TEMPLATE_CONSTANTS = [
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
-    ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
+    ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
      'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
