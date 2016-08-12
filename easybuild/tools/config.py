@@ -96,6 +96,7 @@ BUILD_OPTIONS_CMDLINE = {
         'extra_modules',
         'filter_deps',
         'hide_deps',
+        'hide_toolchains',
         'from_pr',
         'git_working_dirs_path',
         'pr_branch_name',
@@ -148,6 +149,7 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_compiler_cache',
         'use_existing_modules',
     ],
     True: [
