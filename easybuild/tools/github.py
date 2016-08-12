@@ -1089,7 +1089,7 @@ def validate_github_token(token, github_user):
     return sanity_check and token_test
 
 
-def find_easybuild_eb():
+def find_easybuild_easyconfig():
     """
     Fetches the latest EasyBuild version eb file from GitHub
     """

@@ -240,9 +240,9 @@ class GithubTest(EnhancedTestCase):
 
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
-    def test_find_easybuild_eb(self):
+    def test_find_easybuild_easyconfig(self):
         """Test for find_easybuild_eb function"""
-        path = gh.find_easybuild_eb()
+        path = gh.find_easybuild_easyconfig()
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[1-9]+\.[1-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(re.search(regex, path))

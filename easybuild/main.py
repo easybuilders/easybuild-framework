@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, find_easybuild_eb, install_github_token, new_pr, update_pr
+from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -277,7 +277,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
                                  "other easyconfigs")
         else:
-            eb_file = find_easybuild_eb()
+            eb_file = find_easybuild_easyconfig()
             orig_paths.append(eb_file)
 
     # GitHub integration
