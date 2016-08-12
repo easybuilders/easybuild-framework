@@ -35,6 +35,7 @@ import re
 import tempfile
 import shutil
 import sys
+from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -103,7 +104,14 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
-        self.assertEqual(len(ms), TEST_MODULES_COUNT)
+
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+            # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
+            self.assertTrue('bzip2/.1.0.6' in ms)
+            self.assertTrue('toy/.0.0-deps' in ms)
+        else:
+            self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
     def test_exists(self):
         """Test if testing for module existence works."""
