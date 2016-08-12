@@ -645,16 +645,16 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
-    print_msg("copying easyconfigs to %s..." % target_dir)
+    print_msg("copying files to %s..." % target_dir)
 
     if easyblocks:
-        file_info = copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+        file_info = copy_easyblocks(ec_paths, os.path.join(git_working_dir, pr_target_repo))
 
     elif framework:
-        file_info = copy_framework_files(paths, os.path.join(git_working_dir, pr_target_repo))
+        file_info = copy_framework_files(ec_paths, os.path.join(git_working_dir, pr_target_repo))
 
     else:
-        file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
+        file_info = copy_easyconfigs(ec_paths, os.path.join(git_working_dir, pr_target_repo))
 
     # figure out to which software name patches relate, and copy them to the right place
     if patch_paths:
