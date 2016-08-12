@@ -1247,7 +1247,10 @@ def find_easybuild_easyconfig():
                 version = scope['version']
                 file_versions.append((LooseVersion(version), eb_file))
 
-    fn = sorted(file_versions)[-1][1]
+    if file_versions:
+        fn = sorted(file_versions)[-1][1]
+    else:
+        raise EasyBuildError("Couldn't find any EasyBuild easyconfigs")
 
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
