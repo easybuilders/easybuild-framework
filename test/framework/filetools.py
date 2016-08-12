@@ -672,6 +672,12 @@ class FileToolsTest(EnhancedTestCase):
         del os.environ['LM_LICENSE_FILE']
         self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
 
+    def test_is_patch_file(self):
+        """Test for is_patch_file() function."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')))
+        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
+
     def test_is_alt_pypi_url(self):
         """Test is_alt_pypi_url() function."""
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
@@ -693,6 +699,31 @@ class FileToolsTest(EnhancedTestCase):
         # no crash on non-existing package
         url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
+
+    def test_apply_patch(self):
+        """ Test apply_patch """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        tmpdir = self.test_prefix
+        path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+
+        self.assertTrue(ft.apply_patch(toy_patch, path))
+        patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        pattern = "I'm a toy, and very proud of it"
+        self.assertTrue(pattern in patched)
+
+        # trying the patch again should fail
+        self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
+    def test_copy_file(self):
+        """ Test copy_file """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        tmpdir = self.test_prefix
+        to_copy = os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')
+        target_path = os.path.join(tmpdir, 'toy-0.0.eb')
+        ft.copy_file(to_copy, target_path)
+        self.assertTrue(os.path.exists(target_path))
+        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
 
 
 def suite():

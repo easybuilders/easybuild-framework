@@ -28,7 +28,7 @@
 """
 EasyBuild support for cgmpolf compiler toolchain (includes Clang, GFortran, MPICH, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.cgmpich import Cgmpich

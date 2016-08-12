@@ -25,14 +25,15 @@
 """
 Utility module for working with github
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Toon Willems (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Toon Willems (Ghent University)
 """
 import base64
-import getpass
 import imp
 import inspect
+import getpass
+import glob
 import os
 import random
 import re
@@ -43,15 +44,19 @@ import sys
 import tempfile
 import time
 import urllib2
+
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX
-from easybuild.tools.filetools import det_patched_files, decode_class_name, download_file, extract_file, mkdir
-from easybuild.tools.filetools import read_file, which, write_file
+from easybuild.tools.filetools import apply_patch, copy_file, det_patched_files, decode_class_name, download_file
+from easybuild.tools.filetools import extract_file, is_patch_file, mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -90,6 +95,7 @@ GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
+GITHUB_PR = 'pull'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
@@ -104,12 +110,12 @@ class Githubfs(object):
 
     def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
         """Construct a new githubfs object
-        @param githubuser: the github user's repo we want to use.
-        @param reponame: The name of the repository we want to use.
-        @param branchname: Then name of the branch to use (defaults to master)
-        @param username: (optional) your github username.
-        @param password: (optional) your github password.
-        @param token:    (optional) a github api token.
+        :param githubuser: the github user's repo we want to use.
+        :param reponame: The name of the repository we want to use.
+        :param branchname: Then name of the branch to use (defaults to master)
+        :param username: (optional) your github username.
+        :param password: (optional) your github password.
+        :param token:    (optional) a github api token.
         """
         if token is None:
             token = fetch_github_token(username)
@@ -218,9 +224,9 @@ class GithubError(Exception):
 def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
     Helper method, for performing get requests to GitHub API.
-    @param request_f: function that should be called to compose request, providing a RestClient instance
-    @param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
-    @param token: GitHub token to use
+    :param request_f: function that should be called to compose request, providing a RestClient instance
+    :param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
+    :param token: GitHub token to use
     @return: tuple with return status and data
     """
     if github_user is None:
@@ -244,11 +250,11 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, token=None):
     """
     Fetch latest SHA1 for a specified repository and branch.
-    @param repo: GitHub repository
-    @param account: GitHub account
-    @param branch: branch to fetch latest SHA1 for
-    @param github_user: name of GitHub user to use
-    @param token: GitHub token to use
+    :param repo: GitHub repository
+    :param account: GitHub account
+    :param branch: branch to fetch latest SHA1 for
+    :param github_user: name of GitHub user to use
+    :param token: GitHub token to use
     @return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
@@ -272,10 +278,10 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
 def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
-    @param repo: repo to download
-    @param branch: branch to download
-    @param account: GitHub account to download repo from
-    @param path: path to extract to
+    :param repo: repo to download
+    :param branch: branch to download
+    :param account: GitHub account to download repo from
+    :param path: path to extract to
     """
     # make sure path exists, create it if necessary
     if path is None:
@@ -307,6 +313,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
+
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
@@ -319,6 +326,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
+
     if github_user is None:
         github_user = build_option('github_user')
     if path is None:
@@ -338,24 +346,33 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
-    # 'clean' on successful (or missing) test, 'unstable' on failed tests
+    # if PR is open and mergable, download develop and patch
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
+    closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_data['merged']
+
+    # 'clean' on successful (or missing) test, 'unstable' on failed tests or merge conflict
     if not stable:
         _log.warning("Mergeable state for PR #%d is not '%s': %s.",
                      pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
-    for key, val in sorted(pr_data.items()):
-        _log.debug("\n%s:\n\n%s\n" % (key, val))
+    if (stable or pr_data['merged']) and not closed:
+        # whether merged or not, download develop
+        final_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop')
+
+    else:
+        final_path = path
 
     # determine list of changed files via diff
     diff_fn = os.path.basename(pr_data['diff_url'])
-    diff_filepath = os.path.join(path, diff_fn)
+    diff_filepath = os.path.join(final_path, diff_fn)
     download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True)
     diff_txt = read_file(diff_filepath)
-    os.remove(diff_filepath)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files: %s" % patched_files)
+
+    for key, val in sorted(pr_data.items()):
+        _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
@@ -366,28 +383,36 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
-    # obtain most recent version of patched files
-    for patched_file in patched_files:
-        # path to patch file, incl. subdir it is in
-        fn = os.path.sep.join(patched_file.split(os.path.sep)[-2:])
-        sha = last_commit['sha']
-        full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
-        _log.info("Downloading %s from %s" % (fn, full_url))
-        download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+    if not(pr_data['merged']):
+        if not stable or closed:
+            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s ***\n" % pr
+            # obtain most recent version of patched files
+            for patched_file in patched_files:
+                # path to patch file, incl. subdir it is in
+                fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+                sha = last_commit['sha']
+                full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
+                _log.info("Downloading %s from %s" % (fn, full_url))
+                download_file(fn, full_url, path=os.path.join(path, fn), forced=True)
+        else:
+            apply_patch(diff_filepath, final_path, level=1)
+
+    if final_path != path:
+        dirpath = os.path.join(final_path, 'easybuild', 'easyconfigs')
+        for eb_dir in os.listdir(dirpath):
+            os.symlink(os.path.join(dirpath, eb_dir), os.path.join(path, os.path.basename(eb_dir)))
 
     # sanity check: make sure all patched files are downloaded
-    all_files = [os.path.sep.join(f.split(os.path.sep)[-2:]) for f in patched_files]
-
-    tmp_files = []
-    for (dirpath, _, filenames) in os.walk(path):
-        tmp_files.extend([os.path.join(os.path.basename(dirpath), f) for f in filenames])
-
-    if not sorted(tmp_files) == sorted(all_files):
-        raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
-
-    ec_files = [os.path.join(path, f) for f in tmp_files]
+    ec_files = []
+    for patched_file in patched_files:
+        fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
+        if os.path.exists(os.path.join(path, fn)):
+            ec_files.append(os.path.join(path, fn))
+        else:
+            raise EasyBuildError("Couldn't find path to patched file %s", os.path.join(path, fn))
 
     return ec_files
+
 
 
 def create_gist(txt, fn, descr=None, github_user=None):
@@ -435,9 +460,9 @@ def init_repo(path, repo_name, silent=False):
     """
     Initialize a new Git repository at the specified location.
 
-    @param path: location where Git repository should be initialized
-    @param repo_name: name of Git repository
-    @param silent: keep quiet (don't print any messages)
+    :param path: location where Git repository should be initialized
+    :param repo_name: name of Git repository
+    :param silent: keep quiet (don't print any messages)
     """
     repo_path = os.path.join(path, repo_name)
 
@@ -469,11 +494,11 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
     """
     Set up repository by checking out specified branch from repository at specified URL.
 
-    @param git_repo: git.Repo instance
-    @param github_url: URL to GitHub repository
-    @param target_account: name of GitHub account that owns GitHub repository at specified URL
-    @param branch_name: name of branch to check out
-    @param silent: keep quiet (don't print any messages)
+    :param git_repo: git.Repo instance
+    :param github_url: URL to GitHub repository
+    :param target_account: name of GitHub account that owns GitHub repository at specified URL
+    :param branch_name: name of branch to check out
+    :param silent: keep quiet (don't print any messages)
     """
     _log.debug("Cloning from %s", github_url)
 
@@ -525,12 +550,12 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
     """
     Set up repository by checking out specified branch for specfied GitHub account/repository.
 
-    @param git_repo: git.Repo instance
-    @param target_account: name of GitHub account that owns GitHub repository
-    @param target_repo: name of GitHib repository
-    @param branch_name: name of branch to check out
-    @param silent: keep quiet (don't print any messages)
-    @param git_only: only use git@github.com repo URL, skip trying https://github.com first
+    :param git_repo: git.Repo instance
+    :param target_account: name of GitHub account that owns GitHub repository
+    :param target_repo: name of GitHib repository
+    :param branch_name: name of branch to check out
+    :param silent: keep quiet (don't print any messages)
+    :param git_only: only use git@github.com repo URL, skip trying https://github.com first
     """
     tmpl_github_urls = [
         'git@github.com:%s/%s.git',
@@ -575,12 +600,20 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # we need files to create the PR with
     if paths:
         non_existing_paths = []
+        delete_files = []
+        existing_paths = []
         for path in paths:
             if not os.path.exists(path):
-                non_existing_paths.append(path)
+                if path.startswith(':'):
+                    delete_files.append(path[1:])
+                else:
+                    non_existing_paths.append(path)
+            else:
+                existing_paths.append(path)
 
         if non_existing_paths:
             raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
+
     else:
         raise EasyBuildError("No paths specified")
 
@@ -589,8 +622,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, pr_target_repo)
+    repo_path = os.path.join(git_working_dir, pr_target_repo)
 
-    if pr_target_repo != GITHUB_EASYCONFIGS_REPO and pr_target_repo != GITHUB_EASYBLOCKS_REPO:
+    if pr_target_repo not in [GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO]:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
     easyblocks = pr_target_repo == GITHUB_EASYBLOCKS_REPO
@@ -603,18 +637,49 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # copy files to right place
+    # seperate easyconfigs and patch files
+    ec_paths = [p for p in existing_paths if not is_patch_file(p)]
+    patch_paths = [p for p in existing_paths if p not in ec_paths]
+
+    # copy easyconfig files to right place
+    target_dir = os.path.join(git_working_dir, pr_target_repo)
+    print_msg("copying easyconfigs to %s..." % target_dir)
+
     if easyblocks:
         file_info = copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
-        name_version = file_info['ebs'][0]
 
     else:
         file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
-        name_version = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+
+    # figure out to which software name patches relate, and copy them to the right place
+    if patch_paths:
+        patch_specs = det_patch_specs(patch_paths, file_info)
+
+        print_msg("copying patch files to %s..." % target_dir)
+        patch_info = copy_patch_files(patch_specs, target_dir)
+
+    # determine path to files to delete (if any)
+    deleted_paths = []
+    for fn in delete_files:
+        fullpath = os.path.join(repo_path, fn)
+        if os.path.exists(fullpath):
+            deleted_paths.append(fullpath)
+        else:
+            # if no existing relative path is specified, assume just the easyconfig file name is provided
+            hits = glob.glob(os.path.join(repo_path, 'easybuild', 'easyconfigs', '*', '*', fn))
+            if len(hits) == 1:
+                deleted_paths.append(hits[0])
+            else:
+                raise EasyBuildError("Path doesn't exist or file to delete isn't found in target branch: %s", fn)
 
     # checkout target branch
     if pr_branch is None:
-        pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), name_version)
+        if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+            label = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
+        else:
+            label = ''.join(random.choice(string.letters) for _ in range(10))
+        pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
+
 
     # create branch to commit to and push;
     # use force to avoid errors if branch already exists (OK since this is a local temporary copy of the repo)
@@ -625,12 +690,23 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
 
+    if patch_paths:
+        _log.debug("Staging all %d new/modified patch files", len(patch_info['paths_in_repo']))
+        git_repo.index.add(patch_info['paths_in_repo'])
+
+    # stage deleted files
+    if deleted_paths:
+        git_repo.index.remove(deleted_paths)
+
     # overview of modifications
     if build_option('extended_dry_run'):
         print_msg("\nFull patch:\n", log=_log, prefix=False)
         print_msg(git_repo.git.diff(cached=True) + '\n', log=_log, prefix=False)
 
     diff_stat = git_repo.git.diff(cached=True, stat=True)
+    if not diff_stat:
+        raise EasyBuildError("No changed files found when comparing to current develop branch. "
+                             "Refused to make empty pull request.")
 
     # commit
     if commit_msg:
@@ -669,14 +745,96 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             raise EasyBuildError("Pushing branch '%s' to remote %s (%s) failed: empty result",
                                  pr_branch, my_remote, github_url)
 
-    return file_info, git_repo, pr_branch, diff_stat
+    return file_info, deleted_paths, git_repo, pr_branch, diff_stat
+
+
+def det_patch_specs(patch_paths, file_info):
+    """ Determine software names for patch files """
+    print_msg("determining software names for patch files...")
+    patch_specs = []
+    for patch_path in patch_paths:
+        soft_name = None
+        patch_file = os.path.basename(patch_path)
+
+        # consider patch lists of easyconfigs being provided
+        for ec in file_info['ecs']:
+            if patch_file in ec['patches']:
+                soft_name = ec.name
+                break
+
+        if soft_name:
+            patch_specs.append((patch_path, soft_name))
+        else:
+            # fall back on scanning all eb files for patches
+            print "Matching easyconfig for %s not found on the first try:" % patch_path,
+            print "scanning all easyconfigs to determine where patch file belongs (this may take a while)..."
+            soft_name = find_software_name_for_patch(patch_file)
+            if soft_name:
+                patch_specs.append((patch_path, soft_name))
+            else:
+                # still nothing found
+                raise EasyBuildError("Failed to determine software name to which patch file %s relates", patch_path)
+
+    return patch_specs
+
+
+def find_software_name_for_patch(patch_name):
+    """
+    Scan all easyconfigs in the robot path(s) to determine which software a patch file belongs to
+
+    :param patch_name: name of the patch file
+    :return: name of the software that this patch file belongs to (if found)
+    """
+
+    def is_patch_for(patch_name, ec):
+        """Check whether specified patch matches any patch in the provided EasyConfig instance."""
+        res = False
+        for patch in ec['patches']:
+            if isinstance(patch, (tuple, list)):
+                patch = patch[0]
+            if patch == patch_name:
+                res = True
+                break
+
+        return res
+
+    robot_paths = build_option('robot_path')
+    soft_name = None
+
+    all_ecs = []
+    for robot_path in robot_paths:
+        for (dirpath, _, filenames) in os.walk(robot_path):
+            for fn in filenames:
+                if fn != 'TEMPLATE.eb':
+                    path = os.path.join(dirpath, fn)
+                    rawtxt = read_file(path)
+                    if 'patches' in rawtxt:
+                        all_ecs.append(path)
+
+    nr_of_ecs = len(all_ecs)
+    for idx, path in enumerate(all_ecs):
+        if soft_name:
+            break
+        rawtxt = read_file(path)
+        try:
+            ecs = process_easyconfig(path, validate=False)
+            for ec in ecs:
+                if is_patch_for(patch_name, ec['ec']):
+                    soft_name = ec['ec']['name']
+                    break
+        except EasyBuildError as err:
+            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx+1, nr_of_ecs))
+        sys.stdout.flush()
+
+    sys.stdout.write('\n')
+    return soft_name
 
 
 def copy_easyblocks(paths, target_dir):
     file_info = {
         'paths_in_repo': [],
         'new': [],
-        'ebs' : [],
     }
 
     subdir = os.path.join('easybuild', 'easyblocks')
@@ -689,7 +847,7 @@ def copy_easyblocks(paths, target_dir):
             classnames = [cl[1].__name__ for cl in clsmembers if cl[1].__module__ == mod.__name__]
 
             if len(classnames) > 1:
-                raise EasyBuildError("Invalid EB file")
+                raise EasyBuildError("Invalid easyblock file")
 
             cn = classnames[0]
             eb_name = decode_class_name(cn).lower() # TODO not fully right yet. - to _ (and others??)
@@ -703,16 +861,11 @@ def copy_easyblocks(paths, target_dir):
 
             full_target_path = os.path.join(target_dir, target_path)
             file_info['paths_in_repo'].append(full_target_path)
-            file_info['ebs'].append(eb_name)
-            try:
-                file_info['new'].append(not os.path.exists(full_target_path))
+            file_info['new'].append(not os.path.exists(full_target_path))
+            copy_file(path, full_target_path)
 
-                mkdir(os.path.dirname(full_target_path), parents=True)
-                shutil.copy2(path, full_target_path)
-                _log.info("%s copied to %s", path, full_target_path)
-
-            except OSError as err:
-                raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+    else:
+        raise EasyBuildError("Subdir easyblocks not found")
 
     return file_info
 
@@ -739,23 +892,23 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
-                                                                    target_account=pr_target_account,
-                                                                    commit_msg=commit_msg)
+    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+                                                                                   target_account=pr_target_account,
+                                                                                   commit_msg=commit_msg)
 
-    # only use most common toolchain(s) in toolchain label of PR title
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        # only use most common toolchain(s) in toolchain label of PR title
+        toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
+        toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
+        toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
+
+        # only use most common module class(es) in moduleclass label of PR title
+        classes = [ec['moduleclass'] for ec in file_info['ecs']]
+        classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
+        class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
+
     if title is None:
-        if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
-
-            toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
-            toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
-            toolchain_label = ','.join([tc for (cnt, tc) in toolchains_counted if cnt == toolchains_counted[-1][0]])
-
-            # only use most common module class(es) in moduleclass label of PR title
-            classes = [ec['moduleclass'] for ec in file_info['ecs']]
-            classes_counted = sorted([(classes.count(c), c) for c in nub(classes)])
-            class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
-
+        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
@@ -764,15 +917,9 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
                 main_title = ', '.join(names_and_versions[:3] + ['...'])
 
             title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
-
-        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
-            names = file_info['ebs']
-            if len(names) <= 3:
-                main_title = ', '.join(names)
-            else:
-                main_title = ', '.join(names_and_versions[:3] + ['...'])
-            title = "EasyBlock for %s" % main_title
-
+        else:
+            raise EasyBuildError("Don't know how to make a PR title for this PR. "
+                                 "Please include a title (use --pr-title)")
 
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
@@ -838,8 +985,8 @@ def update_pr(pr, paths, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
-                                                target_account=account, commit_msg=commit_msg)
+    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
+                                                   target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
@@ -932,7 +1079,7 @@ def check_github():
             git_check &= attr in dir(git)
 
         if git_check:
-            check_res = "OK"
+            check_res = "OK (GitPython version %s)" % git.__version__
         else:
             check_res = "FAIL (import ok, but module doesn't provide what is expected)"
     else:
@@ -965,7 +1112,11 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        check_res = "FAIL (unexpected exception: %s)" % push_err
+        gp_ver, req_gp_ver = git.__version__, '1.0'
+        if LooseVersion(gp_ver) < LooseVersion(req_gp_ver):
+            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (gp_ver, req_gp_ver)
+        else:
+            check_res = "FAIL (unexpected exception: %s)" % push_err
     else:
         check_res = "FAIL (no GitHub user specified)"
 
@@ -1067,8 +1218,8 @@ def install_github_token(github_user, silent=False):
     """
     Install specified GitHub token for specified user.
 
-    @param github_user: GitHub user to install token for
-    @param silent: keep quiet (don't print any messages)
+    :param github_user: GitHub user to install token for
+    :param silent: keep quiet (don't print any messages)
     """
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to install GitHub token")

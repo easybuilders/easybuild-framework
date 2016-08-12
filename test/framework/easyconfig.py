@@ -752,8 +752,8 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
-            'source_urls = [(GOOGLECODE_SOURCE)]',
-            'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, "%(cmd)s")]',
+            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
+            'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
@@ -771,6 +771,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
+            "github_account = 'hpcugent'",
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -778,11 +779,10 @@ class EasyConfigTest(EnhancedTestCase):
         eb.generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
-        const_dict = dict([(x[0], x[1]) for x in easyconfig.templates.TEMPLATE_CONSTANTS])
-        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % inp)
-        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % inp)
-        self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
-        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
+        self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
+        self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
+        self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
+        self.assertEqual(eb['source_urls'][1], 'https://github.com/hpcugent/PI/archive')
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
@@ -1034,6 +1034,31 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(opts.filter_deps, ['zlib'])
         opts = init_config(args=['--filter-deps=zlib,ncurses'])
         self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
+
+        # make sure --filter-deps is honored when combined with --minimal-toolchains,
+        # i.e. that toolchain for dependencies which are filtered out is not being minized
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'minimal_toolchains': True,
+            'robot_path': [test_ecs_dir],
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        ec_file = os.path.join(self.test_prefix, 'test.eb')
+        shutil.copy2(os.path.join(test_ecs_dir, 'OpenMPI-1.6.4-GCC-4.6.4.eb'), ec_file)
+
+        ec_txt = read_file(ec_file)
+        ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
+        write_file(ec_file, ec_txt)
+
+        self.assertErrorRegex(EasyBuildError, "No easyconfig for .* that matches toolchain hierarchy",
+                              EasyConfig, ec_file, validate=False)
+
+        build_options.update({'filter_deps': ['deptobefiltered']})
+        init_config(build_options=build_options)
+        ec = EasyConfig(ec_file, validate=False)
+        self.assertEqual(ec.dependencies(), [])
 
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
@@ -1718,6 +1743,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
 
         expected = {
+            'github_account': None,
             'name': 'gzip',
             'nameletter': 'g',
             'toolchain_name': 'goolf',
@@ -1736,6 +1762,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['version'] = '0.01'
 
         expected = {
+            'github_account': None,
             'name': 'toy',
             'nameletter': 't',
             'toolchain_name': 'dummy',
@@ -1801,6 +1828,25 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         dep_full_mod_names = [d['full_mod_name'] for d in ordered_ecs[-1]['ec']._config['dependencies'][0]]
         self.assertEqual(dep_full_mod_names, expected)
+
+    def test_hidden_toolchain(self):
+        """Test hiding of toolchain via easyconfig parameter."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec_txt = read_file(os.path.join(test_ecs_dir, 'gzip-1.6-GCC-4.9.2.eb'))
+
+        new_tc = "toolchain = {'name': 'GCC', 'version': '4.9.2', 'hidden': True}"
+        ec_txt = re.sub("toolchain = .*", new_tc, ec_txt, re.M)
+
+        ec_file = os.path.join(self.test_prefix, 'test.eb')
+        write_file(ec_file, ec_txt)
+
+        args = [
+            ec_file,
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args)
+        self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
+        self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
 
 
 def suite():

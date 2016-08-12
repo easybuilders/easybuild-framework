@@ -27,8 +27,8 @@ The toolchain module with the abstract Toolchain class.
 
 Creating a new toolchain should be as simple as possible.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -38,6 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
+from easybuild.tools.filetools import which
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -47,6 +48,9 @@ from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
+
+CCACHE = 'ccache'
+F90CACHE = 'f90cache'
 
 
 class Toolchain(object):
@@ -79,18 +83,19 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None):
+    def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None,
+                 hidden=False):
         """
         Toolchain constructor.
 
-        @param name: toolchain name
-        @param version: toolchain version
-        @param mns: module naming scheme to use
-        @param class_constants: toolchain 'constants' to define
-        @param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
-        @param modtool: ModulesTool instance to use
+        :param name: toolchain name
+        :param version: toolchain version
+        :param mns: module naming scheme to use
+        :param class_constants: toolchain 'constants' to define
+        :param tcdeps: list of toolchain 'dependencies' (i.e., the toolchain components)
+        :param modtool: ModulesTool instance to use
+        :param hidden: bool indicating whether toolchain is hidden or not
         """
-
         self.base_init()
 
         self.dependencies = []
@@ -101,7 +106,6 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
-
         if version is None:
             version = self.VERSION
         if version is None:
@@ -117,6 +121,8 @@ class Toolchain(object):
 
         # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
         self.dry_run = build_option('extended_dry_run', default=False)
+        hidden_toolchains = build_option('hide_toolchains', default=None) or []
+        self.hidden = hidden or (name in hidden_toolchains)
 
         self.modules_tool = modtool
 
@@ -286,7 +292,7 @@ class Toolchain(object):
             'versionsuffix': '',
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
-            'hidden': False,
+            'hidden': self.hidden,
             'full_mod_name': self.mod_full_name,
             'short_mod_name': self.mod_short_name,
         }
@@ -409,9 +415,9 @@ class Toolchain(object):
         """
         Set environment variables picked up by utility functions for dependencies specified as external modules.
 
-        @param name: software name
-        @param version: software version
-        @param metadata: dictionary with software metadata ('prefix' for software installation prefix)
+        :param name: software name
+        :param version: software version
+        :param metadata: dictionary with software metadata ('prefix' for software installation prefix)
         """
 
         self.log.debug("Defining $EB* environment variables for software named %s", name)
@@ -584,6 +590,27 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def symlink_compilers(self, paths):
+        """
+        Create a symlink for each compiler to binary/script at specified path.
+
+        :param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
+                      tuple ('path/to/cache', [commands to symlink to this cache])
+        """
+        tmpdir = tempfile.mkdtemp()
+
+        for _, (path, comps) in paths.items():
+            for comp in comps:
+                comp_s = os.path.join(tmpdir, comp)
+                if not os.path.exists(comp_s):
+                    try:
+                        os.symlink(path, comp_s)
+                    except OSError as err:
+                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, comp_s, err)
+
+        setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
+
+
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -593,8 +620,8 @@ class Toolchain(object):
         @param: onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
-        @param silent: keep quiet, or not (mostly relates to extended dry run output)
-        @param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
+        :param silent: keep quiet, or not (mostly relates to extended dry run output)
+        :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         """
         if loadmod:
             self._load_modules(silent=silent)
@@ -619,6 +646,42 @@ class Toolchain(object):
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
+
+        if build_option('use_compiler_cache'):
+            self.prepare_compiler_cache()
+
+    def prepare_compiler_cache(self):
+        """
+        Prepare paths and variables for using compiler caches (ccache, f90cache)
+        """
+        paths = {}
+
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            c_comps = ['gcc', 'g++']
+            fortran_comps =  ['gfortran']
+        else:
+            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
+            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+
+        compilers = {
+            CCACHE : c_comps,
+            F90CACHE : fortran_comps,
+        }
+
+        for cache in [CCACHE, F90CACHE]:
+            cache_path = which(cache)
+            if cache_path is None:
+                raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+            else:
+                paths[cache] = (cache_path, compilers[cache])
+
+        # set paths for caches
+        comp_cache_path = build_option('use_compiler_cache')
+        for cachename in ["CCACHE", "F90CACHE"]:
+            os.environ["%s_DIR" % cachename] = comp_cache_path
+            os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
+
+        self.symlink_compilers(paths)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies

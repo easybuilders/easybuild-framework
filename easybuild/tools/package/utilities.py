@@ -26,11 +26,11 @@
 """
 Various utilities related to packaging support.
 
-@author: Marc Litherland (Novartis)
-@author: Gianluca Santarossa (Novartis)
-@author: Robert Schmidt (The Ottawa Hospital, Research Institute)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
-@author: Kenneth Hoste (Ghent University)
+:author: Marc Litherland (Novartis)
+:author: Gianluca Santarossa (Novartis)
+:author: Robert Schmidt (The Ottawa Hospital, Research Institute)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import tempfile
