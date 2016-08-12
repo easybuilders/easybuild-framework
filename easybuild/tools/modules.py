@@ -978,6 +978,8 @@ class Lmod(ModulesTool):
         if opts is None:
             opts = []
 
+        # if --show_hidden is in list of arguments, pass it via 'opts' to make sure it's in the right place,
+        # i.e. *before* the subcommand
         if self.SHOW_HIDDEN_OPTION in args:
             opts.append((0, self.SHOW_HIDDEN_OPTION))
             args = [a for a in args if a != self.SHOW_HIDDEN_OPTION]
