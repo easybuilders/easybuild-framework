@@ -92,6 +92,7 @@ GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
+GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
@@ -624,10 +625,11 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     git_repo = init_repo(git_working_dir, pr_target_repo)
     repo_path = os.path.join(git_working_dir, pr_target_repo)
 
-    if pr_target_repo not in [GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO]:
+    if pr_target_repo not in [GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_FRAMEWORK_REPO,]:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
     easyblocks = pr_target_repo == GITHUB_EASYBLOCKS_REPO
+    framework = pr_target_repo == GITHUB_FRAMEWORK_REPO
 
     if start_branch is None:
         start_branch = build_option('pr_target_branch')
@@ -647,6 +649,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     if easyblocks:
         file_info = copy_easyblocks(paths, os.path.join(git_working_dir, pr_target_repo))
+
+    elif framework:
+        file_info = copy_framework_files(paths, os.path.join(git_working_dir, pr_target_repo))
 
     else:
         file_info = copy_easyconfigs(paths, os.path.join(git_working_dir, pr_target_repo))
@@ -679,7 +684,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         else:
             label = ''.join(random.choice(string.letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
-
 
     # create branch to commit to and push;
     # use force to avoid errors if branch already exists (OK since this is a local temporary copy of the repo)
@@ -832,6 +836,7 @@ def find_software_name_for_patch(patch_name):
 
 
 def copy_easyblocks(paths, target_dir):
+    """ Find right location for easyblock file and copy it there"""
     file_info = {
         'paths_in_repo': [],
         'new': [],
@@ -866,6 +871,41 @@ def copy_easyblocks(paths, target_dir):
 
     else:
         raise EasyBuildError("Subdir easyblocks not found")
+
+    return file_info
+
+
+def copy_framework_files(paths, target_dir):
+    """ Find right location for framework file and copy it there"""
+    file_info = {
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    dirs = [x[0] for x in os.walk(target_dir)]
+    paths = [os.path.abspath(path) for path in paths]
+
+    target_path = None
+    for path in paths:
+        fn = os.path.basename(path)
+        dirnames = os.path.dirname(path).split(os.path.sep)
+
+        if 'easybuild-framework' in dirnames:
+            ind = dirnames.index('easybuild-framework') + 1
+            parent_dir = os.path.join(*dirnames[ind:])
+
+            if os.path.exists(os.path.join(target_dir, parent_dir)):
+                target_path = os.path.join(target_dir, parent_dir)
+
+        if target_path is None:
+            raise EasyBuildError("Couldn't find parent folder of updated file: %s" % path)
+
+        full_target_path = os.path.join(target_path, os.path.basename(path))
+
+        file_info['paths_in_repo'].append(full_target_path)
+        file_info['new'].append(not os.path.exists(full_target_path))
+        copy_file(path, full_target_path)
+
 
     return file_info
 
