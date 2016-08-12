@@ -2391,6 +2391,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
+
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
             r'title: "delete bzip2-1.6.0"',

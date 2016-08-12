@@ -52,6 +52,7 @@ from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths, dump_env_script
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
+from easybuild.framework.easyconfig.tools import separate_file_types
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
@@ -269,12 +270,17 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    split_paths = separate_file_types(orig_paths)
+    if (split_paths[1] or split_paths[2]) and not (options.new_pr or options.update_pr):
+        raise EasyBuildError("Please provide a valid easyconfig file")
+    else:
+        paths = split_paths[0]
+
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.review_pr, search_query,
-                  options.regtest, options.update_pr]
+    no_ec_opts = [options.aggregate_regtest, options.review_pr, search_query, options.regtest,]
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(orig_paths)
+    paths = det_easyconfig_paths(paths)
     if paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in paths]
@@ -282,7 +288,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any(no_ec_opts):
+        elif not any(no_ec_opts) and not (options.new_pr or options.update_pr):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
@@ -306,29 +312,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdir=tweaked_ecs_path)
 
-    # dry_run: print all easyconfigs and dependencies, and whether they are already built
-    if options.dry_run or options.dry_run_short:
-        txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
-        print_msg(txt, log=_log, silent=testing, prefix=False)
-
-    if options.check_conflicts:
-        if check_conflicts(easyconfigs, modtool):
-            print_error("One or more conflicts detected!")
-            sys.exit(1)
-        else:
-            print_msg("\nNo conflicts detected!\n", prefix=False)
-
-    # dump source script to set up build environment
-    if options.dump_env_script:
-        dump_env_script(easyconfigs)
-
-    # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.check_conflicts, options.dry_run, options.dry_run_short, options.dump_env_script]):
-        cleanup(logfile, eb_tmpdir, testing)
-        sys.exit(0)
 
     # skip modules that are already installed unless forced
-    if not (options.force or options.rebuild or options.extended_dry_run):
+    if not (options.force or options.rebuild or options.dry_run or options.extended_dry_run or options.new_pr or options.update_pr):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -342,6 +328,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
+    elif options.new_pr or options.update_pr:
+        ordered_ecs = []
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
@@ -349,10 +337,32 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # creating/updating PRs
     if options.new_pr or options.update_pr:
         if options.new_pr:
-            new_pr(ec_paths, ecs, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+            new_pr(split_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
+                   commit_msg=options.pr_commit_msg)
         else:
-            update_pr(options.update_pr, ec_paths, ecs, commit_msg=options.pr_commit_msg)
+            update_pr(options.update_pr, split_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
         cleanup(logfile, eb_tmpdir, testing, silent=True)
+        sys.exit(0)
+
+    # dry_run: print all easyconfigs and dependencies, and whether they are already built
+    elif options.dry_run or options.dry_run_short:
+        txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
+        print_msg(txt, log=_log, silent=testing, prefix=False)
+
+    elif options.check_conflicts:
+        if check_conflicts(easyconfigs, modtool):
+            print_error("One or more conflicts detected!")
+            sys.exit(1)
+        else:
+            print_msg("\nNo conflicts detected!\n", prefix=False)
+
+    # dump source script to set up build environment
+    elif options.dump_env_script:
+        dump_env_script(easyconfigs)
+
+    # cleanup and exit after dry run, searching easyconfigs or submitting regression test
+    if any(no_ec_opts + [options.check_conflicts, options.dry_run, options.dry_run_short, options.dump_env_script]):
+        cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # create dependency graph and exit

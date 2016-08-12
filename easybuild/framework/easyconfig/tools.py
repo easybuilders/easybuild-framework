@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -548,3 +548,19 @@ def dump_env_script(easyconfigs):
         restore_env(orig_env)
 
 
+def separate_file_types(paths):
+    """
+    Splits an array of filepaths into a tuple of (easyconfigs, files to delete, patch files); primarily used for
+    new_pr and update_pr
+    """
+    separate = ([], [], [])
+
+    for path in paths:
+        if path.startswith(':'):
+            separate[1].append(path[1:])
+        elif os.path.exists(path) and is_patch_file(path):
+            separate[2].append(path)
+        else:
+            separate[0].append(path)
+
+    return separate
