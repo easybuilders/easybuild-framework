@@ -153,36 +153,6 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
-def handle_github_options(options, ec_paths):
-    """
-    Handle options related to GitHub integration, if any are set.
-
-    :param options: parsed EasyBuild options
-    :param ec_paths: list of paths to easyconfig files
-    """
-    done = True
-
-    if options.check_github:
-        check_github()
-
-    elif options.install_github_token:
-        install_github_token(options.github_user, silent=build_option('silent'))
-
-    elif options.new_pr:
-        new_pr(ec_paths, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
-
-    elif options.review_pr:
-        print review_pr(options.review_pr, colored=options.color)
-
-    elif options.update_pr:
-        update_pr(options.update_pr, ec_paths, commit_msg=options.pr_commit_msg)
-
-    else:
-        done = False
-
-    return done
-
-
 def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
@@ -272,11 +242,18 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
                            terse=options.terse)
 
-    # GitHub integration
-    cleanup_and_exit = handle_github_options(options, orig_paths)
+    # GitHub options that warrant a silent cleanup & exit
+    if options.check_github:
+        check_github()
 
-    # non-verbose cleanup and exit after handling GitHub integration stuff or printing terse info
-    if cleanup_and_exit or options.terse:
+    elif options.install_github_token:
+        install_github_token(options.github_user, silent=build_option('silent'))
+
+    elif options.review_pr:
+        print review_pr(options.review_pr, colored=options.color)
+
+    # non-verbose cleanup after handling GitHub integration stuff or printing terse info
+    if options.check_github or options.install_github_token or options.review_pr or options.terse:
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 
@@ -369,10 +346,20 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
 
+    # creating/updating PRs
+    if options.new_pr or options.update_pr:
+        if options.new_pr:
+            new_pr(ec_paths, ecs, title=options.pr_title, descr=options.pr_descr, commit_msg=options.pr_commit_msg)
+        else:
+            update_pr(options.update_pr, ec_paths, ecs, commit_msg=options.pr_commit_msg)
+        cleanup(logfile, eb_tmpdir, testing, silent=True)
+        sys.exit(0)
+
     # create dependency graph and exit
     if options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
         dep_graph(options.dep_graph, ordered_ecs)
+        cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 
     # submit build as job(s), clean up and exit

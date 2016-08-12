@@ -321,6 +321,10 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
+        if cmdline_options.new_pr or cmdline_options.update_pr:
+            _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
+            retain_all_deps = True
+
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
                                       cmdline_options.dry_run, cmdline_options.dry_run_short,
                                       cmdline_options.extended_dry_run, cmdline_options.dump_env_script]

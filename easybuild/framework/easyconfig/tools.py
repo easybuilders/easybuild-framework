@@ -52,6 +52,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
@@ -547,4 +548,3 @@ def dump_env_script(easyconfigs):
         restore_env(orig_env)
 
 
-from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
