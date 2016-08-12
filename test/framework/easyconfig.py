@@ -752,8 +752,8 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s/v%%(version_major)s/"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
-            'source_urls = [(GOOGLECODE_SOURCE)]',
-            'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, "%(cmd)s")]',
+            'source_urls = [GOOGLECODE_SOURCE, GITHUB_SOURCE]',
+            'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_BZ2, "%(cmd)s")]',
             'sanity_check_paths = {',
             '   "files": ["bin/pi_%%(version_major)s_%%(version_minor)s", "lib/python%%(pyshortver)s/site-packages"],',
             '   "dirs": ["libfoo.%%s" %% SHLIB_EXT],',
@@ -771,6 +771,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
+            "github_account = 'hpcugent'",
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -778,11 +779,10 @@ class EasyConfigTest(EnhancedTestCase):
         eb.generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
-        const_dict = dict([(x[0], x[1]) for x in easyconfig.templates.TEMPLATE_CONSTANTS])
-        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % inp)
-        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % inp)
-        self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
-        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
+        self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
+        self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
+        self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
+        self.assertEqual(eb['source_urls'][1], 'https://github.com/hpcugent/PI/archive')
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
@@ -1743,6 +1743,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
 
         expected = {
+            'github_account': None,
             'name': 'gzip',
             'nameletter': 'g',
             'toolchain_name': 'goolf',
@@ -1761,6 +1762,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['version'] = '0.01'
 
         expected = {
+            'github_account': None,
             'name': 'toy',
             'nameletter': 't',
             'toolchain_name': 'dummy',

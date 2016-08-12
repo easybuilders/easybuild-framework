@@ -2265,20 +2265,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
         if self.github_token is None:
-            print "Skipping test_new_pr, no GitHub token available?"
+            print "Skipping test_new_update_pr, no GitHub token available?"
             return
 
         # copy toy test easyconfig
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        testdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
         # purposely picked one with non-default toolchain/versionsuffix
-        shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
+        shutil.copy2(os.path.join(testdir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
 
         args = [
             '--new-pr',
             '--experimental',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
+            toy_patch,
             '-D',
             '--disable-cleanup-tmpdir',
         ]
@@ -2296,7 +2298,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r"^\s*1 file changed",
+            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r"^\s*2 files changed",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -2333,7 +2336,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r"^\s*1 file changed",
+            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r"^\s*2 files changed",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
