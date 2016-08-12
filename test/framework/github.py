@@ -256,7 +256,7 @@ class GithubTest(EnhancedTestCase):
             'validate': False,
         })
         self.mock_stdout(True)
-        ec = gh.scan_all_easyconfigs('toy-0.0_typo.patch')
+        ec = gh.find_software_name_for_patch('toy-0.0_typo.patch')
         txt = self.get_stdout()
         self.mock_stdout(False)
 
