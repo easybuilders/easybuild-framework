@@ -242,6 +242,9 @@ class GithubTest(EnhancedTestCase):
 
     def test_find_easybuild_easyconfig(self):
         """Test for find_easybuild_eb function"""
+        if self.github_token is None:
+            print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
+            return
         path = gh.find_easybuild_easyconfig()
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[1-9]+\.[1-9]+\.eb')
         regex = re.compile(expected)
