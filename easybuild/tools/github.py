@@ -48,6 +48,8 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
+from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
+from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
@@ -628,7 +630,7 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     _log.debug("git status: %s", git_repo.git.status())
 
     # seperate easyconfigs and patch files
-    ec_paths = [p for p in existing_paths if p.endswith('.eb') or p.endswith('.yeb') or not is_patch_file(p)]
+    ec_paths = [p for p in existing_paths if not is_patch_file(p)]
     patch_paths = [p for p in existing_paths if p not in ec_paths]
 
     # copy easyconfig files to right place
@@ -775,30 +777,33 @@ def scan_all_easyconfigs(patch_name):
     robot_paths = build_option('robot_path')
     soft_name = ""
     found = False
-    for robot_path in robot_paths:
-        all_ecs = []
-        for (dirpath, _, filenames) in os.walk(robot_path):
-            all_ecs.extend([os.path.join(dirpath, fn) for fn in filenames])
 
-        for idx, filename in enumerate(all_ecs):
-            if found:
-                break
-            if os.path.splitext(filename)[-1] in ['.eb', '.yeb']:
-                path = os.path.join(dirpath, filename)
-                rawtxt = read_file(path)
-                if "patches" in rawtxt and filename != "TEMPLATE.eb":
-                    try:
-                        ecs = process_easyconfig(path, validate=False)
-                        for ec in ecs:
-                            ec['ec']._generate_template_values()
-                            if patch_name in ec['ec'].asdict()['patches']:
-                                soft_name = ec['ec'].asdict()['name']
-                                found = True
-                    except EasyBuildError as err:
-                        _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
-                        pass
-                sys.stdout.write('\r%s of %s easyconfigs checked' % (idx+1, len(all_ecs)))
-                sys.stdout.flush()
+    all_ecs = []
+    for robot_path in robot_paths:
+        for (dirpath, _, filenames) in os.walk(robot_path):
+            for fn in filenames:
+                if fn != 'TEMPLATE.eb':
+                    path = os.path.join(dirpath, fn)
+                    rawtxt = read_file(path)
+                    if 'patches' in rawtxt:
+                        all_ecs.append(path)
+
+    nr_of_ecs = len(all_ecs)
+    for idx, filename in enumerate(all_ecs):
+        if found:
+            break
+        rawtxt = read_file(filename)
+        try:
+            ecs = process_easyconfig(filename, validate=False)
+            for ec in ecs:
+                if patch_name in ec['ec']['patches']:
+                    soft_name = ec['ec']['name']
+                    found = True
+                    break
+        except EasyBuildError as err:
+            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+        sys.stdout.write('\r%s of %s easyconfigs checked' % (idx+1, nr_of_ecs))
+        sys.stdout.flush()
 
     print ''
     return soft_name

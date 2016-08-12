@@ -1330,3 +1330,13 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     _log.info("Found valid license specs via %s: %s", via_msg, valid_lic_specs)
 
     return (valid_lic_specs, lic_env_var)
+
+
+def copy_file(path, target_path):
+
+    try:
+        mkdir(os.path.dirname(target_path), parents=True)
+        shutil.copy2(path, target_path)
+        _log.info("%s copied to %s", path, target_path)
+    except OSError as err:
+        raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)

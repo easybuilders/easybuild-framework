@@ -36,11 +36,13 @@ import shutil
 import string
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from urllib2 import URLError
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 import easybuild.tools.github as gh
 
@@ -239,6 +241,28 @@ class GithubTest(EnhancedTestCase):
             return
 
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
+
+    def test_find_patches(self):
+        """ Test for scan_all_easyconfigs """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(testdir, 'easyconfigs')
+        init_config(build_options={
+            'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': [ec_path],
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+        self.mock_stdout(True)
+        ec = gh.scan_all_easyconfigs('toy-0.0_typo.patch')
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(ec == 'toy')
+        reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
+        self.assertTrue(re.search(reg, txt))
 
 
 def suite():

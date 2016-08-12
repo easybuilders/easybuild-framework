@@ -60,7 +60,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, templat
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -1393,21 +1393,6 @@ def det_location_for(path, target_dir, soft_name, target_file):
     return target_path
 
 
-def copy_file(path, target_dir, soft_name, target_name):
-
-    target_path = det_location_for(path, target_dir, soft_name, target_name)
-    new = os.path.exists(target_path)
-
-    try:
-        mkdir(os.path.dirname(target_path), parents=True)
-        shutil.copy2(path, target_path)
-        _log.info("%s copied to %s", path, target_path)
-    except OSError as err:
-        raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
-
-    return target_path, new
-
-
 def copy_easyconfigs(paths, target_dir):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
@@ -1430,7 +1415,10 @@ def copy_easyconfigs(paths, target_dir):
             soft_name = file_info['ecs'][-1].name
             ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
 
-            target_path, new = copy_file(path, target_dir, soft_name, ec_filename)
+            target_path = det_location_for(path, target_dir, soft_name, ec_filename)
+            new = os.path.exists(target_path)
+
+            copy_file(path, target_path)
             file_info['paths_in_repo'].append(target_path)
             file_info['new'].append(new)
 
@@ -1451,7 +1439,8 @@ def copy_patch_files(patch_specs, target_dir):
         'paths_in_repo': [],
     }
     for patch_path, soft_name in patch_specs:
-        target_path, new = copy_file(patch_path, target_dir, soft_name, os.path.basename(patch_path))
+        target_path = det_location_for(patch_path, target_dir, soft_name, os.path.basename(patch_path))
+        copy_file(patch_path, target_path)
         patched_files['paths_in_repo'].append(target_path)
 
     return patched_files
