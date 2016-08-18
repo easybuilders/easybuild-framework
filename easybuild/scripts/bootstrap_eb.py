@@ -252,7 +252,12 @@ def stage0(tmpdir):
     # We download a custom version of distribute: it uses a newer version of markerlib to avoid a bug (#1099)
     # It's is the source of distribute 0.6.49 with the file _markerlib/markers.py replaced by the 0.6 version of
     # markerlib which can be found at https://pypi.python.org/pypi/markerlib/0.6.0
-    sys.argv.append('--download-base=http://hpcugent.github.io/easybuild/files/')
+    if EASYBUILD_BOOTSTRAP_SOURCEPATH is not None:
+       # Assume we're offline and the file should be available
+       debug("Looking for distribute tarball in EASYBUILD_BOOTSTRAP_SOURCEPATH")
+       sys.argv.append('--download-base=file://' + os.path.abspath(EASYBUILD_BOOTSTRAP_SOURCEPATH) + '/')
+    else:
+       sys.argv.append('--download-base=http://hpcugent.github.io/easybuild/files/')
     distribute_setup_main(version="0.6.49-patched1")
     sys.argv = orig_sys_argv
 
