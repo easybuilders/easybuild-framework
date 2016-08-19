@@ -420,6 +420,8 @@ class EasyBuildOptions(GeneralOption):
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
+            'list-software': ("Show list of supported software", 'choice', 'store_or_None', 'simple',
+                              ['simple', 'versions', 'toolchains']),
             'list-toolchains': ("Show list of known toolchains",
                                 None, 'store_true', False),
             'search': ("Search for easyconfig files in the robot search path, print full paths",

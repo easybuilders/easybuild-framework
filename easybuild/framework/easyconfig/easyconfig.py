@@ -1192,6 +1192,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     :param path: path to easyconfig file
     :param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     :param validate: whether or not to perform validation
+    :param parse_only: only parse easyconfig superficially (faster, but results in partial info)
     :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))

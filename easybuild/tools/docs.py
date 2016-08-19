@@ -46,14 +46,16 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
 from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS
+from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
 from easybuild.framework.extension import Extension
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
@@ -512,6 +514,40 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
             if format_strings.get('newline') is not None:
                 txt.append(format_strings['newline'])
     return '\n'.join(txt)
+
+
+def list_software(output_format=FORMAT_TXT, detail='simple'):
+    """Show list of supported software"""
+    ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
+    ecs = []
+    for idx, ec_path in enumerate(ec_paths):
+        ecs.extend(ec['ec'] for ec in process_easyconfig(ec_path, validate=False, parse_only=True))
+        print "\rProcessed %d/%d easyconfigs..." % (idx+1, len(ec_paths)),
+    print ''
+
+    return generate_doc('list_software_%s' % output_format, [ecs])
+
+
+def list_software_rst(ecs):
+    """Return overview of supported software in RST format"""
+    raise NotImplementedError
+
+
+def list_software_txt(ecs):
+    """Return overview of supported software in plain text"""
+    software = {}
+    for ec in ecs:
+        software.setdefault(ec.name, {'toolchains': [], 'versions': []})
+        software[ec.name]['toolchains'].append('%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version']))
+        software[ec.name]['versions'].append(ec.version)
+
+    lines = ["(found %d different software packages)" % len(software), '']
+    for key in sorted(software):
+        lines.append('* %s' % key)
+        lines.append("\ttoolchains: %s" % ', '.join(sorted(nub(software[key]['toolchains']))))
+        lines.append("\tversions: %s" % ', '.join(sorted(nub(software[key]['versions']))))
+
+    return '\n'.join(lines)
 
 
 def list_toolchains(output_format=FORMAT_TXT):
