@@ -314,7 +314,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
 
     # skip modules that are already installed unless forced
-    if not (options.force or options.rebuild or options.dry_run or options.extended_dry_run or options.new_pr or options.update_pr):
+    if not (options.force or options.rebuild or options.dry_run or options.dry_run_short or options.extended_dry_run or options.new_pr or options.update_pr):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:

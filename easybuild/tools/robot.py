@@ -238,9 +238,9 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     avail_modules = modtool.available()
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
+        avail_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
-        print avail_modules
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
