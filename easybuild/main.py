@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, s
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, install_github_token, new_pr, update_pr
+from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -269,6 +269,14 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
+
+    if options.install_latest_eb_release:
+        if orig_paths:
+            raise EasyBuildError("Installing the latest EasyBuild release can not be combined with installing "
+                                 "other easyconfigs")
+        else:
+            eb_file = find_easybuild_easyconfig()
+            orig_paths.append(eb_file)
 
     categorized_paths = categorize_files_by_type(orig_paths)
 
