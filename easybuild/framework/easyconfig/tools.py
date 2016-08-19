@@ -562,7 +562,7 @@ def categorize_files_by_type(paths):
         if path.startswith(':'):
             res['files_to_delete'].append(path[1:])
         # file must exist in order to check whether it's a patch file
-        elif os.path.exists(path) and is_patch_file(path):
+        elif os.path.isfile(path) and is_patch_file(path):
             res['patch_files'].append(path)
         else:
             # anything else is considered to be an easyconfig file
