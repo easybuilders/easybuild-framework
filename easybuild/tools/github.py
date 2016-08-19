@@ -52,7 +52,7 @@ from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
-from easybuild.tools.filetools import is_patch_file, mkdir, read_file, which, write_file
+from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -574,7 +574,7 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
+def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
     Common code for new_pr and update_pr functions:
     * check whether all supplied paths point to existing files
@@ -584,30 +584,27 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     * stage/commit all files in PR branch
     * push PR branch to GitHub (to account specified by --github-user)
 
-    @paths: list of paths that will be used to create/update PR
-    @start_branch: name of branch to start from
-    @pr_branch: name of branch to push to GitHub
-    @target_account: name of target GitHub account for PR
-    @commit_msg: commit message to use
+    :param paths: tuple of paths that will be used to create/update PR: (easyconfigs, files to delete, patch files)
+    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param start_branch: name of branch to start from
+    :param pr_branch: name of branch to push to GitHub
+    :param target_account: name of target GitHub account for PR
+    :param commit_msg: commit message to use
     """
     # we need files to create the PR with
-    if paths:
-        non_existing_paths = []
-        delete_files = []
-        existing_paths = []
-        for path in paths:
+    non_existing_paths = []
+    ec_paths = []
+    if paths['easyconfigs']:
+        for path in paths['easyconfigs']:
             if not os.path.exists(path):
-                if path.startswith(':'):
-                    delete_files.append(path[1:])
-                else:
                     non_existing_paths.append(path)
             else:
-                existing_paths.append(path)
+                ec_paths.append(path)
 
         if non_existing_paths:
             raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
 
-    else:
+    if not any(paths.values()):
         raise EasyBuildError("No paths specified")
 
     pr_target_repo = build_option('pr_target_repo')
@@ -628,25 +625,21 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # seperate easyconfigs and patch files
-    ec_paths = [p for p in existing_paths if not is_patch_file(p)]
-    patch_paths = [p for p in existing_paths if p not in ec_paths]
-
     # copy easyconfig files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying easyconfigs to %s..." % target_dir)
     file_info = copy_easyconfigs(ec_paths, target_dir)
 
     # figure out to which software name patches relate, and copy them to the right place
-    if patch_paths:
-        patch_specs = det_patch_specs(patch_paths, file_info)
+    if paths['patch_files']:
+        patch_specs = det_patch_specs(paths['patch_files'], file_info)
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
 
     # determine path to files to delete (if any)
     deleted_paths = []
-    for fn in delete_files:
+    for fn in paths['files_to_delete']:
         fullpath = os.path.join(repo_path, fn)
         if os.path.exists(fullpath):
             deleted_paths.append(fullpath)
@@ -658,6 +651,26 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
             else:
                 raise EasyBuildError("Path doesn't exist or file to delete isn't found in target branch: %s", fn)
 
+    dep_info = {
+        'ecs': [],
+        'paths_in_repo': [],
+        'new': [],
+    }
+
+    # include missing easyconfigs for dependencies, if robot is enabled
+    if ecs is not None:
+
+        abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
+        dep_paths = [ec['spec'] for ec in ecs if os.path.realpath(ec['spec']) not in abs_paths]
+        _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
+        all_dep_info = copy_easyconfigs(dep_paths, target_dir)
+
+        # only consider new easyconfig files for dependencies (not updated ones)
+        for idx in range(len(all_dep_info['ecs'])):
+            if all_dep_info['new'][idx]:
+                for key in dep_info:
+                    dep_info[key].append(all_dep_info[key][idx])
+
     # checkout target branch
     if pr_branch is None:
         if ec_paths:
@@ -665,7 +678,6 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
         else:
             label = ''.join(random.choice(string.letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
-
 
     # create branch to commit to and push;
     # use force to avoid errors if branch already exists (OK since this is a local temporary copy of the repo)
@@ -675,8 +687,9 @@ def _easyconfigs_pr_common(paths, start_branch=None, pr_branch=None, target_acco
     # stage
     _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
+    git_repo.index.add(dep_info['paths_in_repo'])
 
-    if patch_paths:
+    if paths['patch_files']:
         _log.debug("Staging all %d new/modified patch files", len(patch_info['paths_in_repo']))
         git_repo.index.add(patch_info['paths_in_repo'])
 
@@ -818,10 +831,17 @@ def find_software_name_for_patch(patch_name):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr(paths, title=None, descr=None, commit_msg=None):
-    """Open new pull request using specified files."""
+def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
+    """
+    Open new pull request using specified files
 
-    _log.experimental("Opening new pull request for: %s", ', '.join(paths))
+    :param paths: list of paths that will be used to create/update PR
+    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param title: title to use for pull request
+    :param descr: description to use for description
+    :param commit_msg: commit message to use
+    """
+    _log.experimental("Opening new pull request for: %s", paths)
 
     pr_branch_name = build_option('pr_branch_name')
     pr_target_account = build_option('pr_target_account')
@@ -839,7 +859,8 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, pr_branch=pr_branch_name,
+    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, ecs,
+                                                                                   pr_branch=pr_branch_name,
                                                                                    target_account=pr_target_account,
                                                                                    commit_msg=commit_msg)
 
@@ -908,8 +929,15 @@ def new_pr(paths, title=None, descr=None, commit_msg=None):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def update_pr(pr, paths, commit_msg=None):
-    """Update specified pull request using specified files."""
+def update_pr(pr, paths, ecs, commit_msg=None):
+    """
+    Update specified pull request using specified files
+
+    :param pr: ID of pull request to update
+    :param paths: list of paths that will be used to create/update PR
+    :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
+    :param commit_msg: commit message to use
+    """
 
     _log.experimental("Updating pull request #%s with %s", pr, paths)
 
@@ -932,7 +960,7 @@ def update_pr(pr, paths, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, start_branch=branch, pr_branch=branch,
+    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch, pr_branch=branch,
                                                    target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)

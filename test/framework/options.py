@@ -2391,6 +2391,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
+
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
             r'title: "delete bzip2-1.6.0"',
@@ -2399,6 +2400,61 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_new_pr_dependencies(self):
+        """Test use of --new-pr with automatic dependency lookup."""
+
+        if self.github_token is None:
+            print "Skipping test_new_pr_dependencies, no GitHub token available?"
+            return
+
+        foo_eb = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "foo"',
+            'version = "1.0"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'dependencies = [("bar", "2.0")]'
+        ])
+        bar_eb = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "bar"',
+            'version = "2.0"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+        ])
+
+        write_file(os.path.join(self.test_prefix, 'foo-1.0.eb'), foo_eb)
+        write_file(os.path.join(self.test_prefix, 'bar-2.0.eb'), bar_eb)
+
+        args = [
+            '--new-pr',
+            '--experimental',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            os.path.join(self.test_prefix, 'foo-1.0.eb'),
+            '-D',
+            '--disable-cleanup-tmpdir',
+            '-r%s' % self.test_prefix,
+        ]
+
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs = [
+            r"^\* overview of changes:",
+            r".*/foo-1\.0\.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/bar-2\.0\.eb\s+\|\s+[0-9]+\s+\++",
+            r"^\s*2 files changed",
+        ]
+
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
 
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""

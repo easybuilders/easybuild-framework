@@ -51,7 +51,7 @@ from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -546,3 +546,26 @@ def dump_env_script(easyconfigs):
         print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
 
         restore_env(orig_env)
+
+
+def categorize_files_by_type(paths):
+    """
+    Splits list of filepaths into a 3 separate lists: easyconfigs, files to delete and patch files
+    """
+    res = {
+        'easyconfigs': [],
+        'files_to_delete': [],
+        'patch_files': [],
+    }
+
+    for path in paths:
+        if path.startswith(':'):
+            res['files_to_delete'].append(path[1:])
+        # file must exist in order to check whether it's a patch file
+        elif os.path.isfile(path) and is_patch_file(path):
+            res['patch_files'].append(path)
+        else:
+            # anything else is considered to be an easyconfig file
+            res['easyconfigs'].append(path)
+
+    return res
