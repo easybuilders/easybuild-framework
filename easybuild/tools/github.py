@@ -597,8 +597,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
     # we need files to create the PR with
     non_existing_paths = []
     ec_paths = []
-    if paths[0]:
-        for path in paths[0]:
+    if paths['easyconfigs']:
+        for path in paths['easyconfigs']:
             if not os.path.exists(path):
                     non_existing_paths.append(path)
             else:
@@ -606,8 +606,6 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
 
         if non_existing_paths:
             raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
-    delete_files = paths[1]
-    patch_paths = paths[2]
 
     if not any([path_tuple for path_tuple in paths]):
         raise EasyBuildError("No paths specified")
@@ -636,15 +634,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
     file_info = copy_easyconfigs(ec_paths, target_dir)
 
     # figure out to which software name patches relate, and copy them to the right place
-    if patch_paths:
-        patch_specs = det_patch_specs(patch_paths, file_info)
+    if paths['patch_files']:
+        patch_specs = det_patch_specs(paths['patch_files'], file_info)
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
 
     # determine path to files to delete (if any)
     deleted_paths = []
-    for fn in delete_files:
+    for fn in paths['files_to_delete']:
         fullpath = os.path.join(repo_path, fn)
         if os.path.exists(fullpath):
             deleted_paths.append(fullpath)
@@ -693,7 +691,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
     git_repo.index.add(file_info['paths_in_repo'])
     git_repo.index.add(dep_info['paths_in_repo'])
 
-    if patch_paths:
+    if paths['patch_files']:
         _log.debug("Staging all %d new/modified patch files", len(patch_info['paths_in_repo']))
         git_repo.index.add(patch_info['paths_in_repo'])
 

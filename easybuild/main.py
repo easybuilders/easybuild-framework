@@ -50,9 +50,9 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths, dump_env_script
-from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, review_pr, skip_available
-from easybuild.framework.easyconfig.tools import separate_file_types
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
+from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
+from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
@@ -270,11 +270,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
-    split_paths = separate_file_types(orig_paths)
-    if (split_paths[1] or split_paths[2]) and not (options.new_pr or options.update_pr):
-        raise EasyBuildError("Please provide a valid easyconfig file")
-    else:
-        paths = split_paths[0]
+    categorized_paths = categorize_files_by_type(orig_paths)
+    paths = categorized_paths['easyconfigs']
 
     # command line options that do not require any easyconfigs to be specified
     no_ec_opts = [options.aggregate_regtest, options.review_pr, search_query, options.regtest,]
@@ -337,10 +334,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # creating/updating PRs
     if options.new_pr or options.update_pr:
         if options.new_pr:
-            new_pr(split_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
+            new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
         else:
-            update_pr(options.update_pr, split_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
+            update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 

@@ -49,7 +49,7 @@ from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easycon
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
-from easybuild.framework.easyconfig.tools import dep_graph, find_related_easyconfigs
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, find_related_easyconfigs
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
@@ -1847,6 +1847,24 @@ class EasyConfigTest(EnhancedTestCase):
         outtxt = self.eb_main(args)
         self.assertTrue(re.search('module: GCC/\.4\.9\.2', outtxt))
         self.assertTrue(re.search('module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+
+    def test_categorize_files_by_type(self):
+        """Test categorize_files_by_type"""
+        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        paths = [
+            'bzip2-1.0.6.eb',
+            os.path.join(test_ecs_dir, 'gzip-1.4.eb'),
+            toy_patch,
+            'foo',
+            ':toy-0.0-deps.eb',
+        ]
+        res = categorize_files_by_type(paths)
+        self.assertEqual(res['easyconfigs'], ['bzip2-1.0.6.eb', os.path.join(test_ecs_dir, 'gzip-1.4.eb'), 'foo'])
+        self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
+        self.assertEqual(res['patch_files'], [toy_patch])
 
 
 def suite():

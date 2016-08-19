@@ -548,19 +548,24 @@ def dump_env_script(easyconfigs):
         restore_env(orig_env)
 
 
-def separate_file_types(paths):
+def categorize_files_by_type(paths):
     """
-    Splits an array of filepaths into a tuple of (easyconfigs, files to delete, patch files); primarily used for
-    new_pr and update_pr
+    Splits list of filepaths into a 3 separate lists: easyconfigs, files to delete and patch files
     """
-    separate = ([], [], [])
+    res = {
+        'easyconfigs': [],
+        'files_to_delete': [],
+        'patch_files': [],
+    }
 
     for path in paths:
         if path.startswith(':'):
-            separate[1].append(path[1:])
+            res['files_to_delete'].append(path[1:])
+        # file must exist in order to check whether it's a patch file
         elif os.path.exists(path) and is_patch_file(path):
-            separate[2].append(path)
+            res['patch_files'].append(path)
         else:
-            separate[0].append(path)
+            # anything else is considered to be an easyconfig file
+            res['easyconfigs'].append(path)
 
-    return separate
+    return res
