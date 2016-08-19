@@ -271,13 +271,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     categorized_paths = categorize_files_by_type(orig_paths)
-    paths = categorized_paths['easyconfigs']
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.review_pr, search_query, options.regtest,]
+    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.regtest, options.update_pr, search_query]
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(paths)
+    paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
     if paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in paths]
@@ -285,7 +284,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any(no_ec_opts) and not (options.new_pr or options.update_pr):
+        elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
@@ -309,9 +308,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdir=tweaked_ecs_path)
 
+    dry_run = options.dry_run or options.dry_run_short
+    new_update_pr = options.new_pr or options.update_pr
 
     # skip modules that are already installed unless forced
-    if not (options.force or options.rebuild or options.dry_run or options.dry_run_short or options.extended_dry_run or options.new_pr or options.update_pr):
+    if not (options.force or options.rebuild or dry_run or options.extended_dry_run or new_update_pr):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -320,29 +321,32 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        if options.robot and not ((options.dry_run or options.dry_run_short) and not (options.new_pr or options.update_pr)):
+        # resolve dependencies if robot is enabled, except in dry run mode
+        # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
+        if options.robot and (not dry_run or new_update_pr):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif options.new_pr or options.update_pr:
-        ordered_ecs = []
+    elif new_update_pr:
+        ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
 
     # creating/updating PRs
-    if options.new_pr or options.update_pr:
+    if new_update_pr:
         if options.new_pr:
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
         else:
             update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
+
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
-    elif options.dry_run or options.dry_run_short:
+    elif dry_run:
         txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
@@ -358,7 +362,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         dump_env_script(easyconfigs)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.check_conflicts, options.dry_run, options.dry_run_short, options.dump_env_script]):
+    if any(no_ec_opts + [options.check_conflicts, dry_run, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

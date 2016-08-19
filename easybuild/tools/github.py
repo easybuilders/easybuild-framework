@@ -54,7 +54,6 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, which, write_file
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -576,8 +575,7 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
-                           target_account=None, commit_msg=None):
+def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
     Common code for new_pr and update_pr functions:
     * check whether all supplied paths point to existing files
@@ -607,7 +605,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
         if non_existing_paths:
             raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
 
-    if not any([path_tuple for path_tuple in paths]):
+    if not any(paths.values()):
         raise EasyBuildError("No paths specified")
 
     pr_target_repo = build_option('pr_target_repo')
@@ -661,16 +659,17 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None,
     }
 
     # include missing easyconfigs for dependencies, if robot is enabled
-    if len(ec_paths) != len(ecs):
+    if ecs is not None:
 
-        abs_paths = [os.path.abspath(path) for path in ec_paths]
-        dep_paths = [ec['spec'] for ec in ecs if ec['spec'] not in abs_paths]
+        abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
+        dep_paths = [ec['spec'] for ec in ecs if os.path.realpath(ec['spec']) not in abs_paths]
+        _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
         all_dep_info = copy_easyconfigs(dep_paths, target_dir)
 
-        # only consider new easyconfig files for dependencies
+        # only consider new easyconfig files for dependencies (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
             if all_dep_info['new'][idx]:
-                for key in dep_info.keys():
+                for key in dep_info:
                     dep_info[key].append(all_dep_info[key][idx])
 
     # checkout target branch
