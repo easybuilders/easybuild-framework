@@ -308,11 +308,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdir=tweaked_ecs_path)
 
-    dry_run = options.dry_run or options.dry_run_short
+    dry_run_mode = options.dry_run or options.dry_run_short
     new_update_pr = options.new_pr or options.update_pr
 
     # skip modules that are already installed unless forced
-    if not (options.force or options.rebuild or dry_run or options.extended_dry_run or new_update_pr):
+    if not (options.force or options.rebuild or dry_run_mode or options.extended_dry_run or new_update_pr):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -323,7 +323,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if len(easyconfigs) > 0:
         # resolve dependencies if robot is enabled, except in dry run mode
         # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
-        if options.robot and (not dry_run or new_update_pr):
+        if options.robot and (not dry_run_mode or new_update_pr):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
@@ -346,7 +346,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         sys.exit(0)
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
-    elif dry_run:
+    elif dry_run_mode:
         txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
@@ -362,7 +362,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         dump_env_script(easyconfigs)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.check_conflicts, dry_run, options.dump_env_script]):
+    if any(no_ec_opts + [options.check_conflicts, dry_run_mode, options.dump_env_script]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
