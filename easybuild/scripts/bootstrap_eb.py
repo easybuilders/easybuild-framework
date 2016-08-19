@@ -253,7 +253,8 @@ def stage0(tmpdir):
     # It's is the source of distribute 0.6.49 with the file _markerlib/markers.py replaced by the 0.6 version of
     # markerlib which can be found at https://pypi.python.org/pypi/markerlib/0.6.0
     distribute_version = "0.6.49-patched1"
-    if os.path.exists(os.path.abspath(EASYBUILD_BOOTSTRAP_SOURCEPATH) + '/' + 'distribute-' + distribute_version + '.tar.gz'):
+    if EASYBUILD_BOOTSTRAP_SOURCEPATH is not None and 
+      os.path.exists(os.path.abspath(EASYBUILD_BOOTSTRAP_SOURCEPATH) + '/' + 'distribute-' + distribute_version + '.tar.gz'):
        # Assume we're offline and the file should be available
        debug("Looking for distribute tarball in EASYBUILD_BOOTSTRAP_SOURCEPATH")
        sys.argv.append('--download-base=file://' + os.path.abspath(EASYBUILD_BOOTSTRAP_SOURCEPATH) + '/')
