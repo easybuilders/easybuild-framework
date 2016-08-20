@@ -46,8 +46,9 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
@@ -521,7 +522,7 @@ def list_software(output_format=FORMAT_TXT, detail='simple'):
     ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
     ecs = []
     for idx, ec_path in enumerate(ec_paths):
-        ecs.extend(ec['ec'] for ec in process_easyconfig(ec_path, validate=False, parse_only=True))
+        ecs.append(EasyConfigParser(filename=ec_path).get_config_dict())
         print "\rProcessed %d/%d easyconfigs..." % (idx+1, len(ec_paths)),
     print ''
 
@@ -537,11 +538,11 @@ def list_software_txt(ecs):
     """Return overview of supported software in plain text"""
     software = {}
     for ec in ecs:
-        software.setdefault(ec.name, {'toolchains': [], 'versions': []})
-        software[ec.name]['toolchains'].append('%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version']))
-        software[ec.name]['versions'].append(ec.version)
+        software.setdefault(ec['name'], {'toolchains': [], 'versions': []})
+        software[ec['name']]['toolchains'].append('%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version']))
+        software[ec['name']]['versions'].append(ec['version'])
 
-    lines = ["(found %d different software packages)" % len(software), '']
+    lines = ["Found %d different software packages:" % len(software), '']
     for key in sorted(software):
         lines.append('* %s' % key)
         lines.append("\ttoolchains: %s" % ', '.join(sorted(nub(software[key]['toolchains']))))
