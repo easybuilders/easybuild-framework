@@ -255,7 +255,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print review_pr(options.review_pr, colored=options.color)
 
     elif options.list_software:
-        print list_software(output_format=options.output_format, detail=options.list_software)
+        print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [

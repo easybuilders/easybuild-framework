@@ -39,6 +39,7 @@ import inspect
 import os
 import re
 import sys
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.docs import mk_rst_table
 from vsc.utils.missing import nub
@@ -59,6 +60,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
 
@@ -517,7 +519,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
     return '\n'.join(txt)
 
 
-def list_software(output_format=FORMAT_TXT, detail='simple'):
+def list_software(output_format=FORMAT_TXT, detailed=False):
     """Show list of supported software"""
     ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
     ecs = []
@@ -526,27 +528,33 @@ def list_software(output_format=FORMAT_TXT, detail='simple'):
         print "\rProcessed %d/%d easyconfigs..." % (idx+1, len(ec_paths)),
     print ''
 
-    return generate_doc('list_software_%s' % output_format, [ecs])
+    return generate_doc('list_software_%s' % output_format, [ecs, detailed])
 
 
-def list_software_rst(ecs):
+def list_software_rst(ecs, detailed=False):
     """Return overview of supported software in RST format"""
     raise NotImplementedError
 
 
-def list_software_txt(ecs):
+def list_software_txt(ecs, detailed=False):
     """Return overview of supported software in plain text"""
     software = {}
     for ec in ecs:
-        software.setdefault(ec['name'], {'toolchains': [], 'versions': []})
-        software[ec['name']]['toolchains'].append('%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version']))
-        software[ec['name']]['versions'].append(ec['version'])
+        software.setdefault(ec['name'], [])
+        if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+            toolchain = DUMMY_TOOLCHAIN_NAME
+        else:
+            toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
+        software[ec['name']].append((ec['version'], toolchain))
 
     lines = ["Found %d different software packages:" % len(software), '']
-    for key in sorted(software):
+    for key in sorted(software, key=lambda x: x.lower()):
         lines.append('* %s' % key)
-        lines.append("\ttoolchains: %s" % ', '.join(sorted(nub(software[key]['toolchains']))))
-        lines.append("\tversions: %s" % ', '.join(sorted(nub(software[key]['versions']))))
+        if detailed:
+            for version in sorted(LooseVersion(v) for v in nub(v for (v, _) in software[key])):
+                tcs = sorted(nub([t for (v, t) in software[key] if v == version]))
+                lines.append("  * %s v%s: %s" % (key, version, ', '.join(tcs)))
+            lines.append('')
 
     return '\n'.join(lines)
 
