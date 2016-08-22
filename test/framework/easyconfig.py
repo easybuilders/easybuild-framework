@@ -1684,6 +1684,17 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['version'], '1.4')
 
+    def test_copy(self):
+        """Test copy method of EasyConfig object."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec1 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+
+        ec2 = ec1.copy()
+
+        self.assertEqual(ec1, ec2)
+        self.assertEqual(ec1.rawtxt, ec2.rawtxt)
+        self.assertEqual(ec1.path, ec2.path)
+
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
