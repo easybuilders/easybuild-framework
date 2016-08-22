@@ -368,6 +368,9 @@ class EasyConfig(object):
         ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
+        # since rawtxt is defined, self.path may not get inherited, make sure it does
+        if self.path:
+            ec.path = self.path
 
         return ec
 
