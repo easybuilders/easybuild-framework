@@ -523,21 +523,13 @@ def list_software(output_format=FORMAT_TXT, detailed=False):
     """Show list of supported software"""
     ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
     ecs = []
+    cnt = len(ec_paths)
     for idx, ec_path in enumerate(ec_paths):
         ecs.append(EasyConfigParser(filename=ec_path).get_config_dict())
-        print "\rProcessed %d/%d easyconfigs..." % (idx+1, len(ec_paths)),
+        print '\r',
+        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False)
     print ''
 
-    return generate_doc('list_software_%s' % output_format, [ecs, detailed])
-
-
-def list_software_rst(ecs, detailed=False):
-    """Return overview of supported software in RST format"""
-    raise NotImplementedError
-
-
-def list_software_txt(ecs, detailed=False):
-    """Return overview of supported software in plain text"""
     software = {}
     for ec in ecs:
         software.setdefault(ec['name'], [])
@@ -547,7 +539,39 @@ def list_software_txt(ecs, detailed=False):
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
         software[ec['name']].append((ec['version'], toolchain))
 
-    lines = ["Found %d different software packages:" % len(software), '']
+    print_msg("Found %d different software packages" % len(software))
+
+    return generate_doc('list_software_%s' % output_format, [software, detailed])
+
+
+def list_software_rst(software, detailed=False):
+    """Return overview of supported software in RST format"""
+
+    title = "List of supported software"
+    table_titles = ['software name', 'software version', 'toolchains']
+
+    n_cols = len(table_titles)
+    table_values = [[] for i in range(n_cols)]
+
+    for key in sorted(software, key=lambda x: x.lower()):
+        table_values[0].append(key)
+        for col in table_values[1:]:
+            col.append('')
+
+        for version in sorted(LooseVersion(v) for v in nub(v for (v, _) in software[key])):
+            table_values[0].append('')
+            table_values[1].append(str(version))
+            tcs = sorted(nub([t for (v, t) in software[key] if v == version]))
+            table_values[2].append(', '.join(tcs))
+
+    doc = rst_title_and_table(title, table_titles, table_values)
+    return '\n'.join(doc)
+
+
+def list_software_txt(software, detailed=False):
+    """Return overview of supported software in plain text"""
+
+    lines = ['']
     for key in sorted(software, key=lambda x: x.lower()):
         lines.append('* %s' % key)
         if detailed:
