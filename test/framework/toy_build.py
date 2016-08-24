@@ -213,7 +213,7 @@ class ToyBuildTest(EnhancedTestCase):
             "versionsuffix = '-tweaked'",
             "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
             "modextravars = {'FOO': 'bar'}",
-            "modloadmsg =  'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'",
+            "modloadmsg =  'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'",
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
             "modluafooter = 'io.stderr:write(\"oh hai!\")'"  # ignored when module syntax is Tcl
         ])
@@ -239,15 +239,16 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/baz$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root$', toy_module_txt, re.M))
-            self.assertTrue(re.search(r'module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0"$', toy_module_txt, re.M))
+            mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*THANKS.*\n\s*I AM toy v0.0"$'
+            self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
-            self.assertTrue(re.search(r'^if mode\(\) == "load" then\n\s*io.stderr:write\(".*I AM toy v0.0"\)$',
-                                      toy_module_txt, re.M))
+            mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(\[==\[THANKS.*\n\s*I AM toy v0.0\]==\]\)$'
+            self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^io.stderr:write\("oh hai!"\)$', toy_module_txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
@@ -835,7 +836,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend_path\("SOMEPATH", root\)',
                 r'',
                 r'if mode\(\) == "load" then',
-                r'    io.stderr:write\("THANKS FOR LOADING ME, I AM toy v0.0"\)',
+                r'    io.stderr:write\([==[THANKS FOR LOADING ME\nI AM toy v0.0]==]\)',
                 r'end',
                 r'io.stderr:write\("oh hai\!"\)',
                 r'-- Built with EasyBuild version .*$',
@@ -867,7 +868,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend-path	SOMEPATH		\$root',
                 r'',
                 r'if { \[ module-info mode load \] } {',
-                r'    puts stderr "THANKS FOR LOADING ME, I AM toy v0.0"',
+                r'    puts stderr "THANKS FOR LOADING ME\nI AM toy v0.0"',
                 r'}',
                 r'puts stderr "oh hai\!"',
                 r'# Built with EasyBuild version .*$',

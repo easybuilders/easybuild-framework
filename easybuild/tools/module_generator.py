@@ -138,6 +138,18 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def msg_on_load(self, msg):
+        """
+        Add a message that should be printed when loading the module.
+        """
+        raise NotImplementedError
+
+    def set_alias(self, key, value):
+        """
+        Generate set-alias statement in modulefile for the given key/value pair.
+        """
+        raise NotImplementedError
+
     def getenv_cmd(self, envvar):
         """
         Return module-syntax specific code to get value of specific environment variable.
@@ -612,7 +624,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write("%s")' % msg)])
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write([==[%s]==])' % msg)])
 
     def set_alias(self, key, value):
         """
