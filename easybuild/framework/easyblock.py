@@ -1650,6 +1650,7 @@ class EasyBlock(object):
         # get class instances for all extensions
         for ext in self.exts:
             self.log.debug("Starting extension %s" % ext['name'])
+            print_msg("installing extensions %s v%s..." % (ext['name'], ext['version']))
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)
