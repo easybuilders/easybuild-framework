@@ -1648,9 +1648,10 @@ class EasyBlock(object):
             raise EasyBuildError("Improper default extension class specification, should be list/tuple or string.")
 
         # get class instances for all extensions
-        for ext in self.exts:
+        exts_cnt = len(self.exts)
+        for idx, ext in enumerate(self.exts):
             self.log.debug("Starting extension %s" % ext['name'])
-            print_msg("installing extensions %s v%s..." % (ext['name'], ext['version']))
+            print_msg("installing extensions %s v%s (%d/%d)..." % (ext['name'], ext['version'], idx+1, exts_cnt))
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)
