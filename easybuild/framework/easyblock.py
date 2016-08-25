@@ -1651,7 +1651,7 @@ class EasyBlock(object):
         exts_cnt = len(self.exts)
         for idx, ext in enumerate(self.exts):
             self.log.debug("Starting extension %s" % ext['name'])
-            print_msg("installing extension %s v%s (%d/%d)..." % (ext['name'], ext['version'], idx+1, exts_cnt))
+            print_msg("installing extension %s %s (%d/%d)..." % (ext['name'], ext.get('version', ''), idx+1, exts_cnt))
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)
@@ -1698,8 +1698,8 @@ class EasyBlock(object):
                 self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
 
             if self.dry_run:
-                eb_class = cls.__name__
-                msg = "\n* installing extension %s %s using '%s' easyblock\n" % (ext['name'], ext['version'], eb_class)
+                tup = (ext['name'], ext.get('version', ''), cls.__name__)
+                msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
             self.log.debug("List of loaded modules: %s", self.modules_tool.list())
