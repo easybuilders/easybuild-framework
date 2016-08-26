@@ -36,6 +36,7 @@ import os
 import re
 import sys
 import tempfile
+from distutils.version import StrictVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
@@ -624,7 +625,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write([==[%s]==])' % msg)])
+        if '\n' in msg:
+            if StrictVersion(modules_tool().version) >= StrictVersion('5.8'):
+                stmt_tmpl = 'io.stderr:write([==[%s]==])'
+            else:
+                raise EasyBuildError("Lmod 5.8 (or more recent) is required for multiline load messages in Lua modules")
+        else:
+            stmt_tmpl = 'io.stderr:write("%s")'
+
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
 
     def set_alias(self, key, value):
         """
