@@ -249,7 +249,7 @@ class ModulesTool(object):
         """Check whether modules tool command is available."""
         cmd_path = which(self.cmd)
         if cmd_path is not None:
-            self.cmd = os.path.realpath(cmd_path)
+            self.cmd = cmd_path
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__

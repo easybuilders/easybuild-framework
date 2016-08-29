@@ -160,7 +160,7 @@ class ModulesToolTest(EnhancedTestCase):
             init_config(build_options=build_options)
 
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, os.path.realpath(lmod_abspath))
+            self.assertTrue(os.path.samefile(lmod.cmd, lmod_abspath))
 
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
@@ -187,7 +187,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['LMOD_CMD'] = fake_path
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, os.path.realpath(fake_path))
+            self.assertTrue(os.path.samefile(lmod.cmd, fake_path))
 
             # use correct full path for 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
