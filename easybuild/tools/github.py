@@ -719,10 +719,12 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     git_repo.index.commit(commit_msg)
 
     # push to GitHub
-    github_user = build_option('github_user')
-    github_url = 'git@github.com:%s/%s.git' % (github_user, pr_target_repo)
+    github_user = github_account =  build_option('github_user')
+    if build_option('github_org'):
+        github_account = build_option('github_org')
+    github_url = 'git@github.com:%s/%s.git' % (github_account, pr_target_repo)
     salt = ''.join(random.choice(string.letters) for _ in range(5))
-    remote_name = 'github_%s_%s' % (github_user, salt)
+    remote_name = 'github_%s_%s' % (github_account, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
@@ -850,14 +852,16 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     # collect GitHub info we'll need
     # * GitHub username to push branch to repo
     # * GitHub token to open PR
-    github_user = build_option('github_user')
+    github_user = github_account = build_option('github_user')
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to use --new-pr")
+    if build_option('github_org'):
+        github_account = build_option('github_org')
 
     github_token = fetch_github_token(github_user)
     if github_token is None:
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
-
+    
     # create branch, commit files to it & push to GitHub
     file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, ecs,
                                                                                    pr_branch=pr_branch_name,
@@ -892,7 +896,6 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     full_descr = "(created using `eb --new-pr`)\n"
     if descr is not None:
         full_descr += descr
-
     # create PR
     pr_target_branch = build_option('pr_target_branch')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -901,7 +904,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         '',
         "Opening pull request%s" % ('', " [DRY RUN]")[dry_run],
         "* target: %s/%s:%s" % (pr_target_account, pr_target_repo, pr_target_branch),
-        "* from: %s/%s:%s" % (github_user, pr_target_repo, branch),
+        "* from: %s/%s:%s" % (github_account, pr_target_repo, branch),
         "* title: \"%s\"" % title,
         "* description:",
         '"""',
@@ -917,7 +920,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         pulls_url = g.repos[pr_target_account][pr_target_repo].pulls
         body = {
             'base': pr_target_branch,
-            'head': '%s:%s' % (github_user, branch),
+            'head': '%s:%s' % (github_account, branch),
             'title': title,
             'body': full_descr,
         }
@@ -1000,7 +1003,9 @@ def check_github():
 
     # GitHub user
     print_msg("* GitHub user...", log=_log, prefix=False, newline=False)
-    github_user = build_option('github_user')
+    github_user = github_account = build_option('github_user')
+    if build_option('github_org'):
+        github_account = build_option('github_org')
     if github_user is None:
         check_res = "(none available) => FAIL"
         status['--new-pr'] = status['--update-pr'] = status['--upload-test-report'] = False
@@ -1066,18 +1071,18 @@ def check_github():
     print_msg(check_res, log=_log, prefix=False)
 
     # test push access to own GitHub repository: try to clone repo and push a test branch
-    msg = "* push access to %s/%s repo @ GitHub..." % (github_user, GITHUB_EASYCONFIGS_REPO)
+    msg = "* push access to %s/%s repo @ GitHub..." % (github_account, GITHUB_EASYCONFIGS_REPO)
     print_msg(msg, log=_log, prefix=False, newline=False)
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo, res, push_err = None, None, None
     branch_name = 'test_branch_%s' % ''.join(random.choice(string.letters) for _ in range(5))
     try:
         git_repo = init_repo(git_working_dir, GITHUB_EASYCONFIGS_REPO, silent=True)
-        remote_name = setup_repo(git_repo, github_user, GITHUB_EASYCONFIGS_REPO, 'master', silent=True, git_only=True)
+        remote_name = setup_repo(git_repo, github_account, GITHUB_EASYCONFIGS_REPO, 'master', silent=True, git_only=True)
         git_repo.create_head(branch_name)
         res = getattr(git_repo.remotes, remote_name).push(branch_name)
     except Exception as err:
-        _log.warning("Exception when testing push access to %s/%s: %s", github_user, GITHUB_EASYCONFIGS_REPO, err)
+        _log.warning("Exception when testing push access to %s/%s: %s", github_account, GITHUB_EASYCONFIGS_REPO, err)
         push_err = err
 
     if res:

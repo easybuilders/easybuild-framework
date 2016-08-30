@@ -104,6 +104,7 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_target_branch',
         'pr_target_repo',
         'github_user',
+        'github_org',
         'group',
         'ignore_dirs',
         'job_backend_config',
