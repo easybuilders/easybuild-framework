@@ -214,14 +214,6 @@ class GithubError(Exception):
     pass
 
 
-def get_github_account():
-    """
-    Helper method, for retrieving the GitHub account for creating PR.
-    @return: github account name
-    """
-    if build_option('github_org'):
-        return build_option('github_org')
-    return build_option('github_user')
 
 def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     """
@@ -728,7 +720,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     git_repo.index.commit(commit_msg)
 
     # push to GitHub
-    github_account =  get_github_account()
+    github_account =  build_option('github_org') or build_option('github_user')
     github_url = 'git@github.com:%s/%s.git' % (github_account, pr_target_repo)
     salt = ''.join(random.choice(string.letters) for _ in range(5))
     remote_name = 'github_%s_%s' % (github_account, salt)
@@ -859,10 +851,10 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     # collect GitHub info we'll need
     # * GitHub username to push branch to repo
     # * GitHub token to open PR
-    github_user = github_account = build_option('github_user')
+    github_user = build_option('github_user')
     if github_user is None:
         raise EasyBuildError("GitHub user must be specified to use --new-pr")
-    github_account = get_github_account()
+    github_account = build_option('github_org') or build_option('github_user')
 
     github_token = fetch_github_token(github_user)
     if github_token is None:
@@ -1010,7 +1002,7 @@ def check_github():
     # GitHub user
     print_msg("* GitHub user...", log=_log, prefix=False, newline=False)
     github_user = build_option('github_user')
-    github_account = get_github_account()
+    github_account = build_option('github_org') or build_option('github_user')
 
     if github_user is None:
         check_res = "(none available) => FAIL"

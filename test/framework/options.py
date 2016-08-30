@@ -2312,7 +2312,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
 
-        GITHUB_TEST_ORG = 'test-ogranization'
+        GITHUB_TEST_ORG = 'test-organization'
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
             '--pr-branch-name=branch_name_for_new_pr_test',
