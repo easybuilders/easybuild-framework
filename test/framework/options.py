@@ -2297,8 +2297,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0_typo.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -2337,8 +2337,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"moar letters foar teh lettre box",  # also description (see --pr-descr)
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0_typo.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -2364,7 +2364,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== Determined branch name corresponding to hpcugent/easybuild-easyconfigs PR #2237: develop",
             r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
             r"^\s*1 file changed",
             r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
         ]
@@ -2448,8 +2448,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs = [
             r"^\* overview of changes:",
-            r".*/foo-1\.0\.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/bar-2\.0\.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/foo-1\.0\.eb\s*\|",
+            r".*/bar-2\.0\.eb\s*\|",
             r"^\s*2 files changed",
         ]
 
