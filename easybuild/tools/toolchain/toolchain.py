@@ -706,7 +706,7 @@ class Toolchain(object):
         # FIXME enable debug module for RPATH wrapper based --debug
         rpath_wrapper = None
 
-        self.symlink_commands({'rpath': (rpath_wrapper, compiler_cmds + linker_cmds))
+        self.symlink_commands({'rpath': (rpath_wrapper, compiler_cmds + linker_cmds)})
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
