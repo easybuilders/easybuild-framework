@@ -247,6 +247,7 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store_true', False, 'p'),
             'read-only-installdir': ("Set read-only permissions on installation directory after installation",
                                      None, 'store_true', False),
+            'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
@@ -431,16 +432,6 @@ class EasyBuildOptions(GeneralOption):
         })
 
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))
-        self.add_group_parser(opts, descr)
-
-    def rpath_options(self):
-        # rpath Options
-        descr = ("RPATH options", "changes linking to include rpaths")
-
-        opts = OrderedDict({
-            'rpath': ("Enable RPATH support", None, 'store_true', False),
-        })
-        self.log.debug("rpath_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def easyconfig_options(self):
