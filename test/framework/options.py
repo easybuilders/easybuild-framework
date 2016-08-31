@@ -2297,8 +2297,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0_typo.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -2312,12 +2312,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
 
+        GITHUB_TEST_ORG = 'test-organization'
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
             '--pr-branch-name=branch_name_for_new_pr_test',
             '--pr-commit-msg="this is a commit message. really!"',
             '--pr-descr="moar letters foar teh lettre box"',
             '--pr-target-branch=master',
+            '--github-org=%s' % GITHUB_TEST_ORG,
             '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
             '--pr-title=test-1-2-3',
         ])
@@ -2330,13 +2332,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== fetching branch 'master' from https://github.com/boegel/easybuild-easyconfigs.git...",
             r"^Opening pull request \[DRY RUN\]",
             r"^\* target: boegel/easybuild-easyconfigs:master",
-            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ACCOUNT,
+            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ORG,
             r"\(created using `eb --new-pr`\)",  # description
             r"moar letters foar teh lettre box",  # also description (see --pr-descr)
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0_typo.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -2362,7 +2364,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== Determined branch name corresponding to hpcugent/easybuild-easyconfigs PR #2237: develop",
             r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
             r"^\s*1 file changed",
             r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
         ]
@@ -2446,8 +2448,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs = [
             r"^\* overview of changes:",
-            r".*/foo-1\.0\.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/bar-2\.0\.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/foo-1\.0\.eb\s*\|",
+            r".*/bar-2\.0\.eb\s*\|",
             r"^\s*2 files changed",
         ]
 
