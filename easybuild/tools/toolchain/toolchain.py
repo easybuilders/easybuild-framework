@@ -591,26 +591,38 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
-    def symlink_compilers(self, paths):
+    def symlink_commands(self, paths):
         """
-        Create a symlink for each compiler to binary/script at specified path.
+        Create a symlink for each command to binary/script at specified path.
 
-        :param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
-                      tuple ('path/to/cache', [commands to symlink to this cache])
+        :param paths: dictionary containing one or mappings, each one specified as a tuple:
+                      (<path/to/script>, <list of commands to symlink to the script>)
         """
         tmpdir = tempfile.mkdtemp()
 
-        for _, (path, comps) in paths.items():
-            for comp in comps:
-                comp_s = os.path.join(tmpdir, comp)
-                if not os.path.exists(comp_s):
+        for _, (path, cmds) in paths.items():
+            for cmd in cmds:
+                cmd_s = os.path.join(tmpdir, cmd)
+                if not os.path.exists(cmd_s):
                     try:
-                        os.symlink(path, comp_s)
+                        os.symlink(path, cmd_s)
                     except OSError as err:
-                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, comp_s, err)
+                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, cmd_s, err)
+            self.log.info("Commands symlinked to %s via %s: %s", path, tmpdir, ', '.join(cmds))
 
         setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
 
+    def compilers(self):
+        """Return list of relevant compilers for this toolchain"""
+
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            c_comps = ['gcc', 'g++']
+            fortran_comps =  ['gfortran']
+        else:
+            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
+            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+
+        return (c_comps, fortran_comps)
 
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
@@ -652,10 +664,7 @@ class Toolchain(object):
             self.prepare_compiler_cache()
 
         if build_option('rpath'):
-            self.log.debug("prepare_step: PATH %s" % os.environ['PATH'])
-            # Setup the environment and copy wrapper script into path
-            prepare_ld_wrapper()
-            self.log.debug("prepare_step after rpath : PATH %s" % os.environ['PATH'])
+            prepare_rpath_wrapper()
 
     def prepare_compiler_cache(self):
         """
@@ -663,13 +672,7 @@ class Toolchain(object):
         """
         paths = {}
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            c_comps = ['gcc', 'g++']
-            fortran_comps =  ['gfortran']
-        else:
-            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
-            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
-
+        c_comps, fortran_comps = self.compilers()
         compilers = {
             CCACHE : c_comps,
             F90CACHE : fortran_comps,
@@ -688,7 +691,22 @@ class Toolchain(object):
             os.environ["%s_DIR" % cachename] = comp_cache_path
             os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
 
-        self.symlink_compilers(paths)
+        self.symlink_commands(paths)
+
+    def prepare_rpath_wrapper(self):
+        """
+        Put RPATH wrapper script in place for compiler and linker commands
+        """
+        # FIXME RPATH is linux only
+        compiler_cmds = [comp for comps in self.compilers() for comp in comps]
+        linker_cmds = ['ld', 'ld.gold']
+
+        # FIXME figure out location of RPATH wrapper (or include as a constant?)
+        # FIXME ensure execution permissions
+        # FIXME enable debug module for RPATH wrapper based --debug
+        rpath_wrapper = None
+
+        self.symlink_commands({'rpath': (rpath_wrapper, compiler_cmds + linker_cmds))
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
