@@ -1,11 +1,11 @@
 ##
-# Copyright 2011-2015 Ghent University
+# Copyright 2011-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,8 +25,8 @@
 """
 Module naming scheme API.
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import re
 from vsc.utils import fancylogger
@@ -66,7 +66,7 @@ class ModuleNamingScheme(object):
         """
         Determine full module name, relative to the top of the module path.
 
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+        :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
 
         @return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
@@ -77,7 +77,7 @@ class ModuleNamingScheme(object):
         """
         Determine short module name, i.e. the name under which modules will be exposed to users.
 
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+        :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
         @return: string with module name, e.g. '<name>/<version>'
         """
@@ -88,7 +88,7 @@ class ModuleNamingScheme(object):
         """
         Determine name of software installation subdirectory of install path.
 
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+        :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
 
         @return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
@@ -101,7 +101,7 @@ class ModuleNamingScheme(object):
         Determine subdirectory for module file in $MODULEPATH.
         This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
 
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+        :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
         @return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
         """
@@ -119,7 +119,7 @@ class ModuleNamingScheme(object):
         """
         Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded (if any).
 
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+        :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
         @return: A list of $MODULEPATH subdirectories.
         """
@@ -131,7 +131,7 @@ class ModuleNamingScheme(object):
         Determine list of subdirectories relative to the user-specific modules directory for which to extend
         $MODULEPATH with when this module is loaded (if any).
 
-        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+        :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
         @return: A list of $MODULEPATH subdirectories.
         """
@@ -158,7 +158,7 @@ class ModuleNamingScheme(object):
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
             <name>/<version>[-<toolchain>]
         """
-        modname_regex = re.compile('^%s/\S+$' % re.escape(name))
+        modname_regex = re.compile('^%s(/\S+)?$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",

@@ -1,11 +1,11 @@
 ##
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -29,12 +29,14 @@ Unit tests for general aspects of the EasyBuild framework
 """
 import os
 import re
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import vsc
 
 import easybuild.framework
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -84,7 +86,7 @@ class GeneralTest(EnhancedTestCase):
             pass
 
         err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
-        self.assertErrorRegex(ImportError, err_pat, bar)
+        self.assertErrorRegex(EasyBuildError, err_pat, bar)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')
@@ -92,12 +94,12 @@ class GeneralTest(EnhancedTestCase):
                 pass
 
         err_pat = r"required module 'thisdoesnotexist' is not available \(available from http://example.com\)"
-        self.assertErrorRegex(ImportError, err_pat, Foo().foobar)
+        self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(GeneralTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

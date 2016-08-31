@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,8 +25,8 @@
 """
 Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion
@@ -51,10 +51,14 @@ class Fftw(Fft):
 
         # order matters!
         fftw_libs = ["fftw%s" % suffix]
-        if self.options['usempi']:
+        if self.options.get('usempi', False):
             fftw_libs.insert(0, "fftw%s_mpi" % suffix)
+        fftw_libs_mt = ["fftw%s" % suffix]
+        if self.options.get('openmp', False):
+            fftw_libs_mt.insert(0, "fftw%s_omp" % suffix)
 
         self.FFT_LIB = fftw_libs
+        self.FFT_LIB_MT = fftw_libs_mt
 
     def _set_fft_variables(self):
         self._set_fftw_variables()
@@ -66,3 +70,5 @@ class Fftw(Fft):
         self.variables.join('FFTW_LIB_DIR', 'FFT_LIB_DIR')
         if 'FFT_STATIC_LIBS' in self.variables:
             self.variables.join('FFTW_STATIC_LIBS', 'FFT_STATIC_LIBS')
+        if 'FFT_STATIC_LIBS_MT' in self.variables:
+            self.variables.join('FFTW_STATIC_LIBS_MT', 'FFT_STATIC_LIBS_MT')

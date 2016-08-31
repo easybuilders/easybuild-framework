@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,11 +25,11 @@
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 import os
 import re
@@ -64,6 +64,8 @@ class EasyBuildError(LoggedException):
     """
     LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
     LOC_INFO_LEVEL = 1
+    # always include location where error was raised from, even under 'python -O'
+    INCLUDE_LOCATION = True
 
     # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
     # only required because 'error' log method raises (should no longer be needed in EB v3.x)
@@ -167,7 +169,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
 
 # set format for logger
-LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
+LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
 # set the default LoggerClass to EasyBuildLog
@@ -217,7 +219,7 @@ def get_log(name=None):
     log.nosupport("Use of get_log function", '2.0')
 
 
-def print_msg(msg, log=None, silent=False, prefix=True):
+def print_msg(msg, log=None, silent=False, prefix=True, newline=True):
     """
     Print a message to stdout.
     """
@@ -225,9 +227,12 @@ def print_msg(msg, log=None, silent=False, prefix=True):
         log.info(msg)
     if not silent:
         if prefix:
-            print "%s %s" % (EB_MSG_PREFIX, msg)
-        else:
+            msg = ' '.join([EB_MSG_PREFIX, msg])
+
+        if newline:
             print msg
+        else:
+            print msg,
 
 
 def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
@@ -236,10 +241,10 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
 
     Define DRY_RUN_*DIR constants, so they can be used in dry_run_msg to replace fake build/install dirs.
 
-    @param prefix: prefix of fake build/install dirs, that can be stripped off when printing
-    @param builddir: fake build dir
-    @param software_installdir: fake software install directory
-    @param module_installdir: fake module install directory
+    :param prefix: prefix of fake build/install dirs, that can be stripped off when printing
+    :param builddir: fake build dir
+    :param software_installdir: fake software install directory
+    :param module_installdir: fake module install directory
     """
     global DRY_RUN_BUILD_DIR
     DRY_RUN_BUILD_DIR = (re.compile(builddir), builddir[len(prefix):])

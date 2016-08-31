@@ -31,8 +31,8 @@ dependencies: [
 #    nice to have an up to date openssl for security reasons
 ]
 
-# fixme: tuple values; see issue #1442
-# osdependencies: [[openssl-devel, libssl-dev, libopenssl-devel]]
+# zlib is only included here for the sake of testing parsing of .yeb easyconfigs!
+osdependencies: [zlib, [openssl-devel, libssl-dev, libopenssl-devel]]
 
 # order is important!
 # package versions updated May 28th 2015

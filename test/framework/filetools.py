@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -33,10 +33,12 @@ Unit tests for filetools.py
 import os
 import shutil
 import stat
+import sys
 import tempfile
 import urllib2
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
+from urllib2 import URLError
 
 import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
@@ -63,7 +65,8 @@ class FileToolsTest(EnhancedTestCase):
             ('test.TAR.GZ', "tar xzf test.TAR.GZ"),
             ('test.tgz', "tar xzf test.tgz"),
             ('test.gtgz', "tar xzf test.gtgz"),
-            ('test.bz2', "bunzip2 test.bz2"),
+            ('test.bz2', "bunzip2 -c test.bz2 > test"),
+            ('/some/path/test.bz2', "bunzip2 -c /some/path/test.bz2 > test"),
             ('test.tbz', "tar xjf test.tbz"),
             ('test.tbz2', "tar xjf test.tbz2"),
             ('test.tb2', "tar xjf test.tb2"),
@@ -89,11 +92,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(name, "testplustestmintestmpi")
         name = ft.convert_name("test+test-test.mpi", True)
         self.assertEqual(name, "TESTPLUSTESTMINTESTMPI")
-
-    def test_cwd(self):
-        """tests should be run from the base easybuild directory"""
-        # used to be part of test_parse_log_error
-        self.assertEqual(os.getcwd(), ft.find_base_dir())
 
     def test_find_base_dir(self):
         """test if we find the correct base dir"""
@@ -452,6 +450,33 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.weld_paths('/foo/bar', '/foo/bar'), '/foo/bar/')
         self.assertEqual(ft.weld_paths('/foo', '/foo/bar/baz'), '/foo/bar/baz/')
 
+    def test_expand_glob_paths(self):
+        """Test expand_glob_paths function."""
+        for dirname in ['empty_dir', 'test_dir']:
+            ft.mkdir(os.path.join(self.test_prefix, dirname), parents=True)
+        for filename in ['file1.txt', 'test_dir/file2.txt', 'test_dir/file3.txt', 'test_dir2/file4.dat']:
+            ft.write_file(os.path.join(self.test_prefix, filename), 'gibberish')
+
+        globs = [os.path.join(self.test_prefix, '*.txt'), os.path.join(self.test_prefix, '*', '*')]
+        expected = [
+            os.path.join(self.test_prefix, 'file1.txt'),
+            os.path.join(self.test_prefix, 'test_dir', 'file2.txt'),
+            os.path.join(self.test_prefix, 'test_dir', 'file3.txt'),
+            os.path.join(self.test_prefix, 'test_dir2', 'file4.dat'),
+        ]
+        self.assertEqual(sorted(ft.expand_glob_paths(globs)), sorted(expected))
+
+        # passing non-glob patterns is fine too
+        file2 = os.path.join(self.test_prefix, 'test_dir', 'file2.txt')
+        self.assertEqual(ft.expand_glob_paths([file2]), [file2])
+
+        # test expanding of '~' into $HOME value
+        # hard overwrite $HOME in environment (used by os.path.expanduser) so we can reliably test this
+        new_home = os.path.join(self.test_prefix, 'home')
+        ft.mkdir(new_home, parents=True)
+        ft.write_file(os.path.join(new_home, 'test.txt'), 'test')
+        os.environ['HOME'] = new_home
+        self.assertEqual(ft.expand_glob_paths(['~/*.txt']), [os.path.join(new_home, 'test.txt')])
 
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
@@ -555,10 +580,156 @@ class FileToolsTest(EnhancedTestCase):
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
 
+        # passing empty list of substitions is a no-op
+        ft.write_file(testfile, testtxt)
+        ft.apply_regex_substitutions(testfile, [])
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, testtxt)
+
+        # clean error on non-existing file
+        error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
+        path = os.path.join(self.test_prefix, 'nosuchfile.txt')
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
+    def test_find_flexlm_license(self):
+        """Test find_flexlm_license function."""
+        lic_file1 = os.path.join(self.test_prefix, 'one.lic')
+        ft.write_file(lic_file1, "This is a license file (no, really!)")
+
+        lic_file2 = os.path.join(self.test_prefix, 'two.dat')
+        ft.write_file(lic_file2, "This is another license file (sure it is!)")
+
+        lic_server = '1234@example.license.server'
+
+        # make test robust against environment in which $LM_LICENSE_FILE is defined
+        if 'LM_LICENSE_FILE' in os.environ:
+            del os.environ['LM_LICENSE_FILE']
+
+        # default return value
+        self.assertEqual(ft.find_flexlm_license(), ([], None))
+
+        # provided license spec
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[lic_file1]), ([lic_file1], None))
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[lic_server, lic_file2]), ([lic_server, lic_file2], None))
+
+        # non-existing license file
+        os.environ['LM_LICENSE_FILE'] = '/no/such/file/unless/you/aim/to/break/this/check'
+        self.assertEqual(ft.find_flexlm_license(), ([], None))
+
+        # existing license file
+        os.environ['LM_LICENSE_FILE'] = lic_file2
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file2], 'LM_LICENSE_FILE'))
+
+        # directory with existing license files
+        os.environ['LM_LICENSE_FILE'] = self.test_prefix
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_file2], 'LM_LICENSE_FILE'))
+
+        # server spec
+        os.environ['LM_LICENSE_FILE'] = lic_server
+        self.assertEqual(ft.find_flexlm_license(), ([lic_server], 'LM_LICENSE_FILE'))
+
+        # duplicates are filtered out, order is maintained
+        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file1, lic_server, self.test_prefix, lic_file2, lic_file1])
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_server, lic_file2], 'LM_LICENSE_FILE'))
+
+        # invalid server spec (missing port)
+        os.environ['LM_LICENSE_FILE'] = 'test.license.server'
+        self.assertEqual(ft.find_flexlm_license(), ([], None))
+
+        # env var wins of provided lic spec
+        os.environ['LM_LICENSE_FILE'] = lic_file2
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[lic_server]), ([lic_file2], 'LM_LICENSE_FILE'))
+
+        # custom env var wins over $LM_LICENSE_FILE
+        os.environ['INTEL_LICENSE_FILE'] = lic_file1
+        expected = ([lic_file1], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars='INTEL_LICENSE_FILE'), expected)
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['NOSUCHENVVAR', 'INTEL_LICENSE_FILE']), expected)
+
+        # $LM_LICENSE_FILE is always considered
+        os.environ['LM_LICENSE_FILE'] = lic_server
+        os.environ['INTEL_LICENSE_FILE'] = '/no/such/file/unless/you/aim/to/break/this/check'
+        expected = ([lic_server], 'LM_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+
+        # license server *and* file spec; order is preserved
+        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file2, lic_server, lic_file1])
+        self.assertEqual(ft.find_flexlm_license(), ([lic_file2, lic_server, lic_file1], 'LM_LICENSE_FILE'))
+
+        # typical usage
+        os.environ['LM_LICENSE_FILE'] = lic_server
+        os.environ['INTEL_LICENSE_FILE'] = '/not/a/valid/license/path:%s:/another/bogus/license/file' % lic_file2
+        expected = ([lic_file2], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars='INTEL_LICENSE_FILE'), expected)
+
+        os.environ['INTEL_LICENSE_FILE'] = '1234@lic1.test:4567@lic2.test:7890@lic3.test'
+        expected = (['1234@lic1.test', '4567@lic2.test', '7890@lic3.test'], 'INTEL_LICENSE_FILE')
+        self.assertEqual(ft.find_flexlm_license(custom_env_vars=['INTEL_LICENSE_FILE']), expected)
+
+        # make sure find_flexlm_license is robust against None input;
+        # this occurs if license_file is left unspecified
+        del os.environ['INTEL_LICENSE_FILE']
+        del os.environ['LM_LICENSE_FILE']
+        self.assertEqual(ft.find_flexlm_license(lic_specs=[None]), ([], None))
+
+    def test_is_patch_file(self):
+        """Test for is_patch_file() function."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')))
+        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
+
+    def test_is_alt_pypi_url(self):
+        """Test is_alt_pypi_url() function."""
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
+        self.assertFalse(ft.is_alt_pypi_url(url))
+
+        url = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
+        self.assertTrue(ft.is_alt_pypi_url(url))
+
+    def test_derive_alt_pypi_url(self):
+        """Test derive_alt_pypi_url() function."""
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
+        alturl = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
+        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+
+        # no crash on non-existing version
+        url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-0.0.0.tar.gz'
+        self.assertEqual(ft.derive_alt_pypi_url(url), None)
+
+        # no crash on non-existing package
+        url = 'https://pypi.python.org/packages/source/n/nosuchpackageonpypiever/nosuchpackageonpypiever-0.0.0.tar.gz'
+        self.assertEqual(ft.derive_alt_pypi_url(url), None)
+
+    def test_apply_patch(self):
+        """ Test apply_patch """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        tmpdir = self.test_prefix
+        path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+
+        self.assertTrue(ft.apply_patch(toy_patch, path))
+        patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        pattern = "I'm a toy, and very proud of it"
+        self.assertTrue(pattern in patched)
+
+        # trying the patch again should fail
+        self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
+    def test_copy_file(self):
+        """ Test copy_file """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        tmpdir = self.test_prefix
+        to_copy = os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')
+        target_path = os.path.join(tmpdir, 'toy-0.0.eb')
+        ft.copy_file(to_copy, target_path)
+        self.assertTrue(os.path.exists(target_path))
+        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(FileToolsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

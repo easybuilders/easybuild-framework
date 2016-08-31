@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,15 +30,12 @@ Unit tests for module_generator.py.
 """
 
 import os
-import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, TestSuite, TextTestRunner, main
+from distutils.version import StrictVersion
+from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
-from vsc.utils.missing import get_subclasses
 
-import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
@@ -46,8 +43,9 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.modules import Lmod
 from easybuild.tools.utilities import quote_str
-from test.framework.utilities import find_full_path, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
@@ -67,7 +65,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb = EasyBlock(ec)
         self.modgen = self.MODULE_GENERATOR_CLASS(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
-        
+
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
     def test_descr(self):
@@ -83,7 +81,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "    }",
                 "}",
                 '',
-                "module-whatis {%s}" % gzip_txt,
+                "module-whatis {Description: %s}" % gzip_txt,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -95,7 +93,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 'help([[%s]])' % gzip_txt,
                 '',
-                "whatis([[%s]])" % gzip_txt,
+                "whatis([[Description: %s]])" % gzip_txt,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -145,25 +143,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             # default: guarded module load (which implies no recursive unloading)
-            expected = [
+            expected = '\n'.join([
                 '',
                 "if { ![ is-loaded mod_name ] } {",
                 "    module load mod_name",
                 "}",
                 '',
-            ]
-            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+            ])
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # with recursive unloading: no if is-loaded guard
-            expected = [
+            expected = '\n'.join([
                 '',
                 "module load mod_name",
                 '',
-            ]
-            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
+            ])
+            self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
-            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -173,7 +171,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'end',
                 '',
             ])
-            self.assertEqual(expected,self.modgen.load_module("mod_name"))
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # with recursive unloading: no if isloaded guard
             expected = '\n'.join([
@@ -184,7 +182,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
-            self.assertEqual(expected,self.modgen.load_module("mod_name"))
+            self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
     def test_unload(self):
         """Test unload part in generated module file."""
@@ -194,13 +192,57 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "module unload mod_name",
             ])
-            self.assertEqual(expected, self.modgen.unload_module("mod_name"))
         else:
             expected = '\n'.join([
                 '',
                 'unload("mod_name")',
             ])
-            self.assertEqual(expected, self.modgen.unload_module("mod_name"))
+
+        self.assertEqual(expected, self.modgen.unload_module("mod_name"))
+
+    def test_swap(self):
+        """Test for swap statements."""
+
+        # unguarded swap
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "module swap foo bar",
+                '',
+            ])
+        else:
+            expected = '\n'.join([
+                '',
+                'swap("foo", "bar")',
+                '',
+            ])
+
+        self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=False))
+
+        # guarded swap (enabled by default)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                '',
+                "if { [ is-loaded foo ] } {",
+                "    module swap foo bar",
+                '} else {',
+                "    module load bar",
+                '}',
+                '',
+            ])
+        else:
+            expected = '\n'.join([
+                '',
+                'if isloaded("foo") then',
+                '    swap("foo", "bar")',
+                'else',
+                '    load("bar")',
+                'end',
+                '',
+            ])
+
+        self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
+        self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
@@ -381,6 +423,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_load_msg(self):
         """Test including a load message in the module file."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = "\nif { [ module-info mode load ] } {\n    puts stderr \"test\"\n}\n"
+            self.assertEqual(expected, self.modgen.msg_on_load('test'))
+
             tcl_load_msg = '\n'.join([
                 '',
                 "if { [ module-info mode load ] } {",
@@ -390,8 +435,21 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
             ])
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+
         else:
-            pass
+            expected = '\nif mode() == "load" then\n    io.stderr:write("test")\nend\n'
+            self.assertEqual(expected, self.modgen.msg_on_load('test'))
+
+            if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.8'):
+                lua_load_msg = '\n'.join([
+                    '',
+                    'if mode() == "load" then',
+                    '    io.stderr:write([==[test $test \\$test',
+                    '    test $foo \\$bar]==])',
+                    'end',
+                    '',
+                ])
+                self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
@@ -448,13 +506,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
             },
         }
         self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', ActiveMNS().det_full_module_name(non_parsed))
-
-        # install custom module naming scheme dynamically
-        test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        sys.path.append(test_mns_parent_dir)
-        reload(easybuild)
-        reload(easybuild.tools)
-        reload(easybuild.tools.module_naming_scheme)
 
         # make sure test module naming schemes are available
         mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_more']
@@ -576,6 +627,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
             ('apps/blacs/1.1', 'BLACS', False),
             ('lib/math/BLACS-stable/1.1', 'BLACS', False),
+            # required so PrgEnv can be listed versionless as external module in Cray toolchains
+            ('PrgEnv', 'PrgEnv', True),
         ]
         for modname, softname, res in test_cases:
             if res:
@@ -679,6 +732,19 @@ class ModuleGeneratorTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'
+        init_config(build_options=build_options)
+
+        test_ecs = {
+            'GCC-4.7.2.eb':               ('compiler/GCC/4.7.2',          '', [], [], []),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('mpi/OpenMPI/1.6.4-GCC-4.7.2', '', [], [], []),
+            'gzip-1.5-goolf-1.4.10.eb':   ('tools/gzip/1.5-goolf-1.4.10', '', [], [], []),
+            'goolf-1.4.10.eb':            ('toolchain/goolf/1.4.10',      '', [], [], []),
+            'impi-4.1.3.049.eb':          ('mpi/impi/4.1.3.049',          '', [], [], []),
+        }
+        for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals)
+
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
 
@@ -706,12 +772,12 @@ class LuaModuleGeneratorTest(ModuleGeneratorTest):
 def suite():
     """ returns all the testcases in this module """
     suite = TestSuite()
-    suite.addTests(TestLoader().loadTestsFromTestCase(TclModuleGeneratorTest))
-    suite.addTests(TestLoader().loadTestsFromTestCase(LuaModuleGeneratorTest))
+    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(TclModuleGeneratorTest, sys.argv[1:]))
+    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(LuaModuleGeneratorTest, sys.argv[1:]))
     return suite
 
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    TextTestRunner().run(suite())
+    TextTestRunner(verbosity=1).run(suite())

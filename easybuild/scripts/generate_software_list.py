@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -28,7 +28,7 @@ Sine this script will actually parse all easyconfigs and easyblocks
 it will only produce a list of Packages that can actually be handled
 correctly by easybuild.
 
-@author: Jens Timmerman (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 from datetime import date
 from optparse import OptionParser
