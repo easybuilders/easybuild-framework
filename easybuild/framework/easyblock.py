@@ -76,7 +76,6 @@ from easybuild.tools.modules import invalidate_module_caches_for, get_software_r
 from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.rpath import prepare_ld_wrapper
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
@@ -1552,13 +1551,6 @@ class EasyBlock(object):
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
-
-        self.log.debug("prepare_step: PATH %s" % os.environ['PATH'])
-        if build_option('rpath'):
-            # Setup the environment and copy wrapper script into path
-            prepare_ld_wrapper()
-
-        self.log.debug("prepare_step after rpath : PATH %s" % os.environ['PATH'])
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:

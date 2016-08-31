@@ -42,6 +42,7 @@ from easybuild.tools.filetools import which
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
+from easybuild.tools.rpath import prepare_ld_wrapper
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -649,6 +650,12 @@ class Toolchain(object):
 
         if build_option('use_compiler_cache'):
             self.prepare_compiler_cache()
+
+        if build_option('rpath'):
+            self.log.debug("prepare_step: PATH %s" % os.environ['PATH'])
+            # Setup the environment and copy wrapper script into path
+            prepare_ld_wrapper()
+            self.log.debug("prepare_step after rpath : PATH %s" % os.environ['PATH'])
 
     def prepare_compiler_cache(self):
         """
