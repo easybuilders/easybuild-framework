@@ -2729,6 +2729,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             self.assertTrue(logs[0].endswith(ext), "%s has correct '%s' extension for %s" % (logs[0], ext, zip_logs))
 
+    def test_debug_lmod(self):
+        """Test use of --debug-lmod."""
+        init_config(build_options={'debug_lmod': True})
+        out = self.modtool.run_module('avail', return_output=True)
+
+        for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "buildAvailT", "Master:avail"]:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
 
 def suite():
     """ returns all the testcases in this module """
