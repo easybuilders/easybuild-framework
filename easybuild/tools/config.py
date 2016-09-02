@@ -139,6 +139,7 @@ BUILD_OPTIONS_CMDLINE = {
         'group_writable_installdir',
         'hidden',
         'install_latest_eb_release',
+        'lmod_debug',
         'minimal_toolchains',
         'module_only',
         'package',
