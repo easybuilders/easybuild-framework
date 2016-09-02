@@ -978,7 +978,7 @@ class Lmod(ModulesTool):
         if opts is None:
             opts = []
 
-        if build_option('lmod_debug'):
+        if build_option('debug_lmod'):
             opts.append((0, '-D'))
 
         # if --show_hidden is in list of arguments, pass it via 'opts' to make sure it's in the right place,
