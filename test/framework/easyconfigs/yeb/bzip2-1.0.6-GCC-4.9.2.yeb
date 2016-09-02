@@ -22,4 +22,7 @@ sources:
 source_urls:
     - http://www.bzip.org/%(version)s
 
+builddependencies:
+    - gzip: 1.6
+
 moduleclass: tools

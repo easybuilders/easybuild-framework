@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -27,8 +27,8 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import re
 from vsc.utils import fancylogger
@@ -51,6 +51,7 @@ TEMPLATE_NAMES_EASYCONFIG = [
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
+    'github_account',
     'name',
     'version',
     'versionsuffix',
@@ -88,6 +89,8 @@ TEMPLATE_CONSTANTS = [
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
+    ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
+     'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
@@ -142,7 +145,6 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     # ignore
     if ignore is None:
         ignore = []
-
     # make dict
     template_values = {}
 
@@ -171,13 +173,13 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
-                version = LooseVersion(version).version
+                version = version.split('.')
                 try:
-                    major = str(version[0])
+                    major = version[0]
                     template_values['version_major'] = major
-                    minor = str(version[1])
+                    minor = version[1]
                     template_values['version_minor'] = minor
-                    template_values['version_major_minor'] = ".".join([major, minor])
+                    template_values['version_major_minor'] = '.'.join([major, minor])
                 except IndexError:
                     # if there is no minor version, skip it
                     pass

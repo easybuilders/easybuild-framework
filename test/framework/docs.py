@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -26,15 +26,14 @@
 Unit tests for docs.py.
 """
 import inspect
-import os
 import re
 import sys
-from unittest import TestLoader, main
+from unittest import TextTestRunner
 
-from easybuild.framework.easyconfig.licenses import license_documentation
-from easybuild.tools.docs import gen_easyblocks_overview_rst
+from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst
 from easybuild.tools.utilities import import_available_modules
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+
 
 class DocsTest(EnhancedTestCase):
 
@@ -63,6 +62,7 @@ class DocsTest(EnhancedTestCase):
             '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
+            '',
             "====================    ================================================================",
             "easyconfig parameter    description                                                     ",
             "====================    ================================================================",
@@ -91,17 +91,17 @@ class DocsTest(EnhancedTestCase):
 
     def test_license_docs(self):
         """Test license_documentation function."""
-        lic_docs = license_documentation()
+        lic_docs = avail_easyconfig_licenses_txt()
         gplv3 = "GPLv3: The GNU General Public License"
         self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
 
 
 def suite():
     """ returns all test cases in this module """
-    return TestLoader().loadTestsFromTestCase(DocsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
 
 if __name__ == '__main__':
     # also check the setUp for debug
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())
