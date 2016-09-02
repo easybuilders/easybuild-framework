@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -27,7 +27,7 @@ This describes the easyconfig parser
 
 The parser is format version aware
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import os
 import re
@@ -59,8 +59,8 @@ _log = fancylogger.getLogger('easyconfig.parser', fname=False)
 def fetch_parameters_from_easyconfig(rawtxt, params):
     """
     Fetch (initial) parameter definition from the given easyconfig file contents.
-    @param rawtxt: contents of the easyconfig file
-    @param params: list of parameter names to fetch values for
+    :param rawtxt: contents of the easyconfig file
+    :param params: list of parameter names to fetch values for
     """
     param_values = []
     for param in params:
@@ -83,10 +83,10 @@ class EasyConfigParser(object):
                  auto_convert_value_types=True):
         """
         Initialise the EasyConfigParser class
-        @param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
-        @param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
-        @param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
-        @param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
+        :param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
+        :param format_version: version of easyconfig file format, used to determine how to parse supplied easyconfig
+        :param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
+        :param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
                                          in case they are wrong
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -120,7 +120,7 @@ class EasyConfigParser(object):
         """
         Check types of easyconfig parameter values.
 
-        @param cfg: dictionary with easyconfig parameter values (result of get_config_dict())
+        :param cfg: dictionary with easyconfig parameter values (result of get_config_dict())
         """
         wrong_type_msgs = []
         for key in cfg:

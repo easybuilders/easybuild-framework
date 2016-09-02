@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,7 +25,7 @@
 """
 Script to fix easyconfigs that broke due to support for deprecated functionality being dropped in EasyBuild 2.0
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import re
@@ -48,8 +48,8 @@ class FixBrokenEasyconfigsOption(SimpleOption):
 def fix_broken_easyconfig(ectxt, easyblock_class):
     """
     Fix provided easyconfig file, that may be broken due to non-backwards-compatible changes.
-    @param ectxt: raw contents of easyconfig to fix
-    @param easyblock_class: easyblock class, as derived from software name/specified easyblock
+    :param ectxt: raw contents of easyconfig to fix
+    :param easyblock_class: easyblock class, as derived from software name/specified easyblock
     """
     log.debug("Raw contents of potentially broken easyconfig file to fix: %s" % ectxt)
 

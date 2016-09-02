@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -31,18 +31,18 @@ Unit tests for robot (dependency resolution).
 import os
 import re
 import shutil
+import sys
 import tempfile
 from copy import deepcopy
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig
-from easybuild.framework.easyconfig.tools import find_resolved_modules
+from easybuild.framework.easyconfig.tools import find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
 from easybuild.framework.easyconfig.tools import skip_available
@@ -53,7 +53,8 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.modules import invalidate_module_caches_for
+from easybuild.tools.robot import check_conflicts, resolve_dependencies
 from test.framework.utilities import find_full_path
 
 
@@ -63,7 +64,6 @@ GITHUB_TEST_ACCOUNT = 'easybuild_test'
 ORIG_MODULES_TOOL = modules.modules_tool
 ORIG_ECEC_MODULES_TOOL = ecec.modules_tool
 ORIG_ECTOOLS_MODULES_TOOL = ectools.modules_tool
-ORIG_ROBOT_MODULES_TOOL = robot.modules_tool
 ORIG_MODULE_FUNCTION = os.environ.get('module', None)
 
 
@@ -77,7 +77,7 @@ class MockModule(modules.ModulesTool):
 
     avail_modules = []
 
-    def available(self, *args):
+    def available(self, *args, **kwargs):
         """Dummy implementation of available."""
         return self.avail_modules
 
@@ -91,27 +91,28 @@ class MockModule(modules.ModulesTool):
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
-    return MockModule(mod_paths=mod_paths)
-
-
-def install_mock_module():
-    """Install MockModule as modules tool."""
-    # replace Modules class with something we have control over
-    config.modules_tool = mock_module
-    ectools.modules_tool = mock_module
-    ecec.modules_tool = mock_module
-    robot.modules_tool = mock_module
-    os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
+    return MockModule(mod_paths=mod_paths, testing=True)
 
 
 class RobotTest(EnhancedTestCase):
     """ Testcase for the robot dependency resolution """
+
+    def install_mock_module(self):
+        """Install MockModule as modules tool."""
+        # replace Modules class with something we have control over
+        config.modules_tool = mock_module
+        ectools.modules_tool = mock_module
+        ecec.modules_tool = mock_module
+        robot.modules_tool = mock_module
+        os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
+        self.modtool = mock_module()
 
     def setUp(self):
         """Set up test."""
         super(RobotTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.orig_experimental = easybuild.framework.easyconfig.tools._log.experimental
+        self.orig_modtool = self.modtool
 
     def tearDown(self):
         """Test cleanup."""
@@ -124,16 +125,16 @@ class RobotTest(EnhancedTestCase):
         config.modules_tool = ORIG_MODULES_TOOL
         ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
         ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
-        robot.modules_tool = ORIG_ROBOT_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
             if 'module' in os.environ:
                 del os.environ['module']
         else:
             os.environ['module'] = ORIG_MODULE_FUNCTION
+        self.modtool = self.orig_modtool
 
     def test_resolve_dependencies(self):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
-        install_mock_module()
+        self.install_mock_module()
 
         base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
         self.assertTrue(base_easyconfig_dir)
@@ -151,7 +152,7 @@ class RobotTest(EnhancedTestCase):
             'validate': False,
         }
         init_config(build_options=build_options)
-        res = resolve_dependencies([deepcopy(easyconfig)])
+        res = resolve_dependencies([deepcopy(easyconfig)], self.modtool)
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
@@ -176,7 +177,7 @@ class RobotTest(EnhancedTestCase):
         }
         build_options.update({'robot': True, 'robot_path': base_easyconfig_dir})
         init_config(build_options=build_options)
-        res = resolve_dependencies([deepcopy(easyconfig_dep)])
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], self.modtool)
         # dependency should be found, order should be correct
         self.assertEqual(len(res), 2)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
@@ -196,12 +197,12 @@ class RobotTest(EnhancedTestCase):
         easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
 
         # toy/.0.0-deps is available and thus should be omitted
-        res = resolve_dependencies([deepcopy(easyconfig_moredeps)])
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool)
         self.assertEqual(len(res), 2)
         full_mod_names = [ec['full_mod_name'] for ec in res]
         self.assertFalse('toy/.0.0-deps' in full_mod_names)
 
-        res = resolve_dependencies([deepcopy(easyconfig_moredeps)], retain_all_deps=True)
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
@@ -215,14 +216,14 @@ class RobotTest(EnhancedTestCase):
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
         build_options.update({'robot_path': None})
         init_config(build_options=build_options)
-        res = resolve_dependencies(ecs)
+        res = resolve_dependencies(ecs, self.modtool)
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
         msg = "Irresolvable dependencies encountered"
-        self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs)
+        self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, self.modtool)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [{
@@ -236,7 +237,7 @@ class RobotTest(EnhancedTestCase):
         ecs = [deepcopy(easyconfig_dep)]
         build_options.update({'robot_path': base_easyconfig_dir})
         init_config(build_options=build_options)
-        res = resolve_dependencies([deepcopy(easyconfig_dep)])
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], self.modtool)
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual('GCC/4.6.3', res[0]['full_mod_name'])
@@ -261,7 +262,7 @@ class RobotTest(EnhancedTestCase):
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        res = resolve_dependencies(ecs)
+        res = resolve_dependencies(ecs, self.modtool)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 2)
@@ -275,7 +276,7 @@ class RobotTest(EnhancedTestCase):
         easyconfig['full_mod_name'] = 'this/is/already/there'
         MockModule.avail_modules.append('this/is/already/there')
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
-        res = resolve_dependencies(ecs)
+        res = resolve_dependencies(ecs, self.modtool)
 
         # there should only be three retained builds, foo + goolf dep and the additional build (even though a module is available)
         self.assertEqual(len(res), 3)
@@ -287,8 +288,8 @@ class RobotTest(EnhancedTestCase):
         # build that are listed but already have a module available are not retained without force
         build_options.update({'force': False})
         init_config(build_options=build_options)
-        newecs = skip_available(ecs)  # skip available builds since force is not enabled
-        res = resolve_dependencies(newecs)
+        newecs = skip_available(ecs, self.modtool)  # skip available builds since force is not enabled
+        res = resolve_dependencies(newecs, self.modtool)
         self.assertEqual(len(res), 2)
         self.assertEqual('goolf/1.4.10', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[1]['full_mod_name'])
@@ -297,8 +298,8 @@ class RobotTest(EnhancedTestCase):
         build_options.update({'retain_all_deps': True})
         init_config(build_options=build_options)
         ecs = [deepcopy(easyconfig_dep)]
-        newecs = skip_available(ecs)  # skip available builds since force is not enabled
-        res = resolve_dependencies(newecs)
+        newecs = skip_available(ecs, self.modtool)  # skip available builds since force is not enabled
+        res = resolve_dependencies(newecs, self.modtool)
         self.assertEqual(len(res), 9)
         self.assertEqual('GCC/4.7.2', res[0]['full_mod_name'])
         self.assertEqual('goolf/1.4.10', res[-2]['full_mod_name'])
@@ -324,7 +325,7 @@ class RobotTest(EnhancedTestCase):
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        res = resolve_dependencies([deepcopy(easyconfig_dep)])
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], self.modtool)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 4)
@@ -380,7 +381,7 @@ class RobotTest(EnhancedTestCase):
         expected = ['one/1.0', 'two/2.0', 'twoone/2.1', 'three/3.0', 'four/4.0']
 
         # order is correct if modules are not available yet
-        res = resolve_dependencies(ecs)
+        res = resolve_dependencies(ecs, self.modtool)
         self.assertEqual([x['full_mod_name'] for x in res], expected)
 
         # precreate matching modules
@@ -391,7 +392,7 @@ class RobotTest(EnhancedTestCase):
         self.reset_modulepath([modpath])
 
         # order is correct even if modules are already available
-        res = resolve_dependencies(ecs)
+        res = resolve_dependencies(ecs, self.modtool)
         self.assertEqual([x['full_mod_name'] for x in res], expected)
 
     def test_resolve_dependencies_minimal(self):
@@ -401,7 +402,7 @@ class RobotTest(EnhancedTestCase):
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
 
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        install_mock_module()
+        self.install_mock_module()
 
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
@@ -429,8 +430,10 @@ class RobotTest(EnhancedTestCase):
             "   ('ScaLAPACK', '2.0.2', '-OpenBLAS-0.2.6-LAPACK-3.4.2'),",  # available with gompi/1.4.10
             "   ('SQLite', '3.8.10.2'),",
             "]",
-            # toolchain as list line, for easy modification later
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            # toolchain as list line, for easy modification later;
+            # the use of %(version_major)s here is mainly to check if templates are being handled correctly
+            # (it doesn't make much sense, but it serves the purpose)
+            "toolchain = {'name': 'goolf', 'version': '%(version_major)s.4.10'}",
         ]
         write_file(barec, '\n'.join(barec_lines))
         bar = process_easyconfig(barec)[0]
@@ -451,7 +454,7 @@ class RobotTest(EnhancedTestCase):
 
         # no modules available, so all dependencies are retained
         MockModule.avail_modules = []
-        res = resolve_dependencies([bar])
+        res = resolve_dependencies([bar], self.modtool)
         self.assertEqual(len(res), 10)
         self.assertEqual([x['full_mod_name'] for x in res], all_mods_ordered)
 
@@ -467,12 +470,12 @@ class RobotTest(EnhancedTestCase):
 
         # test resolving dependencies with minimal toolchain (rather than using goolf/1.4.10 for all of them)
         # existing modules are *not* taken into account when determining minimal subtoolchain, by default
-        res = resolve_dependencies([bar])
+        res = resolve_dependencies([bar], self.modtool)
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['full_mod_name'], bar['ec'].full_mod_name)
 
         # test retaining all dependencies, regardless of whether modules are available or not
-        res = resolve_dependencies([bar], retain_all_deps=True)
+        res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertEqual(mods, all_mods_ordered)
@@ -488,7 +491,7 @@ class RobotTest(EnhancedTestCase):
         ecec._easyconfigs_cache.clear()
 
         bar = process_easyconfig(barec)[0]
-        res = resolve_dependencies([bar], retain_all_deps=True)
+        res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 10)
         mods = [x['full_mod_name'] for x in res]
         self.assertTrue('SQLite/3.8.10.2-goolf-1.4.10' in mods)
@@ -534,7 +537,7 @@ class RobotTest(EnhancedTestCase):
         write_file(barec, '\n'.join(barec_lines))
         bar = process_easyconfig(barec)[0]
 
-        res = resolve_dependencies([bar], retain_all_deps=True)
+        res = resolve_dependencies([bar], self.modtool, retain_all_deps=True)
         self.assertEqual(len(res), 11)
         mods = [x['full_mod_name'] for x in res]
         self.assertTrue('impi/4.1.3.049' in mods)
@@ -604,8 +607,6 @@ class RobotTest(EnhancedTestCase):
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
-        # put gompi-2015a.eb easyconfig in place that shouldn't be considered (paths via --from-pr have precedence)
-        write_file(os.path.join(self.test_prefix, 'gompi-2015a.eb'), gompi_2015a_txt)
 
         args = [
             os.path.join(test_ecs_path, 'toy-0.0.eb'),
@@ -623,14 +624,13 @@ class RobotTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-        from_pr_prefix = os.path.join(self.test_prefix, '.*', 'files_pr1239')
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
-            (from_pr_prefix, 'FFTW/3.3.4-gompi-2015a'),  # part of PR easyconfigs
-            (from_pr_prefix, 'gompi/2015a'),  # part of PR easyconfigs
+            ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
+            ('.*/files_pr1239', 'gompi/2015a'),  # part of PR easyconfigs
             (test_ecs_path, 'GCC/4.9.2'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
@@ -740,7 +740,7 @@ class RobotTest(EnhancedTestCase):
         ]
         mods = ['foo/2.3.4-GCC-4.7.2', 'bar/3.4.5-gompi-1.4.10', 'bar/3.4.5-GCC-4.7.2']
 
-        ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods)
+        ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, mods, self.modtool)
 
         # all dependencies are resolved for easyconfigs included in ordered_ecs
         self.assertFalse(any([ec['dependencies'] for ec in ordered_ecs]))
@@ -760,7 +760,8 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue(new_avail_modules, mods + ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
 
         # also check results with retaining all dependencies enabled
-        ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, [], retain_all_deps=True)
+        ordered_ecs, new_easyconfigs, new_avail_modules = find_resolved_modules(ecs, [], self.modtool,
+                                                                                retain_all_deps=True)
 
         self.assertEqual(len(ordered_ecs), 2)
         self.assertEqual([ec['full_mod_name'] for ec in ordered_ecs], ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
@@ -793,7 +794,7 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
         get_toolchain_hierarchy.clear()
-        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15)
+        new_gzip15_toolchain = robot_find_minimal_toolchain_of_dependency(gzip15, self.modtool)
         self.assertEqual(new_gzip15_toolchain, gzip15['toolchain'])
 
         # no easyconfig for gzip 1.4 with matching non-dummy (sub)toolchain
@@ -804,7 +805,7 @@ class RobotTest(EnhancedTestCase):
             'toolchain': {'name': 'goolf', 'version': '1.4.10'},
         }
         get_toolchain_hierarchy.clear()
-        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14), None)
+        self.assertEqual(robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool), None)
 
         gzip14['toolchain'] = {'name': 'gompi', 'version': '1.4.10'}
 
@@ -819,14 +820,14 @@ class RobotTest(EnhancedTestCase):
         # specify alternative parent toolchain
         gompi_1410 = {'name': 'gompi', 'version': '1.4.10'}
         get_toolchain_hierarchy.clear()
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, parent_tc=gompi_1410)
+        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool, parent_tc=gompi_1410)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
         # default: use toolchain from dependency
         gzip14['toolchain'] = gompi_1410
         get_toolchain_hierarchy.clear()
-        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14)
+        new_gzip14_toolchain = robot_find_minimal_toolchain_of_dependency(gzip14, self.modtool)
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
@@ -882,6 +883,7 @@ class RobotTest(EnhancedTestCase):
         ])
         write_file(module_file, module_txt)
         os.environ['MODULEPATH'] = module_parent # Add the parent directory to the MODULEPATH
+        invalidate_module_caches_for(module_parent)
 
         # Reinitialize the environment for the updated MODULEPATH and use_existing_modules
         init_config(build_options={
@@ -899,14 +901,83 @@ class RobotTest(EnhancedTestCase):
         # Add the goolf version as an available version and check that gets precedence over the gompi version
         module_file = os.path.join(module_parent, 'SQLite', '3.8.10.2-goolf-1.4.10')
         write_file(module_file, module_txt)
+        invalidate_module_caches_for(module_parent)
         bar = EasyConfig(barec) # Re-parse the parent easyconfig
         sqlite = bar.dependencies()[3]
         self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-goolf-1.4.10')
 
+    def test_check_conflicts(self):
+        """Test check_conflicts function."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config(build_options={
+            'robot_path': test_easyconfigs,
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+
+        gzip_ec = os.path.join(test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb')
+        gompi_ec = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
+        ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
+
+        # no conflicts found, no output to stderr
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertFalse(conflicts)
+        self.assertEqual(stderr, '')
+
+        # change GCC version in gompi dependency, to inject a conflict
+        gompi_ec_txt = read_file(gompi_ec)
+        new_gompi_ec = os.path.join(self.test_prefix, 'gompi.eb')
+        write_file(new_gompi_ec, gompi_ec_txt.replace('4.7.2', '4.6.4'))
+
+        ecs, _ = parse_easyconfigs([(new_gompi_ec, False), (gzip_ec, False)])
+
+        # conflicts are found and reported to stderr
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(conflicts)
+        self.assertTrue("Conflict found for dependencies of goolf-1.4.10: GCC-4.6.4 vs GCC-4.7.2" in stderr)
+
+        # conflicts between specified easyconfigs are also detected
+
+        # direct conflict on software version
+        ecs, _ = parse_easyconfigs([
+            (os.path.join(test_easyconfigs, 'GCC-4.7.2.eb'), False),
+            (os.path.join(test_easyconfigs, 'GCC-4.9.3-2.25.eb'), False),
+        ])
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(conflicts)
+        self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.7.2 vs GCC-4.9.3-2.25" in stderr)
+
+        # indirect conflict on dependencies
+        ecs, _ = parse_easyconfigs([
+            (os.path.join(test_easyconfigs, 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
+            (os.path.join(test_easyconfigs, 'hwloc-1.6.2-GCC-4.6.4.eb'), False),
+        ])
+        self.mock_stderr(True)
+        conflicts = check_conflicts(ecs, self.modtool)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertTrue(conflicts)
+        self.assertTrue("Conflict between (dependencies of) easyconfigs: GCC-4.6.4 vs GCC-4.9.2" in stderr)
+
+        # test use of check_inter_ec_conflicts
+        self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RobotTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

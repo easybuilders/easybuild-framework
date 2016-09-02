@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -30,8 +30,10 @@ Unit tests for module_generator.py.
 """
 
 import os
+import sys
 import tempfile
-from unittest import TestLoader, TestSuite, TextTestRunner
+from distutils.version import StrictVersion
+from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
@@ -41,8 +43,9 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.modules import Lmod
 from easybuild.tools.utilities import quote_str
-from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
@@ -62,7 +65,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb = EasyBlock(ec)
         self.modgen = self.MODULE_GENERATOR_CLASS(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
-        
+
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
     def test_descr(self):
@@ -420,6 +423,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_load_msg(self):
         """Test including a load message in the module file."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = "\nif { [ module-info mode load ] } {\n    puts stderr \"test\"\n}\n"
+            self.assertEqual(expected, self.modgen.msg_on_load('test'))
+
             tcl_load_msg = '\n'.join([
                 '',
                 "if { [ module-info mode load ] } {",
@@ -429,8 +435,21 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
             ])
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+
         else:
-            pass
+            expected = '\nif mode() == "load" then\n    io.stderr:write("test")\nend\n'
+            self.assertEqual(expected, self.modgen.msg_on_load('test'))
+
+            if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.8'):
+                lua_load_msg = '\n'.join([
+                    '',
+                    'if mode() == "load" then',
+                    '    io.stderr:write([==[test $test \\$test',
+                    '    test $foo \\$bar]==])',
+                    'end',
+                    '',
+                ])
+                self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
@@ -753,12 +772,12 @@ class LuaModuleGeneratorTest(ModuleGeneratorTest):
 def suite():
     """ returns all the testcases in this module """
     suite = TestSuite()
-    suite.addTests(TestLoader().loadTestsFromTestCase(TclModuleGeneratorTest))
-    suite.addTests(TestLoader().loadTestsFromTestCase(LuaModuleGeneratorTest))
+    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(TclModuleGeneratorTest, sys.argv[1:]))
+    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(LuaModuleGeneratorTest, sys.argv[1:]))
     return suite
 
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    TextTestRunner().run(suite())
+    TextTestRunner(verbosity=1).run(suite())

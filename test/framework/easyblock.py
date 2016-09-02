@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -33,8 +33,8 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
@@ -784,12 +784,9 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options=build_options)
         self.setup_hierarchical_modules()
 
-        modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
-        mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
-        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'), parents=True)
-
-        impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049')
-        imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        intel_ver = '2013.5.192-GCC-4.8.3'
+        impi_modfile_path = os.path.join('Compiler', 'intel', intel_ver, 'impi', '4.1.3.049')
+        imkl_modfile_path = os.path.join('MPI', 'intel', intel_ver, 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
         if get_module_syntax() == 'Lua':
             impi_modfile_path += '.lua'
             imkl_modfile_path += '.lua'
@@ -797,9 +794,10 @@ class EasyBlockTest(EnhancedTestCase):
         # example: for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included
         # not for the toolchain or any of the toolchain components,
         # since both icc/ifort and impi form the path to the top of the module tree
+        iccifort_mods = ['icc', 'ifort', 'iccifort']
         tests = [
-            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, ['icc', 'ifort', 'iccifort']),
-            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, ['icc', 'ifort', 'impi', 'iccifort', 'iimpi']),
+            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, iccifort_mods),
+            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
         ]
         for ec_file, modfile_path, excluded_deps in tests:
             ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
@@ -819,8 +817,17 @@ class EasyBlockTest(EnhancedTestCase):
                 else:
                     self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
-        init_config(build_options=build_options)
+        # modpath_extensions_for should spit out correct result, even if modules are loaded
+        icc_mod = 'icc/%s' % intel_ver
+        impi_mod = 'impi/4.1.3.049'
+        self.modtool.load([icc_mod])
+        self.assertTrue(impi_modfile_path in self.modtool.show(impi_mod))
+        self.modtool.load([impi_mod])
+        expected = {
+            icc_mod: [os.path.join(modpath, 'Compiler', 'intel', intel_ver)],
+            impi_mod: [os.path.join(modpath, 'MPI', 'intel', intel_ver, 'impi', '4.1.3.049')],
+        }
+        self.assertEqual(self.modtool.modpath_extensions_for([icc_mod, impi_mod]), expected)
 
     def test_patch_step(self):
         """Test patch step."""
@@ -943,10 +950,36 @@ class EasyBlockTest(EnhancedTestCase):
         err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
         self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
+    def test_prepare_step(self):
+        """Test prepare step (setting up build environment)."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+
+        mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy'), parents=True)
+        eb = EasyBlock(ec['ec'])
+        eb.silent = True
+        eb.prepare_step()
+        self.assertEqual(self.modtool.list(), [])
+
+        os.environ['THIS_IS_AN_UNWANTED_ENV_VAR'] = 'foo'
+        eb.cfg['unwanted_env_vars'] = ['THIS_IS_AN_UNWANTED_ENV_VAR']
+
+        eb.cfg['allow_system_deps'] = [('Python', '1.2.3')]
+
+        init_config(build_options={'extra_modules': ['GCC/4.7.2']})
+
+        eb.prepare_step()
+
+        self.assertEqual(os.environ.get('THIS_IS_AN_UNWANTED_ENV_VAR'), None)
+        self.assertEqual(os.environ.get('EBROOTPYTHON'), 'Python')
+        self.assertEqual(os.environ.get('EBVERSIONPYTHON'), '1.2.3')
+        self.assertEqual(len(self.modtool.list()), 1)
+        self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/4.7.2')
+
 
 def suite():
     """ return all the tests in this file """
-    return TestLoader().loadTestsFromTestCase(EasyBlockTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())
