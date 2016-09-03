@@ -50,6 +50,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
+from easybuild.tools.modules import Lmod
 from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
@@ -2731,12 +2732,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_debug_lmod(self):
         """Test use of --debug-lmod."""
-        init_config(build_options={'debug_lmod': True})
-        out = self.modtool.run_module('avail', return_output=True)
+        if isinstance(self.modtool, Lmod):
+            init_config(build_options={'debug_lmod': True})
+            out = self.modtool.run_module('avail', return_output=True)
 
-        for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "buildAvailT", "Master:avail"]:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        else:
+            print "Skipping test_debug_lmod, required Lmod as modules tool"
 
 
 def suite():
