@@ -29,6 +29,7 @@ Module with useful functions for getting system information
 @auther: Ward Poelmans (Ghent University)
 """
 import fcntl
+import functools
 import grp  # @UnresolvedImport
 import os
 import platform
@@ -174,6 +175,31 @@ def get_cpu_vendor():
     return vendor
 
 
+def systemtools_cache(func):
+    """Function decorator to cache (and retrieve cached) system info."""
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(*args, **kwargs):
+        """Look up result of systemmtools function in cache, or collect & cache it if it's not available yet."""
+        cache_key = func.__name__
+
+        # fetch from cache if available, cache it if it's not
+        # only for functions that do not take arguments
+        if cache_key in cache and (not args and not kwargs):
+            _log.debug("Using cached value for systemtools.%s: %s", func.__name__, cach[cache_key])
+            return cache[cache_key]
+        else:
+            cache[cache_key] = func(*args, **kwargs)
+            return cache[cache_key]
+
+    # expose clear method of cache to wrapped function
+    cache_aware_func.clear = cache.clear
+
+    return cache_aware_func
+
+
+@systemtools_cache
 def get_cpu_family():
     """
     Determine CPU family.
