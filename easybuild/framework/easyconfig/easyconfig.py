@@ -903,11 +903,15 @@ class EasyConfig(object):
         # recursive call, until there are no more changes to template values;
         # important since template values may include other templates
         prev_template_values = None
-        while self.template_values != prev_template_values:
-            prev_template_values = copy.deepcopy(self.template_values)
+        cont = True
+        while cont:
+            cont = False
             for key in self.template_values:
                 try:
-                    new_val = self.template_values[key] % self.template_values
+                    curr_val = self.template_values[key]
+                    new_val = curr_val % self.template_values
+                    if new_val != curr_val:
+                        cont = True
                     self.template_values[key] = new_val
                 except KeyError:
                     # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
@@ -922,9 +926,7 @@ class EasyConfig(object):
         # (eg the run_setp code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
-        # use a copy to make sure the original is not touched/modified
-        template_values = template_constant_dict(copy.deepcopy(self._config),
-                                                 ignore=ignore, skip_lower=skip_lower)
+        template_values = template_constant_dict(self._config, ignore=ignore, skip_lower=skip_lower)
 
         # update the template_values dict
         self.template_values.update(template_values)
