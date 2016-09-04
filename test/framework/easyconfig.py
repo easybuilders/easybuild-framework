@@ -439,6 +439,9 @@ class EasyConfigTest(EnhancedTestCase):
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, correct_installver)
 
+        # only version key is strictly needed
+        self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
+
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
 
