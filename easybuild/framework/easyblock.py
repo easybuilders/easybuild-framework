@@ -727,8 +727,9 @@ class EasyBlock(object):
         clean_name = remove_unwanted_chars(self.name)
 
         # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
-        tcversion = self.toolchain.version.lstrip('-')
-        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
+        tc = self.cfg['toolchain']
+        tcversion = tc['version'].lstrip('-')
+        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], tc['name'], tcversion, self.cfg['versionsuffix'])
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
