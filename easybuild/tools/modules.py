@@ -35,6 +35,7 @@ This python module implements the environment modules functionality:
 :author: Jens Timmerman (Ghent University)
 :author: David Brown (Pacific Northwest National Laboratory)
 """
+import functools
 import os
 import re
 import subprocess
@@ -124,6 +125,26 @@ MODULE_VERSION_CACHE = {}
 
 
 _log = fancylogger.getLogger('modules', fname=False)
+
+
+def check_module_function_cache(meth):
+    """Method decorator to speed up ModulesTool.check_module_function via caching."""
+    cache = {}
+
+    @functools.wraps(meth)
+    def cache_aware_meth(self, *args, **kwargs):
+        """Only actually check module function is it wasn't checked before."""
+        cache_key = self.__class__
+
+        if cache_key in cache:
+            _log.debug("Skipping actual checking of module function for %s, was already checked", self.__class__)
+        else:
+            cache[cache_key] = meth(self, *args, **kwargs)
+
+    # Expose clear method of cache to wrapped function
+    cache_aware_meth.clear = cache.clear
+
+    return cache_aware_meth
 
 
 class ModulesTool(object):
@@ -255,6 +276,7 @@ class ModulesTool(object):
             mod_tool = self.__class__.__name__
             raise EasyBuildError("%s modules tool can not be used, '%s' command is not available.", mod_tool, self.cmd)
 
+    @check_module_function_cache
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
         if self.testing:
