@@ -136,7 +136,7 @@ def check_module_function_cache(meth):
         """Only actually check module function is it wasn't checked before."""
         cache_key = self.__class__
 
-        if cache_key in cache:
+        if cache_key in cache and not self.testing:
             _log.debug("Skipping actual checking of module function for %s, was already checked", self.__class__)
         else:
             cache[cache_key] = meth(self, *args, **kwargs)
