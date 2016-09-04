@@ -187,7 +187,7 @@ def systemtools_cache(func):
         # fetch from cache if available, cache it if it's not
         # only for functions that do not take arguments
         if cache_key in cache and (not args and not kwargs):
-            _log.debug("Using cached value for systemtools.%s: %s", func.__name__, cach[cache_key])
+            _log.debug("Using cached value for systemtools.%s: %s", func.__name__, cache[cache_key])
             return cache[cache_key]
         else:
             cache[cache_key] = func(*args, **kwargs)
