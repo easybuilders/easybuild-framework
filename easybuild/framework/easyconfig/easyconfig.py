@@ -323,7 +323,7 @@ class EasyConfig(object):
 
         # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
         self.all_dependencies = copy.deepcopy(self.dependencies())
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+        if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
             self.all_dependencies.append(self.toolchain.as_dict())
 
         # keep track of whether the generated module file should be hidden
@@ -641,7 +641,10 @@ class EasyConfig(object):
             # provide list of (direct) toolchain dependencies (name & version), if easyconfig can be found for toolchain
             tcdeps = None
             tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
-            if tcname != DUMMY_TOOLCHAIN_NAME:
+
+            # readily available list of toolchain deps is only required under --extended-dry-run
+            # avoiding to parse easyconfig for toolchain results in significant speedup
+            if build_option('extended_dry_run') and tcname != DUMMY_TOOLCHAIN_NAME:
                 tc_ecfile = robot_find_easyconfig(tcname, tcversion)
                 if tc_ecfile is None:
                     self.log.debug("No easyconfig found for toolchain %s version %s, can't determine dependencies",
@@ -1257,7 +1260,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(dep)
 
             # add toolchain as dependency too
-            if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
                 tc = ec.toolchain.as_dict()
                 _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
                 easyconfig['dependencies'].append(tc)
