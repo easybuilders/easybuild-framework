@@ -642,9 +642,7 @@ class EasyConfig(object):
             tcdeps = None
             tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
 
-            # readily available list of toolchain deps is only required under --extended-dry-run
-            # avoiding to parse easyconfig for toolchain results in significant speedup
-            if build_option('extended_dry_run') and tcname != DUMMY_TOOLCHAIN_NAME:
+            if tcname != DUMMY_TOOLCHAIN_NAME:
                 tc_ecfile = robot_find_easyconfig(tcname, tcversion)
                 if tc_ecfile is None:
                     self.log.debug("No easyconfig found for toolchain %s version %s, can't determine dependencies",
