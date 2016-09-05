@@ -35,7 +35,6 @@ This python module implements the environment modules functionality:
 :author: Jens Timmerman (Ghent University)
 :author: David Brown (Pacific Northwest National Laboratory)
 """
-import functools
 import os
 import re
 import subprocess

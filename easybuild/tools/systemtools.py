@@ -29,7 +29,6 @@ Module with useful functions for getting system information
 @auther: Ward Poelmans (Ghent University)
 """
 import fcntl
-import functools
 import grp  # @UnresolvedImport
 import os
 import platform
