@@ -56,12 +56,6 @@ DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
 
-try:
-    from vsc.utils.fancylogger import Colorize
-    COLOR_AUTO = Colorize.AUTO
-except ImportError:
-    COLOR_AUTO = 'auto'
-
 
 class EasyBuildError(LoggedException):
     """
@@ -203,13 +197,10 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize=COLOR_AUTO):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO):
     """Initialize logging."""
     if logtostdout:
-        try:
-            fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
-        except TypeError:
-            fancylogger.logToScreen(enable=True, stdout=True)
+        fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
     else:
         if logfile is None:
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
