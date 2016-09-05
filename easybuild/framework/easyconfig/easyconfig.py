@@ -79,8 +79,6 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
-PRESERVE_TEMPLATE_REGEX = re.compile(r'(%)(?!%*\(\w+\)s)')
-
 
 try:
     import autopep8
@@ -1165,7 +1163,7 @@ def resolve_template(value, tmpl_dict):
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
         if '%' in value:
-            value = PRESERVE_TEMPLATE_REGEX.sub(r'\1\1', value)
+            value = re.sub(re.compile(r'(%)(?!%*\(\w+\)s)'), r'\1\1', value)
 
             try:
                 value = value % tmpl_dict
