@@ -126,6 +126,11 @@ implement support for installing particular (groups of) software packages.""",
     ],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
+        'coloredlogs': [
+            'vsc-base[coloredlogs] >= 2.5.3',
+            'coloredlogs',
+            'humanfriendly',  # determine whether terminal supports ANSI color
+        ],
     },
     namespace_packages=['easybuild'],
 )
