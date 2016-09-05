@@ -81,6 +81,17 @@ from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 
+try:
+    from humanfriendly.terminal import terminal_supports_colors
+except ImportError:
+    # provide an approximation that should work in most cases
+    def terminal_supports_colors(stream):
+        try:
+            return os.isatty(stream.fileno())
+        except Exception:
+            # in case of errors do not bother and just return the safe default
+            return False
+
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
@@ -141,6 +152,26 @@ def pretty_print_opts(opts_dict):
         lines.append("{0:<{nwopt}} ({1:}) = {2:}".format(opt, loc, opt_val, nwopt=nwopt))
 
     print '\n'.join(lines)
+
+
+def use_color(colorize, stream=sys.stdout):
+    """
+    Return ``True`` or ``False`` depending on whether ANSI color
+    escapes are to be used when printing to `stream`.
+
+    The `colorize` argument can take the three values
+    ``fancylogger.Colorize.AUTO``/``.ALWAYS``/``.NEVER``,
+    see the ``--color`` option for their meaning.
+    """
+    # turn color=auto/yes/no into a boolean value
+    if colorize == fancylogger.Colorize.AUTO:
+        return terminal_supports_colors(stream)
+    elif colorize == fancylogger.Colorize.ALWAYS:
+        return True
+    else:
+        assert colorize == fancylogger.Colorize.NEVER, \
+            "Argument `colorize` must be one of 'auto', 'always', or 'never'."
+        return False
 
 
 class EasyBuildOptions(GeneralOption):
@@ -261,7 +292,9 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
-            'color': ("Allow color output", None, 'store_true', True),
+            'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO,
+                      [fancylogger.Colorize.AUTO, fancylogger.Colorize.ALWAYS, fancylogger.Colorize.NEVER],
+                      {'metavar':'WHEN'}),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),

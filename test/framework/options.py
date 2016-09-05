@@ -2071,7 +2071,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
-        self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
+        self.eb_main(['--review-pr=1484', '--color=never'], raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
