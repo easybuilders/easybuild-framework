@@ -138,7 +138,7 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
         tc_dict = tc_inst.as_dict()
         _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
 
-        _initial_toolchain_instances[key] = tc_inst
+        _initial_toolchain_instances[key] = copy.deepcopy(tc_inst)
 
     # set_options should always be called, even if no toolchain options are specified
     # this is required to set the default options
