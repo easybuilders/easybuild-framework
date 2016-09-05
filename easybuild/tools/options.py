@@ -100,8 +100,6 @@ XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
 DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
-(COLOR_AUTO, COLOR_ALWAYS, COLOR_NEVER) = fancylogger.Colorize
-
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -166,12 +164,13 @@ def use_color(colorize, stream=sys.stdout):
     see the ``--color`` option for their meaning.
     """
     # turn color=auto/yes/no into a boolean value
-    if colorize == COLOR_AUTO:
+    if colorize == fancylogger.Colorize.AUTO:
         return terminal_supports_colors(stream)
-    elif colorize == COLOR_ALWAYS:
+    elif colorize == fancylogger.Colorize.ALWAYS:
         return True
     else:
-        assert colorize == COLOR_NEVER, "Argument `colorize` must be one of: %s" % ', '.join(fancylogger.Colorize)
+        assert colorize == fancylogger.Colorize.NEVER, \
+            "Argument `colorize` must be one of: %s" % ', '.join(fancylogger.Colorize)
         return False
 
 
@@ -293,7 +292,8 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
-            'color': ("Colorize output", 'choice', 'store', COLOR_AUTO, fancylogger.Colorize, {'metavar':'WHEN'}),
+            'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
+                      {'metavar':'WHEN'}),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),

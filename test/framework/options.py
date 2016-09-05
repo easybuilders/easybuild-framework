@@ -51,7 +51,7 @@ from easybuild.tools.filetools import download_file, mkdir, read_file, write_fil
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import Lmod
-from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
+from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -91,6 +91,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Set up test."""
         super(CommandLineOptionsTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+
+        self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
+
+    def tearDown(self):
+        """Clean up after test."""
+        easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
+        super(CommandLineOptionsTest, self).tearDown()
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -2742,6 +2749,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
         else:
             print "Skipping test_debug_lmod, required Lmod as modules tool"
+
+    def test_use_color(self):
+        """Test use_color function."""
+        self.assertTrue(use_color('always'))
+        self.assertFalse(use_color('never'))
+        easybuild.tools.options.terminal_supports_colors = lambda _: True
+        self.assertTrue(use_color('auto'))
+        easybuild.tools.options.terminal_supports_colors = lambda _: False
+        self.assertFalse(use_color('auto'))
 
 
 def suite():
