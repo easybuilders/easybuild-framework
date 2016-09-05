@@ -2074,7 +2074,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(['--review-pr=1484', '--color=never'], raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
+        regex = re.compile(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8")
+        self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
