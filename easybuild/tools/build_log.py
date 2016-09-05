@@ -41,7 +41,6 @@ from vsc.utils.exceptions import LoggedException
 
 from easybuild.tools.version import VERSION
 
-
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
 
@@ -56,6 +55,12 @@ DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-func
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
+
+try:
+    from vsc.utils.fancylogger import Colorize
+    COLOR_AUTO = Colorize.AUTO
+except ImportError:
+    COLOR_AUTO = 'auto'
 
 
 class EasyBuildError(LoggedException):
@@ -198,10 +203,13 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=COLOR_AUTO):
     """Initialize logging."""
     if logtostdout:
-        fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
+        try:
+            fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
+        except TypeError:
+            fancylogger.logToScreen(enable=True, stdout=True)
     else:
         if logfile is None:
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
