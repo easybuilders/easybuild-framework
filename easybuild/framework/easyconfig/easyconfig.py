@@ -1164,13 +1164,14 @@ def resolve_template(value, tmpl_dict):
         # '%%' -> '%%%%'
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
-        value = PRESERVE_TEMPLATE_REGEX.sub(r'\1\1', value)
+        if '%' in value:
+            value = PRESERVE_TEMPLATE_REGEX.sub(r'\1\1', value)
 
-        try:
-            value = value % tmpl_dict
-        except KeyError:
-            _log.warning("Unable to resolve template value %s with dict %s" %
-                             (value, tmpl_dict))
+            try:
+                value = value % tmpl_dict
+            except KeyError:
+                _log.warning("Unable to resolve template value %s with dict %s" %
+                                 (value, tmpl_dict))
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}
