@@ -41,6 +41,7 @@ from vsc.utils.exceptions import LoggedException
 
 from easybuild.tools.version import VERSION
 
+
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
 
