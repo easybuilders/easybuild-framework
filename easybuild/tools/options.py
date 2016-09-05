@@ -295,6 +295,7 @@ class EasyBuildOptions(GeneralOption):
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO,
                       [fancylogger.Colorize.AUTO, fancylogger.Colorize.ALWAYS, fancylogger.Colorize.NEVER],
                       {'metavar':'WHEN'}),
+            'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",

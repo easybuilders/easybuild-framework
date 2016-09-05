@@ -131,6 +131,7 @@ BUILD_OPTIONS_CMDLINE = {
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
+        'debug_lmod',
         'dump_autopep8',
         'extended_dry_run',
         'experimental',
