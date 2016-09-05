@@ -170,7 +170,7 @@ def use_color(colorize, stream=sys.stdout):
         return True
     else:
         assert colorize == fancylogger.Colorize.NEVER, \
-            "Argument `colorize` must be one of 'auto', 'always', or 'never'."
+            "Argument `colorize` must be one of: %s" % ', '.join(fancylogger.Colorize)
         return False
 
 
@@ -292,8 +292,7 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
-            'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO,
-                      [fancylogger.Colorize.AUTO, fancylogger.Colorize.ALWAYS, fancylogger.Colorize.NEVER],
+            'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
                       {'metavar':'WHEN'}),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,

@@ -251,7 +251,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.review_pr:
-        print review_pr(options.review_pr, colored=options.color)
+        print review_pr(options.review_pr, colored=use_color(options.color))
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     if options.check_github or options.install_github_token or options.review_pr or options.terse:
