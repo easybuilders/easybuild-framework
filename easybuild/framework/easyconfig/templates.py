@@ -240,13 +240,15 @@ def to_template_str(value, templ_const, templ_val):
         old_value = value
         # check for constant values
         for tval, tname in templ_const.items():
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
 
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
             # by another non-alphanumeric.
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
 
     return value
 

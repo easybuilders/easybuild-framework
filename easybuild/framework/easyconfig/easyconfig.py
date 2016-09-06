@@ -323,7 +323,7 @@ class EasyConfig(object):
 
         # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
         self.all_dependencies = copy.deepcopy(self.dependencies())
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+        if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
             self.all_dependencies.append(self.toolchain.as_dict())
 
         # keep track of whether the generated module file should be hidden
@@ -641,6 +641,7 @@ class EasyConfig(object):
             # provide list of (direct) toolchain dependencies (name & version), if easyconfig can be found for toolchain
             tcdeps = None
             tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
+
             if tcname != DUMMY_TOOLCHAIN_NAME:
                 tc_ecfile = robot_find_easyconfig(tcname, tcversion)
                 if tc_ecfile is None:
@@ -900,11 +901,15 @@ class EasyConfig(object):
         # recursive call, until there are no more changes to template values;
         # important since template values may include other templates
         prev_template_values = None
-        while self.template_values != prev_template_values:
-            prev_template_values = copy.deepcopy(self.template_values)
+        cont = True
+        while cont:
+            cont = False
             for key in self.template_values:
                 try:
-                    new_val = self.template_values[key] % self.template_values
+                    curr_val = self.template_values[key]
+                    new_val = curr_val % self.template_values
+                    if new_val != curr_val:
+                        cont = True
                     self.template_values[key] = new_val
                 except KeyError:
                     # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
@@ -919,9 +924,7 @@ class EasyConfig(object):
         # (eg the run_setp code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
-        # use a copy to make sure the original is not touched/modified
-        template_values = template_constant_dict(copy.deepcopy(self._config),
-                                                 ignore=ignore, skip_lower=skip_lower)
+        template_values = template_constant_dict(self._config, ignore=ignore, skip_lower=skip_lower)
 
         # update the template_values dict
         self.template_values.update(template_values)
@@ -1159,13 +1162,14 @@ def resolve_template(value, tmpl_dict):
         # '%%' -> '%%%%'
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
-        value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
+        if '%' in value:
+            value = re.sub(re.compile(r'(%)(?!%*\(\w+\)s)'), r'\1\1', value)
 
-        try:
-            value = value % tmpl_dict
-        except KeyError:
-            _log.warning("Unable to resolve template value %s with dict %s" %
-                             (value, tmpl_dict))
+            try:
+                value = value % tmpl_dict
+            except KeyError:
+                _log.warning("Unable to resolve template value %s with dict %s" %
+                                 (value, tmpl_dict))
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}
@@ -1257,7 +1261,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(dep)
 
             # add toolchain as dependency too
-            if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
                 tc = ec.toolchain.as_dict()
                 _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
                 easyconfig['dependencies'].append(tc)
