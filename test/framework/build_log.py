@@ -98,6 +98,7 @@ class BuildLogTest(EnhancedTestCase):
         log.warn("justawarning")
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
+        log.deprecated("lastwarning", '1.0', max_ver='2.0')
         log.raiseError = False
         log.error("kaput")
         log.raiseError = True
@@ -116,6 +117,7 @@ class BuildLogTest(EnhancedTestCase):
             r"%s.test_easybuildlog \[WARNING\] :: justawarning" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*anotherwarning.*" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*" % root,
+            r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*" % root,
             r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root,
             r"%s.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops" % root,
             '',
@@ -125,6 +127,7 @@ class BuildLogTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
         self.assertErrorRegex(EasyBuildError, "DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
+        self.assertErrorRegex(EasyBuildError, "DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', max_ver='1.0')
 
         # wipe log so we can reuse it
         write_file(tmplog, '')
