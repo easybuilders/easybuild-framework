@@ -200,8 +200,8 @@ else
 fi
 
 # Test that we have essential things
-check_program_exists "python"
-check_program_exists "tclsh"
+check_program_exists "python" # just istalled above (if necessary)
+check_program_exists "tclsh" # Needed by TCL modules tool
 check_program_exists "awk"
 check_program_exists "tee"
 check_program_exists "grep"
@@ -218,6 +218,14 @@ if [ ! -f $sources/TCL_MOD/modulecmd.tcl ] ; then
 fi
 chmod +x $sources/TCL_MOD/modulecmd.tcl 
 export PATH=$PATH:$sources/TCL_MOD
+# Set required but unused env variables to give us a functioning TCL modules environment                             
+if [ -z ${MODULESHOME+x} ]; then
+  export MODULESHOME="$sources/TCL_MOD/fake"
+fi
+if [ -z ${MODULEPATH+x} ]; then
+  export MODULEPATH="$sources/TCL_MOD/fake"
+fi
+# Initialize the modules environment
 eval `tclsh $(which modulecmd.tcl) sh autoinit`
 
 echo "Installing EasyBuild using EasyBuild bootstrapping script"
@@ -238,6 +246,14 @@ echo "  $eb_boot_stderr"
 echo
 echo
 
+# Make sure debug mode is not enabled
+if [ ! -z ${EASYBUILD_BOOTSTRAP_DEBUG+x} ]; then
+  echo
+  echo "WARNING: Unsetting EASYBUILD_BOOTSTRAP_DEBUG, not supported by this script"
+  echo
+  unset EASYBUILD_BOOTSTRAP_DEBUG
+fi
+export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl # Need to use TCL modules
 export EASYBUILD_PREFIX=$ROOT_INSTALL_DIR
 new_module_path=$(python $sources/bootstrap_eb.py $EASYBUILD_PREFIX > >(tee $eb_boot_stdout) 2> >(tee $eb_boot_stderr) |grep MODULEPATH|awk '{print $NF}')
 if [ "$?" != 0 ]; then
