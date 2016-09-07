@@ -178,7 +178,7 @@ if [ -z ${INSTALL_PYTHON_VERSION+x} ]; then
   echo "if you would like to install and use a custom python installation"
   echo "...continuing with system python $(which python)"
 else 
-  # Need a way to check that the devel packages for zlib and openssl are installed, they are essential
+  # TODO: Need a way to check that the devel packages for zlib and openssl are installed, they are essential
   # Check it's Python 2, no support for Python 3 yet
   py_maj_ver=${INSTALL_PYTHON_VERSION:0:1}
   if [ $py_maj_ver -eq 2 ]; then 
