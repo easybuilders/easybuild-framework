@@ -559,7 +559,7 @@ def extract_cmd(filepath, overwrite=False):
         '.tar.gz':  "tar xzf %(filepath)s",
         '.tgz':     "tar xzf %(filepath)s",
         # bzipped or bzipped tarball
-        '.bz2':     "bunzip2 %(filepath)s",
+        '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
         '.tar.bz2': "tar xjf %(filepath)s",
         '.tb2':     "tar xjf %(filepath)s",
         '.tbz':     "tar xjf %(filepath)s",

@@ -249,7 +249,7 @@ class ModulesTool(object):
         """Check whether modules tool command is available."""
         cmd_path = which(self.cmd)
         if cmd_path is not None:
-            self.cmd = os.path.realpath(cmd_path)
+            self.cmd = cmd_path
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
@@ -977,6 +977,9 @@ class Lmod(ModulesTool):
         """
         if opts is None:
             opts = []
+
+        if build_option('debug_lmod'):
+            opts.append((0, '-D'))
 
         # if --show_hidden is in list of arguments, pass it via 'opts' to make sure it's in the right place,
         # i.e. *before* the subcommand

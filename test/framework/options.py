@@ -50,7 +50,8 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
-from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
+from easybuild.tools.modules import Lmod
+from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -90,6 +91,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Set up test."""
         super(CommandLineOptionsTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+
+        self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
+
+    def tearDown(self):
+        """Clean up after test."""
+        easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
+        super(CommandLineOptionsTest, self).tearDown()
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -2070,10 +2078,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
-        self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
+        self.eb_main(['--review-pr=1484', '--color=never'], raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
+        regex = re.compile(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8")
+        self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
@@ -2297,8 +2306,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0_typo.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -2312,12 +2321,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
 
+        GITHUB_TEST_ORG = 'test-organization'
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
             '--pr-branch-name=branch_name_for_new_pr_test',
             '--pr-commit-msg="this is a commit message. really!"',
             '--pr-descr="moar letters foar teh lettre box"',
             '--pr-target-branch=master',
+            '--github-org=%s' % GITHUB_TEST_ORG,
             '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
             '--pr-title=test-1-2-3',
         ])
@@ -2330,13 +2341,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== fetching branch 'master' from https://github.com/boegel/easybuild-easyconfigs.git...",
             r"^Opening pull request \[DRY RUN\]",
             r"^\* target: boegel/easybuild-easyconfigs:master",
-            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ACCOUNT,
+            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ORG,
             r"\(created using `eb --new-pr`\)",  # description
             r"moar letters foar teh lettre box",  # also description (see --pr-descr)
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/toy-0.0_typo.patch\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
+            r".*/toy-0.0_typo.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -2362,7 +2373,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== Determined branch name corresponding to hpcugent/easybuild-easyconfigs PR #2237: develop",
             r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
-            r".*/toy-0.0-gompi-1.3.12-test.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
             r"^\s*1 file changed",
             r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
         ]
@@ -2446,8 +2457,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs = [
             r"^\* overview of changes:",
-            r".*/foo-1\.0\.eb\s+\|\s+[0-9]+\s+\++",
-            r".*/bar-2\.0\.eb\s+\|\s+[0-9]+\s+\++",
+            r".*/foo-1\.0\.eb\s*\|",
+            r".*/bar-2\.0\.eb\s*\|",
             r"^\s*2 files changed",
         ]
 
@@ -2726,6 +2737,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 ext = 'log'
 
             self.assertTrue(logs[0].endswith(ext), "%s has correct '%s' extension for %s" % (logs[0], ext, zip_logs))
+
+    def test_debug_lmod(self):
+        """Test use of --debug-lmod."""
+        if isinstance(self.modtool, Lmod):
+            init_config(build_options={'debug_lmod': True})
+            out = self.modtool.run_module('avail', return_output=True)
+
+            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        else:
+            print "Skipping test_debug_lmod, required Lmod as modules tool"
+
+    def test_use_color(self):
+        """Test use_color function."""
+        self.assertTrue(use_color('always'))
+        self.assertFalse(use_color('never'))
+        easybuild.tools.options.terminal_supports_colors = lambda _: True
+        self.assertTrue(use_color('auto'))
+        easybuild.tools.options.terminal_supports_colors = lambda _: False
+        self.assertFalse(use_color('auto'))
 
 
 def suite():

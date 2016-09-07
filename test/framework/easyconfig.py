@@ -439,6 +439,9 @@ class EasyConfigTest(EnhancedTestCase):
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, correct_installver)
 
+        # only version key is strictly needed
+        self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
+
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
 
@@ -1683,6 +1686,17 @@ class EasyConfigTest(EnhancedTestCase):
         # test default behaviour: auto-converting of mismatching value types
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['version'], '1.4')
+
+    def test_copy(self):
+        """Test copy method of EasyConfig object."""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ec1 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+
+        ec2 = ec1.copy()
+
+        self.assertEqual(ec1, ec2)
+        self.assertEqual(ec1.rawtxt, ec2.rawtxt)
+        self.assertEqual(ec1.path, ec2.path)
 
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""

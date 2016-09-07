@@ -46,7 +46,8 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
@@ -114,9 +115,12 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
     ec_mod_names = [ec['full_mod_name'] for ec in easyconfigs]
     for easyconfig in easyconfigs:
-        new_ec = easyconfig.copy()
+        if isinstance(easyconfig, EasyConfig):
+            easyconfig._config = copy.copy(easyconfig._config)
+        else:
+            easyconfig = easyconfig.copy()
         deps = []
-        for dep in new_ec['dependencies']:
+        for dep in easyconfig['dependencies']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
             # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
@@ -143,19 +147,19 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
                 deps.append(dep)
 
         # update list of dependencies with only those unresolved
-        new_ec['dependencies'] = deps
+        easyconfig['dependencies'] = deps
 
         # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
-        if not new_ec['dependencies']:
-            _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
-            ordered_ecs.append(new_ec)
+        if not easyconfig['dependencies']:
+            _log.debug("Adding easyconfig %s to final list" % easyconfig['spec'])
+            ordered_ecs.append(easyconfig)
             mod_name = easyconfig['full_mod_name']
             avail_modules.append(mod_name)
             # remove module name from list, so dependencies can be marked as resolved
             ec_mod_names.remove(mod_name)
 
         else:
-            new_easyconfigs.append(new_ec)
+            new_easyconfigs.append(easyconfig)
 
     return ordered_ecs, new_easyconfigs, avail_modules
 
