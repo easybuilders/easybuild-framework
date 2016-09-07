@@ -120,7 +120,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, ver, *args, **kwargs):
+    def deprecated(self, msg, ver, max_ver=None, *args, **kwargs):
         """
         Print deprecation warning or raise an exception, depending on specified version(s)
 
@@ -129,13 +129,12 @@ class EasyBuildLog(fancylogger.FancyLogger):
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
         """
-        max_ver = kwargs.get('max_ver', None)
         if max_ver is None:
             msg += "; see %s for more information" % DEPRECATED_DOC_URL
             kwargs['exception'] = EasyBuildError
             fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
         else:
-            fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver)
+            fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
         """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
