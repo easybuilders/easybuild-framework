@@ -178,6 +178,7 @@ if [ -z ${INSTALL_PYTHON_VERSION+x} ]; then
   echo "if you would like to install and use a custom python installation"
   echo "...continuing with system python $(which python)"
 else 
+  # Need a way to check that the devel packages for zlib and openssl are installed, they are essential
   # Check it's Python 2, no support for Python 3 yet
   py_maj_ver=${INSTALL_PYTHON_VERSION:0:1}
   if [ $py_maj_ver -eq 2 ]; then 
@@ -201,6 +202,7 @@ fi
 
 # Test that we have essential things
 check_program_exists "python" # just istalled above (if necessary)
+check_program_exists "g++" # C++ compiler required for building GCCcore so essential
 check_program_exists "tclsh" # Needed by TCL modules tool
 check_program_exists "awk"
 check_program_exists "tee"
