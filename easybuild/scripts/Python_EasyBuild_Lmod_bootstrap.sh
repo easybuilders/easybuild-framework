@@ -200,9 +200,13 @@ else
   # export EASYBUILD_BOOTSTRAP_SKIP_STAGE0=1  
 fi
 
-# Test that we have essential things
+# Test that we have essential things #
+
+# Check the essentials for a funtional EasyBuild (something that can get us to GCCcore)
 check_program_exists "python" # just istalled above (if necessary)
 check_program_exists "g++" # C++ compiler required for building GCCcore so essential
+check_program_exists "patch" # EasyBuild needs the ability to patch files
+# Check apps needed by this script
 check_program_exists "tclsh" # Needed by TCL modules tool
 check_program_exists "awk"
 check_program_exists "tee"
