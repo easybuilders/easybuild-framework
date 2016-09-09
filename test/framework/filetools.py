@@ -31,6 +31,7 @@ Unit tests for filetools.py
 @author: Ward Poelmans (Ghent University)
 """
 import os
+import re
 import shutil
 import stat
 import sys
@@ -231,9 +232,32 @@ class FileToolsTest(EnhancedTestCase):
         except urllib2.URLError:
             print "Skipping timeout test in test_download_file (working offline)"
 
+        # also test behaviour of download_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        target_location = os.path.join(self.test_prefix, 'foo')
+        if os.path.exists(target_location):
+            shutil.rmtree(target_location)
+
+        self.mock_stdout(True)
+        path = ft.download_file(fn, source_url, target_location)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertEqual(path, target_location)
+        self.assertFalse(os.path.exists(target_location))
+        self.assertTrue(re.match("^file written: .*/foo$", txt))
+
+        ft.download_file(fn, source_url, target_location, forced=True)
+        self.assertTrue(os.path.exists(target_location))
+        self.assertTrue(os.path.samefile(path, target_location))
+
     def test_mkdir(self):
         """Test mkdir function."""
-        tmpdir = tempfile.mkdtemp()
 
         def check_mkdir(path, error=None, **kwargs):
             """Create specified directory with mkdir, and check for correctness."""
@@ -243,8 +267,8 @@ class FileToolsTest(EnhancedTestCase):
             else:
                 self.assertErrorRegex(EasyBuildError, error, ft.mkdir, path, **kwargs)
 
-        foodir = os.path.join(tmpdir, 'foo')
-        barfoodir = os.path.join(tmpdir, 'bar', 'foo')
+        foodir = os.path.join(self.test_prefix, 'foo')
+        barfoodir = os.path.join(self.test_prefix, 'bar', 'foo')
         check_mkdir(foodir)
         # no error on existing paths
         check_mkdir(foodir)
@@ -278,18 +302,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
 
-        shutil.rmtree(tmpdir)
-
     def test_path_matches(self):
+        """Test path_matches function."""
         # set up temporary directories
-        tmpdir = tempfile.mkdtemp()
-        path1 = os.path.join(tmpdir, 'path1')
+        path1 = os.path.join(self.test_prefix, 'path1')
         ft.mkdir(path1)
-        path2 = os.path.join(tmpdir, 'path2')
+        path2 = os.path.join(self.test_prefix, 'path2')
         ft.mkdir(path1)
-        symlink = os.path.join(tmpdir, 'symlink')
+        symlink = os.path.join(self.test_prefix, 'symlink')
         os.symlink(path1, symlink)
-        missing = os.path.join(tmpdir, 'missing')
+        missing = os.path.join(self.test_prefix, 'missing')
 
         self.assertFalse(ft.path_matches(missing, [path1, path2]))
         self.assertFalse(ft.path_matches(path1, [missing]))
@@ -297,14 +319,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.path_matches(path2, [missing, symlink]))
         self.assertTrue(ft.path_matches(path1, [missing, symlink]))
 
-        # cleanup
-        shutil.rmtree(tmpdir)
-
     def test_read_write_file(self):
         """Test reading/writing files."""
-        tmpdir = tempfile.mkdtemp()
 
-        fp = os.path.join(tmpdir, 'test.txt')
+        fp = os.path.join(self.test_prefix, 'test.txt')
         txt = "test123"
         ft.write_file(fp, txt)
         self.assertEqual(ft.read_file(fp), txt)
@@ -313,7 +331,26 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp, txt2, append=True)
         self.assertEqual(ft.read_file(fp), txt+txt2)
 
-        shutil.rmtree(tmpdir)
+        # also test behaviour of write_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        foo = os.path.join(self.test_prefix, 'foo.txt')
+
+        self.mock_stdout(True)
+        ft.write_file(foo, 'bar')
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(foo))
+        self.assertTrue(re.match("^file written: .*/foo.txt$", txt))
+
+        ft.write_file(foo, 'bar', forced=True)
+        self.assertTrue(os.path.exists(foo))
+        self.assertEqual(ft.read_file(foo), 'bar')
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -725,6 +762,45 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
+    def test_extract_file(self):
+        """Test extract_file"""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+
+        toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
+        shutil.copyfile(toy_tarball, toy_tarball_renamed)
+
+        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s")
+        self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+
+        # also test behaviour of extract_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0')))
+        self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
+
+        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True)
+        self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
 
 
 def suite():
