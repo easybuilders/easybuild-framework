@@ -53,6 +53,12 @@ if [ $? -ne 0 ] && [ ! -z $BACKUP_PKG_URL ]; then
     wget ${BACKUP_PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 fi
 set -e
+
+if [ x$PKG_NAME == 'xmodules' ]; then
+    wget -O 'modules-tcl8.6.patch' 'https://sourceforge.net/p/modules/feature-requests/_discuss/thread/4502a6c9/9aa5/attachment/environment-modules-tcl86.patch'
+    patch < modules-tcl8.6.patch
+fi
+
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else
