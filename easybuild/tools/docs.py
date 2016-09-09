@@ -38,6 +38,7 @@ import copy
 import inspect
 import os
 import re
+import string
 import sys
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
@@ -86,11 +87,13 @@ def generate_doc(name, params):
 
 def rst_title_and_table(title, table_titles, table_values):
     """Generate table in section with title in .rst format."""
-    doc = [
-        title,
-        '-' * len(title),
-        '',
-    ]
+    doc = []
+    if title is not None:
+        doc.extend([
+            title,
+            '-' * len(title),
+            '',
+        ])
     doc.extend(mk_rst_table(table_titles, table_values))
     return doc
 
@@ -548,24 +551,66 @@ def list_software_rst(software, detailed=False):
     """Return overview of supported software in RST format"""
 
     title = "List of supported software"
-    table_titles = ['software name', 'software version', 'toolchains']
+    lines = [
+        title,
+        '=' * len(title),
+        '',
+        "EasyBuild v|version| supports %d different software packages (incl. toolchains, bundles):" % len(software),
+        '',
+    ]
 
-    n_cols = len(table_titles)
-    table_values = [[] for i in range(n_cols)]
+    # links to per-letter tables
+    links = ''
+    for letter in string.lowercase:
+        links += ':ref:`list_software_%s` ' % letter
+    lines.extend([links, ''])
 
+    if detailed:
+        table_titles = ['software name', 'software version', 'toolchains']
+        n_cols = len(table_titles)
+        table_values = [[] for i in range(n_cols)]
+
+    letter = None
     for key in sorted(software, key=lambda x: x.lower()):
-        table_values[0].append(key)
-        for col in table_values[1:]:
-            col.append('')
 
-        for version in sorted(LooseVersion(v) for v in nub(v for (v, _) in software[key])):
-            table_values[0].append('')
-            table_values[1].append(str(version))
-            tcs = sorted(nub([t for (v, t) in software[key] if v == version]))
-            table_values[2].append(', '.join(tcs))
+        # start a new subsection for each letter
+        if key[0].lower() != letter:
+            if detailed:
+                # include table for last letter & reset
+                if table_values[0]:
+                    lines.extend(rst_title_and_table(None, table_titles, table_values))
+                    table_values = [[] for i in range(n_cols)]
+                elif letter:
+                    lines.extend(["*(none)*", ''])
 
-    doc = rst_title_and_table(title, table_titles, table_values)
-    return '\n'.join(doc)
+            # include link for new letter
+            letter = key[0].lower()
+            lines.extend([
+                '',
+                '.. _list_software_%s:' % letter,
+                '',
+                "*%s*" % letter.upper(),
+                '-' * 3,
+                '',
+            ])
+
+        # append software to list, including version(suffix) & toolchain info if detailed info is requested
+        if detailed:
+            for version in sorted(LooseVersion(v) for v in nub(v for (v, _) in software[key])):
+                table_values[0].append(key)
+                table_values[1].append(str(version))
+                tcs = sorted(nub([t for (v, t) in software[key] if v == version]))
+                table_values[2].append(', '.join(tcs))
+        else:
+            lines.append("* %s" % key)
+
+    if detailed:
+        if table_values[0]:
+            lines.extend(rst_title_and_table(None, table_titles, table_values))
+        else:
+            lines.extend(["*(none)*", ''])
+
+    return '\n'.join(lines)
 
 
 def list_software_txt(software, detailed=False):
