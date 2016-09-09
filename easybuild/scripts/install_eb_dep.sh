@@ -56,7 +56,7 @@ set -e
 
 # environment-modules needs a patch to work with Tcl8.6
 if [ x$PKG_NAME == 'xmodules' ]; then
-    wget -O 'modules-tcl8.6.patch' 'https://sourceforge.net/p/modules/feature-requests/_discuss/thread/4502a6c9/9aa5/attachment/environment-modules-tcl86.patch'
+    wget -O 'modules-tcl8.6.patch' 'https://hpcugent.github.io/easybuild/files/modules-3.2.10-tcl8.6.patch'
     patch ${PKG}/cmdModule.c modules-tcl8.6.patch
 fi
 
