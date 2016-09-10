@@ -555,60 +555,60 @@ def list_software_rst(software, detailed=False):
         title,
         '=' * len(title),
         '',
-        "EasyBuild v|version| supports %d different software packages (incl. toolchains, bundles):" % len(software),
+        "EasyBuild |version| supports %d different software packages (incl. toolchains, bundles):" % len(software),
         '',
     ]
 
     # links to per-letter tables
-    links = ''
-    for letter in string.lowercase:
-        links += ':ref:`list_software_%s` ' % letter
-    lines.extend([links, ''])
+    lines.extend([' - '.join(':ref:`list_software_letter_%s`' % x for x in string.lowercase), ''])
 
     if detailed:
-        table_titles = ['software name', 'software version', 'toolchains']
+        table_titles = ['version', 'toolchains']
         n_cols = len(table_titles)
-        table_values = [[] for i in range(n_cols)]
 
     letter = None
-    for key in sorted(software, key=lambda x: x.lower()):
+    sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
+    for key in sorted_keys:
 
         # start a new subsection for each letter
         if key[0].lower() != letter:
-            if detailed:
-                # include table for last letter & reset
-                if table_values[0]:
-                    lines.extend(rst_title_and_table(None, table_titles, table_values))
-                    table_values = [[] for i in range(n_cols)]
-                elif letter:
-                    lines.extend(["*(none)*", ''])
 
-            # include link for new letter
+            # subsection for new letter
             letter = key[0].lower()
             lines.extend([
                 '',
-                '.. _list_software_%s:' % letter,
+                '.. _list_software_letter_%s:' % letter,
                 '',
                 "*%s*" % letter.upper(),
                 '-' * 3,
                 '',
             ])
 
+            if detailed:
+                # quick links per software package
+                lines.extend([
+                    '',
+                    ' - '.join(':ref:`list_software_%s`' % k for k in sorted_keys if k[0].lower() == letter),
+                    '',
+                ])
+
         # append software to list, including version(suffix) & toolchain info if detailed info is requested
         if detailed:
+            table_values = [[] for i in range(n_cols)]
             for version in sorted(LooseVersion(v) for v in nub(v for (v, _) in software[key])):
-                table_values[0].append(key)
-                table_values[1].append(str(version))
+                table_values[0].append(str(version))
                 tcs = sorted(nub([t for (v, t) in software[key] if v == version]))
-                table_values[2].append(', '.join(tcs))
+                table_values[1].append(', '.join(tcs))
+            lines.extend([
+                '',
+                '.. _list_software_%s:' % key,
+                '',
+                '*%s*' % key,
+                '+' * (len(key) + 2),
+                '',
+            ] + rst_title_and_table(None, table_titles, table_values))
         else:
             lines.append("* %s" % key)
-
-    if detailed:
-        if table_values[0]:
-            lines.extend(rst_title_and_table(None, table_titles, table_values))
-        else:
-            lines.extend(["*(none)*", ''])
 
     return '\n'.join(lines)
 
