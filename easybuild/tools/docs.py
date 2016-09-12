@@ -566,6 +566,11 @@ def list_software_rst(software, detailed=False):
         table_titles = ['version', 'toolchains']
         n_cols = len(table_titles)
 
+
+    def key_to_ref(name):
+        """Create a reference label for the specified software name."""
+        return 'list_software_%s_%d' % (name, sum(ord(l) for l in name))
+
     letter = None
     sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
     for key in sorted_keys:
@@ -588,12 +593,13 @@ def list_software_rst(software, detailed=False):
                 # quick links per software package
                 lines.extend([
                     '',
-                    ' - '.join(':ref:`list_software_%s`' % k for k in sorted_keys if k[0].lower() == letter),
+                    ' - '.join(':ref:`%s`' % key_to_ref(k) for k in sorted_keys if k[0].lower() == letter),
                     '',
                 ])
 
         # append software to list, including version(suffix) & toolchain info if detailed info is requested
         if detailed:
+            # FIXME: also take into account versionsuffix!!
             table_values = [[] for i in range(n_cols)]
             for version in sorted(LooseVersion(v) for v in nub(v for (v, _) in software[key])):
                 table_values[0].append(str(version))
@@ -601,8 +607,9 @@ def list_software_rst(software, detailed=False):
                 table_values[1].append(', '.join(tcs))
             lines.extend([
                 '',
-                '.. _list_software_%s:' % key,
+                '.. _%s:' % key_to_ref(key),
                 '',
+                # FIXME: include description, homepage
                 '*%s*' % key,
                 '+' * (len(key) + 2),
                 '',
