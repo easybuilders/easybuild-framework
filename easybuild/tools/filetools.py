@@ -171,10 +171,16 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove %s: %s", path, err)
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
     """
-    Given filename fn, try to extract in directory dest
-    - returns the directory name in case of success
+    Extract file at given path to specified directory
+    :param fn: path to file to extract
+    :param dest: location to extract to
+    :param cmd: extract command to use (derived from filename if not specified)
+    :param extra_options: extra options to pass to extract command
+    :param overwrite: overwrite existing unpacked file
+    :param forced: force extraction in (extended) dry run mode
+    :return: path to directory (in case of success)
     """
     if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
@@ -202,7 +208,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run.run_cmd(cmd, simple=True)
+    run.run_cmd(cmd, simple=True, force_in_dry_run=forced)
 
     return find_base_dir()
 
