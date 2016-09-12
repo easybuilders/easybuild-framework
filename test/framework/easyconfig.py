@@ -1769,7 +1769,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '',
         }
-        self.assertEqual(template_constant_dict(ec._config), expected)
+        self.assertEqual(template_constant_dict(ec), expected)
 
         ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-deps.eb'))
         # fiddle with version to check version_minor template ('0' should be retained)
@@ -1788,7 +1788,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '-deps',
         }
-        self.assertEqual(template_constant_dict(ec._config), expected)
+        self.assertEqual(template_constant_dict(ec), expected)
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""

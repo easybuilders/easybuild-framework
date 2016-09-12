@@ -924,7 +924,9 @@ class EasyConfig(object):
         # (eg the run_setp code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
-        template_values = template_constant_dict(self._config, ignore=ignore, skip_lower=skip_lower)
+        self.enable_templating = False
+        template_values = template_constant_dict(self, ignore=ignore, skip_lower=skip_lower)
+        self.enable_templating = True
 
         # update the template_values dict
         self.template_values.update(template_values)

@@ -160,7 +160,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             continue
 
         if name[0].startswith('toolchain_'):
-            tc = config.get('toolchain')[0]
+            tc = config.get('toolchain')
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
@@ -169,7 +169,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
-            version = config['version'][0]
+            version = config['version']
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
@@ -189,7 +189,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         elif name[0].endswith('letter'):
             # parse first letters
             if name[0].startswith('name'):
-                softname = config['name'][0]
+                softname = config['name']
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
         else:
@@ -197,7 +197,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     # step 2: define *ver and *shortver templates
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        for dep in config['dependencies'][0]:
+        for dep in config['dependencies']:
             if isinstance(dep['name'], basestring) and dep['name'].lower() == name.lower():
                 template_values['%sver' % pref] = dep['version']
                 template_values['%sshortver' % pref] = '.'.join(dep['version'].split('.')[:2])
@@ -208,8 +208,8 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         if name in ignore:
             continue
         if name in config:
-            template_values[name] = config[name][0]
-            _log.debug('name: %s, config: %s', name, config[name][0])
+            template_values[name] = config[name]
+            _log.debug('name: %s, config: %s', name, config[name])
 
     # step 4. make lower variants if not skip_lower
     if not skip_lower:
