@@ -197,10 +197,17 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     # step 2: define *ver and *shortver templates
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        for dep in config['dependencies']:
-            if isinstance(dep['name'], basestring) and dep['name'].lower() == name.lower():
-                template_values['%sver' % pref] = dep['version']
-                template_values['%sshortver' % pref] = '.'.join(dep['version'].split('.')[:2])
+        for dep in config.get('dependencies', []):
+            if isinstance(dep, dict):
+                dep_name, dep_version = dep['name'], dep['version']
+            elif isinstance(dep, (list, tuple)):
+                dep_name, dep_version = dep[0], dep[1]
+            else:
+                raise EasyBuildError("Unexpected type for dependency: %s", dep)
+
+            if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
+                template_values['%sver' % pref] = dep_version
+                template_values['%sshortver' % pref] = '.'.join(dep_version.split('.')[:2])
                 break
 
     # step 3: add remaining from config

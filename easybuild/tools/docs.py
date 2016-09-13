@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
-from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS
+from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS, template_constant_dict
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -540,11 +540,15 @@ def list_software(output_format=FORMAT_TXT, detailed=False):
             toolchain = DUMMY_TOOLCHAIN_NAME
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
+
+        template_values = template_constant_dict(ec)
+
         software[ec['name']].append({
             'description': ec['description'],
             'homepage': ec['homepage'],
             'toolchain': toolchain,
             'version': ec['version'],
+            'versionsuffix': ec.get('versionsuffix', '') % template_values,
         })
 
     print_msg("Found %d different software packages" % len(software))
@@ -566,11 +570,6 @@ def list_software_rst(software, detailed=False):
 
     # links to per-letter tables
     lines.extend([' - '.join(':ref:`list_software_letter_%s`' % x for x in string.lowercase), ''])
-
-    if detailed:
-        table_titles = ['version', 'toolchains']
-        n_cols = len(table_titles)
-
 
     def key_to_ref(name):
         """Create a reference label for the specified software name."""
@@ -604,12 +603,23 @@ def list_software_rst(software, detailed=False):
 
         # append software to list, including version(suffix) & toolchain info if detailed info is requested
         if detailed:
-            # FIXME: also take into account versionsuffix!!
-            table_values = [[] for i in range(n_cols)]
-            for version in sorted(LooseVersion(v) for v in nub(x['version'] for x in software[key])):
-                table_values[0].append(str(version))
-                tcs = sorted(nub([x['toolchain'] for x in software[key] if x['version'] == version]))
-                table_values[1].append(', '.join(tcs))
+            table_titles = ['version', 'toolchain']
+            table_values = [[], []]
+
+            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+
+            with_vsuff = any(vs for (_, vs) in pairs)
+            if with_vsuff:
+                table_titles.insert(1, 'versionsuffix')
+                table_values.insert(1, [])
+
+            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+                table_values[0].append('``%s``' % ver)
+                if vsuff:
+                    table_values[1].append('``%s``' % vsuff)
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+                table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
+
             lines.extend([
                 '',
                 '.. _%s:' % key_to_ref(key),
@@ -617,7 +627,7 @@ def list_software_rst(software, detailed=False):
                 '*%s*' % key,
                 '+' * (len(key) + 2),
                 '',
-                ' '.join(software[key][-1]['description'].split('\n')),
+                ' '.join(software[key][-1]['description'].split('\n')).lstrip(' '),
                 '',
                 "*homepage*: %s" % software[key][-1]['homepage'],
                 '',
@@ -642,9 +652,15 @@ def list_software_txt(software, detailed=False):
                 "homepage: %s" % software[key][-1]['homepage'],
                 '',
             ])
-            for version in sorted(LooseVersion(v) for v in nub(x['version'] for x in software[key])):
-                tcs = sorted(nub(x['toolchain'] for x in software[key] if x['version'] == version))
-                lines.append("  * %s v%s: %s" % (key, version, ', '.join(tcs)))
+            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+
+                line = "  * %s v%s" % (key, ver)
+                if vsuff:
+                    line += " (versionsuffix: '%s')" % vsuff
+                line += ": %s" % ', '.join(sorted(nub(tcs)))
+                lines.append(line)
             lines.append('')
 
     return '\n'.join(lines)
