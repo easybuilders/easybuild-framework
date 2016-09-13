@@ -44,8 +44,8 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easyconfigs, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, get_easyblock_class, resolve_template
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -1879,6 +1879,44 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['easyconfigs'], ['bzip2-1.0.6.eb', os.path.join(test_ecs_dir, 'gzip-1.4.eb'), 'foo'])
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
+
+    def test_resolve_template(self):
+        """Test resolve_template function."""
+        self.assertEqual(resolve_template('', {}), '')
+        tmpl_dict = {
+            'name': 'FooBar',
+            'namelower': 'foobar',
+            'version': '1.2.3',
+        }
+        self.assertEqual(resolve_template('%(namelower)s-%(version)s', tmpl_dict), 'foobar-1.2.3')
+
+        value, expected = ['%(namelower)s-%(version)s', 'name:%(name)s'], ['foobar-1.2.3', 'name:FooBar']
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        value, expected = ('%(namelower)s-%(version)s', 'name:%(name)s'), ('foobar-1.2.3', 'name:FooBar')
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        value, expected = {'%(namelower)s-%(version)s': 'name:%(name)s'}, {'foobar-1.2.3': 'name:FooBar'}
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        # nested value
+        value = [
+            {'%(name)s': '%(namelower)s', '%(version)s': '1.2.3', 'bleh': '%(name)s-%(version)s'},
+            ('%(namelower)s', '%(version)s'),
+            ['%(name)s', ('%(namelower)s-%(version)s',)],
+        ]
+        expected = [
+            {'FooBar': 'foobar', '1.2.3': '1.2.3', 'bleh': 'FooBar-1.2.3'},
+            ('foobar', '1.2.3'),
+            ['FooBar', ('foobar-1.2.3',)],
+        ]
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        # escaped template value
+        self.assertEqual(resolve_template('%%(name)s', tmpl_dict), '%(name)s')
+
+        # '%(name)' is not a correct template spec (missing trailing 's')
+        self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
 
 
 def suite():

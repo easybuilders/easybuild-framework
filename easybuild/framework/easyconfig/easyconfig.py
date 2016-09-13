@@ -1188,7 +1188,7 @@ def resolve_template(value, tmpl_dict):
         elif isinstance(value, tuple):
             value = tuple(resolve_template(list(value), tmpl_dict))
         elif isinstance(value, dict):
-            value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
+            value = dict((resolve_template(k, tmpl_dict), resolve_template(v, tmpl_dict)) for k, v in value.items())
 
     return value
 
