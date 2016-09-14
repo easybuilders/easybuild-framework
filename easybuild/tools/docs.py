@@ -524,14 +524,16 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
 
 def list_software(output_format=FORMAT_TXT, detailed=False):
     """Show list of supported software"""
+    silent = build_option('silent')
+
     ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
     ecs = []
     cnt = len(ec_paths)
     for idx, ec_path in enumerate(ec_paths):
         ecs.append(EasyConfigParser(filename=ec_path).get_config_dict())
-        print '\r',
-        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False)
-    print ''
+        print_msg('\r', prefix=False, newline=False, silent=silent)
+        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False, silent=silent)
+    print_msg('', prefix=False, silent=silent)
 
     software = {}
     for ec in ecs:
@@ -551,7 +553,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False):
             'versionsuffix': ec.get('versionsuffix', '') % template_values,
         })
 
-    print_msg("Found %d different software packages" % len(software))
+    print_msg("Found %d different software packages" % len(software), silent=silent)
 
     return generate_doc('list_software_%s' % output_format, [software, detailed])
 
@@ -569,7 +571,15 @@ def list_software_rst(software, detailed=False):
     ]
 
     # links to per-letter tables
-    lines.extend([' - '.join(':ref:`list_software_letter_%s`' % x for x in string.lowercase), ''])
+    letter_refs = ''
+    key_letters = nub(sorted(k[0].lower() for k in software.keys()))
+    for letter in string.lowercase:
+        if letter in key_letters:
+            if letter_refs:
+                letter_refs += " - :ref:`list_software_letter_%s`" % letter
+            else:
+                letter_refs = ":ref:`list_software_letter_%s`" % letter
+    lines.extend([letter_refs, ''])
 
     def key_to_ref(name):
         """Create a reference label for the specified software name."""
