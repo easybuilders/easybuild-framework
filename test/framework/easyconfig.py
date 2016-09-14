@@ -994,7 +994,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
         build_options = {
-            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
