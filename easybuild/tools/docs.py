@@ -529,6 +529,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
     :param output_format: output format to use
     :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param only_installed: only retain software for which a corresponding module is available
     :return: multi-line string presenting requested info
     """
     silent = build_option('silent')
