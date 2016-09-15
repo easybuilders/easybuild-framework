@@ -127,7 +127,9 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     curdir = os.getcwd()
 
     # the options to ignore (help options can't reach here)
-    ignore_opts = ['robot', 'job']
+    ignore_opts = ['robot', 'job', 'try-amend',
+                   'try-software', 'try-software-name', 'try-software-version',
+                   'try-toolchain', 'try-toolchain-name', 'try-toolchain-version']
 
     # generate_cmd_line returns the options in form --longopt=value
     opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
