@@ -321,10 +321,7 @@ class EasyConfig(object):
         # filter hidden dependencies from list of dependencies
         self.filter_hidden_deps()
 
-        # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
-        self.all_dependencies = copy.deepcopy(self.dependencies())
-        if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
-            self.all_dependencies.append(self.toolchain.as_dict())
+        self._all_dependencies = None
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
@@ -658,6 +655,17 @@ class EasyConfig(object):
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
+
+    @property
+    def all_dependencies(self):
+        """Return list of all dependencies, incl. hidden/build deps & toolchain, but excluding filtered deps."""
+        if self._all_dependencies is None:
+            self.log.debug("Composing list of all dependencies (incl. toolchain)")
+            self._all_dependencies = copy.deepcopy(self.dependencies())
+            if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                self._all_dependencies.append(self.toolchain.as_dict())
+
+        return self._all_dependencies
 
     def dump(self, fp):
         """
