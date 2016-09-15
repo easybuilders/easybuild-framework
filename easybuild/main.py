@@ -254,6 +254,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.review_pr:
         print review_pr(options.review_pr, colored=use_color(options.color))
 
+    elif options.list_installed_software:
+        detailed = options.list_installed_software == 'detailed'
+        print list_software(output_format=options.output_format, detailed=detailed, only_installed=True)
+
     elif options.list_software:
         print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
@@ -261,6 +265,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     early_stop_options = [
         options.check_github,
         options.install_github_token,
+        options.list_installed_software,
         options.list_software,
         options.review_pr,
         options.terse,
