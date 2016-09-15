@@ -303,16 +303,16 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
     target_path = os.path.join(path, base_name)
     _log.debug("downloading repo %s/%s as archive from %s to %s" % (account, repo, url, target_path))
-    download_file(base_name, url, target_path)
+    download_file(base_name, url, target_path, forced=True)
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
-    extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
+    extracted_path = os.path.join(extract_file(target_path, path, forced=True), extracted_dir_name)
 
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
 
-    write_file(latest_sha_path, latest_commit_sha)
+    write_file(latest_sha_path, latest_commit_sha, forced=True)
 
     _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path

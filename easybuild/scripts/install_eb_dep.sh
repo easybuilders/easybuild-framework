@@ -53,6 +53,13 @@ if [ $? -ne 0 ] && [ ! -z $BACKUP_PKG_URL ]; then
     wget ${BACKUP_PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 fi
 set -e
+
+# environment-modules needs a patch to work with Tcl8.6
+if [ x$PKG_NAME == 'xmodules' ]; then
+    wget -O 'modules-tcl8.6.patch' 'https://hpcugent.github.io/easybuild/files/modules-3.2.10-tcl8.6.patch'
+    patch ${PKG}/cmdModule.c modules-tcl8.6.patch
+fi
+
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
     mv modules $PREFIX/${PKG}
 else

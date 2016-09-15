@@ -974,6 +974,44 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print "Ignoring URLError '%s' in test_from_pr" % err
             shutil.rmtree(tmpdir)
 
+    def test_from_pr_x(self):
+        """Test combination of --from-pr with --extended-dry-run."""
+        if self.github_token is None:
+            print "Skipping test_from_pr_x, no GitHub token available?"
+            return
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
+            'FFTW-3.3.4-gompi-2015a.eb',  # required ConfigureMake easyblock, which is available in test easyblocks
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+            '--tmpdir=%s' % self.test_prefix,
+            '--extended-dry-run',
+        ]
+        try:
+            self.mock_stdout(True)
+            self.eb_main(args, do_build=True, raise_error=True, testing=False)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+
+            msg_regexs = [
+                re.compile(r"^== Build succeeded for 1 out of 1", re.M),
+                re.compile(r"^\*\*\* DRY RUN using 'ConfigureMake' easyblock", re.M),
+                re.compile(r"^== building and installing FFTW/3.3.4-gompi-2015a\.\.\.", re.M),
+                re.compile(r"^building... \[DRY RUN\]", re.M),
+                re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+            ]
+
+            for msg_regex in msg_regexs:
+                self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
+
+        except URLError, err:
+            print "Ignoring URLError '%s' in test_from_pr_x" % err
+
     def test_no_such_software(self):
         """Test using no arguments."""
 
