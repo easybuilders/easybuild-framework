@@ -523,7 +523,13 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
 
 
 def list_software(output_format=FORMAT_TXT, detailed=False):
-    """Show list of supported software"""
+    """
+    Show list of supported software
+
+    :param output_format: output format to use
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
     silent = build_option('silent')
 
     ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
@@ -559,7 +565,13 @@ def list_software(output_format=FORMAT_TXT, detailed=False):
 
 
 def list_software_rst(software, detailed=False):
-    """Return overview of supported software in RST format"""
+    """
+    Return overview of supported software in RST format
+
+    :param software: software information (structured like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
 
     title = "List of supported software"
     lines = [
@@ -649,7 +661,13 @@ def list_software_rst(software, detailed=False):
 
 
 def list_software_txt(software, detailed=False):
-    """Return overview of supported software in plain text"""
+    """
+    Return overview of supported software in plain text
+
+    :param software: software information (structured like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
 
     lines = ['']
     for key in sorted(software, key=lambda x: x.lower()):
