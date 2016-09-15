@@ -994,7 +994,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
         build_options = {
-            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -1769,7 +1769,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '',
         }
-        self.assertEqual(template_constant_dict(ec._config), expected)
+        self.assertEqual(template_constant_dict(ec), expected)
 
         ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-deps.eb'))
         # fiddle with version to check version_minor template ('0' should be retained)
@@ -1788,7 +1788,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '-deps',
         }
-        self.assertEqual(template_constant_dict(ec._config), expected)
+        self.assertEqual(template_constant_dict(ec), expected)
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""

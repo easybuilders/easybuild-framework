@@ -55,6 +55,7 @@ from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
@@ -253,8 +254,18 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.review_pr:
         print review_pr(options.review_pr, colored=use_color(options.color))
 
+    elif options.list_software:
+        print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
+
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
-    if options.check_github or options.install_github_token or options.review_pr or options.terse:
+    early_stop_options = [
+        options.check_github,
+        options.install_github_token,
+        options.list_software,
+        options.review_pr,
+        options.terse,
+    ]
+    if any(early_stop_options):
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 

@@ -932,7 +932,10 @@ class EasyConfig(object):
         # (eg the run_setp code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
-        template_values = template_constant_dict(self._config, ignore=ignore, skip_lower=skip_lower)
+        # disable templating with creating dict with template values to avoid looping back to here via __getitem__
+        self.enable_templating = False
+        template_values = template_constant_dict(self, ignore=ignore, skip_lower=skip_lower)
+        self.enable_templating = True
 
         # update the template_values dict
         self.template_values.update(template_values)
@@ -1207,6 +1210,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     :param path: path to easyconfig file
     :param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     :param validate: whether or not to perform validation
+    :param parse_only: only parse easyconfig superficially (faster, but results in partial info)
     :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
