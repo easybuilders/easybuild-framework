@@ -1811,11 +1811,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(generate_cmd_line(ebopts), ['--force'])
 
         ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'], envvar_prefix='EASYBUILD')
-        self.assertEqual(generate_cmd_line(ebopts), ['--search=foobar'])
+        self.assertEqual(generate_cmd_line(ebopts), ["--search='foobar'"])
 
         os.environ['EASYBUILD_DEBUG'] = '1'
         ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
         self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
+
+        args = [
+            '--test-report-env-filter=(COOKIE|SESSION)',
+            '--suffix-modules-path=',
+        ]
+        expected = [
+            '--debug',
+            "--suffix-modules-path=''",
+            "--test-report-env-filter='(COOKIE|SESSION)'",
+        ]
+        ebopts = EasyBuildOptions(go_args=args, envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), expected)
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
