@@ -100,6 +100,7 @@ class Toolchain(object):
 
         self.dependencies = []
         self.toolchain_dep_mods = []
+        self.cached_compilers = set()
 
         if name is None:
             name = self.NAME
@@ -647,15 +648,18 @@ class Toolchain(object):
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
-        if build_option('use_compiler_cache'):
-            self.prepare_compiler_cache()
+        # consider f90cache first, since ccache can also wrap Fortran compilers
+        for cache_tool in [F90CACHE, CCACHE]:
+            if build_option('use_%s' % cache_tool):
+                self.prepare_compiler_cache(cache_tool)
 
-    def prepare_compiler_cache(self):
+    def comp_cache_compilers(self, cache_tool):
         """
-        Prepare paths and variables for using compiler caches (ccache, f90cache)
-        """
-        paths = {}
+        Determine list of relevant compilers for specified compiler caching tool.
 
+        :param cache_tool: name of compiler caching tool
+        :return: list of names of relevant compilers
+        """
         if self.name == DUMMY_TOOLCHAIN_NAME:
             c_comps = ['gcc', 'g++']
             fortran_comps =  ['gfortran']
@@ -663,25 +667,45 @@ class Toolchain(object):
             c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
             fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
-        compilers = {
-            CCACHE : c_comps,
-            F90CACHE : fortran_comps,
-        }
+        if cache_tool == CCACHE:
+            # recent versions of ccache (>=3.3) also support caching of Fortran compilations
+            comps = c_comps + fortran_comps
+        elif cache_tool == F90CACHE:
+            comps = fortran_comps
+        else:
+            raise EasyBuildError("Uknown compiler caching tool specified: %s", cache_tool)
 
-        for cache in [CCACHE, F90CACHE]:
-            cache_path = which(cache)
-            if cache_path is None:
-                raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
-            else:
-                paths[cache] = (cache_path, compilers[cache])
+        # filter out compilers that are already cached;
+        # Fortran compilers could already be cached by f90cache when preparing for ccache
+        for comp in comps[:]:
+            if comp in self.cached_compilers:
+                self.log.debug("Not caching compiler %s, it's already being cached", comp)
+                comps.remove(comp)
 
-        # set paths for caches
-        comp_cache_path = build_option('use_compiler_cache')
-        for cachename in ["CCACHE", "F90CACHE"]:
-            os.environ["%s_DIR" % cachename] = comp_cache_path
-            os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
+        return comps
 
-        self.symlink_compilers(paths)
+    def prepare_compiler_cache(self, cache_tool):
+        """
+        Prepare for using specified compiler caching tool (e.g., ccache, f90cache)
+
+        :param cache_tool: name of compiler caching tool to prepare for
+        """
+        compilers = self.comp_cache_compilers(cache_tool)
+        self.log.debug("Using compiler cache tool '%s' for compilers: %s", cache_tool, compilers)
+
+        # set paths that should be used by compiler caching tool
+        comp_cache_path = build_option('use_%s' % cache_tool)
+        setvar('%s_DIR' % cache_tool.upper(), comp_cache_path)
+        setvar('%s_TEMPDIR' % cache_tool.upper(), tempfile.mkdtemp())
+
+        cache_path = which(cache_tool)
+        if cache_path is None:
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+        else:
+            self.symlink_compilers({cache_tool: (cache_path, compilers)})
+
+        self.cached_compilers.update(compilers)
+        self.log.debug("Cached compilers (after preparing for %s): %s", cache_tool, self.cached_compilers)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies

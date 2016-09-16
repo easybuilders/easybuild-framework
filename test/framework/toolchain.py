@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import write_file, read_file
+from easybuild.tools.filetools import mkdir, read_file, write_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -820,22 +820,22 @@ class ToolchainTest(EnhancedTestCase):
         liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
         self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
 
-    def test_ccache(self):
+    def test_compiler_cache(self):
         """Test ccache"""
-        # generate shell script to mock ccache, f90cache
-        for cachename in ['ccache', 'f90cache']:
-            path = os.path.join(self.test_prefix, '%s' % cachename)
+        # generate shell script to mock ccache/f90cache
+        for cache_tool in ['ccache', 'f90cache']:
+            path = os.path.join(self.test_prefix, 'scripts')
 
             txt = [
                 "#!/bin/bash",
-                "echo 'This is a ccache wrapper'",
+                "echo 'This is a %s wrapper'" % cache_tool,
                 "NAME=${0##*/}",
                 "comm=$(which -a $NAME | sed 1d)",
                 "$comm $@",
                 "exit 0"
             ]
             script = '\n'.join(txt)
-            fn = os.path.join(path, '%s' % cachename)
+            fn = os.path.join(path, cache_tool)
             write_file(fn, script)
 
             # make script executable
@@ -843,23 +843,54 @@ class ToolchainTest(EnhancedTestCase):
             os.chmod(fn, st.st_mode | stat.S_IEXEC)
             setvar('PATH', '%s:%s' % (path, os.getenv('PATH')))
 
+        prepped_path_envvar = os.environ['PATH']
 
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
 
+        ccache_dir = os.path.join(self.test_prefix, 'ccache')
+        mkdir(ccache_dir, parents=True)
+
         args = [
             eb_file,
-            "--use-compiler-cache=%s" % self.test_prefix,
+            "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
             "--force",
             "--debug",
-            ]
+            "--disable-cleanup-tmpdir",
+        ]
 
-        out = self.eb_main(args, raise_error=True, do_build=True)
+        out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
 
         patterns = [
             "This is a ccache wrapper",
-            "Command %s found at .*%s" % (cachename, os.path.dirname(path))
+            "Command ccache found at .*%s" % os.path.dirname(path),
         ]
-        self.assertTrue(all([re.search(pattern, out) for pattern in patterns]))
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
+        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
+        for comp in ['gcc', 'g++', 'gfortran']:
+            self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+
+        # reset environment to get rid of ccache symlinks, but with ccache/f90cache mock scripts still in place
+        os.environ['PATH'] = prepped_path_envvar
+
+        # if both ccache and f90cache are used, Fortran compiler is symlinked to f90cache
+        f90cache_dir = os.path.join(self.test_prefix, 'f90cache')
+        mkdir(f90cache_dir, parents=True)
+        args.append("--use-f90cache=%s" % f90cache_dir)
+
+        out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
+        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
+        self.assertTrue(os.path.samefile(os.environ['F90CACHE_DIR'], f90cache_dir))
+        self.assertTrue(os.path.samefile(which('gcc'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+        self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+        self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
+        
 
 
 def suite():
