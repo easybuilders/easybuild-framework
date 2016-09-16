@@ -595,22 +595,25 @@ class Toolchain(object):
         """
         Create a symlink for each compiler to binary/script at specified path.
 
-        :param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
-                      tuple ('path/to/cache', [commands to symlink to this cache])
+        :param paths: dictionary containing mapping from cache tool name (ccache, f90cache) to
+                      tuple ('path/to/cache_cmd', [commands to symlink to this cache])
         """
-        tmpdir = tempfile.mkdtemp()
+        symlink_dir = tempfile.mkdtemp()
 
-        for _, (path, comps) in paths.items():
+        # prepend location to symlinks to $PATH
+        setvar('PATH', '%s:%s' % (symlink_dir, os.getenv('PATH')))
+
+        for (path, comps) in paths.values():
             for comp in comps:
-                comp_s = os.path.join(tmpdir, comp)
+                comp_s = os.path.join(symlink_dir, comp)
                 if not os.path.exists(comp_s):
                     try:
                         os.symlink(path, comp_s)
                     except OSError as err:
                         raise EasyBuildError("Failed to symlink %s to %s: %s", path, comp_s, err)
 
-        setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
-
+                comp_path = which(comp)
+                self.log.debug("which(%s): %s -> %s", comp, comp_path, os.path.realpath(comp_path))
 
     def prepare(self, onlymod=None, silent=False, loadmod=True):
         """
