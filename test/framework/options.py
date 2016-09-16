@@ -1818,13 +1818,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
 
         args = [
+            # install path with a single quote in it, iieeeuuuwww
+            "--installpath=/this/is/a/weird'prefix",
             '--test-report-env-filter=(COOKIE|SESSION)',
             '--suffix-modules-path=',
+            '--try-toolchain=foss,2015b',
+            '--logfile-format=easybuild,eb-%(name)s.log',
         ]
         expected = [
             '--debug',
+            "--installpath='/this/is/a/weird\\'prefix'",
+            "--logfile-format='easybuild,eb-%(name)s.log'",
             "--suffix-modules-path=''",
             "--test-report-env-filter='(COOKIE|SESSION)'",
+            "--try-toolchain='foss,2015b'",
         ]
         ebopts = EasyBuildOptions(go_args=args, envvar_prefix='EASYBUILD')
         self.assertEqual(generate_cmd_line(ebopts), expected)
