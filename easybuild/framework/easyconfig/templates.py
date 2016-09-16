@@ -242,7 +242,13 @@ def to_template_str(value, templ_const, templ_val):
         - templ_const is a dictionary of template strings (constants)
         - templ_val is an ordered dictionary of template strings specific for this easyconfig file
     """
-    old_value = None
+    orig_value, old_value = value, None
+
+    # escape any '%' characters that may occur in original value
+    if '%' in value:
+        value = value.replace('%', '%%')
+
+    templated = False
     while value != old_value:
         old_value = value
         # check for constant values
@@ -256,6 +262,13 @@ def to_template_str(value, templ_const, templ_val):
             # by another non-alphanumeric.
             if tval in value:
                 value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+
+        if value != old_value:
+            templated = True
+
+    # if no applicable templates were found, roll back to original value (to undo potential escaping of %)
+    if not templated:
+        value = orig_value
 
     return value
 

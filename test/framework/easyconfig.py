@@ -1531,14 +1531,19 @@ class EasyConfigTest(EnhancedTestCase):
             '-test':'special_char',
         }
 
-        self.assertEqual(to_template_str("template", templ_const, templ_val), 'TEMPLATE_VALUE')
-        self.assertEqual(to_template_str("foo/bar/0.0.1/", templ_const, templ_val), "%(name)s/bar/%(version)s/")
-        self.assertEqual(to_template_str("foo-0.0.1", templ_const, templ_val), 'NAME_VERSION')
-        templ_list = to_template_str("['-test', 'dontreplacenamehere']", templ_const, templ_val)
-        self.assertEqual(templ_list, "['%(special_char)s', 'dontreplacenamehere']")
-        templ_dict = to_template_str("{'a': 'foo', 'b': 'notemplate'}", templ_const, templ_val)
-        self.assertEqual(templ_dict, "{'a': '%(name)s', 'b': 'notemplate'}")
-        self.assertEqual(to_template_str("('foo', '0.0.1')", templ_const, templ_val), "('%(name)s', '%(version)s')")
+        pairs = [
+            ("template", 'TEMPLATE_VALUE'),
+            ("foo/bar/0.0.1/", "%(name)s/bar/%(version)s/"),
+            ("foo-0.0.1", 'NAME_VERSION'),
+            ("['-test', 'dontreplacenamehere']", "['%(special_char)s', 'dontreplacenamehere']"),
+            ("{'a': 'foo', 'b': 'notemplate'}", "{'a': '%(name)s', 'b': 'notemplate'}"),
+            ("('foo', '0.0.1')", "('%(name)s', '%(version)s')"),
+            ("foo %(source)s bar", "%(name)s %%(source)s bar"),
+            ("%(source)s", "%(source)s"),
+        ]
+
+        for inp, expected in pairs:
+            self.assertEqual(to_template_str(inp, templ_const, templ_val), expected)
 
     def test_dep_graph(self):
         """Test for dep_graph."""
