@@ -307,11 +307,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
-        check_args(['--debug', '--stop=configure', '--try-software-name=foo'])
-        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'])
+        check_args(['--debug', '--stop=configure', '--try-software-name=foo'],
+                   passed_args=['--debug', "--stop='configure'", "--try-software-name='foo'"])
+        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
+                   passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
         check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
-                   passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
+                   passed_args=['--debug', "--robot-paths='/tmp/bar:/tmp/foo'"])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -1610,7 +1612,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
         self.assertTrue(test_var_public_regex.search(test_report_txt))
         # make sure that used filter is reported correctly in test report
-        filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
+        filter_arg_regex = re.compile(r"--test-report-env-filter='.\*_SECRET_ENV_VAR_FOR_EASYBUILD'")
         tup = (filter_arg_regex.pattern, test_report_txt)
         self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
