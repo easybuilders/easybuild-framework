@@ -160,6 +160,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_builddir',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
+        'mpi_tests',
     ],
     'warn': [
         'strict',
