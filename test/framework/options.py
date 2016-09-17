@@ -308,7 +308,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
         check_args(['--debug', '--stop=configure', '--try-software-name=foo'],
-                   passed_args=['--debug', "--stop='configure'", "--try-software-name='foo'"])
+                   passed_args=['--debug', "--stop='configure'"])
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
                    passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
