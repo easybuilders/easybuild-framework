@@ -325,6 +325,8 @@ class EasyBuildOptions(GeneralOption):
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
+            'mpi-cmd-template': ("Template for MPI commands (template keys: %(nr_ranks)s, %(cmd)s)",
+                                 None, 'store', None),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),

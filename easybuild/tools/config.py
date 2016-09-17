@@ -115,6 +115,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_target_resource',
         'modules_footer',
         'modules_header',
+        'mpi_cmd_template',
         'only_blocks',
         'optarch',
         'parallel',
