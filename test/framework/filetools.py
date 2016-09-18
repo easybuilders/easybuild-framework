@@ -149,6 +149,14 @@ class FileToolsTest(EnhancedTestCase):
         path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
         self.assertTrue(path is None)
 
+        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
+        foo, bar = os.path.join(self.test_prefix, 'foo'), os.path.join(self.test_prefix, 'bar')
+        ft.mkdir(foo)
+        ft.adjust_permissions(foo, stat.S_IRUSR|stat.S_IXUSR)
+        ft.write_file(bar, '#!/bin/bash')
+        ft.adjust_permissions(bar, stat.S_IRUSR|stat.S_IXUSR)
+        self.assertEqual(ft.which('foo'), None)
+        self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
     def test_checksums(self):
         """Test checksum functionality."""
