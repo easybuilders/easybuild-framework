@@ -1281,7 +1281,7 @@ class EasyBlock(object):
         -- else, treat it as subdir for regular procedure
         """
         start_dir = ''
-        # do not use the specifiy 'start_dir' when running as --module-only as
+        # do not use the specified 'start_dir' when running as --module-only as
         # the directory will not exist (extract_step is skipped)
         if self.cfg['start_dir'] and not build_option('module_only'):
             start_dir = self.cfg['start_dir']
