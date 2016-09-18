@@ -761,7 +761,10 @@ class EasyBlock(object):
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
-            self.cfg['cleanupoldbuild'] = True
+            if not build_option('module_only'):
+                self.cfg['cleanupoldbuild'] = True
+            else:
+                self.log.debug("Not setting cleanupoldbuild because we run as module-only")
             self.cfg['keeppreviousinstall'] = False
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
