@@ -2799,6 +2799,69 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.options.terminal_supports_colors = lambda _: False
         self.assertFalse(use_color('auto'))
 
+    def test_list_software(self):
+        """Test --list-software and --list-installed-software."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'v1.0')
+        args = [
+            '--list-software',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        expected = '\n'.join([
+            "== Processed 5/5 easyconfigs... ",
+            "== Found 2 different software packages",
+            '',
+            "* GCC",
+            "* gzip",
+            '',
+        ])
+        self.assertTrue(txt.endswith(expected))
+
+        args = [
+            '--list-software=detailed',
+            '--output-format=rst',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search('^``4.6.3``\s+``dummy``', txt, re.M))
+        self.assertTrue(re.search('^\*gzip\*', txt, re.M))
+        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``ictce/4.1.13``', txt, re.M))
+
+        args = [
+            '--list-installed-software',
+            '--output-format=rst',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('== Processed 5/5 easyconfigs...', txt, re.M))
+        self.assertTrue(re.search('== Found 2 different software packages', txt, re.M))
+        self.assertTrue(re.search('== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search('^\* GCC', txt, re.M))
+        self.assertFalse(re.search('gzip', txt, re.M))
+
+        args = [
+            '--list-installed-software=detailed',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('^== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search('^\* GCC', txt, re.M))
+        self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
+        self.assertFalse(re.search('gzip', txt, re.M))
+
 
 def suite():
     """ returns all the testcases in this module """
