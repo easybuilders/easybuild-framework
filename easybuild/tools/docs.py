@@ -48,7 +48,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
@@ -60,9 +60,10 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
@@ -522,12 +523,13 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
     return '\n'.join(txt)
 
 
-def list_software(output_format=FORMAT_TXT, detailed=False):
+def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False):
     """
     Show list of supported software
 
     :param output_format: output format to use
     :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param only_installed: only retain software for which a corresponding module is available
     :return: multi-line string presenting requested info
     """
     silent = build_option('silent')
@@ -536,7 +538,14 @@ def list_software(output_format=FORMAT_TXT, detailed=False):
     ecs = []
     cnt = len(ec_paths)
     for idx, ec_path in enumerate(ec_paths):
-        ecs.append(EasyConfigParser(filename=ec_path).get_config_dict())
+        # full EasyConfig instance is only required when module name is needed
+        # this is significantly slower (5-10x) than a 'shallow' parse via EasyConfigParser
+        if only_installed:
+            ec = process_easyconfig(ec_path, validate=False, parse_only=True)[0]['ec']
+        else:
+            ec = EasyConfigParser(filename=ec_path).get_config_dict()
+
+        ecs.append(ec)
         print_msg('\r', prefix=False, newline=False, silent=silent)
         print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False, silent=silent)
     print_msg('', prefix=False, silent=silent)
@@ -549,17 +558,37 @@ def list_software(output_format=FORMAT_TXT, detailed=False):
         else:
             toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
 
-        template_values = template_constant_dict(ec)
+        versionsuffix = ec.get('versionsuffix', '')
+
+        # make sure versionsuffix gets properly templated
+        if versionsuffix and isinstance(ec, dict):
+            template_values = template_constant_dict(ec)
+            versionsuffix = versionsuffix % template_values
 
         software[ec['name']].append({
             'description': ec['description'],
             'homepage': ec['homepage'],
             'toolchain': toolchain,
             'version': ec['version'],
-            'versionsuffix': ec.get('versionsuffix', '') % template_values,
+            'versionsuffix': versionsuffix,
         })
 
+        if only_installed:
+            software[ec['name']][-1].update({'mod_name': ec.full_mod_name})
+
     print_msg("Found %d different software packages" % len(software), silent=silent)
+
+    if only_installed:
+        avail_mod_names = modules_tool().available()
+
+        # rebuild software, only retain entries with a corresponding available module
+        software, all_software = {}, software
+        for key in all_software:
+            for entry in all_software[key]:
+                if entry['mod_name'] in avail_mod_names:
+                    software.setdefault(key, []).append(entry)
+
+        print_msg("Retained %d installed software packages" % len(software), silent=silent)
 
     return generate_doc('list_software_%s' % output_format, [software, detailed])
 

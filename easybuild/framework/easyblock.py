@@ -761,7 +761,10 @@ class EasyBlock(object):
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
-            self.cfg['cleanupoldbuild'] = True
+            if not build_option('module_only'):
+                self.cfg['cleanupoldbuild'] = True
+            else:
+                self.log.debug("Not setting cleanupoldbuild because we run as module-only")
             self.cfg['keeppreviousinstall'] = False
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
@@ -1281,7 +1284,9 @@ class EasyBlock(object):
         -- else, treat it as subdir for regular procedure
         """
         start_dir = ''
-        if self.cfg['start_dir']:
+        # do not use the specified 'start_dir' when running as --module-only as
+        # the directory will not exist (extract_step is skipped)
+        if self.cfg['start_dir'] and not build_option('module_only'):
             start_dir = self.cfg['start_dir']
 
         if not os.path.isabs(start_dir):

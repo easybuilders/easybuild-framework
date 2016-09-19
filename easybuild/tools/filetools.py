@@ -219,7 +219,7 @@ def which(cmd):
     for path in paths:
         cmd_path = os.path.join(path, cmd)
         # only accept path is command is there, and both readable and executable
-        if os.access(cmd_path, os.R_OK | os.X_OK):
+        if os.access(cmd_path, os.R_OK | os.X_OK) and os.path.isfile(cmd_path):
             _log.info("Command %s found at %s" % (cmd, cmd_path))
             return cmd_path
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))

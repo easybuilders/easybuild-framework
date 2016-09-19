@@ -208,6 +208,19 @@ class DocsTest(EnhancedTestCase):
         txt = list_software(output_format='rst', detailed=True)
         self.assertTrue(expected.match(txt), "Pattern '%s' found in: %s" % (expected.pattern, txt))
 
+        # GCC/4.6.3 is installed, no gzip module installed
+        txt = list_software(output_format='txt', detailed=True, only_installed=True)
+        self.assertTrue(re.search('^\* GCC', txt, re.M))
+        self.assertTrue(re.search('^\s*\* GCC v4.6.3: dummy', txt, re.M))
+        self.assertFalse(re.search('^\* gzip', txt, re.M))
+        self.assertFalse(re.search('gzip v1\.', txt, re.M))
+
+        txt = list_software(output_format='rst', detailed=True, only_installed=True)
+        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search('4\.6\.3.*dummy', txt, re.M))
+        self.assertFalse(re.search('^\*gzip\*', txt, re.M))
+        self.assertFalse(re.search('1\.4', txt, re.M))
+        self.assertFalse(re.search('1\.5', txt, re.M))
 
 
 def suite():
