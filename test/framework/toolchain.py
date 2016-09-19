@@ -585,6 +585,9 @@ class ToolchainTest(EnhancedTestCase):
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
 
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
+        self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
+
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
         tc = self.get_toolchain('GCC', version='4.6.4')
