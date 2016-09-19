@@ -779,7 +779,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
         eb.validate()
+
+        # temporarily disable templating, just so we can check later whether it's *still* disabled
+        eb.enable_templating = False
+
         eb.generate_template_values()
+
+        self.assertFalse(eb.enable_templating)
+        eb.enable_templating = True
 
         self.assertEqual(eb['description'], "test easyconfig PI")
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')

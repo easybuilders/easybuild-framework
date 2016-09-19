@@ -34,6 +34,7 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import math
 import os
+import re
 import subprocess
 
 from easybuild.framework.easyblock import get_easyblock_instance
@@ -126,11 +127,11 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     """
     curdir = os.getcwd()
 
-    # the options to ignore (help options can't reach here)
-    ignore_opts = ['robot', 'job']
+    # regex pattern for options to ignore (help options can't reach here)
+    ignore_opts = re.compile('^--robot$|^--job$|^--try-.*$')
 
     # generate_cmd_line returns the options in form --longopt=value
-    opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
+    opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
 
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
