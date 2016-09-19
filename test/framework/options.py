@@ -307,13 +307,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
-        # --try-* options are not passed down
         check_args(['--debug', '--stop=configure', '--try-software-name=foo'],
-                   passed_args=['--debug', '--stop=configure'])
-        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'])
+                   passed_args=['--debug', "--stop='configure'"])
+        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
+                   passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
         check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
-                   passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
+                   passed_args=['--debug', "--robot-paths='/tmp/bar:/tmp/foo'"])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -1612,7 +1612,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
         self.assertTrue(test_var_public_regex.search(test_report_txt))
         # make sure that used filter is reported correctly in test report
-        filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
+        filter_arg_regex = re.compile(r"--test-report-env-filter='.\*_SECRET_ENV_VAR_FOR_EASYBUILD'")
         tup = (filter_arg_regex.pattern, test_report_txt)
         self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
@@ -1813,11 +1813,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(generate_cmd_line(ebopts), ['--force'])
 
         ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'], envvar_prefix='EASYBUILD')
-        self.assertEqual(generate_cmd_line(ebopts), ['--search=foobar'])
+        self.assertEqual(generate_cmd_line(ebopts), ["--search='foobar'"])
 
         os.environ['EASYBUILD_DEBUG'] = '1'
         ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
         self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
+
+        args = [
+            # install path with a single quote in it, iieeeuuuwww
+            "--installpath=/this/is/a/weird'prefix",
+            '--test-report-env-filter=(COOKIE|SESSION)',
+            '--suffix-modules-path=',
+            '--try-toolchain=foss,2015b',
+            '--logfile-format=easybuild,eb-%(name)s.log',
+        ]
+        expected = [
+            '--debug',
+            "--installpath='/this/is/a/weird\\'prefix'",
+            "--logfile-format='easybuild,eb-%(name)s.log'",
+            "--suffix-modules-path=''",
+            "--test-report-env-filter='(COOKIE|SESSION)'",
+            "--try-toolchain='foss,2015b'",
+        ]
+        ebopts = EasyBuildOptions(go_args=args, envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), expected)
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""

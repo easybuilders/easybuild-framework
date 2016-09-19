@@ -40,7 +40,10 @@ import re
 import shutil
 import sys
 import tempfile
+import vsc.utils.generaloption
 from distutils.version import LooseVersion
+from vsc.utils import fancylogger
+from vsc.utils.generaloption import GeneralOption
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
@@ -78,8 +81,6 @@ from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
-from vsc.utils import fancylogger
-from vsc.utils.generaloption import GeneralOption
 
 try:
     from humanfriendly.terminal import terminal_supports_colors
@@ -91,6 +92,21 @@ except ImportError:
         except Exception:
             # in case of errors do not bother and just return the safe default
             return False
+
+# monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
+# to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
+# inspired by https://github.com/hpcugent/vsc-base/pull/151
+# this fixes https://github.com/hpcugent/easybuild-framework/issues/1438
+# proper fix would be to implement a serialiser for command line options
+def eb_shell_quote(token):
+    """
+    Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
+    so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
+    """
+    # escape any non-escaped single quotes, and wrap entire token in single quotes
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", str(token))
+
+vsc.utils.generaloption.shell_quote = eb_shell_quote
 
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
@@ -228,7 +244,7 @@ class EasyBuildOptions(GeneralOption):
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
-            'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
+            'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
@@ -260,13 +276,13 @@ class EasyBuildOptions(GeneralOption):
                        "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
-                         None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+                         'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
             'software-name': ("Search and build software with given name",
                               None, 'store', None, {'metavar': 'NAME'}),
             'software-version': ("Search and build software with given version",
                                  None, 'store', None, {'metavar': 'VERSION'}),
             'toolchain': ("Search and build with given toolchain (name and version)",
-                          None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+                          'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
             'toolchain-name': ("Search and build with given toolchain name",
                                None, 'store', None, {'metavar': 'NAME'}),
             'toolchain-version': ("Search and build with given toolchain version",
@@ -392,7 +408,7 @@ class EasyBuildOptions(GeneralOption):
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
-                              None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
+                              'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-header': ("Path to file containing header to be added to all generated module files",
