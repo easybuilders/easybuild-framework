@@ -817,7 +817,10 @@ class EasyBlock(object):
                     self.log.info("Removed old directory %s" % dir_name)
                 except OSError, err:
                     raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
+            elif build_option('module_only'):
+                self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
             else:
+                self.log.info("Moving existing directory %s out of the way...", dir_name)
                 try:
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     backupdir = "%s.%s" % (dir_name, timestamp)
