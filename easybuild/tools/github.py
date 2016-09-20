@@ -221,7 +221,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     :param request_f: function that should be called to compose request, providing a RestClient instance
     :param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
     :param token: GitHub token to use
-    @return: tuple with return status and data
+    :return: tuple with return status and data
     """
     if github_user is None:
         github_user = build_option('github_user')
@@ -249,7 +249,7 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     :param branch: branch to fetch latest SHA1 for
     :param github_user: name of GitHub user to use
     :param token: GitHub token to use
-    @return: latest SHA1
+    :return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
                                           github_user=github_user, token=token)

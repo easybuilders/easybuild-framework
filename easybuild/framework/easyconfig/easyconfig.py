@@ -1336,9 +1336,9 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None):
     """
     Find the minimal toolchain of a dependency
 
-    @dep: dependency target dict (long and short module names may not exist yet)
-    @parent_tc: toolchain from which to derive the toolchain hierarchy to search (default: use dep's toolchain)
-    @return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
+    :param dep: dependency target dict (long and short module names may not exist yet)
+    :param parent_tc: toolchain from which to derive the toolchain hierarchy to search (default: use dep's toolchain)
+    :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
     if parent_tc is None:
         parent_tc = dep['toolchain']

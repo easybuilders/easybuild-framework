@@ -111,7 +111,7 @@ def get_total_memory():
     """
     Try to ascertain this node's total memory
 
-    @return: total memory as an integer, specifically a number of megabytes
+    :return: total memory as an integer, specifically a number of megabytes
     """
     memtotal = None
     os_type = get_os_type()
@@ -141,7 +141,7 @@ def get_cpu_vendor():
     """
     Try to detect the CPU vendor
 
-    @return: a value from the VENDORS dict
+    :return: a value from the VENDORS dict
     """
     vendor = None
     os_type = get_os_type()
@@ -177,7 +177,7 @@ def get_cpu_vendor():
 def get_cpu_family():
     """
     Determine CPU family.
-    @return: a value from the CPU_FAMILIES list
+    :return: a value from the CPU_FAMILIES list
     """
     family = None
     vendor = get_cpu_vendor()
@@ -575,7 +575,7 @@ def det_parallelism(par=None, maxpar=None):
 def det_terminal_size():
     """
     Determine the current size of the terminal window.
-    @return: tuple with terminal width and height
+    :return: tuple with terminal width and height
     """
     # see http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
     try:

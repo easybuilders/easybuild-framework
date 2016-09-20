@@ -621,7 +621,7 @@ class Toolchain(object):
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
-        @param: onlymod: boolean/string to indicate if the toolchain should only load the environment
+        :param onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
