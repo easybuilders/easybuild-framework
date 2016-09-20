@@ -1262,7 +1262,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
     :param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
     :param lic_specs: list of license specifications
-    @return: tuple with list of valid license specs found and name of first valid environment variable
+    :return: tuple with list of valid license specs found and name of first valid environment variable
     """
     valid_lic_specs = []
     lic_env_var = None

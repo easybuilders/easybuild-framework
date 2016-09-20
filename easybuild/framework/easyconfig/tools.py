@@ -293,7 +293,7 @@ def det_easyconfig_paths(orig_paths):
     """
     Determine paths to easyconfig files.
     :param orig_paths: list of original easyconfig paths
-    @return: list of paths to easyconfig files
+    :return: list of paths to easyconfig files
     """
     from_pr = build_option('from_pr')
     robot_path = build_option('robot_path')
@@ -354,7 +354,7 @@ def det_easyconfig_paths(orig_paths):
 def parse_easyconfigs(paths, validate=True):
     """
     Parse easyconfig files
-    @params paths: paths to easyconfigs
+    :param paths: paths to easyconfigs
     """
     easyconfigs = []
     generated_ecs = False

@@ -55,7 +55,8 @@ _log = fancylogger.getLogger("toolchain.utilities")
 def search_toolchain(name):
     """
     Obtain a Toolchain instance for the toolchain with specified name, next to a list of available toolchains.
-    @return Toolchain instance (or None), found_toolchains
+    :param name: toolchain name
+    :return: Toolchain instance (or None), found_toolchains
     """
 
     package = easybuild.tools.toolchain

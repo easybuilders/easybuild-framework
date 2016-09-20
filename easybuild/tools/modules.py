@@ -725,7 +725,7 @@ class ModulesTool(object):
         Modules with an empty list of $MODULEPATH extensions are included in the result.
 
         :param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
-        @return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
+        :return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
         """
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
@@ -1105,7 +1105,7 @@ def get_software_libdir(name, only_one=True, fs=None):
     Returns the library subdirectory, relative to software root.
     It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
 
-    @param: name of the software package
+    :param name: name of the software package
     :param only_one: indicates whether only one lib path is expected to be found
     :param fs: only retain library subdirs that contain one of the files in this list
     """

@@ -44,7 +44,6 @@ class EasyBuildMNS(ModuleNamingScheme):
         Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.
 
         :param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
-
-        @return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
+        :return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
         """
         return os.path.join(ec['name'], det_full_ec_version(ec))

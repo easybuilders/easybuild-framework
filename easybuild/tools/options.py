@@ -883,7 +883,7 @@ class EasyBuildOptions(GeneralOption):
             Utility function to reparse EasyBuild configuration.
             :param args: command line arguments to pass to configuration parser
             :param withcfg: whether or not to also consider configuration files
-            @return: dictionary with parsed configuration options, by option group
+            :return: dictionary with parsed configuration options, by option group
             """
             if args is None:
                 args = []
@@ -1074,7 +1074,7 @@ def parse_external_modules_metadata(cfgs):
     Parse metadata for external modules.
 
     :param cfgs: list of config files providing metadata for external modules
-    @return parsed metadata for external modules
+    :return: parsed metadata for external modules
     """
 
     # use external modules metadata configuration files that are available by default, unless others are specified
