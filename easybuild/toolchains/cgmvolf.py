@@ -28,7 +28,7 @@
 """
 EasyBuild support for cgmvolf compiler toolchain (includes Clang, GFortran, MVAPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.cgmvapich2 import Cgmvapich2

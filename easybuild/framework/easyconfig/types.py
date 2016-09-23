@@ -26,10 +26,11 @@
 """
 Support for checking types of easyconfig parameter values.
 
-@author: Caroline De Brouwer (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Caroline De Brouwer (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from vsc.utils import fancylogger
+from distutils.util import strtobool
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
@@ -53,8 +54,8 @@ def check_element_types(elems, allowed_types):
     """
     Check whether types of elements of specified (iterable) value are as expected.
 
-    @param elems: iterable value (list or dict) of elements
-    @param allowed_types: allowed types per element; either a simple list, or a dict of allowed_types by element name
+    :param elems: iterable value (list or dict) of elements
+    :param allowed_types: allowed types per element; either a simple list, or a dict of allowed_types by element name
     """
     # combine elements with their list of allowed types
     elems_and_allowed_types = None
@@ -135,8 +136,8 @@ def is_value_of_type(value, expected_type):
     Check whether specified value matches a particular very specific (non-trivial) type,
     which is specified by means of a 2-tuple: (parent type, tuple with additional type requirements).
 
-    @param value: value to check the type of
-    @param expected_type: type of value to check against
+    :param value: value to check the type of
+    :param expected_type: type of value to check against
     """
     type_ok = False
 
@@ -189,9 +190,9 @@ def check_type_of_param_value(key, val, auto_convert=False):
     """
     Check value type of specified easyconfig parameter.
 
-    @param key: name of easyconfig parameter
-    @param val: easyconfig parameter value, of which type should be checked
-    @param auto_convert: try to automatically convert to expected value type if required
+    :param key: name of easyconfig parameter
+    :param val: easyconfig parameter value, of which type should be checked
+    :param auto_convert: try to automatically convert to expected value type if required
     """
     type_ok, newval = False, None
     expected_type = PARAMETER_TYPES.get(key)
@@ -224,8 +225,8 @@ def convert_value_type(val, typ):
     """
     Try to convert type of provided value to specific type.
 
-    @param val: value to convert type of
-    @param typ: target type
+    :param val: value to convert type of
+    :param typ: target type
     """
     res = None
 
@@ -255,14 +256,16 @@ def convert_value_type(val, typ):
     return res
 
 
-def to_name_version_dict(spec):
+def to_toolchain_dict(spec):
     """
-    Convert a comma-separated string or 2-element list of strings to a dictionary with name/version keys.
-    If the specified value is a dict already, the keys are checked to be only name/version.
+    Convert a comma-separated string or 2/3-element list of strings to a dictionary with name/version keys, and
+    optionally a hidden key. If the specified value is a dict already, the keys are checked to be only
+    name/version/hidden.
 
     For example: "intel, 2015a" => {'name': 'intel', 'version': '2015a'}
+                 "foss, 2016a, True" => {'name': 'foss', 'version': '2016a', 'hidden': True}
 
-    @param spec: a comma-separated string with two values, or a 2-element list of strings, or a dict
+    :param spec: a comma-separated string with two or three values, or a 2/3-element list of strings, or a dict
     """
     # check if spec is a string or a list of two values; else, it can not be converted
     if isinstance(spec, basestring):
@@ -272,20 +275,31 @@ def to_name_version_dict(spec):
         # 2-element list
         if len(spec) == 2:
             res = {'name': spec[0].strip(), 'version': spec[1].strip()}
+        # 3-element list
+        elif len(spec) == 3:
+            res = {'name': spec[0].strip(), 'version': spec[1].strip(), 'hidden': strtobool(spec[2].strip())}
         else:
-            raise EasyBuildError("Can not convert list %s to name and version dict. Expected 2 elements", spec)
+            raise EasyBuildError("Can not convert list %s to toolchain dict. Expected 2 or 3 elements", spec)
 
     elif isinstance(spec, dict):
         # already a dict, check keys
-        if sorted(spec.keys()) == ['name', 'version']:
+        sorted_keys = sorted(spec.keys())
+        if sorted_keys == ['name', 'version'] or sorted_keys == ['hidden', 'name', 'version']:
             res = spec
         else:
-            raise EasyBuildError("Incorrect set of keys in provided dictionary, should be only name/version: %s", spec)
+            raise EasyBuildError("Incorrect set of keys in provided dictionary, should be only name/version/hidden: %s",
+                                 spec)
 
     else:
-        raise EasyBuildError("Conversion of %s (type %s) to name and version dict is not supported", spec, type(spec))
+        raise EasyBuildError("Conversion of %s (type %s) to toolchain dict is not supported", spec, type(spec))
 
     return res
+
+
+def to_name_version_dict(spec):
+    """Deprecated in favor of to_toolchain_dict."""
+    _log.deprecated("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
+    return to_toolchain_dict(spec)
 
 
 def to_list_of_strings_and_tuples(spec):
@@ -370,7 +384,7 @@ def to_dependency(dep):
                 if key in ['name', 'version', 'versionsuffix']:
                     depspec[key] = str(value)
                 elif key == 'toolchain':
-                    depspec['toolchain'] = to_name_version_dict(value)
+                    depspec['toolchain'] = to_toolchain_dict(value)
                 elif not found_name_version:
                     depspec.update({'name': key, 'version': str(value)})
                 else:
@@ -422,11 +436,15 @@ def to_checksums(checksums):
 
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
-# specific type: dict with only name/version as keys, and with string values
+# specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
-NAME_VERSION_DICT = (dict, as_hashable({
-    'elem_types': [str],
-    'opt_keys': [],
+TOOLCHAIN_DICT = (dict, as_hashable({
+    'elem_types': {
+        'hidden': [bool],
+        'name': [str],
+        'version': [str],
+    },
+    'opt_keys': ['hidden'],
     'req_keys': ['name', 'version'],
 }))
 DEPENDENCY_DICT = (dict, as_hashable({
@@ -434,7 +452,7 @@ DEPENDENCY_DICT = (dict, as_hashable({
         'full_mod_name': [str],
         'name': [str],
         'short_mod_name': [str],
-        'toolchain': [NAME_VERSION_DICT],
+        'toolchain': [TOOLCHAIN_DICT],
         'version': [str],
         'versionsuffix': [str],
     },
@@ -455,7 +473,7 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
 }))
 CHECKSUMS = (list, as_hashable({'elem_types': [STRING_OR_TUPLE_LIST]}))
 
-CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT, SANITY_CHECK_PATHS_DICT,
+CHECKABLE_TYPES = [CHECKSUMS, DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT, SANITY_CHECK_PATHS_DICT,
                   STRING_OR_TUPLE_LIST, TUPLE_OF_STRINGS]
 
 # easy types, that can be verified with isinstance
@@ -468,7 +486,7 @@ PARAMETER_TYPES = {
     'osdependencies': STRING_OR_TUPLE_LIST,
     'patches': STRING_OR_TUPLE_LIST,
     'sanity_check_paths': SANITY_CHECK_PATHS_DICT,
-    'toolchain': NAME_VERSION_DICT,
+    'toolchain': TOOLCHAIN_DICT,
     'version': basestring,
 }
 # add all dependency types as dependencies
@@ -482,7 +500,7 @@ TYPE_CONVERSION_FUNCTIONS = {
     str: str,
     CHECKSUMS: to_checksums,
     DEPENDENCIES: to_dependencies,
-    NAME_VERSION_DICT: to_name_version_dict,
+    TOOLCHAIN_DICT: to_toolchain_dict,
     SANITY_CHECK_PATHS_DICT: to_sanity_check_paths_dict,
     STRING_OR_TUPLE_LIST: to_list_of_strings_and_tuples,
 }

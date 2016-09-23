@@ -20,7 +20,7 @@
 """
 Module provided an ordered dictionary class.
 
-@author: Raymond Hettinger
+:author: Raymond Hettinger
 """
 try:
     from thread import get_ident as _get_ident

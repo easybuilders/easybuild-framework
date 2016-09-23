@@ -25,7 +25,7 @@
 """
 Support for CUDA compilers as toolchain (co-)compiler.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion

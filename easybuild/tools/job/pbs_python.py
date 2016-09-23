@@ -25,9 +25,9 @@
 """
 Interface module to TORQUE (PBS).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
 import os
@@ -111,7 +111,7 @@ class PbsPython(JobBackend):
         """
         Add a job to the queue.
 
-        @param dependencies: jobs on which this job depends.
+        :param dependencies: jobs on which this job depends.
         """
         if dependencies:
             job.add_dependencies(dependencies)

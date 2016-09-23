@@ -35,6 +35,7 @@ import shutil
 import stat
 import sys
 import tempfile
+from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -47,6 +48,7 @@ from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
+from easybuild.tools.modules import Lmod
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -208,12 +210,21 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0.eb'), ec_file)
 
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) < StrictVersion('5.8'):
+            modloadmsg = 'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'
+            modloadmsg_regex_tcl = 'THANKS.*, I AM toy v0.0"'
+            modloadmsg_regex_lua = '"THANKS., I AM toy v0.0"'
+        else:
+            modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
+            modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0"'
+            modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\]==\]'
+
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
             "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
             "modextravars = {'FOO': 'bar'}",
-            "modloadmsg =  'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'",
+            "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
             "modluafooter = 'io.stderr:write(\"oh hai!\")'"  # ignored when module syntax is Tcl
         ])
@@ -239,15 +250,16 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/baz$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root$', toy_module_txt, re.M))
-            self.assertTrue(re.search(r'module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0"$', toy_module_txt, re.M))
+            mod_load_msg = r'module-info mode load.*\n\s*puts stderr\s*.*%s$' % modloadmsg_regex_tcl
+            self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
-            self.assertTrue(re.search(r'^if mode\(\) == "load" then\n\s*io.stderr:write\(".*I AM toy v0.0"\)$',
-                                      toy_module_txt, re.M))
+            mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
+            self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
             self.assertTrue(re.search(r'^io.stderr:write\("oh hai!"\)$', toy_module_txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
@@ -730,10 +742,27 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12-test.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
-    def test_toy_hidden(self):
-        """Test installing a hidden module."""
+    def test_toy_hidden_cmdline(self):
+        """Test installing a hidden module using the '--hidden' command line option."""
         ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
         self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
+        # module file is hidden
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+        # installed software is not hidden
+        toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
+        self.assertTrue(os.path.exists(toybin))
+
+    def test_toy_hidden_easyconfig(self):
+        """Test installing a hidden module using the 'hidden = True' easyconfig parameter."""
+        # copy toy easyconfig file, and add hiding option to it
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        shutil.copy2(ec_file, self.test_prefix)
+        ec_file = os.path.join(self.test_prefix, 'toy-0.0.eb')
+        write_file(ec_file, "\nhidden = True\n", append=True)
+        self.test_toy_build(ec_file=ec_file, verify=False)
         # module file is hidden
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         if get_module_syntax() == 'Lua':
@@ -795,6 +824,23 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module += '.lua'
         toy_mod_txt = read_file(toy_module)
 
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) < StrictVersion('5.8'):
+            modloadmsg_tcl = [
+                r'    puts stderr "THANKS FOR LOADING ME, I AM toy v0.0"',
+            ]
+            modloadmsg_lua = [
+                r'    io.stderr:write\("THANKS FOR LOADING ME, I AM toy v0.0"\)',
+            ]
+        else:
+            modloadmsg_tcl = [
+                r'    puts stderr "THANKS FOR LOADING ME',
+                r'    I AM toy v0.0"',
+            ]
+            modloadmsg_lua = [
+                r'    io.stderr:write\(\[==\[THANKS FOR LOADING ME',
+                r'    I AM toy v0.0\]==\]\)',
+            ]
+
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
                 r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
@@ -818,7 +864,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend_path\("SOMEPATH", root\)',
                 r'',
                 r'if mode\(\) == "load" then',
-                r'    io.stderr:write\("THANKS FOR LOADING ME, I AM toy v0.0"\)',
+            ] + modloadmsg_lua + [
                 r'end',
                 r'io.stderr:write\("oh hai\!"\)',
                 r'-- Built with EasyBuild version .*$',
@@ -850,7 +896,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend-path	SOMEPATH		\$root',
                 r'',
                 r'if { \[ module-info mode load \] } {',
-                r'    puts stderr "THANKS FOR LOADING ME, I AM toy v0.0"',
+            ] + modloadmsg_tcl + [
                 r'}',
                 r'puts stderr "oh hai\!"',
                 r'# Built with EasyBuild version .*$',

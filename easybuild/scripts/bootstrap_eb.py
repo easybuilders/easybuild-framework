@@ -363,7 +363,10 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
-    os.environ['PYTHONPATH'] = distribute_egg_dir
+    if distribute_egg_dir is not None:
+        os.environ['PYTHONPATH'] = distribute_egg_dir
+    else:
+        del os.environ['PYTHONPATH']
 
     # template string to inject in template easyconfig
     templates = {}

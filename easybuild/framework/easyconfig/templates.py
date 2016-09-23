@@ -27,8 +27,8 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import re
 from vsc.utils import fancylogger
@@ -51,6 +51,7 @@ TEMPLATE_NAMES_EASYCONFIG = [
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
+    'github_account',
     'name',
     'version',
     'versionsuffix',
@@ -88,6 +89,8 @@ TEMPLATE_CONSTANTS = [
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
+    ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
+     'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
@@ -142,7 +145,6 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     # ignore
     if ignore is None:
         ignore = []
-
     # make dict
     template_values = {}
 
@@ -158,7 +160,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             continue
 
         if name[0].startswith('toolchain_'):
-            tc = config.get('toolchain')[0]
+            tc = config.get('toolchain')
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
@@ -167,7 +169,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
-            version = config['version'][0]
+            version = config['version']
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
@@ -187,7 +189,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         elif name[0].endswith('letter'):
             # parse first letters
             if name[0].startswith('name'):
-                softname = config['name'][0]
+                softname = config['name']
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
         else:
@@ -195,10 +197,17 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     # step 2: define *ver and *shortver templates
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        for dep in config['dependencies'][0]:
-            if isinstance(dep['name'], basestring) and dep['name'].lower() == name.lower():
-                template_values['%sver' % pref] = dep['version']
-                template_values['%sshortver' % pref] = '.'.join(dep['version'].split('.')[:2])
+        for dep in config.get('dependencies', []):
+            if isinstance(dep, dict):
+                dep_name, dep_version = dep['name'], dep['version']
+            elif isinstance(dep, (list, tuple)):
+                dep_name, dep_version = dep[0], dep[1]
+            else:
+                raise EasyBuildError("Unexpected type for dependency: %s", dep)
+
+            if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
+                template_values['%sver' % pref] = dep_version
+                template_values['%sshortver' % pref] = '.'.join(dep_version.split('.')[:2])
                 break
 
     # step 3: add remaining from config
@@ -206,8 +215,8 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         if name in ignore:
             continue
         if name in config:
-            template_values[name] = config[name][0]
-            _log.debug('name: %s, config: %s', name, config[name][0])
+            template_values[name] = config[name]
+            _log.debug('name: %s, config: %s', name, config[name])
 
     # step 4. make lower variants if not skip_lower
     if not skip_lower:
@@ -238,13 +247,15 @@ def to_template_str(value, templ_const, templ_val):
         old_value = value
         # check for constant values
         for tval, tname in templ_const.items():
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
 
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
             # by another non-alphanumeric.
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
 
     return value
 

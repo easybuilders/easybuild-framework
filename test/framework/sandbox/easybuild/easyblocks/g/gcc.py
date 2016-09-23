@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,18 +23,11 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
+Dummy easyblock for GCC
 
-:author: Kenneth Hoste (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+from easybuild.framework.easyblock import EasyBlock
 
-from easybuild.toolchains.iiqmpi import Iiqmpi
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.acml import Acml
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-
-
-class Iqacml(Iiqmpi, Acml, ScaLAPACK, Fftw):
-    """Compiler toolchain with Intel compilers, QLogic MPI, ACML, ScaLAPACK and FFTW."""
-    NAME = 'iqacml'
-    SUBTOOLCHAIN = Iiqmpi.NAME
+class EB_GCC(EasyBlock):
+    pass

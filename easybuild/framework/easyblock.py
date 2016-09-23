@@ -26,14 +26,14 @@
 Generic EasyBuild support for building and installing software.
 The EasyBlock class should serve as a base class for all easyblocks.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 import copy
@@ -114,7 +114,6 @@ class EasyBlock(object):
     # static class method for extra easyconfig parameter definitions
     # this makes it easy to access the information without needing an instance
     # subclasses of EasyBlock should call this method with a dictionary
-
     @staticmethod
     def extra_options(extra=None):
         """
@@ -134,7 +133,7 @@ class EasyBlock(object):
     def __init__(self, ec):
         """
         Initialize the EasyBlock instance.
-        @param ec: a parsed easyconfig file (EasyConfig instance)
+        :param ec: a parsed easyconfig file (EasyConfig instance)
         """
 
         # keep track of original working directory, so we can go back there
@@ -297,9 +296,9 @@ class EasyBlock(object):
         """
         Obtain checksum for given filename.
 
-        @param checksums: a list or tuple of checksums (or None)
-        @param filename: name of the file to obtain checksum for
-        @param index: index of file in list
+        :param checksums: a list or tuple of checksums (or None)
+        :param filename: name of the file to obtain checksum for
+        :param index: index of file in list
         """
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, (list, tuple)):
@@ -728,8 +727,9 @@ class EasyBlock(object):
         clean_name = remove_unwanted_chars(self.name)
 
         # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
-        tcversion = self.toolchain.version.lstrip('-')
-        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
+        tc = self.cfg['toolchain']
+        tcversion = tc['version'].lstrip('-')
+        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], tc['name'], tcversion, self.cfg['versionsuffix'])
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
@@ -761,7 +761,12 @@ class EasyBlock(object):
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
-            self.cfg['cleanupoldbuild'] = True
+            if build_option('module_only'):
+                self.log.debug("Disabling cleanupoldbuild because we run as module-only")
+                self.cfg['cleanupoldbuild'] = False
+            else:
+                self.cfg['cleanupoldbuild'] = True
+
             self.cfg['keeppreviousinstall'] = False
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
@@ -812,7 +817,10 @@ class EasyBlock(object):
                     self.log.info("Removed old directory %s" % dir_name)
                 except OSError, err:
                     raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
+            elif build_option('module_only'):
+                self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
             else:
+                self.log.info("Moving existing directory %s out of the way...", dir_name)
                 try:
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     backupdir = "%s.%s" % (dir_name, timestamp)
@@ -895,7 +903,7 @@ class EasyBlock(object):
         """
         Make the dependencies for the module file.
 
-        @param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
+        :param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
         deps = []
         mns = ActiveMNS()
@@ -960,8 +968,8 @@ class EasyBlock(object):
         """
         Set extra stuff in module file, e.g. $EBROOT*, $EBVERSION*, etc.
 
-        @param altroot: path to use to define $EBROOT*
-        @param altversion: version to use to define $EBVERSION*
+        :param altroot: path to use to define $EBROOT*
+        :param altversion: version to use to define $EBVERSION*
         """
         lines = ['']
 
@@ -1281,7 +1289,9 @@ class EasyBlock(object):
         -- else, treat it as subdir for regular procedure
         """
         start_dir = ''
-        if self.cfg['start_dir']:
+        # do not use the specified 'start_dir' when running as --module-only as
+        # the directory will not exist (extract_step is skipped)
+        if self.cfg['start_dir'] and not build_option('module_only'):
             start_dir = self.cfg['start_dir']
 
         if not os.path.isabs(start_dir):
@@ -1542,7 +1552,7 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
 
-        @param start_dir: guess start directory based on unpacked sources
+        :param start_dir: guess start directory based on unpacked sources
         """
         if self.dry_run:
             self.dry_run_msg("Defining build environment, based on toolchain (options) and specified dependencies...\n")
@@ -1649,8 +1659,11 @@ class EasyBlock(object):
             raise EasyBuildError("Improper default extension class specification, should be list/tuple or string.")
 
         # get class instances for all extensions
-        for ext in self.exts:
+        exts_cnt = len(self.exts)
+        for idx, ext in enumerate(self.exts):
             self.log.debug("Starting extension %s" % ext['name'])
+            tup = (ext['name'], ext.get('version', ''), idx+1, exts_cnt)
+            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)
@@ -1697,8 +1710,8 @@ class EasyBlock(object):
                 self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
 
             if self.dry_run:
-                eb_class = cls.__name__
-                msg = "\n* installing extension %s %s using '%s' easyblock\n" % (ext['name'], ext['version'], eb_class)
+                tup = (ext['name'], ext.get('version', ''), cls.__name__)
+                msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
             self.log.debug("List of loaded modules: %s", self.modules_tool.list())
@@ -1968,7 +1981,7 @@ class EasyBlock(object):
         """
         Generate module file
 
-        @param fake: generate 'fake' module in temporary location, rather than actual module file
+        :param fake: generate 'fake' module in temporary location, rather than actual module file
         """
         modpath = self.module_generator.prepare(fake=fake)
 
@@ -2302,8 +2315,8 @@ def print_dry_run_note(loc, silent=True):
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
-    @param ecdict: dictionary contaning parsed easyconfig + metadata
-    @param init_env: original environment (used to reset environment)
+    :param ecdict: dictionary contaning parsed easyconfig + metadata
+    :param init_env: original environment (used to reset environment)
     """
     silent = build_option('silent')
 
@@ -2496,7 +2509,7 @@ def build_and_install_one(ecdict, init_env):
 def get_easyblock_instance(ecdict):
     """
     Get an instance for this easyconfig
-    @param easyconfig: parsed easyconfig (EasyConfig instance)
+    :param easyconfig: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
