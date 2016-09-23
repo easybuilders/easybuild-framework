@@ -25,8 +25,8 @@
 """
 Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import pkg_resources
 

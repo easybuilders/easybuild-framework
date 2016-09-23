@@ -26,8 +26,8 @@
 EasyBuild support for iomkl compiler toolchain (includes Intel compilers (icc, ifort), OpenMPI,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.iompi import Iompi

@@ -96,6 +96,28 @@ class GeneralTest(EnhancedTestCase):
         err_pat = r"required module 'thisdoesnotexist' is not available \(available from http://example.com\)"
         self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
 
+    def test_docstrings(self):
+        """Make sure tags included in docstrings are correctly formatted."""
+        # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
+        easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
+
+        docstring_regexes = [
+            re.compile("@author"),
+            re.compile("@param"),
+            re.compile("@return"),
+        ]
+
+        for dirpath, _, filenames in os.walk(easybuild_loc):
+            for filename in [f for f in filenames if f.endswith('.py')]:
+                # script that translates @param into :param ...: contains @param, so just skip that
+                if filename == 'fix_docs.py':
+                    continue
+
+                path = os.path.join(dirpath, filename)
+                txt = read_file(path)
+                for regex in docstring_regexes:
+                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+
 
 def suite():
     """ returns all the testcases in this module """

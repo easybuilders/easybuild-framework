@@ -25,7 +25,7 @@
 """
 EasyBuild support for a GCC+CUDA compiler toolchain.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.cuda import Cuda

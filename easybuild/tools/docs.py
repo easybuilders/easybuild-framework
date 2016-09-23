@@ -25,20 +25,22 @@
 """
 Documentation-related functionality
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Caroline De Brouwer (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Caroline De Brouwer (Ghent University)
 """
 import copy
 import inspect
 import os
 import re
+import string
 import sys
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.docs import mk_rst_table
 from vsc.utils.missing import nub
@@ -46,17 +48,22 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_CONSTANTS
-from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS
+from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS, template_constant_dict
+from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
 from easybuild.framework.extension import Extension
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
@@ -64,6 +71,7 @@ _log = fancylogger.getLogger('tools.docs')
 
 
 INDENT_4SPACES = ' ' * 4
+INDENT_2SPACES = ' ' * 2
 
 DETAILED = 'detailed'
 SIMPLE = 'simple'
@@ -80,11 +88,13 @@ def generate_doc(name, params):
 
 def rst_title_and_table(title, table_titles, table_values):
     """Generate table in section with title in .rst format."""
-    doc = [
-        title,
-        '-' * len(title),
-        '',
-    ]
+    doc = []
+    if title is not None:
+        doc.extend([
+            title,
+            '-' * len(title),
+            '',
+        ])
     doc.extend(mk_rst_table(table_titles, table_values))
     return doc
 
@@ -412,9 +422,15 @@ def avail_classes_tree(classes, class_names, locations, detailed, format_strings
             txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
                         format_strings['sep'] + "%s (%s %s)" % (class_name, mod, loc))
         else:
-            txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth + format_strings['sep'] + class_name)
+            txt.append(format_strings['zero_indent'] + format_strings['indent'] * depth +
+                       format_strings['sep'] + class_name)
         if 'children' in class_info:
-            txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
+            if len(class_info['children']) > 0:
+                if format_strings.get('newline') is not None:
+                    txt.append(format_strings['newline'])
+                txt.extend(avail_classes_tree(classes, class_info['children'], locations, detailed, format_strings, depth + 1))
+                if format_strings.get('newline') is not None:
+                    txt.append(format_strings['newline'])
     return txt
 
 
@@ -430,8 +446,9 @@ def list_easyblocks(list_easyblocks=SIMPLE, output_format=FORMAT_TXT):
         FORMAT_RST : {
             'det_root_templ': "* **%s** (%s%s)",
             'root_templ': "* **%s**",
-            'zero_indent': INDENT_4SPACES,
-            'indent': INDENT_4SPACES,
+            'zero_indent': INDENT_2SPACES,
+            'indent': INDENT_2SPACES,
+            'newline': '',
             'sep': '* ',
         }
     }
@@ -497,11 +514,213 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
         else:
             txt.append(format_strings['root_templ'] % root)
 
+        if format_strings.get('newline') is not None:
+                txt.append(format_strings['newline'])
         if 'children' in classes[root]:
             txt.extend(avail_classes_tree(classes, classes[root]['children'], locations, detailed, format_strings))
-            txt.append("")
-
+            if format_strings.get('newline') is not None:
+                txt.append(format_strings['newline'])
     return '\n'.join(txt)
+
+
+def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False):
+    """
+    Show list of supported software
+
+    :param output_format: output format to use
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :param only_installed: only retain software for which a corresponding module is available
+    :return: multi-line string presenting requested info
+    """
+    silent = build_option('silent')
+
+    ec_paths = find_matching_easyconfigs('*', '*', build_option('robot_path') or [])
+    ecs = []
+    cnt = len(ec_paths)
+    for idx, ec_path in enumerate(ec_paths):
+        # full EasyConfig instance is only required when module name is needed
+        # this is significantly slower (5-10x) than a 'shallow' parse via EasyConfigParser
+        if only_installed:
+            ec = process_easyconfig(ec_path, validate=False, parse_only=True)[0]['ec']
+        else:
+            ec = EasyConfigParser(filename=ec_path).get_config_dict()
+
+        ecs.append(ec)
+        print_msg('\r', prefix=False, newline=False, silent=silent)
+        print_msg("Processed %d/%d easyconfigs..." % (idx+1, cnt), newline=False, silent=silent)
+    print_msg('', prefix=False, silent=silent)
+
+    software = {}
+    for ec in ecs:
+        software.setdefault(ec['name'], [])
+        if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+            toolchain = DUMMY_TOOLCHAIN_NAME
+        else:
+            toolchain = '%s/%s' % (ec['toolchain']['name'], ec['toolchain']['version'])
+
+        versionsuffix = ec.get('versionsuffix', '')
+
+        # make sure versionsuffix gets properly templated
+        if versionsuffix and isinstance(ec, dict):
+            template_values = template_constant_dict(ec)
+            versionsuffix = versionsuffix % template_values
+
+        software[ec['name']].append({
+            'description': ec['description'],
+            'homepage': ec['homepage'],
+            'toolchain': toolchain,
+            'version': ec['version'],
+            'versionsuffix': versionsuffix,
+        })
+
+        if only_installed:
+            software[ec['name']][-1].update({'mod_name': ec.full_mod_name})
+
+    print_msg("Found %d different software packages" % len(software), silent=silent)
+
+    if only_installed:
+        avail_mod_names = modules_tool().available()
+
+        # rebuild software, only retain entries with a corresponding available module
+        software, all_software = {}, software
+        for key in all_software:
+            for entry in all_software[key]:
+                if entry['mod_name'] in avail_mod_names:
+                    software.setdefault(key, []).append(entry)
+
+        print_msg("Retained %d installed software packages" % len(software), silent=silent)
+
+    return generate_doc('list_software_%s' % output_format, [software, detailed])
+
+
+def list_software_rst(software, detailed=False):
+    """
+    Return overview of supported software in RST format
+
+    :param software: software information (structured like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
+
+    title = "List of supported software"
+    lines = [
+        title,
+        '=' * len(title),
+        '',
+        "EasyBuild |version| supports %d different software packages (incl. toolchains, bundles):" % len(software),
+        '',
+    ]
+
+    # links to per-letter tables
+    letter_refs = ''
+    key_letters = nub(sorted(k[0].lower() for k in software.keys()))
+    for letter in string.lowercase:
+        if letter in key_letters:
+            if letter_refs:
+                letter_refs += " - :ref:`list_software_letter_%s`" % letter
+            else:
+                letter_refs = ":ref:`list_software_letter_%s`" % letter
+    lines.extend([letter_refs, ''])
+
+    def key_to_ref(name):
+        """Create a reference label for the specified software name."""
+        return 'list_software_%s_%d' % (name, sum(ord(l) for l in name))
+
+    letter = None
+    sorted_keys = sorted(software.keys(), key=lambda x: x.lower())
+    for key in sorted_keys:
+
+        # start a new subsection for each letter
+        if key[0].lower() != letter:
+
+            # subsection for new letter
+            letter = key[0].lower()
+            lines.extend([
+                '',
+                '.. _list_software_letter_%s:' % letter,
+                '',
+                "*%s*" % letter.upper(),
+                '-' * 3,
+                '',
+            ])
+
+            if detailed:
+                # quick links per software package
+                lines.extend([
+                    '',
+                    ' - '.join(':ref:`%s`' % key_to_ref(k) for k in sorted_keys if k[0].lower() == letter),
+                    '',
+                ])
+
+        # append software to list, including version(suffix) & toolchain info if detailed info is requested
+        if detailed:
+            table_titles = ['version', 'toolchain']
+            table_values = [[], []]
+
+            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+
+            with_vsuff = any(vs for (_, vs) in pairs)
+            if with_vsuff:
+                table_titles.insert(1, 'versionsuffix')
+                table_values.insert(1, [])
+
+            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+                table_values[0].append('``%s``' % ver)
+                if vsuff:
+                    table_values[1].append('``%s``' % vsuff)
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+                table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
+
+            lines.extend([
+                '',
+                '.. _%s:' % key_to_ref(key),
+                '',
+                '*%s*' % key,
+                '+' * (len(key) + 2),
+                '',
+                ' '.join(software[key][-1]['description'].split('\n')).lstrip(' '),
+                '',
+                "*homepage*: %s" % software[key][-1]['homepage'],
+                '',
+            ] + rst_title_and_table(None, table_titles, table_values))
+        else:
+            lines.append("* %s" % key)
+
+    return '\n'.join(lines)
+
+
+def list_software_txt(software, detailed=False):
+    """
+    Return overview of supported software in plain text
+
+    :param software: software information (structured like list_software does)
+    :param detailed: whether or not to return detailed information (incl. version, versionsuffix, toolchain info)
+    :return: multi-line string presenting requested info
+    """
+
+    lines = ['']
+    for key in sorted(software, key=lambda x: x.lower()):
+        lines.append('* %s' % key)
+        if detailed:
+            lines.extend([
+                '',
+                ' '.join(software[key][-1]['description'].split('\n')),
+                '',
+                "homepage: %s" % software[key][-1]['homepage'],
+                '',
+            ])
+            pairs = nub((x['version'], x['versionsuffix']) for x in software[key])
+            for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
+                tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
+
+                line = "  * %s v%s" % (key, ver)
+                if vsuff:
+                    line += " (versionsuffix: '%s')" % vsuff
+                line += ": %s" % ', '.join(sorted(nub(tcs)))
+                lines.append(line)
+            lines.append('')
+
+    return '\n'.join(lines)
 
 
 def list_toolchains(output_format=FORMAT_TXT):

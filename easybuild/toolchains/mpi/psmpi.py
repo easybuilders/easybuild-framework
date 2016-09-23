@@ -25,7 +25,7 @@
 """
 Support for Parastation MPI as toolchain MPI library.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.mpi.mpich import Mpich

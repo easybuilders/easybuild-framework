@@ -25,13 +25,13 @@
 """
 Command line options for eb
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import glob
@@ -40,7 +40,10 @@ import re
 import shutil
 import sys
 import tempfile
+import vsc.utils.generaloption
 from distutils.version import LooseVersion
+from vsc.utils import fancylogger
+from vsc.utils.generaloption import GeneralOption
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
@@ -78,8 +81,32 @@ from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
-from vsc.utils import fancylogger
-from vsc.utils.generaloption import GeneralOption
+
+try:
+    from humanfriendly.terminal import terminal_supports_colors
+except ImportError:
+    # provide an approximation that should work in most cases
+    def terminal_supports_colors(stream):
+        try:
+            return os.isatty(stream.fileno())
+        except Exception:
+            # in case of errors do not bother and just return the safe default
+            return False
+
+# monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
+# to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
+# inspired by https://github.com/hpcugent/vsc-base/pull/151
+# this fixes https://github.com/hpcugent/easybuild-framework/issues/1438
+# proper fix would be to implement a serialiser for command line options
+def eb_shell_quote(token):
+    """
+    Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
+    so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
+    """
+    # escape any non-escaped single quotes, and wrap entire token in single quotes
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", str(token))
+
+vsc.utils.generaloption.shell_quote = eb_shell_quote
 
 
 CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
@@ -97,7 +124,7 @@ def cleanup_and_exit(tmpdir):
     """
     Clean up temporary directory and exit.
 
-    @param tmpdir: path to temporary directory to clean up
+    :param tmpdir: path to temporary directory to clean up
     """
     try:
         shutil.rmtree(tmpdir)
@@ -110,7 +137,7 @@ def pretty_print_opts(opts_dict):
     """
     Pretty print options dict.
 
-    @param opts_dict: dictionary with option names as keys, and (value, location) tuples as values
+    :param opts_dict: dictionary with option names as keys, and (value, location) tuples as values
     """
 
     # rewrite option names/values a bit for pretty printing
@@ -141,6 +168,26 @@ def pretty_print_opts(opts_dict):
         lines.append("{0:<{nwopt}} ({1:}) = {2:}".format(opt, loc, opt_val, nwopt=nwopt))
 
     print '\n'.join(lines)
+
+
+def use_color(colorize, stream=sys.stdout):
+    """
+    Return ``True`` or ``False`` depending on whether ANSI color
+    escapes are to be used when printing to `stream`.
+
+    The `colorize` argument can take the three values
+    ``fancylogger.Colorize.AUTO``/``.ALWAYS``/``.NEVER``,
+    see the ``--color`` option for their meaning.
+    """
+    # turn color=auto/yes/no into a boolean value
+    if colorize == fancylogger.Colorize.AUTO:
+        return terminal_supports_colors(stream)
+    elif colorize == fancylogger.Colorize.ALWAYS:
+        return True
+    else:
+        assert colorize == fancylogger.Colorize.NEVER, \
+            "Argument `colorize` must be one of: %s" % ', '.join(fancylogger.Colorize)
+        return False
 
 
 class EasyBuildOptions(GeneralOption):
@@ -197,7 +244,7 @@ class EasyBuildOptions(GeneralOption):
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
-            'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
+            'only-blocks': ("Only build listed blocks", 'strlist', 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
@@ -229,13 +276,13 @@ class EasyBuildOptions(GeneralOption):
                        "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
-                         None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+                         'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
             'software-name': ("Search and build software with given name",
                               None, 'store', None, {'metavar': 'NAME'}),
             'software-version': ("Search and build software with given version",
                                  None, 'store', None, {'metavar': 'VERSION'}),
             'toolchain': ("Search and build with given toolchain (name and version)",
-                          None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+                          'strlist', 'extend', None, {'metavar': 'NAME,VERSION'}),
             'toolchain-name': ("Search and build with given toolchain name",
                                None, 'store', None, {'metavar': 'NAME'}),
             'toolchain-version': ("Search and build with given toolchain version",
@@ -261,7 +308,9 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
-            'color': ("Allow color output", None, 'store_true', True),
+            'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
+                      {'metavar':'WHEN'}),
+            'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
@@ -279,16 +328,22 @@ class EasyBuildOptions(GeneralOption):
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
                                           None, 'store_true', False),
-            'hidden': ("Install 'hidden' module file(s) by prefixing their name with '.'", None, 'store_true', False),
+            'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
             'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
+            'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
+                                "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
+            'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
+            'mpi-cmd-template': ("Template for MPI commands (template keys: %(nr_ranks)s, %(cmd)s)",
+                                 None, 'store', None),
+            'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
@@ -305,6 +360,10 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
                                           None, 'store_true', False),
+            'use-ccache': ("Enable use of ccache to speed up compilation, with specified cache dir",
+                           str, 'store', False, {'metavar': "PATH"}),
+            'use-f90cache': ("Enable use of f90cache to speed up compilation, with specified cache dir",
+                             str, 'store', False, {'metavar': "PATH"}),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
@@ -351,7 +410,7 @@ class EasyBuildOptions(GeneralOption):
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
-                              None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
+                              'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-header': ("Path to file containing header to be added to all generated module files",
@@ -416,6 +475,10 @@ class EasyBuildOptions(GeneralOption):
             'last-log': ("Print location to EasyBuild log file of last (failed) session", None, 'store_true', False),
             'list-easyblocks': ("Show list of available easyblocks",
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
+            'list-installed-software': ("Show list of installed software", 'choice', 'store_or_None', 'simple',
+                                        ['simple', 'detailed']),
+            'list-software': ("Show list of supported software", 'choice', 'store_or_None', 'simple',
+                              ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",
                                 None, 'store_true', False),
             'search': ("Search for easyconfig files in the robot search path, print full paths",
@@ -446,6 +509,7 @@ class EasyBuildOptions(GeneralOption):
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
             'github-user': ("GitHub username", str, 'store', None),
+            'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
@@ -817,9 +881,9 @@ class EasyBuildOptions(GeneralOption):
         def reparse_cfg(args=None, withcfg=True):
             """
             Utility function to reparse EasyBuild configuration.
-            @param args: command line arguments to pass to configuration parser
-            @param withcfg: whether or not to also consider configuration files
-            @return: dictionary with parsed configuration options, by option group
+            :param args: command line arguments to pass to configuration parser
+            :param withcfg: whether or not to also consider configuration files
+            :return: dictionary with parsed configuration options, by option group
             """
             if args is None:
                 args = []
@@ -1009,8 +1073,8 @@ def parse_external_modules_metadata(cfgs):
     """
     Parse metadata for external modules.
 
-    @param cfgs: list of config files providing metadata for external modules
-    @return parsed metadata for external modules
+    :param cfgs: list of config files providing metadata for external modules
+    :return: parsed metadata for external modules
     """
 
     # use external modules metadata configuration files that are available by default, unless others are specified
