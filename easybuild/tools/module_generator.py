@@ -36,6 +36,7 @@ import os
 import re
 import sys
 import tempfile
+from distutils.version import StrictVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
@@ -135,6 +136,18 @@ class ModuleGenerator(object):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        """
+        raise NotImplementedError
+
+    def msg_on_load(self, msg):
+        """
+        Add a message that should be printed when loading the module.
+        """
+        raise NotImplementedError
+
+    def set_alias(self, key, value):
+        """
+        Generate set-alias statement in modulefile for the given key/value pair.
         """
         raise NotImplementedError
 
@@ -612,7 +625,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write("%s")' % msg)])
+        if '\n' in msg:
+            if StrictVersion(modules_tool().version) >= StrictVersion('5.8'):
+                stmt_tmpl = 'io.stderr:write([==[%s]==])'
+            else:
+                raise EasyBuildError("Lmod 5.8 (or more recent) is required for multiline load messages in Lua modules")
+        else:
+            stmt_tmpl = 'io.stderr:write("%s")'
+
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
 
     def set_alias(self, key, value):
         """

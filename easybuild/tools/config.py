@@ -104,6 +104,7 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_target_branch',
         'pr_target_repo',
         'github_user',
+        'github_org',
         'group',
         'ignore_dirs',
         'job_backend_config',
@@ -114,6 +115,7 @@ BUILD_OPTIONS_CMDLINE = {
         'job_target_resource',
         'modules_footer',
         'modules_header',
+        'mpi_cmd_template',
         'only_blocks',
         'optarch',
         'parallel',
@@ -130,6 +132,7 @@ BUILD_OPTIONS_CMDLINE = {
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
         'debug',
+        'debug_lmod',
         'dump_autopep8',
         'extended_dry_run',
         'experimental',
@@ -150,13 +153,15 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
-        'use_compiler_cache',
+        'use_ccache',
+        'use_f90cache',
         'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
+        'mpi_tests',
     ],
     'warn': [
         'strict',
@@ -552,7 +557,7 @@ def find_last_log(curlog):
     Find location to last log file that is still available.
 
     :param curlog: location to log file of current session
-    @return: path to last log file (or None if no log files were found)
+    :return: path to last log file (or None if no log files were found)
     """
     variables = ConfigurationVariables()
     log_dir = get_build_log_path()

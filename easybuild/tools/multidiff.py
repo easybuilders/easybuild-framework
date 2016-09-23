@@ -150,7 +150,7 @@ class MultiDiff(object):
         """
         Return the line information for a specific line
         :param line_no: line number to obtain information for
-        @return: list with text lines providing line information
+        :return: list with text lines providing line information
         """
         output = []
         diff_dict = self.diff_info.get(line_no, {})
@@ -243,7 +243,7 @@ def multidiff(base, files, colored=True):
     :param base: base to compare with
     :param files: list of files to compare with base
     :param colored: boolean indicating whether a colored multi-diff should be generated
-    @return: text with multidiff overview
+    :return: text with multidiff overview
     """
     differ = difflib.Differ()
     base_lines = read_file(base).split('\n')
