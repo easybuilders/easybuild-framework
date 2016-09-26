@@ -810,6 +810,32 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
         self.assertTrue(os.path.samefile(path, self.test_prefix))
 
+    def test_remove_file(self):
+        """Test remove_file"""
+        testfile = os.path.join(self.test_prefix, 'foo')
+        ft.write_file(testfile, 'bar')
+
+        self.assertTrue(os.path.exists(testfile))
+        ft.remove_file(testfile)
+
+        ft.write_file(testfile, 'bar')
+        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR|stat.S_IWGRP|stat.S_IWOTH, add=False)
+        self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_file, testfile)
+
+        # also test behaviour of remove_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+        self.mock_stdout(True)
+        ft.remove_file(testfile)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile("^file [^ ]* removed$")
+        self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
 
 def suite():
     """ returns all the testcases in this module """
