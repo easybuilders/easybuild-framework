@@ -72,7 +72,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
     :param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
     :param modtool: ModulesTool instance to use
     :param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
-    @return: True if one or more conflicts were found, False otherwise
+    :return: True if one or more conflicts were found, False otherwise
     """
 
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)

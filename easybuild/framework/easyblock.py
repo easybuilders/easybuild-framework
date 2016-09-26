@@ -727,8 +727,9 @@ class EasyBlock(object):
         clean_name = remove_unwanted_chars(self.name)
 
         # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
-        tcversion = self.toolchain.version.lstrip('-')
-        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
+        tc = self.cfg['toolchain']
+        tcversion = tc['version'].lstrip('-')
+        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], tc['name'], tcversion, self.cfg['versionsuffix'])
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
@@ -760,7 +761,12 @@ class EasyBlock(object):
             self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
-            self.cfg['cleanupoldbuild'] = True
+            if build_option('module_only'):
+                self.log.debug("Disabling cleanupoldbuild because we run as module-only")
+                self.cfg['cleanupoldbuild'] = False
+            else:
+                self.cfg['cleanupoldbuild'] = True
+
             self.cfg['keeppreviousinstall'] = False
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
@@ -811,7 +817,10 @@ class EasyBlock(object):
                     self.log.info("Removed old directory %s" % dir_name)
                 except OSError, err:
                     raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
+            elif build_option('module_only'):
+                self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
             else:
+                self.log.info("Moving existing directory %s out of the way...", dir_name)
                 try:
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     backupdir = "%s.%s" % (dir_name, timestamp)
@@ -1280,7 +1289,9 @@ class EasyBlock(object):
         -- else, treat it as subdir for regular procedure
         """
         start_dir = ''
-        if self.cfg['start_dir']:
+        # do not use the specified 'start_dir' when running as --module-only as
+        # the directory will not exist (extract_step is skipped)
+        if self.cfg['start_dir'] and not build_option('module_only'):
             start_dir = self.cfg['start_dir']
 
         if not os.path.isabs(start_dir):
@@ -1651,7 +1662,8 @@ class EasyBlock(object):
         exts_cnt = len(self.exts)
         for idx, ext in enumerate(self.exts):
             self.log.debug("Starting extension %s" % ext['name'])
-            print_msg("installing extension %s %s (%d/%d)..." % (ext['name'], ext.get('version', ''), idx+1, exts_cnt))
+            tup = (ext['name'], ext.get('version', ''), idx+1, exts_cnt)
+            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)

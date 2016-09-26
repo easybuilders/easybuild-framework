@@ -101,6 +101,7 @@ class Toolchain(object):
 
         self.dependencies = []
         self.toolchain_dep_mods = []
+        self.cached_compilers = set()
 
         if name is None:
             name = self.NAME
@@ -598,19 +599,24 @@ class Toolchain(object):
         :param paths: dictionary containing one or mappings, each one specified as a tuple:
                       (<path/to/script>, <list of commands to symlink to the script>)
         """
-        tmpdir = tempfile.mkdtemp()
+        symlink_dir = tempfile.mkdtemp()
 
-        for _, (path, cmds) in paths.items():
+        # prepend location to symlinks to $PATH
+        setvar('PATH', '%s:%s' % (symlink_dir, os.getenv('PATH')))
+
+        for (path, cmds) in paths.values():
             for cmd in cmds:
-                cmd_s = os.path.join(tmpdir, cmd)
+                cmd_s = os.path.join(symlink_dir, cmd)
                 if not os.path.exists(cmd_s):
                     try:
                         os.symlink(path, cmd_s)
                     except OSError as err:
                         raise EasyBuildError("Failed to symlink %s to %s: %s", path, cmd_s, err)
-            self.log.info("Commands symlinked to %s via %s: %s", path, tmpdir, ', '.join(cmds))
 
-        setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
+                cmd_path = which(cmd)
+                self.log.debug("which(%s): %s -> %s", cmd, cmd_path, os.path.realpath(cmd_path))
+
+            self.log.info("Commands symlinked to %s via %s: %s", path, symlink_dir, ', '.join(cmds))
 
     def compilers(self):
         """Return list of relevant compilers for this toolchain"""
@@ -630,7 +636,7 @@ class Toolchain(object):
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
-        @param: onlymod: boolean/string to indicate if the toolchain should only load the environment
+        :param onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
@@ -660,38 +666,61 @@ class Toolchain(object):
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
-        if build_option('use_compiler_cache'):
-            self.prepare_compiler_cache()
+        # consider f90cache first, since ccache can also wrap Fortran compilers
+        for cache_tool in [F90CACHE, CCACHE]:
+            if build_option('use_%s' % cache_tool):
+                self.prepare_compiler_cache(cache_tool)
 
         if build_option('rpath'):
             prepare_rpath_wrapper()
 
-    def prepare_compiler_cache(self):
+    def comp_cache_compilers(self, cache_tool):
         """
-        Prepare paths and variables for using compiler caches (ccache, f90cache)
+        Determine list of relevant compilers for specified compiler caching tool.
+        :param cache_tool: name of compiler caching tool
+        :return: list of names of relevant compilers
         """
-        paths = {}
-
         c_comps, fortran_comps = self.compilers()
-        compilers = {
-            CCACHE : c_comps,
-            F90CACHE : fortran_comps,
-        }
 
-        for cache in [CCACHE, F90CACHE]:
-            cache_path = which(cache)
-            if cache_path is None:
-                raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
-            else:
-                paths[cache] = (cache_path, compilers[cache])
+        if cache_tool == CCACHE:
+            # recent versions of ccache (>=3.3) also support caching of Fortran compilations
+            comps = c_comps + fortran_comps
+        elif cache_tool == F90CACHE:
+            comps = fortran_comps
+        else:
+            raise EasyBuildError("Uknown compiler caching tool specified: %s", cache_tool)
 
-        # set paths for caches
-        comp_cache_path = build_option('use_compiler_cache')
-        for cachename in ["CCACHE", "F90CACHE"]:
-            os.environ["%s_DIR" % cachename] = comp_cache_path
-            os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
+        # filter out compilers that are already cached;
+        # Fortran compilers could already be cached by f90cache when preparing for ccache
+        for comp in comps[:]:
+            if comp in self.cached_compilers:
+                self.log.debug("Not caching compiler %s, it's already being cached", comp)
+                comps.remove(comp)
 
-        self.symlink_commands(paths)
+        return comps
+
+    def prepare_compiler_cache(self, cache_tool):
+        """
+        Prepare for using specified compiler caching tool (e.g., ccache, f90cache)
+
+        :param cache_tool: name of compiler caching tool to prepare for
+        """
+        compilers = self.comp_cache_compilers(cache_tool)
+        self.log.debug("Using compiler cache tool '%s' for compilers: %s", cache_tool, compilers)
+
+        # set paths that should be used by compiler caching tool
+        comp_cache_path = build_option('use_%s' % cache_tool)
+        setvar('%s_DIR' % cache_tool.upper(), comp_cache_path)
+        setvar('%s_TEMPDIR' % cache_tool.upper(), tempfile.mkdtemp())
+
+        cache_path = which(cache_tool)
+        if cache_path is None:
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+        else:
+            self.symlink_commands({cache_tool: (cache_path, compilers)})
+
+        self.cached_compilers.update(compilers)
+        self.log.debug("Cached compilers (after preparing for %s): %s", cache_tool, self.cached_compilers)
 
     def prepare_rpath_wrapper(self):
         """

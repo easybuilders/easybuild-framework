@@ -160,7 +160,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             continue
 
         if name[0].startswith('toolchain_'):
-            tc = config.get('toolchain')[0]
+            tc = config.get('toolchain')
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
@@ -169,7 +169,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
-            version = config['version'][0]
+            version = config['version']
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
@@ -189,7 +189,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         elif name[0].endswith('letter'):
             # parse first letters
             if name[0].startswith('name'):
-                softname = config['name'][0]
+                softname = config['name']
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
         else:
@@ -197,10 +197,17 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     # step 2: define *ver and *shortver templates
     for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        for dep in config['dependencies'][0]:
-            if isinstance(dep['name'], basestring) and dep['name'].lower() == name.lower():
-                template_values['%sver' % pref] = dep['version']
-                template_values['%sshortver' % pref] = '.'.join(dep['version'].split('.')[:2])
+        for dep in config.get('dependencies', []):
+            if isinstance(dep, dict):
+                dep_name, dep_version = dep['name'], dep['version']
+            elif isinstance(dep, (list, tuple)):
+                dep_name, dep_version = dep[0], dep[1]
+            else:
+                raise EasyBuildError("Unexpected type for dependency: %s", dep)
+
+            if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
+                template_values['%sver' % pref] = dep_version
+                template_values['%sshortver' % pref] = '.'.join(dep_version.split('.')[:2])
                 break
 
     # step 3: add remaining from config
@@ -208,8 +215,8 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
         if name in ignore:
             continue
         if name in config:
-            template_values[name] = config[name][0]
-            _log.debug('name: %s, config: %s', name, config[name][0])
+            template_values[name] = config[name]
+            _log.debug('name: %s, config: %s', name, config[name])
 
     # step 4. make lower variants if not skip_lower
     if not skip_lower:
@@ -240,13 +247,15 @@ def to_template_str(value, templ_const, templ_val):
         old_value = value
         # check for constant values
         for tval, tname in templ_const.items():
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
 
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
             # by another non-alphanumeric.
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
 
     return value
 

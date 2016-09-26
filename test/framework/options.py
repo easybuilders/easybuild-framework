@@ -50,7 +50,8 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
-from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir
+from easybuild.tools.modules import Lmod
+from easybuild.tools.options import EasyBuildOptions, parse_external_modules_metadata, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION
@@ -90,6 +91,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Set up test."""
         super(CommandLineOptionsTest, self).setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+
+        self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
+
+    def tearDown(self):
+        """Clean up after test."""
+        easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
+        super(CommandLineOptionsTest, self).tearDown()
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -299,11 +307,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # options passed are reordered, so order here matters to make tests pass
         check_args(['--debug'])
-        check_args(['--debug', '--stop=configure', '--try-software-name=foo'])
-        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'])
+        check_args(['--debug', '--stop=configure', '--try-software-name=foo'],
+                   passed_args=['--debug', "--stop='configure'"])
+        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
+                   passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
         check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
-                   passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
+                   passed_args=['--debug', "--robot-paths='/tmp/bar:/tmp/foo'"])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -966,6 +976,44 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print "Ignoring URLError '%s' in test_from_pr" % err
             shutil.rmtree(tmpdir)
 
+    def test_from_pr_x(self):
+        """Test combination of --from-pr with --extended-dry-run."""
+        if self.github_token is None:
+            print "Skipping test_from_pr_x, no GitHub token available?"
+            return
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
+            'FFTW-3.3.4-gompi-2015a.eb',  # required ConfigureMake easyblock, which is available in test easyblocks
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+            '--tmpdir=%s' % self.test_prefix,
+            '--extended-dry-run',
+        ]
+        try:
+            self.mock_stdout(True)
+            self.eb_main(args, do_build=True, raise_error=True, testing=False)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
+
+            msg_regexs = [
+                re.compile(r"^== Build succeeded for 1 out of 1", re.M),
+                re.compile(r"^\*\*\* DRY RUN using 'ConfigureMake' easyblock", re.M),
+                re.compile(r"^== building and installing FFTW/3.3.4-gompi-2015a\.\.\.", re.M),
+                re.compile(r"^building... \[DRY RUN\]", re.M),
+                re.compile(r"^== COMPLETED: Installation ended successfully", re.M),
+            ]
+
+            for msg_regex in msg_regexs:
+                self.assertTrue(msg_regex.search(stdout), "Pattern '%s' found in: %s" % (msg_regex.pattern, stdout))
+
+        except URLError, err:
+            print "Ignoring URLError '%s' in test_from_pr_x" % err
+
     def test_no_such_software(self):
         """Test using no arguments."""
 
@@ -1564,7 +1612,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
         self.assertTrue(test_var_public_regex.search(test_report_txt))
         # make sure that used filter is reported correctly in test report
-        filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
+        filter_arg_regex = re.compile(r"--test-report-env-filter='.\*_SECRET_ENV_VAR_FOR_EASYBUILD'")
         tup = (filter_arg_regex.pattern, test_report_txt)
         self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
@@ -1765,11 +1813,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(generate_cmd_line(ebopts), ['--force'])
 
         ebopts = EasyBuildOptions(go_args=['--search=bar', '--search', 'foobar'], envvar_prefix='EASYBUILD')
-        self.assertEqual(generate_cmd_line(ebopts), ['--search=foobar'])
+        self.assertEqual(generate_cmd_line(ebopts), ["--search='foobar'"])
 
         os.environ['EASYBUILD_DEBUG'] = '1'
         ebopts = EasyBuildOptions(go_args=['--force'], envvar_prefix='EASYBUILD')
         self.assertEqual(generate_cmd_line(ebopts), ['--debug', '--force'])
+
+        args = [
+            # install path with a single quote in it, iieeeuuuwww
+            "--installpath=/this/is/a/weird'prefix",
+            '--test-report-env-filter=(COOKIE|SESSION)',
+            '--suffix-modules-path=',
+            '--try-toolchain=foss,2015b',
+            '--logfile-format=easybuild,eb-%(name)s.log',
+        ]
+        expected = [
+            '--debug',
+            "--installpath='/this/is/a/weird\\'prefix'",
+            "--logfile-format='easybuild,eb-%(name)s.log'",
+            "--suffix-modules-path=''",
+            "--test-report-env-filter='(COOKIE|SESSION)'",
+            "--try-toolchain='foss,2015b'",
+        ]
+        ebopts = EasyBuildOptions(go_args=args, envvar_prefix='EASYBUILD')
+        self.assertEqual(generate_cmd_line(ebopts), expected)
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
@@ -2070,10 +2137,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
-        self.eb_main(['--review-pr=1484', '--disable-color'], raise_error=True)
+        self.eb_main(['--review-pr=1484', '--color=never'], raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        self.assertTrue(re.search(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8", txt))
+        regex = re.compile(r"^Comparing zlib-1.2.8\S* with zlib-1.2.8")
+        self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
@@ -2728,6 +2796,90 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 ext = 'log'
 
             self.assertTrue(logs[0].endswith(ext), "%s has correct '%s' extension for %s" % (logs[0], ext, zip_logs))
+
+    def test_debug_lmod(self):
+        """Test use of --debug-lmod."""
+        if isinstance(self.modtool, Lmod):
+            init_config(build_options={'debug_lmod': True})
+            out = self.modtool.run_module('avail', return_output=True)
+
+            for pattern in [r"^Lmod version", r"^lmod\(--terse -D avail\)\{", "Master:avail"]:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        else:
+            print "Skipping test_debug_lmod, required Lmod as modules tool"
+
+    def test_use_color(self):
+        """Test use_color function."""
+        self.assertTrue(use_color('always'))
+        self.assertFalse(use_color('never'))
+        easybuild.tools.options.terminal_supports_colors = lambda _: True
+        self.assertTrue(use_color('auto'))
+        easybuild.tools.options.terminal_supports_colors = lambda _: False
+        self.assertFalse(use_color('auto'))
+
+    def test_list_software(self):
+        """Test --list-software and --list-installed-software."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'v1.0')
+        args = [
+            '--list-software',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        expected = '\n'.join([
+            "== Processed 5/5 easyconfigs... ",
+            "== Found 2 different software packages",
+            '',
+            "* GCC",
+            "* gzip",
+            '',
+        ])
+        self.assertTrue(txt.endswith(expected))
+
+        args = [
+            '--list-software=detailed',
+            '--output-format=rst',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('^\*GCC\*', txt, re.M))
+        self.assertTrue(re.search('^``4.6.3``\s+``dummy``', txt, re.M))
+        self.assertTrue(re.search('^\*gzip\*', txt, re.M))
+        self.assertTrue(re.search('^``1.5``\s+``goolf/1.4.10``,\s+``ictce/4.1.13``', txt, re.M))
+
+        args = [
+            '--list-installed-software',
+            '--output-format=rst',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('== Processed 5/5 easyconfigs...', txt, re.M))
+        self.assertTrue(re.search('== Found 2 different software packages', txt, re.M))
+        self.assertTrue(re.search('== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search('^\* GCC', txt, re.M))
+        self.assertFalse(re.search('gzip', txt, re.M))
+
+        args = [
+            '--list-installed-software=detailed',
+            '--robot-paths=%s' % test_ecs,
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('^== Retained 1 installed software packages', txt, re.M))
+        self.assertTrue(re.search('^\* GCC', txt, re.M))
+        self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
+        self.assertFalse(re.search('gzip', txt, re.M))
 
 
 def suite():

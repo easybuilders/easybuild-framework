@@ -33,6 +33,7 @@ Tools to run commands.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 """
+import functools
 import os
 import re
 import signal
@@ -60,6 +61,43 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
+
+CACHED_COMMANDS = [
+    "sysctl -n hw.cpufrequency_max",  # used in get_cpu_speed (OS X)
+    "sysctl -n hw.memsize",  # used in get_total_memory (OS X)
+    "sysctl -n hw.ncpu",  # used in get_avail_core_count (OS X)
+    "sysctl -n machdep.cpu.brand_string",  # used in get_cpu_model (OS X)
+    "sysctl -n machdep.cpu.vendor",  # used in get_cpu_vendor (OS X)
+    "type module",  # used in ModulesTool.check_module_function
+    "ulimit -u",  # used in det_parallelism
+]
+
+
+def run_cmd_cache(func):
+    """Function decorator to cache (and retrieve cached) results of running commands."""
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(cmd, *args, **kwargs):
+        """Retrieve cached result of selected commands, or run specified and collect & cache result."""
+
+        # fetch from cache if available, cache it if it's not
+        if cmd in cache:
+            _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
+            return cache[cmd]
+        else:
+            res = func(cmd, *args, **kwargs)
+            if cmd in CACHED_COMMANDS:
+                cache[cmd] = res
+            return res
+
+    # expose clear method of cache to wrapped function
+    cache_aware_func.clear_cache = cache.clear
+
+    return cache_aware_func
+
+
+@run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
             force_in_dry_run=False, verbose=True):
     """

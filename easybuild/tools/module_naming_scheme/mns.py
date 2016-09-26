@@ -68,8 +68,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-
-        @return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
+        :return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         raise NotImplementedError
 
@@ -79,7 +78,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: string with module name, e.g. '<name>/<version>'
+        :return: string with module name, e.g. '<name>/<version>'
         """
         # by default: full module name doesn't include a $MODULEPATH subdir
         return self.det_full_module_name(ec)
@@ -91,7 +90,7 @@ class ModuleNamingScheme(object):
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
 
-        @return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
+        :return: string with name of subdirectory, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         # by default: use full module name as name for install subdir
         return self.det_full_module_name(ec)
@@ -103,7 +102,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
+        :return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
         """
         # by default: no subdirectory
         return ''
@@ -121,7 +120,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: A list of $MODULEPATH subdirectories.
+        :return: A list of $MODULEPATH subdirectories.
         """
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
@@ -133,7 +132,7 @@ class ModuleNamingScheme(object):
 
         :param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
-        @return: A list of $MODULEPATH subdirectories.
+        :return: A list of $MODULEPATH subdirectories.
         """
         # by default: use "system" module path extensions of naming scheme
         return self.det_modpath_extensions(ec)

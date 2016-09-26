@@ -221,7 +221,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     :param request_f: function that should be called to compose request, providing a RestClient instance
     :param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
     :param token: GitHub token to use
-    @return: tuple with return status and data
+    :return: tuple with return status and data
     """
     if github_user is None:
         github_user = build_option('github_user')
@@ -249,7 +249,7 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     :param branch: branch to fetch latest SHA1 for
     :param github_user: name of GitHub user to use
     :param token: GitHub token to use
-    @return: latest SHA1
+    :return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
                                           github_user=github_user, token=token)
@@ -303,16 +303,16 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
     target_path = os.path.join(path, base_name)
     _log.debug("downloading repo %s/%s as archive from %s to %s" % (account, repo, url, target_path))
-    download_file(base_name, url, target_path)
+    download_file(base_name, url, target_path, forced=True)
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
-    extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
+    extracted_path = os.path.join(extract_file(target_path, path, forced=True), extracted_dir_name)
 
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
 
-    write_file(latest_sha_path, latest_commit_sha)
+    write_file(latest_sha_path, latest_commit_sha, forced=True)
 
     _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path

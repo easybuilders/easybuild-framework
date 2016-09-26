@@ -44,8 +44,8 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, copy_easyconfigs, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths
+from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, get_easyblock_class, resolve_template
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -439,6 +439,9 @@ class EasyConfigTest(EnhancedTestCase):
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, correct_installver)
 
+        # only version key is strictly needed
+        self.assertEqual(det_full_ec_version({'version': '1.2.3'}), '1.2.3')
+
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
 
@@ -776,7 +779,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
         eb.validate()
+
+        # temporarily disable templating, just so we can check later whether it's *still* disabled
+        eb.enable_templating = False
+
         eb.generate_template_values()
+
+        self.assertFalse(eb.enable_templating)
+        eb.enable_templating = True
 
         self.assertEqual(eb['description'], "test easyconfig PI")
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
@@ -991,7 +1001,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
         build_options = {
-            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -1766,7 +1776,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '',
         }
-        self.assertEqual(template_constant_dict(ec._config), expected)
+        self.assertEqual(template_constant_dict(ec), expected)
 
         ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-deps.eb'))
         # fiddle with version to check version_minor template ('0' should be retained)
@@ -1785,7 +1795,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionprefix': '',
             'versionsuffix': '-deps',
         }
-        self.assertEqual(template_constant_dict(ec._config), expected)
+        self.assertEqual(template_constant_dict(ec), expected)
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
@@ -1876,6 +1886,44 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['easyconfigs'], ['bzip2-1.0.6.eb', os.path.join(test_ecs_dir, 'gzip-1.4.eb'), 'foo'])
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
+
+    def test_resolve_template(self):
+        """Test resolve_template function."""
+        self.assertEqual(resolve_template('', {}), '')
+        tmpl_dict = {
+            'name': 'FooBar',
+            'namelower': 'foobar',
+            'version': '1.2.3',
+        }
+        self.assertEqual(resolve_template('%(namelower)s-%(version)s', tmpl_dict), 'foobar-1.2.3')
+
+        value, expected = ['%(namelower)s-%(version)s', 'name:%(name)s'], ['foobar-1.2.3', 'name:FooBar']
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        value, expected = ('%(namelower)s-%(version)s', 'name:%(name)s'), ('foobar-1.2.3', 'name:FooBar')
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        value, expected = {'%(namelower)s-%(version)s': 'name:%(name)s'}, {'foobar-1.2.3': 'name:FooBar'}
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        # nested value
+        value = [
+            {'%(name)s': '%(namelower)s', '%(version)s': '1.2.3', 'bleh': '%(name)s-%(version)s'},
+            ('%(namelower)s', '%(version)s'),
+            ['%(name)s', ('%(namelower)s-%(version)s',)],
+        ]
+        expected = [
+            {'FooBar': 'foobar', '1.2.3': '1.2.3', 'bleh': 'FooBar-1.2.3'},
+            ('foobar', '1.2.3'),
+            ['FooBar', ('foobar-1.2.3',)],
+        ]
+        self.assertEqual(resolve_template(value, tmpl_dict), expected)
+
+        # escaped template value
+        self.assertEqual(resolve_template('%%(name)s', tmpl_dict), '%(name)s')
+
+        # '%(name)' is not a correct template spec (missing trailing 's')
+        self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
 
 
 def suite():

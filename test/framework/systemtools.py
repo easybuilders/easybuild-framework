@@ -350,6 +350,7 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_cpu_family_native(self):
         """Test get_cpu_family function."""
+        run_cmd.clear_cache()
         cpu_family = get_cpu_family()
         self.assertTrue(cpu_family in CPU_FAMILIES or cpu_family == UNKNOWN)
 
@@ -373,6 +374,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test get_cpu_family function (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
+        run_cmd.clear_cache()
         self.assertEqual(get_cpu_family(), INTEL)
 
     def test_os_type(self):

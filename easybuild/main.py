@@ -55,17 +55,17 @@ from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs
+from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 from easybuild.tools.version import this_is_easybuild
-
 
 _log = None
 
@@ -180,7 +180,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, silent=testing or options.terse)
+    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
+                                 silent=(testing or options.terse), colorize=options.color)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -251,10 +252,25 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.review_pr:
-        print review_pr(options.review_pr, colored=options.color)
+        print review_pr(options.review_pr, colored=use_color(options.color))
+
+    elif options.list_installed_software:
+        detailed = options.list_installed_software == 'detailed'
+        print list_software(output_format=options.output_format, detailed=detailed, only_installed=True)
+
+    elif options.list_software:
+        print list_software(output_format=options.output_format, detailed=options.list_software == 'detailed')
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
-    if options.check_github or options.install_github_token or options.review_pr or options.terse:
+    early_stop_options = [
+        options.check_github,
+        options.install_github_token,
+        options.list_installed_software,
+        options.list_software,
+        options.review_pr,
+        options.terse,
+    ]
+    if any(early_stop_options):
         cleanup(logfile, eb_tmpdir, testing, silent=True)
         sys.exit(0)
 
