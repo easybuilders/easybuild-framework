@@ -65,8 +65,9 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs
-from easybuild.tools.filetools import read_file, rmtree2, write_file, compute_checksum, verify_checksum, weld_paths
+from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
+from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
@@ -166,6 +167,7 @@ class EasyBlock(object):
         self.modules_tool = self.cfg.modules_tool
         # module generator
         self.module_generator = module_generator(self, fake=True)
+        self.mod_filepath = self.module_generator.get_module_filepath()
 
         # modules footer/header
         self.modules_footer = None
@@ -1409,6 +1411,12 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
+        # remove existing module file under --force (but only if --skip is not used)
+        elif build_option('force') or build_option('rebuild'):
+            if os.path.exists(self.mod_filepath):
+                self.log.info("Removing existing module file %s", self.mod_filepath)
+                remove_file(self.mod_filepath)
+
     def fetch_step(self, skip_checksums=False):
         """Fetch source files and patches (incl. extensions)."""
 
@@ -1984,6 +1992,9 @@ class EasyBlock(object):
         :param fake: generate 'fake' module in temporary location, rather than actual module file
         """
         modpath = self.module_generator.prepare(fake=fake)
+        mod_filepath = self.mod_filepath
+        if fake:
+            mod_filepath = self.module_generator.get_module_filepath(fake=fake)
 
         txt = self.module_generator.MODULE_SHEBANG
         if txt:
@@ -1998,8 +2009,6 @@ class EasyBlock(object):
         txt += self.make_module_req()
         txt += self.make_module_extra()
         txt += self.make_module_footer()
-
-        mod_filepath = self.module_generator.get_module_filepath(fake=fake)
 
         if self.dry_run:
             # only report generating actual module file during dry run, don't mention temporary module files
