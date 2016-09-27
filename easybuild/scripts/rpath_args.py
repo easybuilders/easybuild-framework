@@ -32,5 +32,8 @@ author: Kenneth Hoste (HPC-UGent)
 """
 import sys
 
-print "export RPATH="
-print "export CMD_ARGS='%s'" % ' '.join(sys.argv[1:])
+cmd = sys.argv[1]
+args = sys.argv[2:]
+
+print "export RPATH='-Wl,-rpath=/lib64/'"
+print "export CMD_ARGS='%s'" % ' '.join(args)

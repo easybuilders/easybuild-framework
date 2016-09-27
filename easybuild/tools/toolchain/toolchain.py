@@ -71,14 +71,14 @@ function ERROR {
     exit 1
 }
 
-echo "DEBUG: $DEBUG"
 $DEBUG && echo "RPATH_LD_WRAPPER: found CMD: $CMD, ORIG_CMD: $ORIG_CMD"
 
 # RPATH_ARGS_PY spits out statements that define $RPATH and $CMD_ARGS
-eval $($RPATH_ARGS_PY $@)
+eval $($RPATH_ARGS_PY $CMD $@)
+$DEBUG && echo "RPATH_LD_WRAPPER: RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
 
-$DEBUG && echo ">> $ORIG_CMD \"-rpath=$RPATH\" $CMD_ARGS"
-$ORIG_CMD "-rpath=$RPATH" $CMD_ARGS
+$DEBUG && echo "RPATH_LD_WRAPPER: running '$ORIG_CMD $RPATH $CMD_ARGS'"
+$ORIG_CMD $RPATH $CMD_ARGS
 
 """
 
@@ -758,7 +758,7 @@ class Toolchain(object):
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
         else:
-            raise EasyBuildError("RPATH linking is only supported on Linux")
+            raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
         if build_option('rpath_debug'):
             os.environ['RPATH_LD_WRAPPER_DEBUG'] = 'true'
