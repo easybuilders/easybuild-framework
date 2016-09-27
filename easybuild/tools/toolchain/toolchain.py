@@ -44,6 +44,7 @@ from easybuild.tools.filetools import adjust_permissions, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
+from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -56,10 +57,14 @@ F90CACHE = 'f90cache'
 RPATH_LD_WRAPPER = """#!/bin/bash
 
 DEBUG=${RPATH_LD_WRAPPER_DEBUG:-false}
+
+# Python script that determines $RPATH and filters arguments
+RPATH_ARGS_PY=%(rpath_args_py)s
+
 # command name
 CMD=`basename $0`
 # full path to original command
-ORIG_CMD=%s
+ORIG_CMD=%(orig_cmd)s
 
 function ERROR {
     echo "ERROR (RPATH_LD_WRAPPER): $1"
@@ -69,8 +74,11 @@ function ERROR {
 echo "DEBUG: $DEBUG"
 $DEBUG && echo "RPATH_LD_WRAPPER: found CMD: $CMD, ORIG_CMD: $ORIG_CMD"
 
-$DEBUG && echo ">> $ORIG_CMD $@"
-$ORIG_CMD $@
+# RPATH_ARGS_PY spits out statements that define $RPATH and $CMD_ARGS
+eval $($RPATH_ARGS_PY $@)
+
+$DEBUG && echo ">> $ORIG_CMD \"-rpath=$RPATH\" $CMD_ARGS"
+$ORIG_CMD "-rpath=$RPATH" $CMD_ARGS
 
 """
 
@@ -747,16 +755,25 @@ class Toolchain(object):
         """
         Put RPATH wrapper script in place for compiler and linker commands
         """
-        # FIXME RPATH is linux only
-        self.log.info("Putting RPATH wrappers in place...")
+        if get_os_type() == LINUX:
+            self.log.info("Putting RPATH wrappers in place...")
+        else:
+            raise EasyBuildError("RPATH linking is only supported on Linux")
 
-        # FIXME debug messages always appear?!
         if build_option('rpath_debug'):
             os.environ['RPATH_LD_WRAPPER_DEBUG'] = 'true'
 
         # FIXME: must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         wrapper_dir = os.path.join(tempfile.gettempdir(), 'rpath_wrappers')
         c_comps, fortran_comps = self.compilers()
+
+        # determine path to Python script that interprets/filters command arguments and defines $RPATH
+        eb_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        rpath_args_py = os.path.join(eb_dir, 'scripts', 'rpath_args.py')
+        if os.path.exists(rpath_args_py):
+            self.log.info("Python script for RPATH wrapper found: %s", rpath_args_py)
+        else:
+            raise EasyBuildError("Failed to find Python script for RPATH wrapper: %s", rpath_args_py)
 
         # prepend location to wrappers to $PATH
         setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
@@ -766,7 +783,10 @@ class Toolchain(object):
             orig_cmd = which(cmd)
             if orig_cmd:
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
-                wrapper_txt = RPATH_LD_WRAPPER % orig_cmd
+                wrapper_txt = RPATH_LD_WRAPPER % {
+                    'orig_cmd': orig_cmd,
+                    'rpath_args_py': rpath_args_py,
+                }
                 write_file(cmd_wrapper, wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
                 self.log.info("Wrapper script for %s: %s", orig_cmd, which(cmd))
