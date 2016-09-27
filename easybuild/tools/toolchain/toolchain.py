@@ -35,6 +35,7 @@ import os
 import stat
 import tempfile
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
@@ -54,33 +55,19 @@ CCACHE = 'ccache'
 F90CACHE = 'f90cache'
 RPATH_LD_WRAPPER = """#!/bin/bash
 
-DEBUG=${RPATH_LD_WRAPPER_DEBUG:false}
-CMD=$(basename $0)
-ALL_CMDS=( $( type -p -a $CMD ) )
+DEBUG=${RPATH_LD_WRAPPER_DEBUG:-false}
+# command name
+CMD=`basename $0`
+# full path to original command
+ORIG_CMD=%s
 
 function ERROR {
     echo "ERROR (RPATH_LD_WRAPPER): $1"
     exit 1
 }
 
-# we should at least find two instances of $CMD
-if [ ${#ALL_CMDS[*]} -ge 2 ]; then
-
-    ORIG_CMD=${ALL_CMDS[1]}
-
-    # 1st instance of $CMD must be this script
-    if [ ${ALL_CMDS[0]} != $0 ]; then
-        ERROR "Expected to find 1st instance of '$CMD' to be $0"
-
-    # 2nd instance of command must be the original $CMD (i.e., not this script)
-    elif [ $ORIG_CMD == $0 ]; then
-        ERROR "Did not expect to find 2nd instance of '$CMD' to be $0"
-    fi
-else
-    ERROR "Failed to find original '$CMD'; 'which -a $CMD' => ${ALL_CMDS[*]}"
-fi
-
-$DEBUG && echo "RPATH_LD_WRAPPER: found CMD: $CMD, ALL_CMDS: ${ALL_CMDS[*]}, ORIG_CMD: $ORIG_CMD"
+echo "DEBUG: $DEBUG"
+$DEBUG && echo "RPATH_LD_WRAPPER: found CMD: $CMD, ORIG_CMD: $ORIG_CMD"
 
 $DEBUG && echo ">> $ORIG_CMD $@"
 $ORIG_CMD $@
@@ -706,7 +693,7 @@ class Toolchain(object):
                 self.prepare_compiler_cache(cache_tool)
 
         if build_option('rpath'):
-            self.prepare_rpath_ld_wrapper()
+            self.prepare_rpath_wrappers()
 
     def comp_cache_compilers(self, cache_tool):
         """
@@ -756,26 +743,35 @@ class Toolchain(object):
         self.cached_compilers.update(compilers)
         self.log.debug("Cached compilers (after preparing for %s): %s", cache_tool, self.cached_compilers)
 
-    def prepare_rpath_ld_wrapper(self):
+    def prepare_rpath_wrappers(self):
         """
         Put RPATH wrapper script in place for compiler and linker commands
         """
         # FIXME RPATH is linux only
-
-        rpath_ld_wrapper_path = os.path.join(tempfile.gettempdir(), 'rpath_ld_wrapper.sh')
-        write_file(rpath_ld_wrapper_path, RPATH_LD_WRAPPER)
-        adjust_permissions(rpath_ld_wrapper_path, stat.S_IXUSR)
+        self.log.info("Putting RPATH wrappers in place...")
 
         # FIXME debug messages always appear?!
-        if build_option('debug'):
+        if build_option('rpath_debug'):
             os.environ['RPATH_LD_WRAPPER_DEBUG'] = 'true'
 
-        c_comps, fortran_comps = self.compilers()
-        # FIXME: alternative to symlinking script: generate dedicated version of script for each command,
-        # hardcode path to original command in the script rather than hunting for it...
-        # => less runtime overhead & safer...
         # FIXME: must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
-        self.symlink_commands({'rpath': (rpath_ld_wrapper_path, c_comps + fortran_comps + ['ld', 'ld.gold'])})
+        wrapper_dir = os.path.join(tempfile.gettempdir(), 'rpath_wrappers')
+        c_comps, fortran_comps = self.compilers()
+
+        # prepend location to wrappers to $PATH
+        setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+
+        # create wrappers
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
+            orig_cmd = which(cmd)
+            if orig_cmd:
+                cmd_wrapper = os.path.join(wrapper_dir, cmd)
+                wrapper_txt = RPATH_LD_WRAPPER % orig_cmd
+                write_file(cmd_wrapper, wrapper_txt)
+                adjust_permissions(cmd_wrapper, stat.S_IXUSR)
+                self.log.info("Wrapper script for %s: %s", orig_cmd, which(cmd))
+            else:
+                self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
