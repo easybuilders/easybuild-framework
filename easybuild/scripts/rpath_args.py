@@ -35,5 +35,10 @@ import sys
 cmd = sys.argv[1]
 args = sys.argv[2:]
 
-print "export RPATH='-Wl,-rpath=/lib64/'"
+if cmd in ['ld', 'ld.gold']:
+    rpath_flag = '-rpath'
+else:
+    rpath_flag = '-Wl,-rpath'
+
+print "export RPATH='%s=/lib64/'" % rpath_flag
 print "export CMD_ARGS='%s'" % ' '.join(args)
