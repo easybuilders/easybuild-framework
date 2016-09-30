@@ -671,6 +671,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(r" \* \$CFGS\d+/*%s" % ec, re.M)
                 self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
 
+        # combining --search with --try-* should not cause trouble; --try-* should just be ignored
+        args = [
+            '--search=^gcc',
+            '--robot-paths=%s' % test_easyconfigs_dir,
+            '--try-toolchain-version=1.2.3',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False, raise_error=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertTrue(re.search('GCC-4.9.2', txt))
+
     def test_dry_run(self):
         """Test dry run (long format)."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')

@@ -94,18 +94,15 @@ def tweak(easyconfigs, build_specs, modtool, targetdir=None):
     # keep track of originally listed easyconfigs (via their path)
     listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
-    # obtain full dependency graph for specified easyconfigs
-    # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
-    orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
-
     # determine toolchain based on last easyconfigs
-    toolchain = orig_ecs[-1]['ec']['toolchain']
-    _log.debug("Filtering using toolchain %s" % toolchain)
+    if orig_ecs:
+        toolchain = orig_ecs[-1]['ec']['toolchain']
+        _log.debug("Filtering using toolchain %s" % toolchain)
 
-    # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
-    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
-        while orig_ecs[0]['ec']['toolchain'] != toolchain:
-            orig_ecs = orig_ecs[1:]
+        # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
+        if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+            while orig_ecs[0]['ec']['toolchain'] != toolchain:
+                orig_ecs = orig_ecs[1:]
 
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
