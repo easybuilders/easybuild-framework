@@ -164,6 +164,12 @@ def write_file(path, txt, append=False, forced=False):
 
 def remove_file(path):
     """Remove file at specified path."""
+
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("file %s removed" % path, silent=build_option('silent'))
+        return
+
     try:
         if os.path.exists(path):
             os.remove(path)

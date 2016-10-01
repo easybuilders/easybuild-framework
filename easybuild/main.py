@@ -269,6 +269,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.list_software,
         options.review_pr,
         options.terse,
+        search_query,
     ]
     if any(early_stop_options):
         cleanup(logfile, eb_tmpdir, testing, silent=True)
