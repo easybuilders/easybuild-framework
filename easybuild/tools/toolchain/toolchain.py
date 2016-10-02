@@ -40,7 +40,7 @@ from vsc.utils.missing import nub
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -54,9 +54,15 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
-RPATH_LD_WRAPPER = """#!/bin/bash
+RPATH_CMD_WRAPPER = """#!/bin/bash
 
-DEBUG=${RPATH_LD_WRAPPER_DEBUG:-false}
+# log file location
+RPATH_CMD_WRAPPER_LOG=%(rpath_wrapper_log)s
+
+# logging function
+function log {
+    echo "($$) [$(date "+%%Y-%%m-%%d %%H:%%M:%%S")] $1" >> $RPATH_CMD_WRAPPER_LOG
+}
 
 # Python script that determines $RPATH and filters arguments
 RPATH_ARGS_PY=%(rpath_args_py)s
@@ -66,20 +72,14 @@ CMD=`basename $0`
 # full path to original command
 ORIG_CMD=%(orig_cmd)s
 
-function ERROR {
-    echo "ERROR (RPATH_LD_WRAPPER): $1"
-    exit 1
-}
+log "found CMD: $CMD | ORIG_CMD: $ORIG_CMD | orig args: '$@'"
 
-$DEBUG && echo "RPATH_LD_WRAPPER: found CMD: $CMD, ORIG_CMD: $ORIG_CMD"
-
-# RPATH_ARGS_PY spits out statements that define $RPATH and $CMD_ARGS
+# RPATH_ARGS_PY script spits out statements that define $RPATH and $CMD_ARGS
 eval $($RPATH_ARGS_PY $CMD $@)
-$DEBUG && echo "RPATH_LD_WRAPPER: RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
+log "RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
 
-$DEBUG && echo "RPATH_LD_WRAPPER: running '$ORIG_CMD $RPATH $CMD_ARGS'"
+log "running '$ORIG_CMD $RPATH $CMD_ARGS'"
 $ORIG_CMD $RPATH $CMD_ARGS
-
 """
 
 
@@ -757,11 +757,8 @@ class Toolchain(object):
         """
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
-        else:
-            raise EasyBuildError("RPATH linking is currently only supported on Linux")
-
-        if build_option('rpath_debug'):
-            os.environ['RPATH_LD_WRAPPER_DEBUG'] = 'true'
+        #else:
+        #    raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
         # FIXME: must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         wrapper_dir = os.path.join(tempfile.gettempdir(), 'rpath_wrappers')
@@ -782,14 +779,16 @@ class Toolchain(object):
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
             orig_cmd = which(cmd)
             if orig_cmd:
-                cmd_wrapper = os.path.join(wrapper_dir, cmd)
-                wrapper_txt = RPATH_LD_WRAPPER % {
+                rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
+                wrapper_txt = RPATH_CMD_WRAPPER % {
                     'orig_cmd': orig_cmd,
                     'rpath_args_py': rpath_args_py,
+                    'rpath_wrapper_log': rpath_wrapper_log,
                 }
+                cmd_wrapper = os.path.join(wrapper_dir, cmd)
                 write_file(cmd_wrapper, wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
-                self.log.info("Wrapper script for %s: %s", orig_cmd, which(cmd))
+                self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
                 self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
