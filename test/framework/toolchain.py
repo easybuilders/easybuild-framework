@@ -893,7 +893,19 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(which('gcc'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
-        
+
+    def test_rpath_args_script(self):
+        """Test rpath_args.py script"""
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        script = os.path.join(topdir, 'easybuild', 'scripts', 'rpath_args.py')
+        out, ec = run_cmd("%s gcc ''" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export RPATH='-Wl,-rpath=/lib64/'",
+            "export CMD_ARGS=''",
+            ''
+        ])
+        self.assertEqual(out, expected)
 
 
 def suite():
