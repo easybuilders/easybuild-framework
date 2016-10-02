@@ -72,7 +72,7 @@ CMD=`basename $0`
 # full path to original command
 ORIG_CMD=%(orig_cmd)s
 
-log "found CMD: $CMD | ORIG_CMD: $ORIG_CMD | orig args: '$(echo $@)`'"
+log "found CMD: $CMD | ORIG_CMD: $ORIG_CMD | orig args: '$(echo $@)'"
 
 # RPATH_ARGS_PY script spits out statements that define $RPATH and $CMD_ARGS
 eval $($RPATH_ARGS_PY $CMD $@)
