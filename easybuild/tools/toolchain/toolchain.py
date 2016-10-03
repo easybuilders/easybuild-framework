@@ -58,6 +58,8 @@ F90CACHE = 'f90cache'
 
 RPATH_CMD_WRAPPER = """#!/bin/bash
 
+set -e
+
 # path to Python interpreter to use
 PYTHON=%(python)s
 
