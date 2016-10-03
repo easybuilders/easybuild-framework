@@ -33,6 +33,7 @@ Creating a new toolchain should be as simple as possible.
 import copy
 import os
 import stat
+import sys
 import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
@@ -54,7 +55,11 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
+
 RPATH_CMD_WRAPPER = """#!/bin/bash
+
+# path to Python interpreter to use
+PYTHON=%(python)s
 
 # log file location
 RPATH_CMD_WRAPPER_LOG=%(rpath_wrapper_log)s
@@ -75,7 +80,7 @@ ORIG_CMD=%(orig_cmd)s
 log "found CMD: $CMD | ORIG_CMD: $ORIG_CMD | orig args: '$(echo $@)'"
 
 # RPATH_ARGS_PY script spits out statements that define $RPATH and $CMD_ARGS
-eval $($RPATH_ARGS_PY $CMD $@)
+eval $($PYTHON $RPATH_ARGS_PY $CMD $@)
 log "RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
 
 log "running '$ORIG_CMD $RPATH $CMD_ARGS'"
@@ -786,6 +791,7 @@ class Toolchain(object):
 
                 wrapper_txt = RPATH_CMD_WRAPPER % {
                     'orig_cmd': orig_cmd,
+                    'python': sys.executable,
                     'rpath_args_py': rpath_args_py,
                     'rpath_wrapper_log': rpath_wrapper_log,
                 }
