@@ -1797,7 +1797,7 @@ class EasyBlock(object):
         else:
             self._sanity_check_step(*args, **kwargs)
 
-    def _sanity_check_rpath():
+    def _sanity_check_rpath(self):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
         dirpaths = [
             os.path.join(self.installdir, 'bin'),
