@@ -28,6 +28,9 @@ addons:
       # for GC3Pie (optional dep for EasyBuild)
       - time
 before_install:
+    - pip --version
+    - pip install --upgrade pip
+    - pip --version
     # keyring is required to provide GitHub token to EasyBuild;
     # keyring v5.7.1 is last version to be compatible with py2.6;
     # for recent versions of keyring, keyrings.alt must be installed too
