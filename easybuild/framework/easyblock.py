@@ -1797,8 +1797,29 @@ class EasyBlock(object):
         else:
             self._sanity_check_step(*args, **kwargs)
 
+    def _sanity_check_rpath():
+        """Sanity check binaries/libraries w.r.t. RPATH linking."""
+        dirpaths = [
+            os.path.join(self.installdir, 'bin'),
+            os.path.join(self.installdir, 'lib'),
+            os.path.join(self.installdir, 'lib64'),
+        ]
+        for dirpath in dirpath:
+            if os.path.exists(dirpath):
+                self.log.debug("Sanity checking RPATH for files in %s", dirpath)
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Sanity checking RPATH for %s", path)
+                    run_cmd("ldd %s" % path)
+                    run_cmd("readelf -d %s" % path)
+            else:
+                self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
+
+
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """Determine sanity check paths and commands to use."""
+
+        if build_option('rpath'):
+            self._sanity_check_rpath()
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
