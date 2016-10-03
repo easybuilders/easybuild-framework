@@ -60,7 +60,7 @@ args = [a for a in args if a != '--enable-new-dtags']
 # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
 
 # determine set of library paths to RPATH in
-lib_paths = set(a[2:] for a in args if a.startswith('-L'))
+lib_paths = set(os.path.realpath(a[2:].lstrip(' ')) for a in args if a.startswith('-L'))
 
 # FIXME: also consider $LIBRARY_PATH?
 
