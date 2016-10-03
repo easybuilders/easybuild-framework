@@ -1809,8 +1809,14 @@ class EasyBlock(object):
                 self.log.debug("Sanity checking RPATH for files in %s", dirpath)
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
-                    run_cmd("ldd %s" % path)
-                    run_cmd("readelf -d %s" % path)
+                    out, _ = run_cmd("file %s", simple=False)
+                    # only run ldd/readelf on dynamically linked executables/libraries
+                    # example output:
+                    # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
+                    # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
+                    if "dynamically linked" in out:
+                        run_cmd("ldd %s" % path)
+                        run_cmd("readelf -d %s" % path)
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
