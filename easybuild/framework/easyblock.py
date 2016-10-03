@@ -1804,7 +1804,7 @@ class EasyBlock(object):
             os.path.join(self.installdir, 'lib'),
             os.path.join(self.installdir, 'lib64'),
         ]
-        for dirpath in dirpath:
+        for dirpath in dirpaths:
             if os.path.exists(dirpath):
                 self.log.debug("Sanity checking RPATH for files in %s", dirpath)
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
