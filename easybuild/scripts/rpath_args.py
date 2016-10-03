@@ -25,20 +25,55 @@
 ##
 """
 Utility script used by RPATH wrapper script;
-* interprets and filters compiler/linker arguments ($ARGS)
-* determines value to pass to -rpath
+output is statements that define the following environment variables
+* $CMD_ARGS: new list of command line arguments to pass
+* $RPATH: command line option to specify list of paths to RPATH
 
 author: Kenneth Hoste (HPC-UGent)
 """
+import re
 import sys
+
+SHELL_QUOTE_ARG_REGEX = re.compile(r"(?<!\\)'")
+
+def shell_quote_arg(arg):
+    """Quote specified argument to avoid shell interpretation"""
+    res = SHELL_QUOTE_ARG_REGEX.sub(r"'", str(arg))
+    if res == '':
+        res = "''"
+    return res
+
 
 cmd = sys.argv[1]
 args = sys.argv[2:]
 
+# option to specify RPATH paths depends on command used (compiler vs linker)
 if cmd in ['ld', 'ld.gold']:
     rpath_flag = '-rpath'
 else:
     rpath_flag = '-Wl,-rpath'
 
-print "export RPATH='%s=/lib64/'" % rpath_flag
-print "export CMD_ARGS='%s'" % ' '.join(args)
+# filter out --enable-new-dtags if it's used;
+# this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
+args = [a for a in args if a != '--enable-new-dtags']
+
+# FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
+
+# determine set of library paths to RPATH in
+lib_paths = set(a[2:] for a in args if a.startswith('-L'))
+
+# FIXME: also consider $LIBRARY_PATH?
+
+# FIXME: filter -L entries from list of arguments?
+
+# FIXME: support to hard inject additional library paths?
+
+# output: statement to define $RPATH
+if lib_paths:
+    print "export RPATH='%s=%s'" % (rpath_flag, ':'.join(sorted(lib_paths)))
+
+# make sure arguments are properly quoted, and that single quotes are escaped
+cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "\\'")
+
+# output: statement to define $CMD_ARGS
+print "export CMD_ARGS='%s'" % cmd_args

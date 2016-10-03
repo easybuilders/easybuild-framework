@@ -898,11 +898,91 @@ class ToolchainTest(EnhancedTestCase):
         """Test rpath_args.py script"""
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         script = os.path.join(topdir, 'easybuild', 'scripts', 'rpath_args.py')
-        out, ec = run_cmd("%s gcc ''" % script, simple=False)
+
+        # simplest possible compiler command
+        out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=/lib64/'",
+            "export CMD_ARGS='-c foo.c'",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # linker command, --enable-new-dtags should be filtered out
+        out, ec = run_cmd("%s ld --enable-new-dtags foo.o" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export CMD_ARGS='foo.o'",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # test passing no arguments
+        out, ec = run_cmd("%s gcc" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
             "export CMD_ARGS=''",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # test passing a single empty argument
+        out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export CMD_ARGS='\\'\\''",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # single -L argument
+        out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export RPATH='-Wl,-rpath=/lib64'",
+            "export CMD_ARGS='foo.c -L/lib64 -lfoo'",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # multiple -L arguments
+        out, ec = run_cmd("%s ld -L/path/to/bar foo.o -L/lib64 -lfoo -lbar -L/another/path" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export RPATH='-rpath=/another/path:/lib64:/path/to/bar'",
+            "export CMD_ARGS='-L/path/to/bar foo.o -L/lib64 -lfoo -lbar -L/another/path'",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # slightly trimmed down real-life example (compilation of XZ)
+        args = ' '.join([
+            '-fvisibility=hidden',
+            '-Wall',
+            '-O2',
+            '-xHost',
+            '-o .libs/lzmainfo',
+            'lzmainfo-lzmainfo.o lzmainfo-tuklib_progname.o lzmainfo-tuklib_exit.o',
+            '-L/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64',
+            '-L/example/software/imkl/11.3.3.210-iimpi-2016b/lib',
+            '-L/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64',
+            '-L/example/software/gettext/0.19.8/lib',
+            '../../src/liblzma/.libs/liblzma.so',
+            '-lrt -liomp5 -lpthread',
+            '-Wl,-rpath',
+            '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
+        ])
+        out, ec = run_cmd("%s icc %s" % (script, args), simple=False)
+        self.assertEqual(ec, 0)
+        rpath = ':'.join([
+            '/example/software/gettext/0.19.8/lib',
+            '/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64',
+            '/example/software/imkl/11.3.3.210-iimpi-2016b/lib',
+            '/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64',
+        ])
+        expected = '\n'.join([
+            "export RPATH='-Wl,-rpath=%s'" % rpath,
+            "export CMD_ARGS='%s'" % args,
             ''
         ])
         self.assertEqual(out, expected)
