@@ -1817,6 +1817,8 @@ class EasyBlock(object):
                     if "dynamically linked" in out:
                         run_cmd("ldd %s" % path)
                         run_cmd("readelf -d %s" % path)
+                    else:
+                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check")
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
