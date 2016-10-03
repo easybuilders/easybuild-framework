@@ -779,7 +779,11 @@ class Toolchain(object):
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
             orig_cmd = which(cmd)
             if orig_cmd:
-                rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
+                if build_option('debug'):
+                    rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
+                else:
+                    rpath_wrapper_log = '/dev/null'
+
                 wrapper_txt = RPATH_CMD_WRAPPER % {
                     'orig_cmd': orig_cmd,
                     'rpath_args_py': rpath_args_py,
