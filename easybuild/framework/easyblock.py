@@ -1846,8 +1846,6 @@ class EasyBlock(object):
                         else:
                             self.log.debug("Output of 'ldd %s' checked, looks OK", path)
 
-                        if fail_msg:
-
                         # check whether RPATH section in 'readelf -d' output is there
                         out, ec = run_cmd("readelf -d %s" % path, simple=False)
                         if ec:
