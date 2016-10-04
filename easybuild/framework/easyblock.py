@@ -1803,6 +1803,9 @@ class EasyBlock(object):
 
         fails = []
 
+        # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
+        orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
+
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
 
@@ -1844,6 +1847,8 @@ class EasyBlock(object):
                         self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
+
+        env.restore_env_vars(orig_env)
 
         return fails
 
