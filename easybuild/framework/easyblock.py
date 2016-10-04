@@ -40,6 +40,7 @@ import copy
 import glob
 import inspect
 import os
+import re
 import shutil
 import stat
 import tempfile
@@ -1805,6 +1806,9 @@ class EasyBlock(object):
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
 
+        not_found_regex = re.compile('not found', re.M)
+        readelf_rpath_regex = re.compile('(RPATH)', re.M)
+
         dirpaths = [
             os.path.join(self.installdir, 'bin'),
             os.path.join(self.installdir, 'lib'),
@@ -1827,14 +1831,14 @@ class EasyBlock(object):
                         out, ec = run_cmd("ldd %s" % path, simple=False)
                         if ec:
                             fails.append("Failed to run 'ldd %s': %s" % (path, out))
-                        elif 'not found' in out:
+                        elif not_found_regex(out):
                             fails.append("One or more required libraries not found for %s: %s" % (path, out))
 
                         # check whether RPATH section in 'readelf -d' output is there
                         out, ec = run_cmd("readelf -d %s" % path, simple=False)
                         if ec:
                             fails.append("Failed to run 'readelf %s': %s" % (path, out))
-                        elif not re.search('(RPATH)', out):
+                        elif not readelf_rpath_regex.search(out):
                             fails.append("No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out))
                     else:
                         self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
