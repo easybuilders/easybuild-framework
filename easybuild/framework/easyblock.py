@@ -1831,7 +1831,7 @@ class EasyBlock(object):
                         out, ec = run_cmd("ldd %s" % path, simple=False)
                         if ec:
                             fails.append("Failed to run 'ldd %s': %s" % (path, out))
-                        elif not_found_regex(out):
+                        elif not_found_regex.search(out):
                             fails.append("One or more required libraries not found for %s: %s" % (path, out))
 
                         # check whether RPATH section in 'readelf -d' output is there
