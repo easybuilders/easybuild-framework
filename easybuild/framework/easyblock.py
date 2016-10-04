@@ -1799,6 +1799,10 @@ class EasyBlock(object):
 
     def _sanity_check_rpath(self):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
+
+        self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+        self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
+
         dirpaths = [
             os.path.join(self.installdir, 'bin'),
             os.path.join(self.installdir, 'lib'),
