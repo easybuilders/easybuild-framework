@@ -1806,8 +1806,8 @@ class EasyBlock(object):
         # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
         orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
 
-        self.log.debug("List of loaded modules: %s", self.modules_tool.list())
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
+        self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
         not_found_regex = re.compile('not found', re.M)
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
@@ -1820,11 +1820,14 @@ class EasyBlock(object):
         for dirpath in dirpaths:
             if os.path.exists(dirpath):
                 self.log.debug("Sanity checking RPATH for files in %s", dirpath)
+
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     self.log.debug("Sanity checking RPATH for %s", path)
+
                     out, ec = run_cmd("file %s" % path, simple=False)
                     if ec:
                         fails.append("Failed to run 'find %s': %s" % (path, out))
+
                     # only run ldd/readelf on dynamically linked executables/libraries
                     # example output:
                     # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
@@ -1833,16 +1836,31 @@ class EasyBlock(object):
                         # check whether all required libraries are found via 'ldd'
                         out, ec = run_cmd("ldd %s" % path, simple=False)
                         if ec:
-                            fails.append("Failed to run 'ldd %s': %s" % (path, out))
+                            fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
                         elif not_found_regex.search(out):
-                            fails.append("One or more required libraries not found for %s: %s" % (path, out))
+                            fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        else:
+                            self.log.debug("Output of 'ldd %s' checked, looks OK", path)
+
+                        if fail_msg:
 
                         # check whether RPATH section in 'readelf -d' output is there
                         out, ec = run_cmd("readelf -d %s" % path, simple=False)
                         if ec:
-                            fails.append("Failed to run 'readelf %s': %s" % (path, out))
+                            fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
                         elif not readelf_rpath_regex.search(out):
-                            fails.append("No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out))
+                            fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        else:
+                            self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+
                     else:
                         self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
             else:
