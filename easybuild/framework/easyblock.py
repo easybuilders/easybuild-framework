@@ -1800,6 +1800,8 @@ class EasyBlock(object):
     def _sanity_check_rpath(self):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
+        fails = []
+
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
         self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
 
@@ -1815,25 +1817,34 @@ class EasyBlock(object):
                     self.log.debug("Sanity checking RPATH for %s", path)
                     out, ec = run_cmd("file %s" % path, simple=False)
                     if ec:
-                        raise EasyBuildError("Failed to run 'find %s': %s", path, out)
+                        fails.append("Failed to run 'find %s': %s" % (path, out))
                     # only run ldd/readelf on dynamically linked executables/libraries
                     # example output:
                     # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
                     # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
                     if "dynamically linked" in out:
-                        run_cmd("ldd %s" % path)
-                        run_cmd("readelf -d %s" % path)
+                        # check whether all required libraries are found via 'ldd'
+                        out, ec = run_cmd("ldd %s" % path, simple=False)
+                        if ec:
+                            fails.append("Failed to run 'ldd %s': %s" % (path, out))
+                        elif 'not found' in out:
+                            fails.append("One or more required libraries not found for %s: %s" % (path, out))
+
+                        # check whether RPATH section in 'readelf -d' output is there
+                        out, ec = run_cmd("readelf -d %s" % path, simple=False)
+                        if ec:
+                            fails.append("Failed to run 'readelf %s': %s" % (path, out))
+                        elif not re.search('(RPATH)', out):
+                            fails.append("No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out))
                     else:
                         self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
             else:
                 self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
 
+        return fails
 
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """Determine sanity check paths and commands to use."""
-
-        if build_option('rpath'):
-            self._sanity_check_rpath()
 
         # supported/required keys in for sanity check paths, along with function used to check the paths
         path_keys_and_check = {
@@ -1918,6 +1929,9 @@ class EasyBlock(object):
         else:
             self.dry_run_msg("  (none)")
 
+        if build_option('rpath'):
+            self._sanity_check_rpath()
+
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
@@ -1983,6 +1997,12 @@ class EasyBlock(object):
         # cleanup
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
+
+        if build_option('rpath'):
+            rpath_fails = self._sanity_check_rpath()
+            if rpath_fails:
+                self.log.warning("RPATH sanity check failed!")
+                self.sanity_check_fail_msgs.extend(rpath_fails)
 
         # pass or fail
         if self.sanity_check_fail_msgs:
