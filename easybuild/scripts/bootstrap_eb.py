@@ -302,6 +302,61 @@ def run_easy_install(args):
     debug("stderr for 'easy_install %s':\n%s" % (' '.join(args), easy_install_stderr))
 
 
+def check_easy_install_cmd():
+    """Try to make sure availale 'easy_install' command matches active 'setuptools' installation."""
+
+    _, outfile = tempfile.mkstemp()
+    import setuptools
+    debug("Location of active setuptools installation: %s" % setuptools.__file__)
+    easy_install_regex = re.compile('^setuptools %s' % setuptools.__version__)
+    debug("Pattern for 'easy_install --version': %s" % easy_install_regex.pattern)
+
+    debug("sys.path: %s" % sys.path)
+
+    def check_location(path):
+        """Check whether easy_install at specified location is the right one."""
+        res = False
+        easy_install = os.path.join(path, 'easy_install')
+        debug("Checking %s..." % easy_install)
+        if os.path.exists(easy_install):
+            cmd = "PYTHONPATH='%s' %s --version" % (os.getenv('PYTHONPATH', ''), easy_install)
+            print "cmd: '%s'" % cmd
+            os.system("%s > %s 2>&1" % (cmd, outfile))
+            outtxt = open(outfile).read().strip()
+            debug("Output of '%s':\n%s" % (cmd, outtxt))
+            res = bool(easy_install_regex.match(outtxt))
+        else:
+            debug("%s does not exist" % easy_install)
+
+        debug("Result for %s: %s" % (easy_install, res))
+
+        return res
+
+    for path in os.getenv('PATH', '').split(os.pathsep):
+        easy_install = os.path.join(path, 'easy_install')
+        debug("Checking %s..." % easy_install)
+        res = False
+        if os.path.exists(easy_install):
+            cmd = "PYTHONPATH='%s' %s --version" % (os.getenv('PYTHONPATH', ''), easy_install)
+            print "cmd: '%s'" % cmd
+            os.system("%s > %s 2>&1" % (cmd, outfile))
+            outtxt = open(outfile).read().strip()
+            debug("Output of '%s':\n%s" % (cmd, outtxt))
+            res = bool(easy_install_regex.match(outtxt))
+            debug("Result for %s: %s" % (easy_install, res))
+        else:
+            debug("%s does not exist" % easy_install)
+
+        if res:
+            info("Found right 'easy_install' command in %s" % path)
+            curr_path = os.environ.get('PATH', '').split(os.pathsep)
+            os.environ['PATH'] = os.pathsep.join([path] + curr_path)
+            debug("$PATH: %s" % os.environ['PATH'])
+            return
+
+    error("Failed to find right 'easy_install' command!")
+
+
 #
 # Stage functions
 #
@@ -691,10 +746,11 @@ def main():
             info("No suitable setuptools installation found, proceeding with stage 0...")
             distribute_egg_dir = stage0(tmpdir)
 
-    # FIXME: make sure 'easy_install' script available via $PATH matches the setuptools installation
-
     # STAGE 1: install EasyBuild using easy_install to tmp dir
     templates = stage1(tmpdir, sourcepath, distribute_egg_dir)
+
+    # make sure the active 'easy_install' is the right one (i.e. it matches the active setuptools installation)
+    check_easy_install_cmd()
 
     # STAGE 2: install EasyBuild using EasyBuild (to final target installation dir)
     stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath)
