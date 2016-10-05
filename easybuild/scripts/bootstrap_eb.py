@@ -29,7 +29,7 @@ Bootstrap script for EasyBuild
 
 Installs distribute with included (patched) distribute_setup.py script to obtain easy_install,
 and then performs a staged install of EasyBuild:
- * stage 0: install setuptools (which provides easy_install)
+ * stage 0: install setuptools (which provides easy_install), unless already available
  * stage 1: install EasyBuild with easy_install to a temporary directory
  * stage 2: install EasyBuild with EasyBuild from stage 1 to specified install directory
 
@@ -48,6 +48,7 @@ import shutil
 import site
 import sys
 import tempfile
+import traceback
 from cStringIO import StringIO
 from distutils.version import LooseVersion
 from hashlib import md5
@@ -245,6 +246,62 @@ def check_module_command(tmpdir):
     return modtool
 
 
+def check_setuptools():
+    """Check whether a suitable setuptools installation is already available."""
+    res = True
+
+    debug("Checking whether suitable setuptools installation is available...")
+
+    _, outfile = tempfile.mkstemp()
+
+    # note: we need to be very careful here, because switching to a different setuptools installation (e.g. in stage0)
+    #       after the setuptools module was imported is very tricky...
+    #       So, we'll check things by running commands through os.system rather than importing setuptools directly.
+    cmd_tmpl = "%s -c '%%s' > %s 2>&1" % (sys.executable, outfile)
+
+    # check setuptools version
+    try:
+        os.system(cmd_tmpl % "import setuptools; print setuptools.__version__")
+        setuptools_version = LooseVersion(open(outfile).read().strip())
+
+        min_setuptools_version = '0.6c11'
+        if setuptools_version < LooseVersion(min_setuptools_version):
+            debug("Minimal setuptools version %s not satisfied, found '%s'" % (min_setuptools_version, setuptools_version))
+            res = False
+    except Exception as err:
+        debug("Failed to check setuptools version: %s" % err)
+        res = False
+
+    os.system(cmd_tmpl % "from setuptools.command import easy_install; print easy_install.__file__")
+    out = open(outfile).read().strip()
+    if 'setuptools/command/easy_install' not in out:
+        debug("Module 'setuptools.command.easy_install not found")
+        res = False
+
+    try:
+        os.remove(outfile)
+    except Exception:
+        pass
+
+    return res
+
+
+def run_easy_install(args):
+    """Run easy_install with specified list of arguments"""
+    from setuptools.command import easy_install
+
+    orig_stdout, orig_stderr = mock_stdout_stderr()
+    try:
+        easy_install.main(args)
+        easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
+    except Exception as err:
+        easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
+        error("Running 'easy_install %s' failed: %s\n%s" % (' '.join(args), err, traceback.format_exc()))
+
+    debug("stdout for 'easy_install %s':\n%s" % (' '.join(args), easy_install_stdout))
+    debug("stderr for 'easy_install %s':\n%s" % (' '.join(args), easy_install_stderr))
+
+
 #
 # Stage functions
 #
@@ -302,10 +359,15 @@ def stage0(tmpdir):
 
     # make sure we're getting the setuptools we expect
     import setuptools
-    if tmpdir not in setuptools.__file__:
-        error("Found another setuptools than expected: %s" % setuptools.__file__)
-    else:
-        debug("Found setuptools in expected path, good!")
+    from setuptools.command import easy_install
+
+    for mod, path in [('setuptools', setuptools.__file__), ('easy_install', easy_install.__file__)]:
+        if tmpdir not in path:
+            error("Found another %s module than expected: %s" % (mod, path))
+        else:
+            debug("Found %s in expected path, good!" % mod)
+
+    info("Installed setuptools version %s (%s)" % (setuptools.__version__, setuptools.__file__))
 
     return distribute_egg_dir
 
@@ -335,11 +397,9 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
                 info("Found %s for %s package" % (pkg_tarball_paths[0], pkg))
                 source_tarballs.update({pkg: pkg_tarball_paths[0]})
 
-    from setuptools.command import easy_install
-
     if print_debug:
         debug("$ easy_install --help")
-        easy_install.main(['--help'])
+        run_easy_install(['--help'])
 
     # prepare install dir
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
@@ -368,25 +428,13 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
     if not print_debug:
         cmd.insert(0, '--quiet')
+
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
-
-    # mock stdout/stderr to capture output from easy_install
-    # run easy_install
-    orig_stdout, orig_stderr = mock_stdout_stderr()
-    easy_install.main(cmd)
-    easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
-
-    debug("stdout for 'easy_install %s':\n%s" % (' '.join(cmd), easy_install_stdout))
-    debug("stderr for 'easy_install %s':\n%s" % (' '.join(cmd), easy_install_stderr))
+    run_easy_install(cmd)
 
     if post_vsc_base:
         info("running post install command 'easy_install %s'" % (' '.join(post_vsc_base)))
-        orig_stdout, orig_stderr = mock_stdout_stderr()
-        easy_install.main(post_vsc_base)
-        easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
-
-        debug("stdout for 'easy_install %s':\n%s" % (' '.join(post_vsc_base), easy_install_stdout))
-        debug("stderr for 'easy_install %s':\n%s" % (' '.join(post_vsc_base), easy_install_stderr))
+        run_easy_install(post_vsc_base)
 
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, VSC_BASE)
         if pkg_egg_dir is None:
@@ -564,7 +612,8 @@ def main():
     """Main script: bootstrap EasyBuild in stages."""
 
     self_txt = open(__file__).read()
-    info("EasyBuild bootstrap script (version %s, MD5: %s)\n" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
+    info("EasyBuild bootstrap script (version %s, MD5: %s)" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
+    info("Found Python %s\n" % '; '.join(sys.version.split('\n')))
 
     # disallow running as root, since stage 2 will fail
     if os.getuid() == 0:
@@ -632,11 +681,17 @@ def main():
     # install EasyBuild in stages
 
     # STAGE 0: install distribute, which delivers easy_install
+    distribute_egg_dir = None
     if EASYBUILD_BOOTSTRAP_SKIP_STAGE0:
-        distribute_egg_dir = None
-        info("Skipping stage0, using local distribute/setuptools providing easy_install")
+        info("Skipping stage 0, using local distribute/setuptools providing easy_install")
     else:
-        distribute_egg_dir = stage0(tmpdir)
+        if check_setuptools():
+            info("Suitable setuptools installation already found, skipping stage 0...")
+        else:
+            info("No suitable setuptools installation found, proceeding with stage 0...")
+            distribute_egg_dir = stage0(tmpdir)
+
+    # FIXME: make sure 'easy_install' script available via $PATH matches the setuptools installation
 
     # STAGE 1: install EasyBuild using easy_install to tmp dir
     templates = stage1(tmpdir, sourcepath, distribute_egg_dir)
