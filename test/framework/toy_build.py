@@ -1197,6 +1197,28 @@ class ToyBuildTest(EnhancedTestCase):
 
             self.assertTrue(all(isinstance(bs, dict) for bs in buildstats))
 
+    def test_toy_filter_env_vars(self):
+        """Test use of --filter-env-vars on generated module file"""
+        toy_mod_path = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod_path += '.lua'
+
+        regexs = [
+            re.compile("prepend[-_]path.*LD_LIBRARY_PATH.*lib", re.M),
+            re.compile("prepend[-_]path.*LIBRARY_PATH.*lib", re.M),
+            re.compile("prepend[-_]path.*PATH.*bin", re.M),
+        ]
+
+        self.test_toy_build()
+        toy_mod_txt = read_file(toy_mod_path)
+        for regex in regexs:
+            self.assertTrue(regex.search(toy_mod_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
+
+        self.test_toy_build(extra_args=['--filter-env-vars=LD_LIBRARY_PATH,PATH'])
+        toy_mod_txt = read_file(toy_mod_path)
+        self.assertFalse(regexs[0].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[0].pattern, toy_mod_txt))
+        self.assertTrue(regexs[1].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[1].pattern, toy_mod_txt))
+        self.assertFalse(regexs[2].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[2].pattern, toy_mod_txt))
 
 
 def suite():
