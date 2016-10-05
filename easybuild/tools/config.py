@@ -95,6 +95,7 @@ BUILD_OPTIONS_CMDLINE = {
         'easyblock',
         'extra_modules',
         'filter_deps',
+        'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
         'from_pr',
