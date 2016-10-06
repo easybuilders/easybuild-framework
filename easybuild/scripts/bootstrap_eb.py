@@ -128,14 +128,14 @@ def mock_stdout_stderr():
 
 def restore_stdout_stderr(orig_stdout, orig_stderr):
     """Restore stdout/stderr channels after mocking"""
+    # collect output
     sys.stdout.flush()
     stdout = sys.stdout.getvalue()
     sys.stderr.flush()
     stderr = sys.stderr.getvalue()
 
-    sys.stdout.flush()
+    # restore original stdout/stderr
     sys.stdout = orig_stdout
-    sys.stderr.flush()
     sys.stderr = orig_stderr
 
     return stdout, stderr
