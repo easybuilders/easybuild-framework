@@ -316,30 +316,12 @@ def check_easy_install_cmd():
     """Try to make sure availale 'easy_install' command matches active 'setuptools' installation."""
 
     _, outfile = tempfile.mkstemp()
+
     import setuptools
     debug("Location of active setuptools installation: %s" % setuptools.__file__)
+
     easy_install_regex = re.compile('^setuptools %s' % setuptools.__version__)
     debug("Pattern for 'easy_install --version': %s" % easy_install_regex.pattern)
-
-    debug("sys.path: %s" % sys.path)
-
-    def check_location(path):
-        """Check whether easy_install at specified location is the right one."""
-        res = False
-        easy_install = os.path.join(path, 'easy_install')
-        debug("Checking %s..." % easy_install)
-        if os.path.exists(easy_install):
-            cmd = "PYTHONPATH='%s' %s --version" % (os.getenv('PYTHONPATH', ''), easy_install)
-            os.system("%s > %s 2>&1" % (cmd, outfile))
-            outtxt = open(outfile).read().strip()
-            debug("Output of '%s':\n%s" % (cmd, outtxt))
-            res = bool(easy_install_regex.match(outtxt))
-        else:
-            debug("%s does not exist" % easy_install)
-
-        debug("Result for %s: %s" % (easy_install, res))
-
-        return res
 
     for path in os.getenv('PATH', '').split(os.pathsep):
         easy_install = os.path.join(path, 'easy_install')
