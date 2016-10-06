@@ -290,6 +290,8 @@ def check_setuptools():
 
 def run_easy_install(args):
     """Run easy_install with specified list of arguments"""
+    import setuptools
+    debug("Active setuptools installation: %s" % setuptools.__file__)
     from setuptools.command import easy_install
 
     orig_stdout, orig_stderr = mock_stdout_stderr()
