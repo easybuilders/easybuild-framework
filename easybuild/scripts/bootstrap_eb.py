@@ -320,7 +320,6 @@ def check_easy_install_cmd():
         debug("Checking %s..." % easy_install)
         if os.path.exists(easy_install):
             cmd = "PYTHONPATH='%s' %s --version" % (os.getenv('PYTHONPATH', ''), easy_install)
-            print "cmd: '%s'" % cmd
             os.system("%s > %s 2>&1" % (cmd, outfile))
             outtxt = open(outfile).read().strip()
             debug("Output of '%s':\n%s" % (cmd, outtxt))
@@ -348,7 +347,7 @@ def check_easy_install_cmd():
             debug("%s does not exist" % easy_install)
 
         if res:
-            info("Found right 'easy_install' command in %s" % path)
+            debug("Found right 'easy_install' command in %s" % path)
             curr_path = os.environ.get('PATH', '').split(os.pathsep)
             os.environ['PATH'] = os.pathsep.join([path] + curr_path)
             debug("$PATH: %s" % os.environ['PATH'])
@@ -568,16 +567,13 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
     # make sure we're getting the expected EasyBuild packages
     import easybuild.framework
-    if tmpdir not in easybuild.framework.__file__:
-        error("Found another easybuild-framework than expected: %s" % easybuild.framework.__file__)
-    else:
-        debug("Found easybuild-framework in expected path, good!")
-
     import easybuild.easyblocks
-    if tmpdir not in easybuild.easyblocks.__file__:
-        error("Found another easybuild-easyblocks than expected: %s" % easybuild.easyblocks.__file__)
-    else:
-        debug("Found easybuild-easyblocks in expected path, good!")
+    import vsc.utils.fancylogger
+    for pkg in [easybuild.framework, easybuild.easyblocks, vsc.utils.fancylogger]:
+        if tmpdir not in pkg.__file__:
+            error("Found another %s than expected: %s" % (pkg.__name__, pkg.__file__))
+        else:
+            debug("Found %s in expected path, good!" % pkg.__name__)
 
     debug("templates: %s" % templates)
     return templates
