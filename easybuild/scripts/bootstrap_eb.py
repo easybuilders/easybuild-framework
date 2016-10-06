@@ -248,9 +248,9 @@ def check_module_command(tmpdir):
 
 def check_setuptools():
     """Check whether a suitable setuptools installation is already available."""
-    res = True
 
     debug("Checking whether suitable setuptools installation is available...")
+    res = True
 
     _, outfile = tempfile.mkstemp()
 
@@ -263,6 +263,7 @@ def check_setuptools():
     try:
         os.system(cmd_tmpl % "import setuptools; print setuptools.__version__")
         setuptools_version = LooseVersion(open(outfile).read().strip())
+        debug("Found setuptools version %s" % setuptools_version)
 
         min_setuptools_version = '0.6c11'
         if setuptools_version < LooseVersion(min_setuptools_version):
@@ -274,6 +275,7 @@ def check_setuptools():
 
     os.system(cmd_tmpl % "from setuptools.command import easy_install; print easy_install.__file__")
     out = open(outfile).read().strip()
+    debug("Location of setuptools' easy_install module: %s" % out)
     if 'setuptools/command/easy_install' not in out:
         debug("Module 'setuptools.command.easy_install not found")
         res = False
