@@ -250,7 +250,7 @@ def check_setuptools():
     """Check whether a suitable setuptools installation is already available."""
 
     debug("Checking whether suitable setuptools installation is available...")
-    res = True
+    res = None
 
     _, outfile = tempfile.mkstemp()
 
@@ -279,6 +279,12 @@ def check_setuptools():
     if 'setuptools/command/easy_install' not in out:
         debug("Module 'setuptools.command.easy_install not found")
         res = False
+
+    if res is None:
+        os.system(cmd_tmpl % "import setuptools; print setuptools.__file__")
+        setuptools_loc = open(outfile).read().strip()
+        res = os.path.dirname(os.path.dirname(setuptools_loc))
+        debug("Location of setuptools installation: %s" % res)
 
     try:
         os.remove(outfile)
@@ -740,8 +746,10 @@ def main():
     if EASYBUILD_BOOTSTRAP_SKIP_STAGE0:
         info("Skipping stage 0, using local distribute/setuptools providing easy_install")
     else:
-        if check_setuptools():
+        setuptools_loc = check_setuptools()
+        if setuptools_loc:
             info("Suitable setuptools installation already found, skipping stage 0...")
+            sys.path.insert(0, setuptools_loc)
         else:
             info("No suitable setuptools installation found, proceeding with stage 0...")
             distribute_egg_dir = stage0(tmpdir)
