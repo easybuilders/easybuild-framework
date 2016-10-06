@@ -509,7 +509,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
             info(".egg dir for vsc-base not found, trying again with --always-copy...")
             post_vsc_base.insert(0, '--always-copy')
             info("running post install command 'easy_install %s'" % (' '.join(post_vsc_base)))
-            easy_install.main(post_vsc_base)
+            run_easy_install(post_vsc_base)
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
