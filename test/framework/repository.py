@@ -35,7 +35,10 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
+import easybuild.tools.build_log
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.gitrepo import GitRepository
 from easybuild.tools.repository.hgrepo import HgRepository
@@ -99,7 +102,7 @@ class RepositoryTest(EnhancedTestCase):
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
-            repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, False)
+            repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, None)
             repo.commit("toy/0.0")
 
             log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
@@ -155,6 +158,40 @@ class RepositoryTest(EnhancedTestCase):
         repo = init_repository('FileRepository', [self.path, subdir])
         self.assertEqual(repo.wc, self.path)
         self.assertEqual(repo.subdir, subdir)
+
+    def test_add_easyconfig(self):
+        """Test use of add_easyconfig method"""
+        repo = init_repository('FileRepository', self.path)
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        def check_ec(path, expected_buildstats):
+            """Check easyconfig at specified path"""
+            self.assertTrue(os.path.exists(path))
+            ectxt = read_file(path)
+            self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
+            self.assertTrue("# Build statistics" in ectxt)
+            ecdict = EasyConfigParser(path).get_config_dict()
+            self.assertEqual(ecdict['buildstats'], expected_buildstats)
+
+        toy_eb_file = os.path.join(test_easyconfigs, 'toy-0.0.eb')
+
+        path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23}, None)
+        check_ec(path, [{'time': 1.23}])
+
+        path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
+        check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
+        toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
+        path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
+        check_ec(path, [{'time': 1.23}])
+
+        path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
+        check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
     def tearDown(self):
         """Clean up after test."""
