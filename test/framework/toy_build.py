@@ -45,6 +45,7 @@ import easybuild.tools.module_naming_scheme  # required to dynamically load test
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
@@ -1219,6 +1220,21 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(regexs[0].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[0].pattern, toy_mod_txt))
         self.assertTrue(regexs[1].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[1].pattern, toy_mod_txt))
         self.assertFalse(regexs[2].search(toy_mod_txt), "Pattern '%s' found in: %s" % (regexs[2].pattern, toy_mod_txt))
+
+    def test_toy_iter(self):
+        """Test toy build that involves iterating over buildopts."""
+        toy_ec = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0-iter.eb')
+
+        expected_buildopts = ['', '-O2; mv %(name)s toy_O2', '-O1; mv %(name)s toy_O1']
+
+        for extra_args in [None, ['--minimal-toolchains']]:
+            # sanity check will make sure all entries in buildopts list were taken into account
+            self.test_toy_build(ec_file=toy_ec, extra_args=extra_args, versionsuffix='-iter')
+
+            # verify whether dumped easyconfig contains original value for buildopts
+            dumped_toy_ec = os.path.join(self.test_prefix, 'ebfiles_repo', 'toy', os.path.basename(toy_ec))
+            ec = EasyConfigParser(dumped_toy_ec).get_config_dict()
+            self.assertEqual(ec['buildopts'], expected_buildopts)
 
 
 def suite():
