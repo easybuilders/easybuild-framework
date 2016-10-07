@@ -196,6 +196,7 @@ class EasyBlock(object):
         self.loaded_modules = []
 
         # iterate configure/build/options
+        self.iter_idx = 0
         self.iter_opts = {}
 
         # sanity check fail error messages to report (if any)
@@ -1333,24 +1334,39 @@ class EasyBlock(object):
         self.cfg.enable_templating = False
 
         # handle configure/build/install options that are specified as lists
-        # set first element to be used, keep track of list in *_list options dictionary
+        # set first element to be used, keep track of list in self.iter_opts
         # this will only be done during first iteration, since after that the options won't be lists anymore
-        suffix = "_list"
-        sufflen = len(suffix)
         for opt in ITERATE_OPTIONS:
             # keep track of list, supply first element as first option to handle
             if isinstance(self.cfg[opt], (list, tuple)):
-                self.iter_opts[opt + suffix] = self.cfg[opt]  # copy
-                self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt + suffix]))
+                self.iter_opts[opt] = self.cfg[opt]  # copy
+                self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt]))
+
+        if self.iter_opts:
+            self.log.info("Current iteration index: %s", self.iter_idx)
 
         # pop first element from all *_list options as next value to use
-        for (lsname, ls) in self.iter_opts.items():
-            opt = lsname[:-sufflen]  # drop '_list' part from name to get option name
-            if len(self.iter_opts[lsname]) > 0:
-                self.cfg[opt] = self.iter_opts[lsname].pop(0)  # first element will be used next
+        for opt in self.iter_opts:
+            if len(self.iter_opts[opt]) > self.iter_idx:
+                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
             else:
                 self.cfg[opt] = ''  # empty list => empty option as next value
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+
+        # re-enable templating before self.cfg values are used
+        self.cfg.enable_templating = True
+
+        # prepare for next iteration (if any)
+        self.iter_idx += 1
+
+    def restore_iterate_opts(self):
+        """Restore options that were iterated over"""
+        # disable templating, since we're messing about with values in self.cfg
+        self.cfg.enable_templating = False
+
+        for opt in self.iter_opts:
+            self.cfg[opt] = self.iter_opts[opt]
+            self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = True
@@ -1984,6 +2000,8 @@ class EasyBlock(object):
             self.log.info("Keeping builddir %s" % self.builddir)
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
+
+        self.restore_iterate_opts()
 
     def make_module_step(self, fake=False):
         """
