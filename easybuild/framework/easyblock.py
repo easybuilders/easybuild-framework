@@ -1340,7 +1340,7 @@ class EasyBlock(object):
             # keep track of list, supply first element as first option to handle
             if isinstance(self.cfg[opt], (list, tuple)):
                 self.iter_opts[opt] = self.cfg[opt]  # copy
-                self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt]))
+                self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
         if self.iter_opts:
             self.log.info("Current iteration index: %s", self.iter_idx)
