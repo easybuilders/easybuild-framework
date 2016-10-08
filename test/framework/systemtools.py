@@ -39,7 +39,8 @@ import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
-from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, LINUX, UNKNOWN, VENDORS
+from easybuild.tools.systemtools import CPU_FAMILIES, DARWIN, LINUX, UNKNOWN
+from easybuild.tools.systemtools import CPU_VENDORS, ARM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
@@ -352,24 +353,29 @@ class SystemToolsTest(EnhancedTestCase):
             MACHINE_NAME = name
             self.assertEqual(get_cpu_architecture(), machine_names[name])
 
-    def test_cpu_vendor(self):
+    def test_cpu_vendor_native(self):
         """Test getting CPU vendor."""
         cpu_vendor = get_cpu_vendor()
-        self.assertTrue(cpu_vendor in VENDORS.values() + [UNKNOWN])
+        self.assertTrue(cpu_vendor in CPU_VENDORS)
 
     def test_cpu_vendor_linux(self):
         """Test getting CPU vendor (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
-
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
         global PROC_CPUINFO_TXT
+
+        MACHINE_NAME = 'x86_64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
         self.assertEqual(get_cpu_vendor(), INTEL)
 
+        MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_vendor(), IBM)
 
+        MACHINE_NAME = 'armv7l'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
         self.assertEqual(get_cpu_vendor(), ARM)
 
@@ -390,14 +396,19 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
+        MACHINE_NAME = 'x86_64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
         self.assertEqual(get_cpu_family(), INTEL)
 
+        MACHINE_NAME = 'armv7l'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
         self.assertEqual(get_cpu_family(), ARM)
 
+        MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
 

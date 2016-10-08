@@ -70,8 +70,9 @@ PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
 CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
-VENDORS = {
-    'ARM': ARM,
+CPU_VENDORS = [ARM, AMD, IBM, INTEL]
+VENDOR_IDS = {
+    '0x41': ARM,
     'AuthenticAMD': AMD,
     'GenuineIntel': INTEL,
     'IBM': IBM,
@@ -174,30 +175,41 @@ def get_cpu_vendor():
     """
     Try to detect the CPU vendor
 
-    :return: a value from the VENDORS dict
+    :return: a value from the CPU_VENDORS list
     """
     vendor = None
     os_type = get_os_type()
 
-    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
-        txt = read_file(PROC_CPUINFO_FP)
-        arch = UNKNOWN
+    if os_type == LINUX:
+        vendor_regex = None
 
-        vendor_regex = re.compile(r"(vendor_id.*?)?\s*:\s*(?P<vendor>(?(1)\S+|(?:IBM|ARM)))")
-        res = vendor_regex.search(txt)
-        if res:
-            arch = res.group('vendor')
-        if arch in VENDORS:
-            vendor = VENDORS[arch]
-            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
-                       vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
+        arch = get_cpu_architecture()
+        if arch in [AARCH32, AARCH64]:
+            vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
+        elif arch == POWER:
+            vendor_regex = re.compile(r"model\s+:\s*(\w+)")
+        elif arch == X86_64:
+            vendor_regex = re.compile(r"vendor_id\s+:\s*(\S+)")
+
+        if vendor_regex and os.path.exists(PROC_CPUINFO_FP):
+            vendor_id = None
+
+            txt = read_file(PROC_CPUINFO_FP)
+            res = vendor_regex.search(txt)
+            if res:
+                vendor_id = res.group(1)
+
+            if vendor_id in VENDOR_IDS:
+                vendor = VENDOR_IDS[vendor_id]
+                _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
+                           vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
         out, ec = run_cmd(cmd, force_in_dry_run=True)
         out = out.strip()
-        if ec == 0 and out in VENDORS:
-            vendor = VENDORS[out]
+        if ec == 0 and out in VENDOR_IDS:
+            vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
     if vendor is None:
