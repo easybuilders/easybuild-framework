@@ -38,9 +38,10 @@ from unittest import TextTestRunner
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, LINUX, POWER, UNKNOWN, VENDORS
+from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
+from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, LINUX, UNKNOWN, VENDORS
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
-from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
+from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
@@ -179,6 +180,8 @@ DirectMap2M:     2045952 kB
 DirectMap1G:    65011712 kB
 """
 
+MACHINE_NAME = None
+
 
 def mocked_read_file(fp):
     """Mocked version of read_file, with specified contents for known filenames."""
@@ -218,6 +221,9 @@ def mocked_run_cmd(cmd, **kwargs):
     else:
         return run_cmd(cmd, **kwargs)
 
+def mocked_uname():
+    """Mocked version of platform.uname, with specified contents for known machine names."""
+    return ('Linux', 'localhost', '3.16', '3.16', MACHINE_NAME, '')
 
 class SystemToolsTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
@@ -229,6 +235,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_os_path_exists = st.os.path.exists
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
+        self.orig_platform_uname = st.platform.uname
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -236,6 +243,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.read_file = self.orig_read_file
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
+        st.platform.uname = self.orig_platform_uname
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
@@ -320,6 +328,29 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_speed(), 2400.0)
+
+    def test_cpu_architecture_native(self):
+        """Test getting the CPU architecture."""
+        arch = get_cpu_architecture()
+        self.assertTrue(arch in CPU_ARCHITECTURES)
+
+    def test_cpu_architecture(self):
+        """Test getting the CPU architecture (mocked)."""
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
+
+        machine_names = {
+            'aarch64': AARCH64,
+            'aarch64_be': AARCH64,
+            'armv7l': AARCH32,
+            'ppc64': POWER,
+            'ppc64le': POWER,
+            'x86_64': X86_64,
+            'some_fancy_arch': UNKNOWN,
+        }
+        for name in machine_names:
+            MACHINE_NAME = name
+            self.assertEqual(get_cpu_architecture(), machine_names[name])
 
     def test_cpu_vendor(self):
         """Test getting CPU vendor."""

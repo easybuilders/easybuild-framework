@@ -49,11 +49,15 @@ from easybuild.tools.run import run_cmd
 _log = fancylogger.getLogger('systemtools', fname=False)
 
 # constants
+AARCH32 = 'AArch32'
+AARCH64 = 'AArch64'
+POWER = 'POWER'
+X86_64 = 'x86_64'
+
 AMD = 'AMD'
 ARM = 'ARM'
 IBM = 'IBM'
 INTEL = 'Intel'
-POWER = 'POWER'
 
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -64,6 +68,7 @@ MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
+CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
 CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
 VENDORS = {
     'ARM': ARM,
@@ -135,6 +140,34 @@ def get_total_memory():
         _log.warning("Failed to determine total memory, returning %s", memtotal)
 
     return memtotal
+
+
+def get_cpu_architecture():
+    """
+    Try to detect the CPU architecture
+
+    :return: a value from the CPU_ARCHITECTURES list
+    """
+    aarch32_regex = re.compile("arm.*")
+    aarch64_regex = re.compile("aarch64.*")
+    power_regex = re.compile("ppc64.*")
+
+    system, node, release, version, machine, processor = platform.uname()
+    if aarch32_regex.match(machine):
+        arch = AARCH32
+    elif aarch64_regex.match(machine):
+        arch = AARCH64
+    elif power_regex.match(machine):
+        arch = POWER
+    elif machine == 'x86_64':
+        arch = X86_64
+    else:
+        arch = UNKNOWN
+        _log.warning("Failed to determine CPU architecture, returning %s", arch)
+        return arch
+
+    _log.debug("Determined CPU architecture: %s", arch)
+    return arch
 
 
 def get_cpu_vendor():
