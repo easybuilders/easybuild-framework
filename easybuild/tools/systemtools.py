@@ -261,8 +261,13 @@ def get_cpu_family():
         _log.debug("Using vendor as CPU family: %s" % family)
 
     else:
+        arch = get_cpu_architecture()
+        if arch in [AARCH32, AARCH64]:
+            # Custom ARM-based designs from other vendors
+            family = ARM
+
         # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
-        if os.path.exists(PROC_CPUINFO_FP):
+        elif os.path.exists(PROC_CPUINFO_FP):
             cpuinfo_txt = read_file(PROC_CPUINFO_FP)
             power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
             if power_regex.search(cpuinfo_txt):

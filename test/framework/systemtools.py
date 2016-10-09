@@ -523,6 +523,16 @@ class SystemToolsTest(EnhancedTestCase):
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_family(), ARM)
 
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
+        self.assertEqual(get_cpu_family(), ARM)
+
+        MACHINE_NAME = 'aarch64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
+        self.assertEqual(get_cpu_family(), ARM)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
+        self.assertEqual(get_cpu_family(), ARM)
+
         MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
