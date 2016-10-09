@@ -40,7 +40,7 @@ from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, DARWIN, LINUX, UNKNOWN
-from easybuild.tools.systemtools import CPU_VENDORS, AMD, ARM, IBM, INTEL
+from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
@@ -49,7 +49,7 @@ from easybuild.tools.systemtools import get_system_info, get_total_memory, get_g
 
 
 PROC_CPUINFO_TXT = None
-PROC_CPUINFO_TXT_ARM = """processor : 0
+PROC_CPUINFO_TXT_RASPI2 = """processor : 0
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
 Features : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm
@@ -68,6 +68,23 @@ CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
+"""
+PROC_CPUINFO_TXT_XGENE2 = """processor	: 0
+cpu MHz		: 2400.000
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
+CPU implementer	: 0x50
+CPU architecture: 8
+CPU variant	: 0x1
+CPU part	: 0x000
+CPU revision	: 0
+"""
+PROC_CPUINFO_TXT_THUNDERX = """processor	: 0
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
+CPU implementer	: 0x43
+CPU architecture: 8
+CPU variant	: 0x1
+CPU part	: 0x0a1
+CPU revision	: 0
 """
 PROC_CPUINFO_TXT_POWER = """processor	: 0
 cpu		: POWER7 (architected), altivec supported
@@ -344,7 +361,7 @@ class SystemToolsTest(EnhancedTestCase):
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_model(), "IBM,8205-E6C")
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_model(), "ARMv7 Processor rev 5 (v7l)")
 
     def test_cpu_model_darwin(self):
@@ -436,8 +453,15 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cpu_vendor(), IBM)
 
         MACHINE_NAME = 'armv7l'
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_vendor(), ARM)
+
+        MACHINE_NAME = 'aarch64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
+        self.assertEqual(get_cpu_vendor(), APM)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
+        self.assertEqual(get_cpu_vendor(), CAVIUM)
 
     def test_cpu_vendor_darwin(self):
         """Test getting CPU vendor (mocked for Darwin)."""
@@ -468,7 +492,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cpu_family(), AMD)
 
         MACHINE_NAME = 'armv7l'
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_family(), ARM)
 
         MACHINE_NAME = 'ppc64'

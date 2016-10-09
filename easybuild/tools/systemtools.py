@@ -55,9 +55,18 @@ POWER = 'POWER'
 X86_64 = 'x86_64'
 
 AMD = 'AMD'
+APM = 'Applied Micro'
 ARM = 'ARM'
+BROADCOM = 'Broadcom'
+CAVIUM = 'Cavium'
+DEC = 'DEC'
 IBM = 'IBM'
+INFINEON = 'Infineon'
 INTEL = 'Intel'
+MARVELL = 'Marvell'
+MOTOROLA = 'Motorola/Freescale'
+NVIDIA = 'NVIDIA'
+QUALCOMM = 'Qualcomm'
 
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -69,10 +78,20 @@ PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
-CPU_VENDORS = [ARM, AMD, IBM, INTEL]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER]
+CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM, MARVELL]
 VENDOR_IDS = {
     '0x41': ARM,
+    '0x42': BROADCOM,
+    '0x43': CAVIUM,
+    '0x44': DEC,
+    '0x49': INFINEON,
+    '0x4D': MOTOROLA,
+    '0x4E': NVIDIA,
+    '0x50': APM,
+    '0x51': QUALCOMM,
+    '0x56': MARVELL,
+    '0x69': INTEL,
     'AuthenticAMD': AMD,
     'GenuineIntel': INTEL,
     'IBM': IBM,
