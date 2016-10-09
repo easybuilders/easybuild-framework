@@ -247,17 +247,9 @@ class Compiler(Toolchain):
         if build_option('optarch') == OPTARCH_GENERIC:
             # don't take 'optarch' toolchain option into account when --optarch=GENERIC is used,
             # *always* include the flags that correspond to generic compilation (which are listed in 'optarch' option)
-            flag = self.options.option('optarch')
-            # If no compiler-specific optarch flag is defined, the value of the 'optarch' toolchain setting is
-            # returned (bool).  In this case, ignore the setting.
-            if not isinstance(flag, bool):
-                optarchflags.append(flag)
+            optarchflags.append(self.options.option('optarch'))
         elif self.options.get('optarch', False):
-            flag = self.options.option('optarch')
-            # If no compiler-specific optarch flag is defined, the value of the 'optarch' toolchain setting is
-            # returned (bool).  In this case, ignore the setting.
-            if not isinstance(flag, bool):
-                optarchflags.append(flag)
+            optarchflags.append(self.options.option('optarch'))
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
@@ -293,12 +285,12 @@ class Compiler(Toolchain):
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 
-        if optarch is not None:
-            self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
-            self.options.options_map['optarch'] = optarch
-
-        if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
-            raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s", self.arch)
+        if optarch is None:
+            optarch = ''
+            self.log.warning("_set_optimal_architecture: no suitable optarch option found for %s", self.arch)
+        else:
+            self.log.info("_set_optimal_architecture: using %s as optarch for %s.", optarch, self.arch)
+        self.options.options_map['optarch'] = optarch
 
     def comp_family(self, prefix=None):
         """
