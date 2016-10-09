@@ -40,7 +40,7 @@ from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, DARWIN, LINUX, UNKNOWN
-from easybuild.tools.systemtools import CPU_VENDORS, ARM, IBM, INTEL
+from easybuild.tools.systemtools import CPU_VENDORS, AMD, ARM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
@@ -84,7 +84,61 @@ platform	: pSeries
 model		: IBM,8205-E6C
 machine		: CHRP IBM,8205-E6C
 """
-PROC_CPUINFO_TXT_X86 = """processor	: 0
+PROC_CPUINFO_TXT_AMD = """processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 8
+model name	: Six-Core AMD Opteron(tm) Processor 2427
+stepping	: 0
+microcode	: 0x10000da
+cpu MHz		: 2200.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 0
+cpu cores	: 6
+apicid		: 8
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+bogomips	: 4400.54
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate
+
+processor	: 1
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 8
+model name	: Six-Core AMD Opteron(tm) Processor 2427
+stepping	: 0
+microcode	: 0x10000da
+cpu MHz		: 2200.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 1
+cpu cores	: 6
+apicid		: 9
+initial apicid	: 1
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+bogomips	: 4400.54
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate
+"""
+PROC_CPUINFO_TXT_INTEL = """processor	: 0
 vendor_id	: GenuineIntel
 cpu family	: 6
 model		: 45
@@ -281,8 +335,11 @@ class SystemToolsTest(EnhancedTestCase):
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
         global PROC_CPUINFO_TXT
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_model(), "Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz")
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
+        self.assertEqual(get_cpu_model(), "Six-Core AMD Opteron(tm) Processor 2427")
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_model(), "IBM,8205-E6C")
@@ -313,7 +370,7 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
 
         # /proc/cpuinfo on Linux x86 (no cpufreq)
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_speed(), 2600.075)
 
         # /proc/cpuinfo on Linux POWER
@@ -368,8 +425,11 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
 
         MACHINE_NAME = 'x86_64'
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_vendor(), INTEL)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
+        self.assertEqual(get_cpu_vendor(), AMD)
 
         MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
@@ -401,8 +461,11 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
 
         MACHINE_NAME = 'x86_64'
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_family(), INTEL)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
+        self.assertEqual(get_cpu_family(), AMD)
 
         MACHINE_NAME = 'armv7l'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
