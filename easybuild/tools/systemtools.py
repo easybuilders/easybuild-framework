@@ -97,6 +97,7 @@ VENDOR_IDS = {
     'IBM': IBM,
 }
 ARM_CORTEX_IDS = {
+    '0xc05': 'Cortex-A5',
     '0xc07': 'Cortex-A7',
     '0xc08': 'Cortex-A8',
     '0xc09': 'Cortex-A9',
