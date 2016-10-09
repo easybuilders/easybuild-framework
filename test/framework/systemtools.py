@@ -69,6 +69,26 @@ CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
 """
+PROC_CPUINFO_TXT_ODROID_XU3 = """processor	: 0
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 84.00
+Features	: swp half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 4
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 120.00
+Features	: swp half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x2
+CPU part	: 0xc0f
+CPU revision	: 3
+"""
 PROC_CPUINFO_TXT_XGENE2 = """processor	: 0
 cpu MHz		: 2400.000
 Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
@@ -350,19 +370,27 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
+        MACHINE_NAME = 'x86_64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_model(), "Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz")
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
         self.assertEqual(get_cpu_model(), "Six-Core AMD Opteron(tm) Processor 2427")
 
+        MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_model(), "IBM,8205-E6C")
 
+        MACHINE_NAME = 'armv7l'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
-        self.assertEqual(get_cpu_model(), "ARMv7 Processor rev 5 (v7l)")
+        self.assertEqual(get_cpu_model(), "ARM Cortex-A7")
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
+        self.assertEqual(get_cpu_model(), "ARM Cortex-A15 + Cortex-A7")
 
     def test_cpu_model_darwin(self):
         """Test getting CPU model (mocked for Darwin)."""

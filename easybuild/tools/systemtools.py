@@ -96,6 +96,17 @@ VENDOR_IDS = {
     'GenuineIntel': INTEL,
     'IBM': IBM,
 }
+ARM_CORTEX_IDS = {
+    '0xc07': 'Cortex-A7',
+    '0xc08': 'Cortex-A8',
+    '0xc09': 'Cortex-A9',
+    '0xc0e': 'Cortex-A17',
+    '0xc0f': 'Cortex-A15',
+    '0xd03': 'Cortex-A53',
+    '0xd07': 'Cortex-A57',
+    '0xd08': 'Cortex-A72',
+    '0xd09': 'Cortex-A73',
+}
 
 
 class SystemToolsException(Exception):
@@ -274,15 +285,37 @@ def get_cpu_model():
     os_type = get_os_type()
 
     if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
-        # we need 'model name' on Linux/x86, but 'model' is there first with different info
-        # 'model name' is not there for Linux/POWER, but 'model' has the right info
-        model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
         txt = read_file(PROC_CPUINFO_FP)
-        res = model_regex.search(txt)
-        if res is not None:
-            model = res.group('model').strip()
-            _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
-                       model_regex.pattern, PROC_CPUINFO_FP, model)
+
+        arch = get_cpu_architecture()
+        if arch in [AARCH32, AARCH64]:
+            # On ARM platforms, no model name is provided in /proc/cpuinfo.  However, for vanilla ARM cores
+            # we can reverse-map the part number.
+            vendor = get_cpu_vendor()
+            if vendor == ARM:
+                model_regex = re.compile(r"CPU part\s+:\s*(\S+)", re.M)
+                # There can be big.LITTLE setups with different types of cores!
+                res = model_regex.findall(txt)
+                if res:
+                    model_ids = list(set(res))
+                    id_list = []
+                    for model_id in model_ids:
+                        if model_id in ARM_CORTEX_IDS:
+                            id_list.append(ARM_CORTEX_IDS[model_id])
+                        else:
+                            id_list.append(UNKNOWN)
+                    model = vendor + ' ' + ' + '.join(id_list)
+                    _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
+                               model_regex.pattern, PROC_CPUINFO_FP, model)
+        else:
+            # we need 'model name' on Linux/x86, but 'model' is there first with different info
+            # 'model name' is not there for Linux/POWER, but 'model' has the right info
+            model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
+            res = model_regex.search(txt)
+            if res is not None:
+                model = res.group('model').strip()
+                _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
+                           model_regex.pattern, PROC_CPUINFO_FP, model)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
