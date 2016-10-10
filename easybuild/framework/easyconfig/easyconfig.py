@@ -1285,6 +1285,19 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     return easyconfigs
 
 
+def letter_dir_for(name):
+    """
+    Determine 'letter' directory for specified software name.
+    This usually just the 1st letter of the software name (in lowercase),
+    except for funky software names, e.g. ones starting with a digit.
+    """
+    letter = name.lower()[0]
+    if letter < 'a' or letter > 'z':
+        letter = '0'
+
+    return letter
+
+
 def create_paths(path, name, version):
     """
     Returns all the paths where easyconfig could be located
@@ -1294,11 +1307,11 @@ def create_paths(path, name, version):
     """
     cand_paths = [
         (name, version),  # e.g. <path>/GCC/4.8.2.eb
-        (name, "%s-%s" % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
-        (name.lower()[0], name, "%s-%s" % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
-        ("%s-%s" % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
+        (name, '%s-%s' % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
+        (letter_dir_for(name), name, '%s-%s' % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
+        ('%s-%s' % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
     ]
-    return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
+    return ['%s.eb' % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
 def robot_find_easyconfig(name, version):
@@ -1398,11 +1411,7 @@ def det_location_for(path, target_dir, soft_name, target_file):
     subdir = os.path.join('easybuild', 'easyconfigs')
 
     if os.path.exists(os.path.join(target_dir, subdir)):
-        letter = soft_name.lower()[0]
-        if letter not in [chr(i) for i in range(ord('a'), ord('z') + 1)]:
-            raise EasyBuildError("Don't know which letter subdir to use for software name %s", soft_name)
-
-        target_path = os.path.join('easybuild', 'easyconfigs', letter, soft_name, target_file)
+        target_path = os.path.join('easybuild', 'easyconfigs', letter_dir_for(soft_name), soft_name, target_file)
         _log.debug("Target path for %s: %s", path, target_path)
 
         target_path = os.path.join(target_dir, target_path)
