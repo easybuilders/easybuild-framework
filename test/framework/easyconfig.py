@@ -44,7 +44,7 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, letter_dir_for
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, get_easyblock_class, resolve_template
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
@@ -987,14 +987,37 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
 
+    def test_letter_dir(self):
+        """Test letter_dir_for function."""
+        test_cases = {
+            'foo': 'f',
+            'Bar': 'b',
+            'CAPS': 'c',
+            'R': 'r',
+            '3to2': '0',
+            '7zip': '0',
+            '_bleh_': '0',
+        }
+        for name, letter in test_cases.items():
+            self.assertEqual(letter_dir_for(name), letter)
+
     def test_easyconfig_paths(self):
         """Test create_paths function."""
-        cand_paths = create_paths("/some/path", "Foo", "1.2.3")
+        cand_paths = create_paths('/some/path', 'Foo', '1.2.3')
         expected_paths = [
-            "/some/path/Foo/1.2.3.eb",
-            "/some/path/Foo/Foo-1.2.3.eb",
-            "/some/path/f/Foo/Foo-1.2.3.eb",
-            "/some/path/Foo-1.2.3.eb",
+            '/some/path/Foo/1.2.3.eb',
+            '/some/path/Foo/Foo-1.2.3.eb',
+            '/some/path/f/Foo/Foo-1.2.3.eb',
+            '/some/path/Foo-1.2.3.eb',
+        ]
+        self.assertEqual(cand_paths, expected_paths)
+
+        cand_paths = create_paths('foobar', '3to2', '1.1.1')
+        expected_paths = [
+            'foobar/3to2/1.1.1.eb',
+            'foobar/3to2/3to2-1.1.1.eb',
+            'foobar/0/3to2/3to2-1.1.1.eb',
+            'foobar/3to2-1.1.1.eb',
         ]
         self.assertEqual(cand_paths, expected_paths)
 
