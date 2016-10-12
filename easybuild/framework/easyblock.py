@@ -923,17 +923,16 @@ class EasyBlock(object):
                 self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
-        builddeps = self.cfg.builddependencies()
-        # include 'module load' statements for dependencies in reverse order
+        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
-            if not dep in builddeps:
+            if dep['build_only']:
+                self.log.debug("Skipping build dependency %s", dep)
+            else:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-            else:
-                self.log.debug("Skipping build dependency %s" % str(dep))
 
-        self.log.debug("Full list of dependencies: %s" % deps)
+        self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
@@ -941,9 +940,10 @@ class EasyBlock(object):
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, deps)
+        self.log.debug("List of excluded deps: %s", excluded_deps)
 
         deps = [d for d in deps if d not in excluded_deps]
-        self.log.debug("List of retained dependencies: %s" % deps)
+        self.log.debug("List of retained deps to load in generated module: %s" % deps)
         recursive_unload = self.cfg['recursive_module_unload']
 
         loads = []
