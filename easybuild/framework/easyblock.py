@@ -923,19 +923,17 @@ class EasyBlock(object):
                 self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
-        builddeps = self.cfg.builddependencies()
-        rpath = build_option('rpath')
-        linkdeps = self.cfg.linkdependencies()
         # include 'module load' statements for dependencies in reverse order
+        self.log.debug("List of dependencies: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
-            if dep not in builddeps and not (rpath and dep in linkdeps):
+            if not dep['build_only'] and not (rpath and dep['link_only']):
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
             else:
                 self.log.debug("Skipping build/link dependency %s" % str(dep))
 
-        self.log.debug("Full list of dependencies: %s" % deps)
+        self.log.debug("List of retained dependencies: %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
