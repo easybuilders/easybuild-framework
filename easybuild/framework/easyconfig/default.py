@@ -140,6 +140,7 @@ DEFAULT_CONFIG = {
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
+    'linkdependencies': [[], "List of dependencies that only required at build/link-time", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters

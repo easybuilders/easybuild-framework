@@ -194,9 +194,14 @@ def dep_graph(filename, specs):
         spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
 
-        # Get the build dependencies for each spec so we can distinguish them later
+        # get the build/link dependencies for each spec so we can distinguish them later
         spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec']['builddependencies']]
         all_nodes.update(spec['ec'].build_dependencies)
+        spec['ec'].link_dependencies = [mk_node_name(s) for s in spec['ec']['linkdependencies']]
+        all_nodes.update(spec['ec'].link_dependencies)
+
+    builddep_edge_attrs = [('style','dotted'), ('color','blue'), ('arrowhead','diamond')]
+    linkdep_edge_attrs = [('style','dotted'), ('color','red'), ('arrowhead','diamond')]
 
     # build directed graph
     dgr = digraph()
@@ -205,7 +210,9 @@ def dep_graph(filename, specs):
         for dep in spec['ec'].all_dependencies:
             dgr.add_edge((spec['module'], dep))
             if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=[('style','dotted'), ('color','blue'), ('arrowhead','diamond')])
+                dgr.add_edge_attributes((spec['module'], dep), attrs=builddep_edge_attrs)
+            elif dep in spec['ec'].link_dependencies:
+                dgr.add_edge_attributes((spec['module'], dep), attrs=linkdep_edge_attrs)
 
     _dep_graph_dump(dgr, filename)
 
