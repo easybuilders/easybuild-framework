@@ -926,12 +926,12 @@ class EasyBlock(object):
         # include 'module load' statements for dependencies in reverse order
         self.log.debug("List of dependencies: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
-            if not dep['build_only'] and not (rpath and dep['link_only']):
+            if dep['build_only'] or (build_option('rpath') and dep['link_only']):
+                self.log.debug("Skipping build/link dependency %s" % str(dep))
+            else:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-            else:
-                self.log.debug("Skipping build/link dependency %s" % str(dep))
 
         self.log.debug("List of retained dependencies: %s", deps)
 
