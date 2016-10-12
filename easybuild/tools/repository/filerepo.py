@@ -119,17 +119,20 @@ class FileRepository(Repository):
         else:
             statsprefix = "buildstats = ["
 
-        statssuffix = "]\n"
-
         if previous:
-            statstxt = statscomment + statsprefix + '\n'
-            for entry in previous + [stats]:
-                statstxt += stats_to_str(entry, isyeb=isyeb) + ',\n'
-            statstxt += statssuffix
+            allstats = previous
         else:
-            statstxt = statscomment + statsprefix + stats_to_str(stats, isyeb=isyeb) + statssuffix
+            allstats = []
 
-        txt += statstxt
+        if stats:
+            allstats.append(stats)
+
+        if allstats:
+            txt += statscomment + statsprefix + '\n'
+            for entry in allstats:
+                txt += stats_to_str(entry, isyeb=isyeb) + ',\n'
+            txt += ']\n'
+
         write_file(dest, txt)
 
         return dest
