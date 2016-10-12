@@ -69,45 +69,65 @@ class FileRepository(Repository):
         # for sake of convenience
         self.wc = self.repo
 
-    def add_easyconfig(self, cfg, name, version, stats, previous):
+    def easyconfig_path_for(self, cfg, name, version, isyeb=None):
+        """
+        Determine path to easyconfig file for specified software name/version
+
+        :param cfg: full path to easyconfig file to determine path in repository for
+        :param name: software name
+        :param version: (full) software version
+        :param isyeb: whether or not easyconfig file is in .yeb format (if None, will be derived via cfg)
+        """
+        if isyeb is None:
+            isyeb = is_yeb_format(cfg, None)
+
+        if isyeb:
+            ext = YEB_FORMAT_EXTENSION
+        else:
+            ext = EB_FORMAT_EXTENSION
+
+        return os.path.join(self.wc, self.subdir, name, '%s-%s%s' % (name, version, ext))
+
+    def add_easyconfig(self, cfg, name, version, stats, previous, dest=None):
         """
         Add the eb-file for software name and version to the repository.
         stats should be a dict containing statistics.
         if previous is true -> append the statistics to the file
         This will return the path to the created file (for use in subclasses)
+
+        :param cfg: full path to easyconfig file to determine path in repository for
+        :param name: software name
+        :param version: (full) software version
+        :param stats: build stats to include in easyconfig file
+        :param previous: previous build stats (if any)
+        :param dest: destination for easyconfig file in repository (will be derived if None)
         """
-        # create directory for eb file
-        full_path = os.path.join(self.wc, self.subdir, name)
-        mkdir(full_path, parents=True)
-        yeb_format = is_yeb_format(cfg, None)
+        isyeb = is_yeb_format(cfg, None)
 
-        if yeb_format:
-            extension = YEB_FORMAT_EXTENSION
-            prefix = "buildstats: ["
-
-        else:
-            extension = EB_FORMAT_EXTENSION
-            prefix = "buildstats = ["
-
-        # destination
-        dest = os.path.join(full_path, "%s-%s%s" % (name, version, extension))
+        if dest is None:
+            dest = self.easyconfig_path_for(cfg, name, version, isyeb=isyeb)
 
         txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 
-        # copy file
         txt += read_file(cfg)
 
-        # append a line to the eb file so that we don't have git merge conflicts
+        # add build stats, taking into account format and possible previous build stats
         statscomment = "\n# Build statistics\n"
-        statsprefix = prefix
+
+        if isyeb:
+            statsprefix = "buildstats: ["
+        else:
+            statsprefix = "buildstats = ["
+
         statssuffix = "]\n"
+
         if previous:
             statstxt = statscomment + statsprefix + '\n'
             for entry in previous + [stats]:
-                statstxt += stats_to_str(entry, isyeb=yeb_format) + ',\n'
+                statstxt += stats_to_str(entry, isyeb=isyeb) + ',\n'
             statstxt += statssuffix
         else:
-            statstxt = statscomment + statsprefix + stats_to_str(stats, isyeb=yeb_format) + statssuffix
+            statstxt = statscomment + statsprefix + stats_to_str(stats, isyeb=isyeb) + statssuffix
 
         txt += statstxt
         write_file(dest, txt)

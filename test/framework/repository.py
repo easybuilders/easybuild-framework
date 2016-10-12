@@ -70,6 +70,22 @@ class RepositoryTest(EnhancedTestCase):
         self.assertEqual(repo.wc, self.path)
         self.assertEqual(repo.subdir, subdir)
 
+        for toy_ec_file, isyeb in [('toy-0.0.eb', False), ('yeb/toy-0.0.yeb', True)]:
+
+            toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', toy_ec_file)
+
+            ext = ('eb', 'yeb')[isyeb]
+
+            expected = os.path.join(repo.wc, 'sub/dir', 'test', 'test-1.0.%s' % ext)
+            self.assertEqual(repo.easyconfig_path_for(toy_ec_file, 'test', '1.0'), expected)
+            self.assertEqual(repo.easyconfig_path_for(toy_ec_file, 'test', '1.0', isyeb=isyeb), expected)
+
+            repo.add_easyconfig(toy_ec_file, 'test', '0.1', {}, None)
+            self.assertTrue(os.path.exists(os.path.join(repo.wc, 'sub/dir', 'test', 'test-0.1.%s' % ext)))
+
+            repo.add_easyconfig(toy_ec_file, 'test', '0.1', {}, None, dest=expected)
+            self.assertTrue(os.path.exists(os.path.join(repo.wc, 'sub/dir', 'test', 'test-1.0.%s' % ext)))
+
     def test_gitrepo(self):
         """Test using GitRepository."""
         # only run this test if git Python module is available
@@ -101,9 +117,13 @@ class RepositoryTest(EnhancedTestCase):
         if ec == 0:
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
+
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
             repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, None)
             repo.commit("toy/0.0")
+
+            self.assertTrue(os.path.exists(os.path.join(repo.wc, 'test', 'test-1.0.eb')))
 
             log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
             logmsg = repo.client.log('HEAD^!')
