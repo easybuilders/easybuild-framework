@@ -52,8 +52,8 @@ from vsc.utils.missing import get_class_for
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
+from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -519,7 +519,7 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            filepath = os.path.join(srcpaths[0], self.name[0].lower(), self.name)
+            filepath = os.path.join(srcpaths[0], letter_dir_for(self.name), self.name)
             if extension:
                 filepath = os.path.join(filepath, "extensions")
             self.log.info("Creating path %s to download file to" % filepath)
@@ -557,7 +557,7 @@ class EasyBlock(object):
             for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(path, self.name)
-                letterpath = os.path.join(path, self.name.lower()[0], self.name)
+                letterpath = os.path.join(path, letter_dir_for(self.name), self.name)
 
                 # most likely paths
                 candidate_filepaths = [
