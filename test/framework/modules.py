@@ -107,9 +107,10 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
-            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertTrue('bzip2/.1.0.6' in ms)
             self.assertTrue('toy/.0.0-deps' in ms)
+            self.assertTrue('OpenMPI/.1.6.4-GCC-4.6.4' in ms)
         else:
             self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
