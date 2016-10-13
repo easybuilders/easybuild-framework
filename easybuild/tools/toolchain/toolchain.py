@@ -786,6 +786,13 @@ class Toolchain(object):
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
             orig_cmd = which(cmd)
             if orig_cmd:
+
+                cmd_wrapper = os.path.join(wrapper_dir, cmd)
+
+                # make *very* sure we don't wrap around ourselves and create a fork bomb...
+                if os.path.samefile(orig_cmd, cmd_wrapper):
+                    raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
+
                 if build_option('debug'):
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
                 else:
@@ -797,7 +804,6 @@ class Toolchain(object):
                     'rpath_args_py': rpath_args_py,
                     'rpath_wrapper_log': rpath_wrapper_log,
                 }
-                cmd_wrapper = os.path.join(wrapper_dir, cmd)
                 write_file(cmd_wrapper, wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
                 self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
