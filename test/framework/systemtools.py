@@ -390,7 +390,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cpu_model(), "ARM Cortex-A7")
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
-        self.assertEqual(get_cpu_model(), "ARM Cortex-A15 + Cortex-A7")
+        self.assertEqual(get_cpu_model(), "ARM Cortex-A7 + Cortex-A15")
 
     def test_cpu_model_darwin(self):
         """Test getting CPU model (mocked for Darwin)."""

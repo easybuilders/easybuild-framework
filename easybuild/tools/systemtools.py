@@ -48,12 +48,13 @@ from easybuild.tools.run import run_cmd
 
 _log = fancylogger.getLogger('systemtools', fname=False)
 
-# constants
+# Architecture constants
 AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
 
+# Vendor constants
 AMD = 'AMD'
 APM = 'Applied Micro'
 ARM = 'ARM'
@@ -68,6 +69,7 @@ MOTOROLA = 'Motorola/Freescale'
 NVIDIA = 'NVIDIA'
 QUALCOMM = 'Qualcomm'
 
+# OS constants
 LINUX = 'Linux'
 DARWIN = 'Darwin'
 
@@ -79,7 +81,9 @@ PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
 CPU_FAMILIES = [AMD, ARM, INTEL, POWER]
-CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM, MARVELL]
+CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+# ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
+# (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
     '0x41': ARM,
     '0x42': BROADCOM,
@@ -96,6 +100,8 @@ VENDOR_IDS = {
     'GenuineIntel': INTEL,
     'IBM': IBM,
 }
+# ARM Cortex part numbers from the corresponding ARM Processor Technical Reference Manuals,
+# see http://infocenter.arm.com - Cortex-A series processors, Section "Main ID Register"
 ARM_CORTEX_IDS = {
     '0xc05': 'Cortex-A5',
     '0xc07': 'Cortex-A7',
@@ -180,25 +186,27 @@ def get_cpu_architecture():
 
     :return: a value from the CPU_ARCHITECTURES list
     """
-    aarch32_regex = re.compile("arm.*")
-    aarch64_regex = re.compile("aarch64.*")
     power_regex = re.compile("ppc64.*")
+    aarch64_regex = re.compile("aarch64.*")
+    aarch32_regex = re.compile("arm.*")
 
     system, node, release, version, machine, processor = platform.uname()
-    if aarch32_regex.match(machine):
-        arch = AARCH32
-    elif aarch64_regex.match(machine):
-        arch = AARCH64
+
+    arch = UNKNOWN
+    if machine == X86_64:
+        arch = X86_64
     elif power_regex.match(machine):
         arch = POWER
-    elif machine == 'x86_64':
-        arch = X86_64
-    else:
-        arch = UNKNOWN
-        _log.warning("Failed to determine CPU architecture, returning %s", arch)
-        return arch
+    elif aarch64_regex.match(machine):
+        arch = AARCH64
+    elif aarch32_regex.match(machine):
+        arch = AARCH32
 
-    _log.debug("Determined CPU architecture: %s", arch)
+    if arch == UNKNOWN:
+        _log.warning("Failed to determine CPU architecture, returning %s", arch)
+    else:
+        _log.debug("Determined CPU architecture: %s", arch)
+
     return arch
 
 
@@ -215,18 +223,18 @@ def get_cpu_vendor():
         vendor_regex = None
 
         arch = get_cpu_architecture()
-        if arch in [AARCH32, AARCH64]:
-            vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
+        if arch == X86_64:
+            vendor_regex = re.compile(r"vendor_id\s+:\s*(\S+)")
         elif arch == POWER:
             vendor_regex = re.compile(r"model\s+:\s*(\w+)")
-        elif arch == X86_64:
-            vendor_regex = re.compile(r"vendor_id\s+:\s*(\S+)")
+        elif arch in [AARCH32, AARCH64]:
+            vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
 
         if vendor_regex and os.path.exists(PROC_CPUINFO_FP):
             vendor_id = None
 
-            txt = read_file(PROC_CPUINFO_FP)
-            res = vendor_regex.search(txt)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+            res = vendor_regex.search(proc_cpuinfo)
             if res:
                 vendor_id = res.group(1)
 
@@ -269,9 +277,9 @@ def get_cpu_family():
 
         # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
         elif os.path.exists(PROC_CPUINFO_FP):
-            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
-            if power_regex.search(cpuinfo_txt):
+            if power_regex.search(proc_cpuinfo):
                 family = POWER
                 _log.debug("Determined CPU family using regex '%s' in %s: %s",
                            power_regex.pattern, PROC_CPUINFO_FP, family)
@@ -291,7 +299,7 @@ def get_cpu_model():
     os_type = get_os_type()
 
     if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
-        txt = read_file(PROC_CPUINFO_FP)
+        proc_cpuinfo = read_file(PROC_CPUINFO_FP)
 
         arch = get_cpu_architecture()
         if arch in [AARCH32, AARCH64]:
@@ -301,15 +309,11 @@ def get_cpu_model():
             if vendor == ARM:
                 model_regex = re.compile(r"CPU part\s+:\s*(\S+)", re.M)
                 # There can be big.LITTLE setups with different types of cores!
-                res = model_regex.findall(txt)
-                if res:
-                    model_ids = list(set(res))
+                model_ids = model_regex.findall(proc_cpuinfo)
+                if model_ids:
                     id_list = []
-                    for model_id in model_ids:
-                        if model_id in ARM_CORTEX_IDS:
-                            id_list.append(ARM_CORTEX_IDS[model_id])
-                        else:
-                            id_list.append(UNKNOWN)
+                    for model_id in sorted(set(model_ids)):
+                        id_list.append(ARM_CORTEX_IDS.get(model_id, UNKNOWN))
                     model = vendor + ' ' + ' + '.join(id_list)
                     _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
                                model_regex.pattern, PROC_CPUINFO_FP, model)
@@ -317,7 +321,7 @@ def get_cpu_model():
             # we need 'model name' on Linux/x86, but 'model' is there first with different info
             # 'model name' is not there for Linux/POWER, but 'model' has the right info
             model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
-            res = model_regex.search(txt)
+            res = model_regex.search(proc_cpuinfo)
             if res is not None:
                 model = res.group('model').strip()
                 _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
@@ -355,10 +359,10 @@ def get_cpu_speed():
         # Linux without cpu scaling
         elif os.path.exists(PROC_CPUINFO_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
-            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER
             cpu_freq_regex = re.compile(r"^(?:cpu MHz|clock)\s*:\s*(?P<cpu_freq>\d+(?:\.\d+)?)", re.M)
-            res = cpu_freq_regex.search(cpuinfo_txt)
+            res = cpu_freq_regex.search(proc_cpuinfo)
             if res:
                 cpu_freq = float(res.group('cpu_freq'))
                 _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
