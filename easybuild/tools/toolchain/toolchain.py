@@ -790,7 +790,7 @@ class Toolchain(object):
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
-                if os.path.samefile(orig_cmd, cmd_wrapper):
+                if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
                     raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
                 if build_option('debug'):
