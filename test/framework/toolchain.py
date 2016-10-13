@@ -424,6 +424,37 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
 
+    def test_blas_lapack_family(self):
+        """Test determining BLAS/LAPACK family."""
+        # check compiler-only (sub)toolchain
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), None)
+        self.assertEqual(tc.lapack_family(), None)
+        self.modtool.purge()
+
+        # check compiler/MPI-only (sub)toolchain
+        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), None)
+        self.assertEqual(tc.lapack_family(), None)
+        self.modtool.purge()
+
+        # check full toolchain including BLAS/LAPACK
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), 'OpenBLAS')
+        self.assertEqual(tc.lapack_family(), 'OpenBLAS')
+        self.modtool.purge()
+
+        # check another one
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), 'IntelMKL')
+        self.assertEqual(tc.lapack_family(), 'IntelMKL')
+
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
         tc = self.get_toolchain("goolfc", version="1.3.12")

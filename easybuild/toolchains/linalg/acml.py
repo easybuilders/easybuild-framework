@@ -38,6 +38,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_ACML = 'ACML'
+
+
 class Acml(LinAlg):
     """
     Provides ACML BLAS/LAPACK support.
@@ -46,12 +49,14 @@ class Acml(LinAlg):
     # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
     BLAS_LIB = ['acml']
     BLAS_LIB_MT = ['acml_mp']
+    BLAS_FAMILY = TC_CONSTANT_ACML
 
     # is completed in _set_blas_variables, depends on compiler used
     BLAS_LIB_DIR = []
 
     LAPACK_MODULE_NAME = ['ACML']
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_ACML
 
     ACML_SUBDIRS_MAP = {
         TC_CONSTANT_INTELCOMP: ['ifort64', 'ifort64_mp'],
