@@ -764,11 +764,12 @@ class Toolchain(object):
         """
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
-        #else:
-        #    raise EasyBuildError("RPATH linking is currently only supported on Linux")
+        else:
+            raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
-        # FIXME: must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
-        wrapper_dir = os.path.join(tempfile.gettempdir(), 'rpath_wrappers')
+        wrapper_dir = os.path.join(tempfile.mkdtemp(), 'rpath_wrappers')
+
+        # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
 
         # determine path to Python script that interprets/filters command arguments and defines $RPATH
