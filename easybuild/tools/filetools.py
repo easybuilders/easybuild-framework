@@ -1350,10 +1350,12 @@ def copy_file(path, target_path):
     :param path: the original filepath
     :param target_path: path to copy the file to
     """
-
-    try:
-        mkdir(os.path.dirname(target_path), parents=True)
-        shutil.copy2(path, target_path)
-        _log.info("%s copied to %s", path, target_path)
-    except OSError as err:
-        raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+    if build_option('extended_dry_run'):
+        dry_run_msg("copied file %s to %s" % (path, target_path))
+    else:
+        try:
+            mkdir(os.path.dirname(target_path), parents=True)
+            shutil.copy2(path, target_path)
+            _log.info("%s copied to %s", path, target_path)
+        except OSError as err:
+            raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)

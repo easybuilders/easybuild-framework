@@ -766,10 +766,28 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
         to_copy = os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')
-        target_path = os.path.join(tmpdir, 'toy-0.0.eb')
+        target_path = os.path.join(tmpdir, 'toy.eb')
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
+        # also test behaviour of extract_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        # remove target file, it shouldn't get copied under dry run
+        os.remove(target_path)
+
+        self.mock_stdout(True)
+        ft.copy_file(to_copy, target_path)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(target_path))
+        self.assertTrue(re.search("^copied file .*/toy-0.0.eb to .*/toy.eb", txt))
 
     def test_extract_file(self):
         """Test extract_file"""
