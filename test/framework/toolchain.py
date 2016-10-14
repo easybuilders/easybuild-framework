@@ -950,7 +950,15 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, expected)
 
         # multiple -L arguments
-        out, ec = run_cmd("%s ld -L/path/to/bar foo.o -L/lib64 -lfoo -lbar -L/another/path" % script, simple=False)
+        args = ' '.join([
+            '-L/path/to/bar',
+            'foo.o',
+            '-L/lib64',
+            '-lfoo',
+            '-lbar',
+            '-L/another/path',
+        ])
+        out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "export RPATH='-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'':/another/path:/lib64:/path/to/bar'",
@@ -987,6 +995,29 @@ class ToolchainTest(EnhancedTestCase):
         expected = '\n'.join([
             "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'':%s'" % rpath,
             "export CMD_ARGS='%s'" % args,
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # trimmed down real-life example involving quotes and escaped quotes (compilation of GCC)
+        args = [
+            '-DHAVE_CONFIG_H',
+            '-I.',
+            '-Ibuild',
+            '-I../../gcc',
+            '-DBASEVER="\\"5.4.0\\""',
+            '-DDATESTAMP="\\"\\""',
+            '-DPKGVERSION="\\"(GCC) \\""',
+            '-DBUGURL="\\"<http://gcc.gnu.org/bugs.html>\\""',
+            '-o build/version.o',
+            '../../gcc/version.c',
+        ]
+        cmd = "%s g++ %s" % (script, ' '.join(["'%s'" % a for a in args]))
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
+            "export CMD_ARGS='%s'" % ' '.join(args),
             ''
         ])
         self.assertEqual(out, expected)
