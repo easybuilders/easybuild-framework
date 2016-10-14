@@ -934,7 +934,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "export RPATH='-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
-            "export CMD_ARGS=''''''",
+            "export CMD_ARGS='\\'\\''",
             ''
         ])
         self.assertEqual(out, expected)
