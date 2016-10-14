@@ -78,8 +78,8 @@ lib_paths = ["''$ORIGIN/../lib''", "''$ORIGIN/../lib64''"] + sorted(lib_paths)
 # output: statement to define $RPATH
 print "export RPATH='%s=%s'" % (rpath_flag, ':'.join(lib_paths))
 
-# make sure arguments are properly quoted, and that single quotes are escaped
-cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "\\'")
+# make sure arguments are properly quoted, and that single/double quotes are escaped
+cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "''").replace('"', '\\"')
 
 # output: statement to define $CMD_ARGS
 print "export CMD_ARGS='%s'" % cmd_args

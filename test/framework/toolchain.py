@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import mkdir, read_file, write_file, which
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -934,7 +934,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "export RPATH='-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
-            "export CMD_ARGS='\\'\\''",
+            "export CMD_ARGS=''''''",
             ''
         ])
         self.assertEqual(out, expected)
@@ -1012,14 +1012,45 @@ class ToolchainTest(EnhancedTestCase):
             '-o build/version.o',
             '../../gcc/version.c',
         ]
-        cmd = "%s g++ %s" % (script, ' '.join(["'%s'" % a for a in args]))
+        expected = [
+            '-DHAVE_CONFIG_H',
+            '-I.',
+            '-Ibuild',
+            '-I../../gcc',
+            '-DBASEVER=\\"5.4.0\\"',
+            '-DDATESTAMP=\\"\\"',
+            '-DPKGVERSION=\\"(GCC) \\"',
+            '-DBUGURL=\\"<http://gcc.gnu.org/bugs.html>\\"',
+            '-o build/version.o',
+            '../../gcc/version.c',
+        ]
+        cmd = "%s g++ %s" % (script, ' '.join(args))
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
-            "export CMD_ARGS='%s'" % ' '.join(args),
+            "export CMD_ARGS='%s'" % ' '.join(expected),
             ''
         ])
+        self.assertEqual(out, expected)
+
+    def test_toolchain_prepare_rpath(self):
+        """Test toolchain.prepare under --rpath"""
+
+        # put fake 'gcc' command in place that just echos its arguments
+        fake_gcc = os.path.join(self.test_prefix, 'fake', 'gcc')
+        write_file(fake_gcc, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_gcc, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+
+        # enable --rpath and prepare toolchain
+        init_config(build_options={'rpath': True})
+        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc.prepare()
+
+        # check whether fake gcc was wrapped and that arguments are what they should be
+        out, _ = run_cmd('gcc -L/tmp/$USER \'$FOO\' -DDATE="\\"\\""')
+        expected = '-Wl,-rpath=$ORIGIN/../lib:$ORIGIN/../lib64:/private/tmp/kehoste -L/tmp/kehoste $FOO -DDATE=\\"\\"'
         self.assertEqual(out, expected)
 
 
