@@ -903,7 +903,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
+            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
             "export CMD_ARGS='-c foo.c'",
             ''
         ])
@@ -913,7 +913,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
+            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
             "export CMD_ARGS='foo.o'",
             ''
         ])
@@ -923,7 +923,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
+            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
             "export CMD_ARGS=''",
             ''
         ])
@@ -933,7 +933,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
+            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
             "export CMD_ARGS=''''''",
             ''
         ])
@@ -943,7 +943,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'':/lib64'",
+            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/lib64'",
             "export CMD_ARGS='foo.c -L/lib64 -lfoo'",
             ''
         ])
@@ -961,7 +961,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'':/another/path:/lib64:/path/to/bar'",
+            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/another/path:/lib64:/path/to/bar'",
             "export CMD_ARGS='-L/path/to/bar foo.o -L/lib64 -lfoo -lbar -L/another/path'",
             ''
         ])
@@ -993,7 +993,7 @@ class ToolchainTest(EnhancedTestCase):
             '/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64',
         ])
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'':%s'" % rpath,
+            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':%s'" % rpath,
             "export CMD_ARGS='%s'" % args,
             ''
         ])
@@ -1016,7 +1016,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
+            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
             "export CMD_ARGS='%s'" % ' '.join(args),
             ''
         ])
@@ -1038,7 +1038,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check whether fake gcc was wrapped and that arguments are what they should be
         out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DDATE="\\"\\""')
-        expected = '-Wl,-rpath=$ORIGIN/../lib:$ORIGIN/../lib64:/foo %(user)s.c -L/foo $FOO -DDATE="\\"\\""'
+        expected = '-Wl,-rpath=$ORIGIN/../lib:$ORIGIN/../lib64:/foo %(user)s.c -L/foo $FOO -DDATE=""'
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
 

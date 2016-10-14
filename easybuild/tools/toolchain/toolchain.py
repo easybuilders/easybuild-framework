@@ -91,7 +91,7 @@ eval $rpath_args_out
 log "RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
 
 log "running '$ORIG_CMD $RPATH $CMD_ARGS'"
-$ORIG_CMD $RPATH $CMD_ARGS
+eval "$ORIG_CMD $RPATH $CMD_ARGS"
 """
 
 
