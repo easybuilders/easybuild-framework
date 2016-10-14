@@ -32,9 +32,13 @@ Support for GotoBLAS as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_GOTOBLAS = 'GotoBLAS'
+
+
 class GotoBLAS(LinAlg):
     """
     Trivial class, provides GotoBLAS support.
     """
     BLAS_MODULE_NAME = ['GotoBLAS']
     BLAS_LIB = ['goto']
+    BLAS_FAMILY = TC_CONSTANT_GOTOBLAS

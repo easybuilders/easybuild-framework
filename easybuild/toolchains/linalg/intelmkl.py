@@ -42,6 +42,9 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_INTELMKL = 'IntelMKL'
+
+
 class IntelMKL(LinAlg):
     """Support for Intel MKL."""
 
@@ -56,9 +59,11 @@ class IntelMKL(LinAlg):
     BLAS_LIB_MT = ["mkl_%(interface)s%(lp64)s" , "mkl_%(interface_mt)s_thread", "mkl_core"]
     BLAS_LIB_GROUP = True
     BLAS_LIB_STATIC = True
+    BLAS_FAMILY = TC_CONSTANT_INTELMKL
 
     LAPACK_MODULE_NAME = ['imkl']
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_INTELMKL
 
     BLACS_MODULE_NAME = ['imkl']
     BLACS_LIB = ["mkl_blacs%(mpi)s%(lp64)s"]

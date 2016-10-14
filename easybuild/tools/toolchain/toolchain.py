@@ -787,8 +787,14 @@ class Toolchain(object):
         """ Return compiler family used in this toolchain (abstract method)."""
         raise NotImplementedError
 
+    def blas_family(self):
+        "Return type of BLAS library used in this toolchain, or 'None' if BLAS is not supported."
+        return None
+
+    def lapack_family(self):
+        "Return type of LAPACK library used in this toolchain, or 'None' if LAPACK is not supported."
+        return None
+
     def mpi_family(self):
-        """ Return type of MPI library used in this toolchain or 'None' if MPI is not
-            supported.
-        """
+        "Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."
         return None
