@@ -73,7 +73,7 @@ lib_paths = set(os.path.realpath(a[2:].lstrip(' ')) for a in args if a.startswit
 # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
 # see also https://linux.die.net/man/8/ld-linux;
 # make sure to wrap them in single quotes to avoid expansion of $ORIGIN when linking!
-lib_paths = ["'$ORIGIN/../lib'", "'$ORIGIN/../lib64'"] + sorted(lib_paths)
+lib_paths = ["\\'$ORIGIN/../lib\\'", "\\'$ORIGIN/../lib64\\'"] + sorted(lib_paths)
 
 # output: statement to define $RPATH
 print "export RPATH='%s=%s'" % (rpath_flag, ':'.join(lib_paths))
