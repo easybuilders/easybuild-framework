@@ -1012,24 +1012,12 @@ class ToolchainTest(EnhancedTestCase):
             '-o build/version.o',
             '../../gcc/version.c',
         ]
-        expected = [
-            '-DHAVE_CONFIG_H',
-            '-I.',
-            '-Ibuild',
-            '-I../../gcc',
-            '-DBASEVER=\\"5.4.0\\"',
-            '-DDATESTAMP=\\"\\"',
-            '-DPKGVERSION=\\"(GCC) \\"',
-            '-DBUGURL=\\"<http://gcc.gnu.org/bugs.html>\\"',
-            '-o build/version.o',
-            '../../gcc/version.c',
-        ]
         cmd = "%s g++ %s" % (script, ' '.join(args))
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "export RPATH='-Wl,-rpath=''$ORIGIN/../lib'':''$ORIGIN/../lib64'''",
-            "export CMD_ARGS='%s'" % ' '.join(expected),
+            "export CMD_ARGS='%s'" % ' '.join(args),
             ''
         ])
         self.assertEqual(out, expected)
@@ -1049,8 +1037,8 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         # check whether fake gcc was wrapped and that arguments are what they should be
-        out, _ = run_cmd('gcc -L/tmp/$USER \'$FOO\' -DDATE="\\"\\""')
-        expected = '-Wl,-rpath=$ORIGIN/../lib:$ORIGIN/../lib64:/private/tmp/%(user)s -L/tmp/%(user)s $FOO -DDATE=\\"\\"'
+        out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DDATE="\\"\\""')
+        expected = '-Wl,-rpath=$ORIGIN/../lib:$ORIGIN/../lib64:/foo %(user)s.c -L/foo $FOO -DDATE="\\"\\""'
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
 
