@@ -490,8 +490,6 @@ class EasyBlockTest(EnhancedTestCase):
         name = "pi"
         version = "3.14"
         deps = [('GCC', '4.6.4')]
-        hiddendeps = [('toy', '0.0-deps')]
-        alldeps = deps + hiddendeps  # hidden deps must be included in list of deps
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -501,9 +499,10 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = %s" % str(alldeps),
-            "hiddendependencies = %s" % str(hiddendeps),
+            "dependencies = [('GCC', '4.6.4'), ('toy', '0.0-deps')]",
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
+            # hidden deps must be included in list of (build)deps
+            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '1.6.4-GCC-4.6.4')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
@@ -560,7 +559,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in deps:
+        for (name, ver) in [('GCC', '4.6.4')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -569,7 +568,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in hiddendeps:
+        for (name, ver) in [('toy', '0.0-deps')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -577,6 +576,15 @@ class EasyBlockTest(EnhancedTestCase):
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+
+        for (name, ver) in [('OpenMPI', '1.6.4-GCC-4.6.4')]:
+            if get_module_syntax() == 'Tcl':
+                regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
+            elif get_module_syntax() == 'Lua':
+                regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
