@@ -310,6 +310,9 @@ class ListOfLists(list):
             raise EasyBuildError("extend_el with None value unimplemented")
         else:
             for el in value:
+		if isinstance(el, (bool,)):
+                    self.log.debug("nextend: ignoring el %s from value %s (bool)" % (el, value.__repr__()))
+                    continue
                 if not self._str_ok(el):
                     self.log.debug("nextend: ignoring el %s from value %s (not _str_ok)" % (el, value.__repr__()))
                     continue
