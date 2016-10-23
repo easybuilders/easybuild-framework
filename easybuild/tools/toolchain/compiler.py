@@ -259,13 +259,13 @@ class Compiler(Toolchain):
 
         # precflags last
         for var in ['CFLAGS', 'CXXFLAGS']:
-            self.variables.nappend(var, flags)
-            self.variables.nappend(var, cflags)
+            self.variables.nextend(var, flags)
+            self.variables.nextend(var, cflags)
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
         for var in ['FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-            self.variables.nappend(var, flags)
-            self.variables.nappend(var, fflags)
+            self.variables.nextend(var, flags)
+            self.variables.nextend(var, fflags)
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
 
     def _set_optimal_architecture(self):
