@@ -949,7 +949,17 @@ class ToolchainTest(EnhancedTestCase):
         ])
         self.assertEqual(out, expected)
 
-        # multiple -L arguments
+        # single -L argument, with value separated by a space
+        out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/lib64'",
+            "export CMD_ARGS='foo.c -L /lib64 -lfoo'",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
+        # multiple -L arguments, order should be preserved
         args = ' '.join([
             '-L/path/to/bar',
             'foo.o',
@@ -961,7 +971,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/another/path:/lib64:/path/to/bar'",
+            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/path/to/bar:/lib64:/another/path'",
             "export CMD_ARGS='-L/path/to/bar foo.o -L/lib64 -lfoo -lbar -L/another/path'",
             ''
         ])
@@ -987,10 +997,10 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s icc %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         rpath = ':'.join([
-            '/example/software/gettext/0.19.8/lib',
             '/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64',
             '/example/software/imkl/11.3.3.210-iimpi-2016b/lib',
             '/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64',
+            '/example/software/gettext/0.19.8/lib',
         ])
         expected = '\n'.join([
             "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':%s'" % rpath,

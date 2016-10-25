@@ -61,7 +61,22 @@ args = [a for a in args if a != '--enable-new-dtags']
 # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
 
 # determine set of library paths to RPATH in
-lib_paths = set(os.path.realpath(a[2:].lstrip(' ')) for a in args if a.startswith('-L'))
+# FIXME can/should we actually resolve the path? what if ../../../lib was specified?
+lib_paths = []
+idx = 0
+while idx < len(args):
+    arg = args[idx]
+    if arg.startswith('-L'):
+        # take into account that argument to -L may be separated with one or more spaces...
+        if arg == '-L':
+            # grab the next argument when arg='-L'
+            idx += 1
+            lib_paths.append(args[idx])
+        else:
+            lib_paths.append(os.path.realpath(arg[2:]))
+
+    idx += 1
+
 
 # FIXME: also consider $LIBRARY_PATH?
 
@@ -73,14 +88,16 @@ lib_paths = set(os.path.realpath(a[2:].lstrip(' ')) for a in args if a.startswit
 # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
 # see also https://linux.die.net/man/8/ld-linux;
 # make sure to wrap them in single quotes to avoid expansion of $ORIGIN when linking!
-lib_paths = ["''\\$ORIGIN/../lib''", "''\\$ORIGIN/../lib64''"] + sorted(lib_paths)
+# FIXME don't sort, preserve original order of libs
+lib_paths = ["''\\$ORIGIN/../lib''", "''\\$ORIGIN/../lib64''"] + lib_paths
 
 # output: statement to define $RPATH
+# FIXME don't separate paths with ':', specify a separate -rpath arg for *each* path
 print "export RPATH='%s=%s'" % (rpath_flag, ':'.join(lib_paths))
 
 # make sure arguments are properly quoted, and that single/double quotes are escaped
 cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "''")
-cmd_args = re.sub(r'"([^"]*)"', r'"\\"\1\\""', re.sub(r'([$&])', r'\\\1', cmd_args))
+cmd_args = re.sub(r'"([^"]*)"', r'"\\"\1\\""', re.sub(r'([$&#])', r'\\\1', cmd_args))
 
 # output: statement to define $CMD_ARGS
 print "export CMD_ARGS='%s'" % cmd_args
