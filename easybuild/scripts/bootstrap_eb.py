@@ -49,12 +49,11 @@ import site
 import sys
 import tempfile
 import traceback
-from cStringIO import StringIO
 from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20161006.01'
+EB_BOOTSTRAP_VERSION = '20161025.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -117,6 +116,8 @@ def error(msg, exit=True):
 
 def mock_stdout_stderr():
     """Mock stdout/stderr channels"""
+    # cStringIO is only available in Python 2
+    from cStringIO import StringIO
     orig_stdout, orig_stderr = sys.stdout, sys.stderr
     sys.stdout.flush()
     sys.stdout = StringIO()
@@ -317,14 +318,16 @@ def run_easy_install(args):
 
 
 def check_easy_install_cmd():
-    """Try to make sure availale 'easy_install' command matches active 'setuptools' installation."""
+    """Try to make sure available 'easy_install' command matches active 'setuptools' installation."""
+
+    debug("Checking whether available 'easy_install' command matches active 'setuptools' installation...")
 
     _, outfile = tempfile.mkstemp()
 
     import setuptools
     debug("Location of active setuptools installation: %s" % setuptools.__file__)
 
-    easy_install_regex = re.compile('^setuptools %s' % setuptools.__version__)
+    easy_install_regex = re.compile('^(setuptools|distribute) %s' % setuptools.__version__)
     debug("Pattern for 'easy_install --version': %s" % easy_install_regex.pattern)
 
     for path in os.getenv('PATH', '').split(os.pathsep):
@@ -734,13 +737,13 @@ def main():
             info("No suitable setuptools installation found, proceeding with stage 0...")
             distribute_egg_dir = stage0(tmpdir)
 
-            # add location to easy_install provided through stage0 to $PATH
-            curr_path = os.environ.get('PATH', '').split(os.pathsep)
-            os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
-            debug("$PATH: %s" % os.environ['PATH'])
-
     # STAGE 1: install EasyBuild using easy_install to tmp dir
     templates = stage1(tmpdir, sourcepath, distribute_egg_dir)
+
+    # add location to easy_install provided through stage0 to $PATH
+    # this must be done *after* stage1, since $PATH is reset during stage1
+    if distribute_egg_dir:
+        prep(tmpdir)
 
     # make sure the active 'easy_install' is the right one (i.e. it matches the active setuptools installation)
     check_easy_install_cmd()
