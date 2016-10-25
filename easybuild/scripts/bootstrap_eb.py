@@ -333,7 +333,6 @@ def check_easy_install_cmd():
         res = False
         if os.path.exists(easy_install):
             cmd = "PYTHONPATH='%s' %s --version" % (os.getenv('PYTHONPATH', ''), easy_install)
-            print "cmd: '%s'" % cmd
             os.system("%s > %s 2>&1" % (cmd, outfile))
             outtxt = open(outfile).read().strip()
             debug("Output of '%s':\n%s" % (cmd, outtxt))
