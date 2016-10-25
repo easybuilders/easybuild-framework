@@ -179,6 +179,8 @@ def prep(path):
     # update PATH
     os.environ['PATH'] = os.pathsep.join([os.path.join(path, 'bin')] +
                                          [x for x in os.environ.get('PATH', '').split(os.pathsep) if len(x) > 0])
+    debug("$PATH: %s" % os.environ['PATH'])
+
     # update actual Python search path
     sys.path.insert(0, path)
 
@@ -191,6 +193,8 @@ def prep(path):
         # PYTHONPATH needs to be set as well, otherwise setuptools will fail
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
+
+    debug("$PYTHONPATH: %s" % os.environ['PYTHONPATH'])
 
     os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
     debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
@@ -584,11 +588,6 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
         preinstallopts = "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
 
-        # also add location to easy_install provided through stage0 to $PATH
-        curr_path = os.environ.get('PATH', '').split(os.pathsep)
-        os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
-        debug("$PATH: %s" % os.environ['PATH'])
-
     # ensure that (latest) setuptools is installed as well alongside EasyBuild,
     # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
     # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
@@ -735,6 +734,11 @@ def main():
         else:
             info("No suitable setuptools installation found, proceeding with stage 0...")
             distribute_egg_dir = stage0(tmpdir)
+
+            # add location to easy_install provided through stage0 to $PATH
+            curr_path = os.environ.get('PATH', '').split(os.pathsep)
+            os.environ['PATH'] = os.pathsep.join([os.path.join(tmpdir, 'bin')] + curr_path)
+            debug("$PATH: %s" % os.environ['PATH'])
 
     # STAGE 1: install EasyBuild using easy_install to tmp dir
     templates = stage1(tmpdir, sourcepath, distribute_egg_dir)
