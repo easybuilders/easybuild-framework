@@ -54,7 +54,7 @@ from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -2435,8 +2435,12 @@ def build_and_install_one(ecdict, init_env):
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, start_time, build_option('command_line'))
-            _log.info("Build stats: %s" % buildstats)
+            if build_option('module_only'):
+                buildstats = None
+                _log.info("Not adding (new) build stats because of --module-only")
+            else:
+                buildstats = get_build_stats(app, start_time, build_option('command_line'))
+                _log.info("Build stats: %s" % buildstats)
 
             if build_option("minimal_toolchains"):
                 # for reproducability we dump out the parsed easyconfig since the contents are affected when
@@ -2453,13 +2457,26 @@ def build_and_install_one(ecdict, init_env):
                 repo_spec = spec
 
             try:
-                # upload spec to central repository
-                currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
+                full_ver = det_full_ec_version(app.cfg)
+                currentbuildstats = []
+
+                # grab build stats from archived easyconfig file, if it exists
+                path_in_repo = repo.easyconfig_path_for(repo_spec, app.name, full_ver)
+                if os.path.exists(path_in_repo):
+                    archived_buildstats = EasyConfigParser(path_in_repo).get_config_dict().get('buildstats')
+                    if archived_buildstats:
+                        currentbuildstats.extend(archived_buildstats)
+
+                if app.cfg['buildstats']:
+                    currentbuildstats.extend(app.cfg['buildstats'])
+
+                # upload spec to central repository
                 if 'original_spec' in ecdict:
-                    block = det_full_ec_version(app.cfg) + ".block"
+                    block = full_ver + '.block'
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(repo_spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+
+                repo.add_easyconfig(repo_spec, app.name, full_ver, buildstats, currentbuildstats, dest=path_in_repo)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:

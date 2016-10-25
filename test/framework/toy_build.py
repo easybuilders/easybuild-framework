@@ -958,6 +958,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         ec_file = os.path.join(ec_files_path, 'toy-0.0-deps.eb')
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+        archived_ec = os.path.join(self.test_prefix, 'ebfiles_repo', 'toy', os.path.basename(ec_file))
 
         # only consider provided test modules
         self.reset_modulepath([os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')])
@@ -988,6 +989,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         os.remove(toy_mod)
 
+        # check build stats, should be missing since nothing was actually built/installed...
+        self.assertTrue(os.path.exists(archived_ec), "%s exists" % archived_ec)
+        self.assertFalse('buildstats' in EasyConfigParser(archived_ec).get_config_dict())
+
         # installing another module under a different naming scheme and using Lua module syntax works fine
 
         # first actually build and install toy software + module
@@ -999,6 +1004,10 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(re.search("set root %s" % prefix, modtxt))
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software'))), 1)
         self.assertEqual(len(os.listdir(os.path.join(self.test_installpath, 'software', 'toy'))), 1)
+
+        # grab build stats from archived easyconfig (we'll need it later)
+        self.assertTrue(os.path.exists(archived_ec), "%s exists" % archived_ec)
+        buildstats = EasyConfigParser(archived_ec).get_config_dict()['buildstats']
 
         # install (only) additional module under a hierarchical MNS
         args = common_args + [
@@ -1018,6 +1027,12 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure load statements for dependencies are included
         modtxt = read_file(toy_core_mod)
         self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+
+        # check build stats in (new) archived easyconfig, they should be identical to the ones from before;
+        # with --module-only, build stats are inherited from a previous installation
+        archived_ecdict = EasyConfigParser(archived_ec).get_config_dict()
+        self.assertTrue('buildstats' in archived_ecdict)
+        self.assertEqual(buildstats, archived_ecdict['buildstats'])
 
         os.remove(toy_mod)
         os.remove(toy_core_mod)

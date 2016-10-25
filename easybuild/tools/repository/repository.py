@@ -86,12 +86,30 @@ class Repository(object):
         """
         raise NotImplementedError
 
-    def add_easyconfig(self, cfg, name, version, stats, previous):
+    def easyconfig_path_for(self, cfg, name, version, isyeb=None):
+        """
+        Determine path to easyconfig file for specified software name/version
+
+        :param cfg: full path to easyconfig file to determine path in repository for
+        :param name: software name
+        :param version: (full) software version
+        :param isyeb: whether or not easyconfig file is in .yeb format (if None, will be derived via cfg)
+        """
+        raise NotImplementedError
+
+    def add_easyconfig(self, cfg, name, version, stats, previous, dest=None):
         """
         Add easyconfig to repository.
         cfg is the filename of the eb file
         Stats contains some build stats, this should be a list of dictionaries.
         previous is the list of previous buildstats
+
+        :param cfg: full path to easyconfig file to determine path in repository for
+        :param name: software name
+        :param version: (full) software version
+        :param stats: build stats to include in easyconfig file
+        :param previous: previous build stats (if any)
+        :param dest: destination for easyconfig file in repository (will be derived if None)
         """
         raise NotImplementedError
 
