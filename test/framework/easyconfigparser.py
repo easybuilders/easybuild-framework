@@ -49,7 +49,7 @@ class EasyConfigParserTest(EnhancedTestCase):
     """Test the parser"""
 
     def test_v10(self):
-        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb'))
+        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb'))
 
         self.assertEqual(ecp._formatter.VERSION, EasyVersion('1.0'))
 
@@ -152,9 +152,9 @@ class EasyConfigParserTest(EnhancedTestCase):
 
     def test_raw(self):
         """Test passing of raw contents to EasyConfigParser."""
-        ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb')
+        ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb')
         ec_txt1 = read_file(ec_file1)
-        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
         ec_txt2 = read_file(ec_file2)
 
         ecparser = EasyConfigParser(ec_file1)

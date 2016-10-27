@@ -30,6 +30,7 @@ Unit tests for easyconfig.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import copy
+import glob
 import os
 import re
 import shutil
@@ -945,7 +946,8 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
         ]:
-            ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), validate=False)
+            eb_file1 = glob.glob(os.path.join(easyconfigs_path, 'v1.0', '*', '*', eb_file1))[0]
+            ec1 = EasyConfig(eb_file1, validate=False)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), validate=False, build_specs=specs)
 
             ec2_dict = ec2.asdict()
