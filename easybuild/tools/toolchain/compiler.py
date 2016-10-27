@@ -281,15 +281,24 @@ class Compiler(Toolchain):
         elif build_option('optarch') == OPTARCH_GENERIC:
             if self.arch in (self.COMPILER_GENERIC_OPTION or []):
                 optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+            if optarch is None:
+                raise EasyBuildError(("No generic architecture flags defined for %s on %s! Extend "
+                                      "COMPILER_GENERIC_OPTION in the compiler's toolchain class and contribute back. "
+                                      "As a workaround, you can specify an architecture flag manually (see "
+                                      "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html)."),
+                                     self.COMPILER_FAMILY, self.arch)
         # no --optarch specified
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+            if optarch is None:
+                raise EasyBuildError(("No optimal architecture flags defined for %s on %s! Extend "
+                                      "COMPILER_OPTIMAL_ARCHITECTURE_OPTION in the compiler's toolchain class and "
+                                      "contribute back. As a workaround, you can specify an architecture flag manually"
+                                      "(see "
+                                      "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html)."),
+                                     self.COMPILER_FAMILY, self.arch)
 
-        if optarch is None:
-            optarch = ''
-            self.log.warning("_set_optimal_architecture: no suitable optarch option found for %s", self.arch)
-        else:
-            self.log.info("_set_optimal_architecture: using %s as optarch for %s.", optarch, self.arch)
+        self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
         self.options.options_map['optarch'] = optarch
 
     def comp_family(self, prefix=None):
