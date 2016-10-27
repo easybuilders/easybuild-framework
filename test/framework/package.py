@@ -171,8 +171,9 @@ class PackageTest(EnhancedTestCase):
 
     def test_active_pns(self):
         """Test use of ActivePNS."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec = EasyConfig(os.path.join(test_easyconfigs, 'OpenMPI-1.6.4-GCC-4.6.4.eb'), validate=False)
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        ec = EasyConfig(os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb'), validate=False)
 
         pns = ActivePNS()
 
@@ -185,8 +186,9 @@ class PackageTest(EnhancedTestCase):
         """Test package function."""
         init_config(build_options={'silent': True})
 
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'), validate=False)
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
+        ec = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), validate=False)
 
         mock_fpm(self.test_prefix)
 

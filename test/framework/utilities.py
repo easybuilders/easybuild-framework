@@ -124,7 +124,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high

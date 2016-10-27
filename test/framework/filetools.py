@@ -414,14 +414,15 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_multidiff(self):
         """Test multidiff function."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         other_toy_ecs = [
-            os.path.join(test_easyconfigs, 'toy-0.0-deps.eb'),
-            os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'),
         ]
 
         # default (colored)
-        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs).split('\n')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+        lines = multidiff(toy_ec, other_toy_ecs).split('\n')
         expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb"
 
         red = "\x1b[0;41m"
@@ -452,7 +453,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
         self.assertEqual(lines[-1], "=====")
 
-        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
+        lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
         self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb")
         self.assertEqual(lines[1], "=====")
 
@@ -721,7 +722,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_is_patch_file(self):
         """Test for is_patch_file() function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
-        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')))
+        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')))
         self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
 
     def test_is_alt_pypi_url(self):
@@ -765,7 +766,7 @@ class FileToolsTest(EnhancedTestCase):
         """ Test copy_file """
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
-        to_copy = os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         target_path = os.path.join(tmpdir, 'toy.eb')
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
