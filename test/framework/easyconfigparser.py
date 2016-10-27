@@ -42,7 +42,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 
 
-TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+TESTDIRBASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
 
 
 class EasyConfigParserTest(EnhancedTestCase):
@@ -189,7 +189,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
     def test_check_value_types(self):
         """Test checking of easyconfig parameter value types."""
-        test_ec = os.path.join(TESTDIRBASE, 'gzip-1.4-broken.eb')
+        test_ec = os.path.join(TESTDIRBASE, 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         ecp = EasyConfigParser(test_ec, auto_convert_value_types=False)
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
