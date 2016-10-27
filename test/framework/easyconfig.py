@@ -997,6 +997,7 @@ class EasyConfigTest(EnhancedTestCase):
             '3to2': '0',
             '7zip': '0',
             '_bleh_': '0',
+            '*': '*',
         }
         for name, letter in test_cases.items():
             self.assertEqual(letter_dir_for(name), letter)

@@ -1291,9 +1291,14 @@ def letter_dir_for(name):
     This usually just the 1st letter of the software name (in lowercase),
     except for funky software names, e.g. ones starting with a digit.
     """
-    letter = name.lower()[0]
-    if letter < 'a' or letter > 'z':
-        letter = '0'
+    # wildcard name should result in wildcard letter
+    if name == '*':
+        letter = '*'
+    else:
+        letter = name.lower()[0]
+        # outside of a-z range, use '0'
+        if letter < 'a' or letter > 'z':
+            letter = '0'
 
     return letter
 
