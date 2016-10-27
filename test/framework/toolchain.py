@@ -278,19 +278,16 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = None
                 if opt == 'optarch':
-                    if tc.arch in tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
-                        flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
                 else:
                     flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
-                if flag:
-                    for var in flag_vars:
-                        flags = tc.get_variable(var)
-                        if enable:
-                            self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
-                        else:
-                            self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
+                    else:
+                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
                 self.modtool.purge()
 
     def test_override_optarch(self):
@@ -306,18 +303,16 @@ class ToolchainTest(EnhancedTestCase):
                 flag = None
                 if optarch_var is not None:
                     flag = '-%s' % optarch_var
-
-                # default optarch flag if defined
-                elif tc.arch in tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
+                else:
+                    # default optarch flag
                     flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
 
-                if flag:
-                    for var in flag_vars:
-                        flags = tc.get_variable(var)
-                        if enable:
-                            self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
-                        else:
-                            self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
+                    else:
+                        self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
                 self.modtool.purge()
 
     def test_optarch_generic(self):
@@ -436,12 +431,8 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
-        if tc.arch in tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
-            optarch = ' -%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
-        else:
-            optarch = ''
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2%s"' % optarch,
+            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
