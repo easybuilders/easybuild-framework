@@ -279,20 +279,29 @@ class Compiler(Toolchain):
             optarch = build_option('optarch')
         # --optarch=GENERIC
         elif build_option('optarch') == OPTARCH_GENERIC:
-            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
+            # dummy compiler
+            if not self.COMPILER_GENERIC_OPTION:
+                optarch = ''
+            # all other compilers
+            elif self.arch in self.COMPILER_GENERIC_OPTION:
                 optarch = self.COMPILER_GENERIC_OPTION[self.arch]
             if optarch is None:
                 raise EasyBuildError(("No generic architecture flags defined for %s on %s! Extend "
-                                      "COMPILER_GENERIC_OPTION in the compiler's toolchain class and contribute back. "
+                                      "COMPILER_GENERIC_OPTION in the compilers toolchain class and contribute back. "
                                       "As a workaround, you can specify an architecture flag manually (see "
                                       "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html)."),
                                      self.COMPILER_FAMILY, self.arch)
         # no --optarch specified
-        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+        else:
+            # dummy compiler
+            if not self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
+                optarch = ''
+            # all other compilers
+            elif self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
+                optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
             if optarch is None:
                 raise EasyBuildError(("No optimal architecture flags defined for %s on %s! Extend "
-                                      "COMPILER_OPTIMAL_ARCHITECTURE_OPTION in the compiler's toolchain class and "
+                                      "COMPILER_OPTIMAL_ARCHITECTURE_OPTION in the compilers toolchain class and "
                                       "contribute back. As a workaround, you can specify an architecture flag manually"
                                       "(see "
                                       "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html)."),
