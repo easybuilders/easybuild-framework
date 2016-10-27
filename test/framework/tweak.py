@@ -47,7 +47,7 @@ class TweakTest(EnhancedTestCase):
 
     def test_find_matching_easyconfigs(self):
         """Test find_matching_easyconfigs function."""
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         for (name, installver) in [('GCC', '4.8.2'), ('gzip', '1.5-goolf-1.4.10')]:
             ecs = find_matching_easyconfigs(name, installver, [test_easyconfigs_path])
             self.assertTrue(len(ecs) == 1 and ecs[0].endswith('/%s-%s.eb' % (name, installver)))
@@ -62,7 +62,7 @@ class TweakTest(EnhancedTestCase):
 
     def test_obtain_ec_for(self):
         """Test obtain_ec_for function."""
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         # find existing easyconfigs
         specs = {
             'name': 'GCC',

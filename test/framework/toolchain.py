@@ -65,7 +65,8 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
-        ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
+        test_ecs = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs')
+        ec_file = find_full_path(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'))
         ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
@@ -879,7 +880,8 @@ class ToolchainTest(EnhancedTestCase):
 
         prepped_path_envvar = os.environ['PATH']
 
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         ccache_dir = os.path.join(self.test_prefix, 'ccache')
         mkdir(ccache_dir, parents=True)
@@ -924,7 +926,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(which('gcc'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
-        
+
 
 
 def suite():
