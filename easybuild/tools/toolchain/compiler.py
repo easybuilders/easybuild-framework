@@ -271,7 +271,7 @@ class Compiler(Toolchain):
     def _set_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
-            self.arch = systemtools.get_cpu_family()
+            self.arch = systemtools.get_cpu_architecture()
 
         optarch = None
         # --optarch is specified with flags to use
