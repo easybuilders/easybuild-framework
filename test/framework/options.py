@@ -593,8 +593,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
-        self.assertTrue(re.search(info_msg, txt), "Info message when searching for easyconfigs in '%s'" % txt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
             regex = re.compile(r" \* \S*%s$" % ec, re.M)
             self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
@@ -609,8 +607,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        info_msg = r"Searching \(case-insensitive\) for '\^gcc.\*2.eb' in"
-        self.assertTrue(re.search(info_msg, txt), "Info message when searching for easyconfigs in '%s'" % txt)
         for ec in ['GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.9.2.eb']:
             regex = re.compile(r" \* \S*%s$" % ec, re.M)
             self.assertTrue(regex.search(txt), "Found pattern '%s' in: %s" % (regex.pattern, txt))
@@ -666,8 +662,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             txt = self.get_stdout()
             self.mock_stdout(False)
 
-            info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
-            self.assertTrue(re.search(info_msg, txt), "Info message when searching for easyconfigs in '%s'" % txt)
             self.assertTrue(re.search('^CFGS\d+=', txt, re.M), "CFGS line message found in '%s'" % txt)
             for ec in ["toy-0.0.eb", "toy-0.0-multiple.eb"]:
                 regex = re.compile(r" \* \$CFGS\d+/*%s" % ec, re.M)
@@ -684,6 +678,34 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(re.search('GCC-4.9.2', txt))
+
+    def test_search_archived(self):
+        "Test searching for archived easyconfigs"
+        args = ['--search-filename=^ictce']
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout().rstrip()
+        self.mock_stdout(False)
+        expected = '\n'.join([
+            ' * ictce-4.1.13.eb',
+            '',
+            "Note: 1 matching archived were found, use --consider-archived-easyconfigs to see them.",
+        ])
+        self.assertEqual(txt, expected)
+
+        args.append('--consider-archived-easyconfigs')
+        self.mock_stdout(True)
+        self.eb_main(args, testing=False)
+        txt = self.get_stdout().rstrip()
+        self.mock_stdout(False)
+        expected = '\n'.join([
+            ' * ictce-4.1.13.eb',
+            '',
+            "Matching archived easyconfigs:",
+            '',
+            ' * ictce-3.2.2.u3.eb',
+        ])
+        self.assertEqual(txt, expected)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
