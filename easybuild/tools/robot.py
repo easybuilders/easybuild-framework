@@ -353,12 +353,21 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
 
 def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     """Search for easyconfigs, if a query is provided."""
-    robot_path = build_option('robot_path')
-    if robot_path:
-        search_path = robot_path
-    else:
+    search_path = build_option('robot_path')
+    if not search_path:
         search_path = [os.getcwd()]
+
     ignore_dirs = build_option('ignore_dirs')
-    silent = build_option('silent')
-    search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent, filename_only=filename_only,
-                terse=terse)
+
+    var_defs, hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs,
+                                 silent=build_option('silent'), filename_only=filename_only, terse=terse)
+
+    if terse:
+        lines, tmpl = [], '%s'
+    else:
+        lines = ['%s=%s' % var_def for var_def in var_defs]
+        tmpl = ' * %s'
+
+    lines.extend(tmpl % x for x in hits)
+
+    print '\n'.join(lines)
