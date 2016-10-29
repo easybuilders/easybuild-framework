@@ -890,6 +890,11 @@ class FileToolsTest(EnhancedTestCase):
         ]
         self.assertEqual(hits, expected)
 
+        # check combo of terse and filename-only
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+
 
 def suite():
     """ returns all the testcases in this module """
