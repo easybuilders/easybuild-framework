@@ -689,7 +689,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = '\n'.join([
             ' * ictce-4.1.13.eb',
             '',
-            "Note: 1 matching archived were found, use --consider-archived-easyconfigs to see them.",
+            "Note: 1 matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them",
         ])
         self.assertEqual(txt, expected)
 
