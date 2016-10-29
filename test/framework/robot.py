@@ -996,7 +996,8 @@ class RobotTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         tc_spec = "toolchain = {'name': 'ictce', 'version': '3.2.2.u3'}"
-        test_ectxt = re.sub('^toolchain = .*', tc_spec, gzip_ectxt, flags=re.M)
+        regex = re.compile("^toolchain = .*", re.M)
+        test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
         self.assertErrorRegex(EasyBuildError, "Irresolvable dependencies encountered", resolve_dependencies,
