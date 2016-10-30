@@ -772,8 +772,8 @@ class RobotTest(EnhancedTestCase):
 
         self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
 
-    def test_robot_find_minimal_toolchain_for_dependency(self):
-        """Test robot_find_minimal_toolchain_for_dependency."""
+    def test_robot_find_minimal_toolchain_of_dependency(self):
+        """Test robot_find_minimal_toolchain_of_dependency."""
 
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
@@ -831,15 +831,22 @@ class RobotTest(EnhancedTestCase):
         self.assertTrue(new_gzip14_toolchain != gzip14['toolchain'])
         self.assertEqual(new_gzip14_toolchain, {'name': 'dummy', 'version': ''})
 
+        # check reversed order (parent tc first) and skipping of parent tc itself
+        dep = {
+            'name': 'SQLite',
+            'version': '3.8.10.2',
+            'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+        }
+        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool)
+        self.assertEqual(res, {'name': 'GCC', 'version': '4.7.2'})
+        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool, parent_first=True)
+        self.assertEqual(res, {'name': 'goolf', 'version': '1.4.10'})
+        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool, parent_first=True, skip_parent=True)
+        self.assertEqual(res, {'name': 'gompi', 'version': '1.4.10'})
+
         #
         # Finally test if it can recognise existing modules and use those
         #
-        init_config(build_options={
-            'minimal_toolchains': True,
-            'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
-        })
-
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
         barec_txt = '\n'.join([
             "easyblock = 'ConfigureMake'",
@@ -859,17 +866,35 @@ class RobotTest(EnhancedTestCase):
             "]",
         ])
         write_file(barec, barec_txt)
+
+        # check without --minimal-toolchains
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
         bar = EasyConfig(barec)
 
-        # Check that all bar dependencies have been processed as expected
-        openmpi = bar.dependencies()[0]
-        openblas = bar.dependencies()[1]
-        scalapack = bar.dependencies()[2]
-        sqlite = bar.dependencies()[3]
-        self.assertEqual(det_full_ec_version(openmpi), '1.6.4-GCC-4.7.2')
-        self.assertEqual(det_full_ec_version(openblas), '0.2.6-gompi-1.4.10-LAPACK-3.4.2')
-        self.assertEqual(det_full_ec_version(scalapack), '2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2')
-        self.assertEqual(det_full_ec_version(sqlite), '3.8.10.2-GCC-4.7.2')
+        expected_dep_versions = [
+            '1.6.4-GCC-4.7.2',
+            '0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            '2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
+            '3.8.10.2-goolf-1.4.10',
+        ]
+        for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
+            self.assertEqual(det_full_ec_version(dep), expected_dep_version)
+
+        # check with --minimal-toolchains enabled
+        init_config(build_options={
+            'minimal_toolchains': True,
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        bar = EasyConfig(barec)
+
+        # check that all bar dependencies have been processed as expected
+        expected_dep_versions[-1] = '3.8.10.2-GCC-4.7.2'
+        for dep, expected_dep_version in zip(bar.dependencies(), expected_dep_versions):
+            self.assertEqual(det_full_ec_version(dep), expected_dep_version)
 
         # Add the gompi/1.4.10 version of SQLite as an available module
         module_parent = os.path.join(self.test_prefix, 'minimal_toolchain_modules')
