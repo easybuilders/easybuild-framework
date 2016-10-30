@@ -29,6 +29,8 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 :author: Kenneth Hoste (Ghent University)
 """
 
+from distutils.version import LooseVersion
+
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root
@@ -66,12 +68,16 @@ class Gcc(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
-        systemtools.X86_64: 'march=native',
+        systemtools.AARCH32: 'mcpu=native', # implies -march=native and -mtune=native
+        systemtools.AARCH64: 'mcpu=native', # since GCC 6; implies -march=native and -mtune=native
+        systemtools.POWER: 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
+        systemtools.X86_64: 'march=native', # implies -mtune=native
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.POWER: 'mcpu=generic-arch',  # no support for -march on POWER
+        systemtools.AARCH32: 'mcpu=generic-armv7', # implies -march=armv7 and -mtune=generic-armv7
+        systemtools.AARCH64: 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
+        systemtools.POWER: 'mcpu=generic-arch',    # no support for -march on POWER
         systemtools.X86_64: 'march=x86-64 -mtune=generic',
     }
 
@@ -108,3 +114,13 @@ class Gcc(Compiler):
                 raise EasyBuildError("Failed to determine software root for GCC")
 
         self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64", "lib"])
+
+    def _set_optimal_architecture(self):
+        """GCC-specific adjustments for optimal architecture flags."""
+        if self.arch == systemtools.AARCH64:
+            # On AArch64, -mcpu=native not supported prior to GCC 6
+            gcc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
+            if LooseVersion(gcc_version) < LooseVersion('6'):
+                self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[systemtools.AARCH64] = ''
+
+        super(Gcc, self)._set_optimal_architecture()

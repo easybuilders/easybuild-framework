@@ -146,8 +146,11 @@ class Compiler(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
+        if self.arch is None:
+            self.arch = systemtools.get_cpu_architecture()
 
         self._set_compiler_vars()
+        self._set_optimal_architecture()
         self._set_compiler_flags()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
@@ -164,8 +167,6 @@ class Compiler(Toolchain):
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
             )
-
-        self._set_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -270,9 +271,6 @@ class Compiler(Toolchain):
 
     def _set_optimal_architecture(self):
         """ Get options for the current architecture """
-        if self.arch is None:
-            self.arch = systemtools.get_cpu_architecture()
-
         optarch = None
         # --optarch is specified with flags to use
         if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
