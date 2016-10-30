@@ -884,17 +884,19 @@ class EasyConfig(object):
                                        dep, dep['toolchain'])
                         tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool)
 
-                    elif robot_find_easyconfig(dep['name'], det_full_ec_version(dep)):
-                        # if an easyconfig is available with the interited toolchain, use that;
-                        tc = dep['toolchain']
-                        self.log.debug("Found easyconfig for dep %s, so sticking to %s as toolchain", dep, tc)
-
                     else:
-                        # if no easyconfig is available that uses 'parent' toolchain,
-                        # determine first subtoolchain for which an easyconfig *is* available
-                        tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool,
-                                                                        parent_first=True, skip_parent=True)
-                        self.log.debug("Using subtoolchain %s for dep %s", tc, dep)
+                        dep_ec_exists = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+                        dep_mod_exists = self.modules_tool.exist([ActiveMNS().det_full_module_name(dep)])[0]
+                        if dep_ec_exists or dep_mod_exists:
+                            # if an easyconfig or module is available with the interited toolchain, use that;
+                            tc = dep['toolchain']
+                            self.log.debug("Found easyconfig for dep %s, so sticking to %s as toolchain", dep, tc)
+                        else:
+                            # if no easyconfig or module is available that uses 'parent' toolchain,
+                            # determine first subtoolchain for which an easyconfig *is* available
+                            tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool,
+                                                                            parent_first=True, skip_parent=True)
+                            self.log.debug("Using subtoolchain %s for dep %s", tc, dep)
 
                     # put derived toolchain in place, or complain if none could be found
                     if tc:
