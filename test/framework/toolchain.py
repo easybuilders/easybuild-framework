@@ -56,6 +56,20 @@ easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
 
+    def setUp(self):
+        """Set up toolchain test."""
+        super(ToolchainTest, self).setUp()
+        self.orig_get_cpu_architecture = st.get_cpu_architecture
+        self.orig_get_cpu_model = st.get_cpu_model
+        self.orig_get_cpu_vendor = st.get_cpu_vendor
+
+    def tearDown(self):
+        """Cleanup after toolchain test."""
+        st.get_cpu_architecture = self.orig_get_cpu_architecture
+        st.get_cpu_model = self.orig_get_cpu_model
+        st.get_cpu_vendor = self.orig_get_cpu_vendor
+        super(ToolchainTest, self).tearDown()
+
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
         tc_class, _ = search_toolchain(name)
@@ -338,6 +352,20 @@ class ToolchainTest(EnhancedTestCase):
                             self.assertTrue(generic_flags in tc.get_variable(var))
                         else:
                             self.assertFalse(generic_flags in tc.get_variable(var))
+
+    def test_optarch_aarch64_heuristic(self):
+        """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
+        st.get_cpu_architecture = lambda: st.AARCH64
+        st.get_cpu_model = lambda: 'ARM Cortex-A53'
+        st.get_cpu_vendor = lambda: st.ARM
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch], 'mcpu=cortex-a53')
+
+        st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch], 'mcpu=cortex-a72.cortex-a53')
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
