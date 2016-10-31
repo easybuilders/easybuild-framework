@@ -29,6 +29,7 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 :author: Kenneth Hoste (Ghent University)
 """
 
+import re
 from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
@@ -118,9 +119,22 @@ class Gcc(Compiler):
     def _set_optimal_architecture(self):
         """GCC-specific adjustments for optimal architecture flags."""
         if self.arch == systemtools.AARCH64:
-            # On AArch64, -mcpu=native not supported prior to GCC 6
+            # On AArch64, -mcpu=native is not supported prior to GCC 6.  In this case, try to optimize for the detected
+            # CPU model (vanilla ARM cores only).  Note that this heuristic may fail if the CPU model is not supported
+            # by the GCC version being used.
             gcc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
             if LooseVersion(gcc_version) < LooseVersion('6'):
-                self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[systemtools.AARCH64] = ''
+                option = ''
+                if systemtools.get_cpu_vendor() == systemtools.ARM:
+                    # Get CPU model and strip off 'ARM ' prefix
+                    cpu_model = systemtools.get_cpu_model()[4:]
+                    # big.LITTLE setups: sort core types to have big core (higher model number) first
+                    core_types = [core.strip().lower() for core in cpu_model.split('+')]
+                    sorted_core_types = sorted([(int(re.search('\d+', i).group(0)), i) for i in core_types],
+                                               reverse=True)
+                    # Construct -mcpu option
+                    option = 'mcpu=%s' % '.'.join([i[1] for i in sorted_core_types])
+
+                self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[systemtools.AARCH64] = option
 
         super(Gcc, self)._set_optimal_architecture()
