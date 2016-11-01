@@ -841,8 +841,6 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(res, {'name': 'GCC', 'version': '4.7.2'})
         res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool, parent_first=True)
         self.assertEqual(res, {'name': 'goolf', 'version': '1.4.10'})
-        res = robot_find_minimal_toolchain_of_dependency(dep, self.modtool, parent_first=True, skip_parent=True)
-        self.assertEqual(res, {'name': 'gompi', 'version': '1.4.10'})
 
         #
         # Finally test if it can recognise existing modules and use those

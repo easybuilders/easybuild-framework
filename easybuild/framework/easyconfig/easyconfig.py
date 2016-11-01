@@ -885,18 +885,16 @@ class EasyConfig(object):
                         tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool)
 
                     else:
-                        dep_ec_exists = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
-                        dep_mod_exists = self.modules_tool.exist([ActiveMNS().det_full_module_name(dep)])[0]
-                        if dep_ec_exists or dep_mod_exists:
-                            # if an easyconfig or module is available with the interited toolchain, use that;
-                            tc = dep['toolchain']
-                            self.log.debug("Found easyconfig for dep %s, so sticking to %s as toolchain", dep, tc)
-                        else:
-                            # if no easyconfig or module is available that uses 'parent' toolchain,
-                            # determine first subtoolchain for which an easyconfig *is* available
-                            tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool,
-                                                                            parent_first=True, skip_parent=True)
+                        # try finding subtoolchain for dep for which an easyconfig file is available
+                        # this may fail, since it requires that the easyconfigs for parent toolchain
+                        # and subtoolchains are available
+                        try:
+                            tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool, parent_first=True)
                             self.log.debug("Using subtoolchain %s for dep %s", tc, dep)
+                        except EasyBuildError as err:
+                            self.log.debug("Ignoring error while trying to find subtoolchain for dep %s: %s", dep, err)
+                            tc = dep['toolchain']
+                            self.log.debug("Sticking to parent toolchain %s for this dep", tc)
 
                     # put derived toolchain in place, or complain if none could be found
                     if tc:
@@ -1365,14 +1363,13 @@ def robot_find_easyconfig(name, version):
     return res
 
 
-def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, parent_first=False, skip_parent=False):
+def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, parent_first=False):
     """
     Find the minimal toolchain of a dependency
 
     :param dep: dependency target dict (long and short module names may not exist yet)
     :param parent_tc: toolchain from which to derive the toolchain hierarchy to search (default: use dep's toolchain)
     :param parent_first: reverse order in which subtoolchains are considered: parent toolchain, then subtoolchains
-    :param skip_parent: don't consider parent toolchain itself
     :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
     """
     if parent_tc is None:
@@ -1385,8 +1382,6 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
     newdep = copy.deepcopy(dep)
 
     toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
-    if skip_parent:
-        toolchain_hierarchy = toolchain_hierarchy[:-1]
     if parent_first:
         toolchain_hierarchy = toolchain_hierarchy[::-1]
 
