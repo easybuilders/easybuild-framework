@@ -57,6 +57,7 @@ class Gcc(Compiler):
         'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],
         'lto': 'flto',
         'openmp': 'fopenmp',
+        'ieee': ['mieee-fp', 'fno-trapping-math'],
         'strict': ['mieee-fp', 'mno-recip'],
         'precise':['mno-recip'],
         'defaultprec':[],

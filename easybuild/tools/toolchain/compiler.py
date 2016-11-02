@@ -63,6 +63,7 @@ class Compiler(Toolchain):
     COMPILER_SHARED_OPTS = {
         'cciscxx': (False, "Use CC as CXX"),  # also MPI
         'pic': (False, "Use PIC"),  # also FFTW
+        'ieee': (False, "Adhere to IEEE-754 rules"),
         'noopt': (False, "Disable compiler optimizations"),
         'lowopt': (False, "Low compiler optimizations"),
         DEFAULT_OPT_LEVEL: (False, "Default compiler optimizations"),  # not set, but default
