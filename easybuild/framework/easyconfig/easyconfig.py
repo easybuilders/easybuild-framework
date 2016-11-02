@@ -878,30 +878,32 @@ class EasyConfig(object):
                 # handle dependencies with inherited (non-dummy) toolchain
                 # this *must* be done after parsing all dependencies, to avoid problems with templates like %(pyver)s
                 if dep['toolchain_inherited'] and dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                    tc = None
+                    dep_str = '%s %s%s' % (dep['name'], dep['version'], dep['versionsuffix'])
+                    self.log.debug("Figuring out toolchain to use for dep %s...", dep)
                     if build_option('minimal_toolchains'):
                         # determine 'smallest' subtoolchain for which a matching easyconfig file is available
                         self.log.debug("Looking for minimal toolchain for dependency %s (parent toolchain: %s)...",
-                                       dep, dep['toolchain'])
+                                       dep_str, dep['toolchain'])
                         tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool)
-
+                        if tc is None:
+                            raise EasyBuildError("Failed to determine minimal toolchain for dep %s", dep_str)
                     else:
                         # try finding subtoolchain for dep for which an easyconfig file is available
                         # this may fail, since it requires that the easyconfigs for parent toolchain
                         # and subtoolchains are available
                         try:
                             tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool, parent_first=True)
-                            self.log.debug("Using subtoolchain %s for dep %s", tc, dep)
+                            self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
                         except EasyBuildError as err:
-                            self.log.debug("Ignoring error while trying to find subtoolchain for dep %s: %s", dep, err)
-                            tc = dep['toolchain']
-                            self.log.debug("Sticking to parent toolchain %s for this dep", tc)
+                            self.log.debug("Ignoring error while looking for subtoolchain for dep %s: %s", dep_str, err)
+
+                    if tc is None:
+                        tc = dep['toolchain']
+                        self.log.debug("Inheriting toolchain %s from parent for dep %s", tc, dep_str)
 
                     # put derived toolchain in place, or complain if none could be found
-                    if tc:
-                        self.log.debug("Figured out toolchain to use for dep %s: %s", dep, tc)
-                    else:
-                        raise EasyBuildError("Failed to figure out toolchain for dep %s", dep)
-
+                    self.log.debug("Figured out toolchain to use for dep %s: %s", dep_str, tc)
                     dep['toolchain'] = orig_dep['toolchain'] = tc
 
                 if not dep['external_module']:
