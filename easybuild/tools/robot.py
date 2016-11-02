@@ -360,7 +360,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
 
     ignore_dirs = build_option('ignore_dirs')
 
-    # note: don't parse down 'filename_only' here, we need the full path to filter out archived easyconfigs
+    # note: don't pass down 'filename_only' here, we need the full path to filter out archived easyconfigs
     var_defs, _hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, terse=terse,
                                   silent=True, filename_only=False)
 
