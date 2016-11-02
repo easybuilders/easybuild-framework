@@ -50,6 +50,8 @@ COMP_NAME_VERSION_TEMPLATES = {
     'icc,ifort': ('intel', '%(icc)s'),
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+    'CUDA,icc,ifort': ('intel-CUDA', '%(icc)s-%(CUDA)s'),
+    'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
 
@@ -164,18 +166,28 @@ class HierarchicalMNS(ModuleNamingScheme):
             comp_name_ver = None
             if ec['name'] in extend_comps:
                 for key in COMP_NAME_VERSION_TEMPLATES:
-                    if ec['name'] in key.split(','):
-                        comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
-                        comp_versions = {ec['name']: self.det_full_version(ec)}
-                        if ec['name'] == 'ifort':
-                            # 'icc' key should be provided since it's the only one used in the template
-                            comp_versions.update({'icc': self.det_full_version(ec)})
-                        if tc_comp_info is not None:
-                            # also provide toolchain version for non-dummy toolchains
-                            comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
+		    if tc_comp_info is not None:
+			if ec['name'] in key.split(',') and tc_comp_info[0] in key.split(','):
+			    comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+			    comp_versions = {ec['name']: self.det_full_version(ec)}
+			    if ec['name'] == 'ifort':
+				# 'icc' key should be provided since it's the only one used in the template
+				comp_versions.update({'icc': self.det_full_version(ec)})
+			    # also provide toolchain version for non-dummy toolchains
+			    comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
 
-                        comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
-                        break
+			    comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
+			    break
+		    else:
+			if ec['name'] in key.split(','):
+			    comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+			    comp_versions = {ec['name']: self.det_full_version(ec)}
+			    if ec['name'] == 'ifort':
+				# 'icc' key should be provided since it's the only one used in the template
+				comp_versions.update({'icc': self.det_full_version(ec)})
+
+			    comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
+			    break
             else:
                 comp_name_ver = [ec['name'], self.det_full_version(ec)]
 
