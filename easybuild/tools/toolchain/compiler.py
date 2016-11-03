@@ -88,18 +88,19 @@ class Compiler(Toolchain):
 
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
-        'pic': 'fPIC',
-        'verbose': 'v',
-        'debug': 'g',
-        'unroll': 'unroll',
-        'static': 'static',
-        'shared': 'shared',
-        'noopt': 'O0',
-        'lowopt': 'O1',
         DEFAULT_OPT_LEVEL: 'O2',
-        'opt': 'O3',
         '32bit' : 'm32',
         'cstd': 'std=%(value)s',
+        'debug': 'g',
+        'lowopt': 'O1',
+        'noopt': 'O0',
+        'openmp': 'fopenmp',
+        'opt': 'O3',
+        'pic': 'fPIC',
+        'shared': 'shared',
+        'static': 'static',
+        'unroll': 'unroll',
+        'verbose': 'v',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
