@@ -281,7 +281,7 @@ class ToolchainTest(EnhancedTestCase):
                 if opt == 'optarch':
                     flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
                 else:
-                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                    flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -755,7 +755,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
-        tc.options.update({'openmp': True})
+        tc.set_options({'openmp': True})
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
