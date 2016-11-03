@@ -106,7 +106,7 @@ class Compiler(Toolchain):
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
+    COMPILER_FLAGS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
     COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 

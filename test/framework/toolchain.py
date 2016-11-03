@@ -364,27 +364,31 @@ class ToolchainTest(EnhancedTestCase):
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
-        # check default precision flag
+        # check default precision: no specific flag for GCC
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.set_options({})
         tc.prepare()
         for var in flag_vars:
-            flags = tc.get_variable(var)
-            val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP['defaultprec']])
-            self.assertTrue(val in flags)
+            self.assertEqual(os.getenv(var), "-O2 -march=native")
 
         # check other precision flags
-        for opt in ['strict', 'precise', 'loose', 'veryloose']:
+        prec_flags = {
+            'ieee': "-mieee-fp -fno-trapping-math",
+            'strict': "-mieee-fp -mno-recip",
+            'precise': "-mno-recip",
+            'loose': "-mrecip -mno-ieee-fp",
+            'veryloose': "-mrecip=all -mno-ieee-fp",
+        }
+        for prec in prec_flags:
             for enable in [True, False]:
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-                tc.set_options({opt: enable})
+                tc.set_options({prec: enable})
                 tc.prepare()
-                val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
                 for var in flag_vars:
-                    flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(val in flags)
+                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
                     else:
-                        self.assertTrue(val not in flags)
+                        self.assertEqual(os.getenv(var), "-O2 -march=native")
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
