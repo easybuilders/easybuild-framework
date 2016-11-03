@@ -28,8 +28,9 @@ Unit tests for easyconfig/parser.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
@@ -41,14 +42,14 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 
 
-TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+TESTDIRBASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
 
 
 class EasyConfigParserTest(EnhancedTestCase):
     """Test the parser"""
 
     def test_v10(self):
-        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb'))
+        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb'))
 
         self.assertEqual(ecp._formatter.VERSION, EasyVersion('1.0'))
 
@@ -151,9 +152,9 @@ class EasyConfigParserTest(EnhancedTestCase):
 
     def test_raw(self):
         """Test passing of raw contents to EasyConfigParser."""
-        ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb')
+        ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb')
         ec_txt1 = read_file(ec_file1)
-        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
         ec_txt2 = read_file(ec_file2)
 
         ecparser = EasyConfigParser(ec_file1)
@@ -188,7 +189,7 @@ class EasyConfigParserTest(EnhancedTestCase):
 
     def test_check_value_types(self):
         """Test checking of easyconfig parameter value types."""
-        test_ec = os.path.join(TESTDIRBASE, 'gzip-1.4-broken.eb')
+        test_ec = os.path.join(TESTDIRBASE, 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         ecp = EasyConfigParser(test_ec, auto_convert_value_types=False)
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
@@ -201,10 +202,10 @@ class EasyConfigParserTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigParserTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigParserTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

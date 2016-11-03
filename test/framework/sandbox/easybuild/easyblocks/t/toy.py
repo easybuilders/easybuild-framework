@@ -27,7 +27,7 @@ EasyBuild support for building and installing toy, implemented as an easyblock
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 import platform
 import shutil
@@ -66,9 +66,10 @@ class EB_toy(EasyBlock):
         """Build toy."""
         if name is None:
             name = self.name
-        run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s' % {
+        run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s %(buildopts)s' % {
             'name': name,
             'prebuildopts': self.cfg['prebuildopts'],
+            'buildopts': self.cfg['buildopts'],
         })
 
     def install_step(self, name=None):
@@ -77,8 +78,9 @@ class EB_toy(EasyBlock):
             name = self.name
         bindir = os.path.join(self.installdir, 'bin')
         mkdir(bindir, parents=True)
-        if os.path.exists(name):
-            shutil.copy2(name, bindir)
+        for filename in glob.glob('%s_*' % name) + [name]:
+            if os.path.exists(filename):
+                shutil.copy2(filename, bindir)
         # also install a dummy libtoy.a, to make the default sanity check happy
         libdir = os.path.join(self.installdir, 'lib')
         mkdir(libdir, parents=True)

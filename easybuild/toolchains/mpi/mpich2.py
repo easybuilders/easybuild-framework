@@ -25,9 +25,9 @@
 """
 Support for MPICH2 as toolchain MPI library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 
 from easybuild.toolchains.mpi.mpich import Mpich

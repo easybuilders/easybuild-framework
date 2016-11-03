@@ -26,8 +26,8 @@
 """
 Interface for submitting jobs via GC3Pie.
 
-@author: Riccardo Murri (University of Zurich)
-@author: Kenneth Hoste (Ghent University)
+:author: Riccardo Murri (University of Zurich)
+:author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
 from time import gmtime, strftime
@@ -201,7 +201,7 @@ class GC3Pie(JobBackend):
         """
         Add a job to the queue, optionally specifying dependencies.
 
-        @param dependencies: jobs on which this job depends.
+        :param dependencies: jobs on which this job depends.
         """
         self.jobs.add(job, dependencies)
         # since it's not trivial to determine the correct job count from self.jobs, we keep track of a count ourselves

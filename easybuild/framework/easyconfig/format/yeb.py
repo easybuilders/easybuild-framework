@@ -26,8 +26,8 @@
 YAML easyconfig format (.yeb)
 Useful: http://www.yaml.org/spec/1.2/spec.html
 
-@author: Caroline De Brouwer (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Caroline De Brouwer (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 from vsc.utils import fancylogger
@@ -46,14 +46,14 @@ _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 YAML_DIR = r'%YAML'
 YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
-
+YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 
 def yaml_join(loader, node):
     """
     defines custom YAML join function.
     see http://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml/23212524#23212524
-    @param loader: the YAML Loader
-    @param node: the YAML (sequence) node
+    :param loader: the YAML Loader
+    :param node: the YAML (sequence) node
     """
     seq = loader.construct_sequence(node)
     return ''.join([str(i) for i in seq])
@@ -141,3 +141,15 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
+
+def quote_yaml_special_chars(val):
+    """
+    Single-quote values that contain special characters, specifically to be used in YAML context (.yeb files)
+    Single quotes inside the string are escaped by doubling them.
+    (see: http://symfony.com/doc/current/components/yaml/yaml_format.html#strings)
+    """
+    if isinstance(val, basestring):
+        if "'" in val or YAML_SPECIAL_CHARS.intersection(val):
+            val = "'%s'" % val.replace("'", "''")
+
+    return val

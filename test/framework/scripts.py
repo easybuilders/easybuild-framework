@@ -32,8 +32,8 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import setuptools
 import vsc
@@ -218,7 +218,7 @@ class ScriptsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ScriptsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ScriptsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

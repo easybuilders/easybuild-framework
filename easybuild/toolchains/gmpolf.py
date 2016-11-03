@@ -28,8 +28,8 @@
 """
 EasyBuild support for gmpolf compiler toolchain (includes GCC, MPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI") (copy from...)
-@author: Bart Verleye (University of Auckland)
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI") (copy from...)
+:author: Bart Verleye (University of Auckland)
 """
 
 from easybuild.toolchains.gmpich import Gmpich

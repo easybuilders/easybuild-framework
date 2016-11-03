@@ -27,8 +27,10 @@ Unit tests for easyconfig/format/convert.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
@@ -225,10 +227,10 @@ class ConvertTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ConvertTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ConvertTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -25,14 +25,18 @@
 """
 Support for LAPACK as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.toolchain.linalg import LinAlg
+
+
+TC_CONSTANT_LAPACK = 'LAPACK'
 
 
 class Lapack(LinAlg):
     """Trivial class, provides LAPACK support."""
     LAPACK_MODULE_NAME = ['LAPACK']
     LAPACK_LIB = ['lapack']
+    LAPACK_FAMILY = TC_CONSTANT_LAPACK

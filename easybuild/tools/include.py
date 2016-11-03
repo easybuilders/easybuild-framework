@@ -26,7 +26,7 @@
 """
 Support for including additional Python modules, for easyblocks, module naming schemes and toolchains.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import sys
@@ -103,9 +103,9 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
     """
     Set up new easybuild subnamespace in specified path.
 
-    @param parent_path: directory to create package in, using 'easybuild' namespace
-    @param eb_pkg_name: full package name, must start with 'easybuild'
-    @param subpkgs: list of subpackages to create
+    :param parent_path: directory to create package in, using 'easybuild' namespace
+    :param eb_pkg_name: full package name, must start with 'easybuild'
+    :param subpkgs: list of subpackages to create
     @parak pkg_init_body: body of package's __init__.py file (does not apply to subpackages)
     """
     if not eb_pkg_name.startswith('easybuild'):

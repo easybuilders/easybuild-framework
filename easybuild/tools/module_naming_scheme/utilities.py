@@ -25,12 +25,12 @@
 """
 Utility functions for implementating module naming schemes.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import string
@@ -52,15 +52,16 @@ def det_full_ec_version(ec):
     """
 
     ecver = None
+    toolchain = ec.get('toolchain', {'name': DUMMY_TOOLCHAIN_NAME})
 
     # determine main install version based on toolchain
-    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+    if toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
         ecver = ec['version']
     else:
-        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
+        ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
 
     # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
+    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec.get('versionsuffix', '')] if x])
 
     return ecver
 

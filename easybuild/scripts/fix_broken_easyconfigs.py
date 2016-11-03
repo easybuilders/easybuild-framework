@@ -25,7 +25,7 @@
 """
 Script to fix easyconfigs that broke due to support for deprecated functionality being dropped in EasyBuild 2.0
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import re
@@ -48,8 +48,8 @@ class FixBrokenEasyconfigsOption(SimpleOption):
 def fix_broken_easyconfig(ectxt, easyblock_class):
     """
     Fix provided easyconfig file, that may be broken due to non-backwards-compatible changes.
-    @param ectxt: raw contents of easyconfig to fix
-    @param easyblock_class: easyblock class, as derived from software name/specified easyblock
+    :param ectxt: raw contents of easyconfig to fix
+    :param easyblock_class: easyblock class, as derived from software name/specified easyblock
     """
     log.debug("Raw contents of potentially broken easyconfig file to fix: %s" % ectxt)
 

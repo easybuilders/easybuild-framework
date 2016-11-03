@@ -31,10 +31,13 @@ Unit tests for toolchain support.
 import os
 import re
 import shutil
+import stat
+import subprocess
+import sys
 import tempfile
 from distutils.version import LooseVersion
-from unittest import TestLoader, main
-from test.framework.utilities import EnhancedTestCase, find_full_path, init_config
+from unittest import TextTestRunner
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 import easybuild.tools.build_log
 import easybuild.tools.modules as modules
@@ -42,7 +45,9 @@ import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import write_file
+from easybuild.tools.environment import setvar
+from easybuild.tools.filetools import mkdir, read_file, write_file, which
+from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
@@ -60,7 +65,8 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
-        ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
+        test_ecs = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs')
+        ec_file = find_full_path(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'))
         ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
@@ -419,6 +425,37 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
 
+    def test_blas_lapack_family(self):
+        """Test determining BLAS/LAPACK family."""
+        # check compiler-only (sub)toolchain
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), None)
+        self.assertEqual(tc.lapack_family(), None)
+        self.modtool.purge()
+
+        # check compiler/MPI-only (sub)toolchain
+        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), None)
+        self.assertEqual(tc.lapack_family(), None)
+        self.modtool.purge()
+
+        # check full toolchain including BLAS/LAPACK
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), 'OpenBLAS')
+        self.assertEqual(tc.lapack_family(), 'OpenBLAS')
+        self.modtool.purge()
+
+        # check another one
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), 'IntelMKL')
+        self.assertEqual(tc.lapack_family(), 'IntelMKL')
+
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
         tc = self.get_toolchain("goolfc", version="1.3.12")
@@ -579,6 +616,9 @@ class ToolchainTest(EnhancedTestCase):
 
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
+
+        init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
+        self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
@@ -815,10 +855,83 @@ class ToolchainTest(EnhancedTestCase):
         liblapack += "-Wl,--end-group -Wl,-Bdynamic -ldl"
         self.assertEqual(os.environ.get('LIBLAPACK', '(not set)'), liblapack)
 
+    def test_compiler_cache(self):
+        """Test ccache"""
+        # generate shell script to mock ccache/f90cache
+        for cache_tool in ['ccache', 'f90cache']:
+            path = os.path.join(self.test_prefix, 'scripts')
+
+            txt = [
+                "#!/bin/bash",
+                "echo 'This is a %s wrapper'" % cache_tool,
+                "NAME=${0##*/}",
+                "comm=$(which -a $NAME | sed 1d)",
+                "$comm $@",
+                "exit 0"
+            ]
+            script = '\n'.join(txt)
+            fn = os.path.join(path, cache_tool)
+            write_file(fn, script)
+
+            # make script executable
+            st = os.stat(fn)
+            os.chmod(fn, st.st_mode | stat.S_IEXEC)
+            setvar('PATH', '%s:%s' % (path, os.getenv('PATH')))
+
+        prepped_path_envvar = os.environ['PATH']
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        ccache_dir = os.path.join(self.test_prefix, 'ccache')
+        mkdir(ccache_dir, parents=True)
+
+        args = [
+            eb_file,
+            "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
+            "--force",
+            "--debug",
+            "--disable-cleanup-tmpdir",
+        ]
+
+        out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+
+        patterns = [
+            "This is a ccache wrapper",
+            "Command ccache found at .*%s" % os.path.dirname(path),
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
+        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
+        for comp in ['gcc', 'g++', 'gfortran']:
+            self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+
+        # reset environment to get rid of ccache symlinks, but with ccache/f90cache mock scripts still in place
+        os.environ['PATH'] = prepped_path_envvar
+
+        # if both ccache and f90cache are used, Fortran compiler is symlinked to f90cache
+        f90cache_dir = os.path.join(self.test_prefix, 'f90cache')
+        mkdir(f90cache_dir, parents=True)
+        args.append("--use-f90cache=%s" % f90cache_dir)
+
+        out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+        for pattern in patterns:
+            regex = re.compile(pattern)
+            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+
+        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
+        self.assertTrue(os.path.samefile(os.environ['F90CACHE_DIR'], f90cache_dir))
+        self.assertTrue(os.path.samefile(which('gcc'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+        self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
+        self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
+
+
 
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(ToolchainTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

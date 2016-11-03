@@ -25,8 +25,8 @@
 """
 EasyBuild support for gimpi compiler toolchain (includes GCC and Intel MPI).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gcc import GccToolchain

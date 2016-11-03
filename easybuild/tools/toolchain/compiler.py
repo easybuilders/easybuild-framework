@@ -25,8 +25,8 @@
 """
 Toolchain compiler module, provides abstract class for compilers.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError

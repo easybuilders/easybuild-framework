@@ -28,9 +28,10 @@ Unit tests for tools/toolchain/variables.py.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import sys
 
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 from easybuild.tools.toolchain.variables import CommandFlagList
@@ -164,7 +165,7 @@ class ToolchainVariablesTest(EnhancedTestCase):
 
 def suite():
     """ return all the tests"""
-    return TestLoader().loadTestsFromTestCase(ToolchainVariablesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainVariablesTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

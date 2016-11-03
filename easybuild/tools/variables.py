@@ -26,8 +26,8 @@
 Module that contains a set of classes and function to generate variables to be used
 e.g., in compiling or linking
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import os

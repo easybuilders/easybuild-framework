@@ -122,10 +122,14 @@ implement support for installing particular (groups of) software packages.""",
     install_requires=[
         'setuptools >= 0.6',
         "vsc-install >= 0.9.19",
-        "vsc-base >= 2.4.18",
+        "vsc-base >= 2.5.4",
     ],
     extras_require = {
         'yeb': ["PyYAML >= 3.11"],
+        'coloredlogs': [
+            'coloredlogs',
+            'humanfriendly',  # determine whether terminal supports ANSI color
+        ],
     },
     namespace_packages=['easybuild'],
 )

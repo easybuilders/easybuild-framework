@@ -26,7 +26,7 @@
 """
 The main easyconfig format class
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import re
 

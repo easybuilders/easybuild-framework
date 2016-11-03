@@ -34,8 +34,10 @@ import os
 import re
 import tempfile
 import shutil
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from distutils.version import StrictVersion
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
@@ -102,7 +104,15 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
-        self.assertEqual(len(ms), TEST_MODULES_COUNT)
+
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+            # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
+            self.assertTrue('bzip2/.1.0.6' in ms)
+            self.assertTrue('toy/.0.0-deps' in ms)
+            self.assertTrue('OpenMPI/.1.6.4-GCC-4.6.4' in ms)
+        else:
+            self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
     def test_exists(self):
         """Test if testing for module existence works."""
@@ -668,7 +678,7 @@ class ModulesTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -28,7 +28,7 @@
 """
 EasyBuild support for cgoolf compiler toolchain (includes Clang, GFortran, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.cgompi import Cgompi

@@ -26,8 +26,8 @@
 """
 Abstract implementation of a package naming scheme.
 
-@author: Robert Schmidt (Ottawa Hospital Research Institute)
-@author: Kenneth Hoste (Ghent University)
+:author: Robert Schmidt (Ottawa Hospital Research Institute)
+:author: Kenneth Hoste (Ghent University)
 """
 from abc import ABCMeta, abstractmethod
 from vsc.utils import fancylogger

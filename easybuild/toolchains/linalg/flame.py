@@ -25,15 +25,18 @@
 """
 Support for FLAME as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.linalg.lapack import Lapack
+
+
+TC_CONSTANT_OPENBLAS = 'FLAME'
 
 
 class Flame(Lapack):
     """Less trivial module, provides FLAME support."""
     LAPACK_MODULE_NAME = ['FLAME'] + Lapack.LAPACK_MODULE_NAME  # no super()
     LAPACK_LIB = ['lapack2flame', 'flame'] + Lapack.LAPACK_LIB  # no super()
-
+    LAPACK_FAMILY = TC_CONSTANT_FLAME

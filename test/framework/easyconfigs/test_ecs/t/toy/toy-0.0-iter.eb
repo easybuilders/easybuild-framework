@@ -1,0 +1,24 @@
+name = 'toy'
+version = '0.0'
+versionsuffix = '-iter'
+
+homepage = 'http://hpcugent.github.com/easybuild'
+description = "Toy C program."
+
+toolchain = {'name': 'dummy', 'version': 'dummy'}
+
+sources = [SOURCE_TAR_GZ]
+patches = ['toy-0.0_typo.patch']
+
+buildopts = [
+    '',
+    "-O2; mv %(name)s toy_O2",
+    "-O1; mv %(name)s toy_O1",
+]
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy'), 'bin/toy_O1', 'bin/toy_O2'],
+    'dirs': ['bin'],
+}
+
+moduleclass = 'tools'

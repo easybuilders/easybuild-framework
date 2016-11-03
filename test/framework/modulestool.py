@@ -30,12 +30,12 @@ Unit tests for ModulesTool class.
 import os
 import re
 import stat
+import sys
 import tempfile
 from vsc.utils import fancylogger
 
-from test.framework.utilities import EnhancedTestCase
-from unittest import main as unittestmain
-from unittest import TestLoader
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from distutils.version import StrictVersion
 
 import easybuild.tools.options as eboptions
@@ -160,7 +160,7 @@ class ModulesToolTest(EnhancedTestCase):
             init_config(build_options=build_options)
 
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, os.path.realpath(lmod_abspath))
+            self.assertTrue(os.path.samefile(lmod.cmd, lmod_abspath))
 
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
@@ -187,7 +187,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['LMOD_CMD'] = fake_path
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
-            self.assertEqual(lmod.cmd, os.path.realpath(fake_path))
+            self.assertTrue(os.path.samefile(lmod.cmd, fake_path))
 
             # use correct full path for 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
@@ -214,9 +214,9 @@ class ModulesToolTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesToolTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())
 

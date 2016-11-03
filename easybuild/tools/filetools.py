@@ -25,15 +25,15 @@
 """
 Set of file tools.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
-@author: Sotiris Fragkiskos (NTUA, CERN)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Sotiris Fragkiskos (NTUA, CERN)
 """
 import fileinput
 import glob
@@ -164,6 +164,12 @@ def write_file(path, txt, append=False, forced=False):
 
 def remove_file(path):
     """Remove file at specified path."""
+
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("file %s removed" % path, silent=build_option('silent'))
+        return
+
     try:
         if os.path.exists(path):
             os.remove(path)
@@ -171,10 +177,16 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove %s: %s", path, err)
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
     """
-    Given filename fn, try to extract in directory dest
-    - returns the directory name in case of success
+    Extract file at given path to specified directory
+    :param fn: path to file to extract
+    :param dest: location to extract to
+    :param cmd: extract command to use (derived from filename if not specified)
+    :param extra_options: extra options to pass to extract command
+    :param overwrite: overwrite existing unpacked file
+    :param forced: force extraction in (extended) dry run mode
+    :return: path to directory (in case of success)
     """
     if not os.path.isfile(fn) and not build_option('extended_dry_run'):
         raise EasyBuildError("Can't extract file %s: no such file", fn)
@@ -202,7 +214,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run.run_cmd(cmd, simple=True)
+    run.run_cmd(cmd, simple=True, force_in_dry_run=forced)
 
     return find_base_dir()
 
@@ -213,7 +225,7 @@ def which(cmd):
     for path in paths:
         cmd_path = os.path.join(path, cmd)
         # only accept path is command is there, and both readable and executable
-        if os.access(cmd_path, os.R_OK | os.X_OK):
+        if os.access(cmd_path, os.R_OK | os.X_OK) and os.path.isfile(cmd_path):
             _log.info("Command %s found at %s" % (cmd, cmd_path))
             return cmd_path
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
@@ -433,8 +445,8 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     """
     Compute checksum of specified file.
 
-    @param path: Path of file to compute checksum for
-    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
+    :param path: Path of file to compute checksum for
+    :param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
@@ -477,8 +489,8 @@ def verify_checksum(path, checksums):
     """
     Verify checksum of specified file.
 
-    @param file: path of file to verify checksum of
-    @param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    :param file: path of file to verify checksum of
+    :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
     # if no checksum is provided, pretend checksum to be valid
     if checksums is None:
@@ -559,7 +571,7 @@ def extract_cmd(filepath, overwrite=False):
         '.tar.gz':  "tar xzf %(filepath)s",
         '.tgz':     "tar xzf %(filepath)s",
         # bzipped or bzipped tarball
-        '.bz2':     "bunzip2 %(filepath)s",
+        '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
         '.tar.bz2': "tar xjf %(filepath)s",
         '.tb2':     "tar xjf %(filepath)s",
         '.tbz':     "tar xjf %(filepath)s",
@@ -593,16 +605,22 @@ def extract_cmd(filepath, overwrite=False):
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
+def is_patch_file(path):
+    """Determine whether file at specified path is a patch file (based on +++ and --- lines being present)."""
+    txt = read_file(path)
+    return bool(re.search(r'^\+{3}\s', txt, re.M) and re.search(r'^-{3}\s', txt, re.M))
+
+
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
     It searches for "+++ path/to/patched/file" lines to determine
     the patched files.
-    @param path: the path to the diff
-    @param txt: the contents of the diff (either path or txt should be give)
-    @param omit_ab_prefix: ignore the a/ or b/ prefix of the files
-    @param github: only consider lines that start with 'diff --git' to determine list of patched files
-    @param filter_deleted: filter out all files that were deleted by the patch
+    :param path: the path to the diff
+    :param txt: the contents of the diff (either path or txt should be give)
+    :param omit_ab_prefix: ignore the a/ or b/ prefix of the files
+    :param github: only consider lines that start with 'diff --git' to determine list of patched files
+    :param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
         patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
@@ -718,19 +736,20 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
-    result = run.run_cmd(patch_cmd, simple=True, path=adest)
-    if not result:
-        raise EasyBuildError("Patching with patch %s failed", patch_file)
+    out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
 
-    return result
+    if ec:
+        raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
+
+    return ec == 0
 
 
 def apply_regex_substitutions(path, regex_subs):
     """
     Apply specified list of regex substitutions.
 
-    @param path: path to file to patch
-    @param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
+    :param path: path to file to patch
+    :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
     """
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
@@ -891,9 +910,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
     Create a directory
     Directory is the path to create
 
-    @param parents: create parent directories if needed (mkdir -p)
-    @param set_gid: set group ID bit, to make subdirectories and files inherit group
-    @param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
+    :param parents: create parent directories if needed (mkdir -p)
+    :param set_gid: set group ID bit, to make subdirectories and files inherit group
+    :param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
                    to avoid users can removing/renaming files in this directory
     """
     if set_gid is None:
@@ -1012,6 +1031,9 @@ def rmtree2(path, n=3):
 
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
+
+    zip_log_cmd = build_option('zip_logs')
+
     mkdir(os.path.dirname(target_logfile), parents=True)
     src_logfile_len = len(src_logfile)
     try:
@@ -1036,6 +1058,10 @@ def move_logs(src_logfile, target_logfile):
             shutil.move(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
+            if zip_log_cmd:
+                run.run_cmd("%s %s" % (zip_log_cmd, new_log_path))
+                _log.info("Zipped log %s using '%s'", new_log_path, zip_log_cmd)
+
     except (IOError, OSError), err:
         raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s",
                              src_logfile, target_logfile, err)
@@ -1045,10 +1071,10 @@ def cleanup(logfile, tempdir, testing, silent=False):
     """
     Cleanup the specified log file and the tmp directory, if desired.
 
-    @param logfile: path to log file to clean up
-    @param tempdir: path to temporary directory to clean up
-    @param testing: are we in testing mode? if so, don't actually clean up anything
-    @param silent: be silent (don't print anything to stdout)
+    :param logfile: path to log file to clean up
+    :param tempdir: path to temporary directory to clean up
+    :param testing: are we in testing mode? if so, don't actually clean up anything
+    :param silent: be silent (don't print anything to stdout)
     """
 
     if build_option('cleanup_tmpdir') and not testing:
@@ -1240,9 +1266,9 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
     If no license is found through environment variables, also consider 'lic_specs'.
 
-    @param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
-    @param lic_specs: list of license specifications
-    @return: tuple with list of valid license specs found and name of first valid environment variable
+    :param custom_env_vars: list of environment variables to considered (if None, only consider $LM_LICENSE_FILE)
+    :param lic_specs: list of license specifications
+    :return: tuple with list of valid license specs found and name of first valid environment variable
     """
     valid_lic_specs = []
     lic_env_var = None
@@ -1316,3 +1342,20 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     _log.info("Found valid license specs via %s: %s", via_msg, valid_lic_specs)
 
     return (valid_lic_specs, lic_env_var)
+
+
+def copy_file(path, target_path):
+    """
+    Copy a file from path to target_path
+    :param path: the original filepath
+    :param target_path: path to copy the file to
+    """
+    if build_option('extended_dry_run'):
+        dry_run_msg("copied file %s to %s" % (path, target_path))
+    else:
+        try:
+            mkdir(os.path.dirname(target_path), parents=True)
+            shutil.copy2(path, target_path)
+            _log.info("%s copied to %s", path, target_path)
+        except OSError as err:
+            raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)

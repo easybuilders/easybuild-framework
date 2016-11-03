@@ -25,7 +25,7 @@
 """
 Implementation of a module naming scheme that can be used to migrate from EasyBuildMNS to HierarchicalMNS.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.hierarchical_mns import HierarchicalMNS

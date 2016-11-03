@@ -25,8 +25,8 @@
 """
 Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion

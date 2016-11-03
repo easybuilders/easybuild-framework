@@ -28,7 +28,7 @@
 """
 Support for Clang as toolchain compiler.
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 import easybuild.tools.systemtools as systemtools

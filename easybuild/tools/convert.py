@@ -26,7 +26,7 @@
 """
 This module implements all supported formats and their converters 
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import re
 
@@ -64,8 +64,8 @@ class Convert(Wrapper):
 
     def _split_string(self, txt, sep=None, max=0):
         """Split using sep, return list with results.
-            @param sep: if not provided, self.SEPARATOR is tried
-            @param max: split in max+1 elements (default: 0 == no limit)
+            :param sep: if not provided, self.SEPARATOR is tried
+            :param max: split in max+1 elements (default: 0 == no limit)
         """
         if sep is None:
             if self.SEPARATOR is None:

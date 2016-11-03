@@ -25,7 +25,7 @@
 """
 EasyBuild support for dummy compiler toolchain.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.dummycompiler import DummyCompiler

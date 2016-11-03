@@ -25,11 +25,14 @@
 """
 Support for GotoBLAS as toolchain linear algebra library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.toolchain.linalg import LinAlg
+
+
+TC_CONSTANT_GOTOBLAS = 'GotoBLAS'
 
 
 class GotoBLAS(LinAlg):
@@ -38,3 +41,4 @@ class GotoBLAS(LinAlg):
     """
     BLAS_MODULE_NAME = ['GotoBLAS']
     BLAS_LIB = ['goto']
+    BLAS_FAMILY = TC_CONSTANT_GOTOBLAS

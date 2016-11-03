@@ -25,7 +25,7 @@
 """
 Toolchain querying support for module naming schemes.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from vsc.utils import fancylogger
 
@@ -88,7 +88,7 @@ def det_toolchain_compilers(ec):
     """
     Determine compilers of toolchain for given EasyConfig instance.
 
-    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
     tc_elems = ec.toolchain.definition()
     if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
@@ -113,7 +113,7 @@ def det_toolchain_mpi(ec):
     """
     Determine MPI library of toolchain for given EasyConfig instance.
 
-    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
     tc_elems = ec.toolchain.definition()
     if TOOLCHAIN_MPI in tc_elems:

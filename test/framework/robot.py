@@ -31,11 +31,11 @@ Unit tests for robot (dependency resolution).
 import os
 import re
 import shutil
+import sys
 import tempfile
 from copy import deepcopy
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader
-from unittest import main as unittestmain
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
@@ -136,7 +136,7 @@ class RobotTest(EnhancedTestCase):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         self.install_mock_module()
 
-        base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
+        base_easyconfig_dir = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'test_ecs'))
         self.assertTrue(base_easyconfig_dir)
 
         easyconfig = {
@@ -401,7 +401,7 @@ class RobotTest(EnhancedTestCase):
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
 
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         self.install_mock_module()
 
         init_config(build_options={
@@ -512,9 +512,9 @@ class RobotTest(EnhancedTestCase):
             'validate': False,
         })
 
-        impi_txt = read_file(os.path.join(test_easyconfigs, 'impi-4.1.3.049.eb'))
+        impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-4.1.3.049.eb'))
         self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': ''}", impi_txt, re.M))
-        gzip_txt = read_file(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
+        gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
         self.assertTrue(re.search("^toolchain = {'name': 'dummy', 'version': 'dummy'}", gzip_txt, re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-goolf-1.4.10.eb')
@@ -549,15 +549,15 @@ class RobotTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         test_ec = 'toy-0.0-deps.eb'
-        shutil.copy2(os.path.join(test_ecs_path, test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(test_ecs_path, 'ictce-4.1.13.eb'), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'i', 'ictce', 'ictce-4.1.13.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         args = [
-            os.path.join(test_ecs_path, 'toy-0.0.eb'),
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
             # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
             #'--from-pr=1239',
@@ -590,11 +590,11 @@ class RobotTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         test_ec = 'toy-0.0-deps.eb'
-        shutil.copy2(os.path.join(test_ecs_path, test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(test_ecs_path, 'ictce-4.1.13.eb'), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'i', 'ictce', 'ictce-4.1.13.eb'), self.test_prefix)
         self.assertFalse(os.path.exists(test_ec))
 
         gompi_2015a_txt = '\n'.join([
@@ -607,11 +607,9 @@ class RobotTest(EnhancedTestCase):
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
-        # put gompi-2015a.eb easyconfig in place that shouldn't be considered (paths via --from-pr have precedence)
-        write_file(os.path.join(self.test_prefix, 'gompi-2015a.eb'), gompi_2015a_txt)
 
         args = [
-            os.path.join(test_ecs_path, 'toy-0.0.eb'),
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
             # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
@@ -626,14 +624,13 @@ class RobotTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-        from_pr_prefix = os.path.join(self.test_prefix, '.*', 'files_pr1239')
         modules = [
             (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
             (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
-            (from_pr_prefix, 'FFTW/3.3.4-gompi-2015a'),  # part of PR easyconfigs
-            (from_pr_prefix, 'gompi/2015a'),  # part of PR easyconfigs
+            ('.*/files_pr1239', 'FFTW/3.3.4-gompi-2015a'),  # specified easyconfig
+            ('.*/files_pr1239', 'gompi/2015a'),  # part of PR easyconfigs
             (test_ecs_path, 'GCC/4.9.2'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
@@ -643,7 +640,7 @@ class RobotTest(EnhancedTestCase):
 
     def test_get_toolchain_hierarchy(self):
         """Test get_toolchain_hierarchy function."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
@@ -781,7 +778,7 @@ class RobotTest(EnhancedTestCase):
         # replace log.experimental with log.warning to allow experimental code
         easybuild.framework.easyconfig.tools._log.experimental = easybuild.framework.easyconfig.tools._log.warning
 
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
@@ -911,15 +908,15 @@ class RobotTest(EnhancedTestCase):
 
     def test_check_conflicts(self):
         """Test check_conflicts function."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'robot_path': test_easyconfigs,
             'valid_module_classes': module_classes(),
             'validate': False,
         })
 
-        gzip_ec = os.path.join(test_easyconfigs, 'gzip-1.5-goolf-1.4.10.eb')
-        gompi_ec = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
+        gzip_ec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        gompi_ec = os.path.join(test_easyconfigs, 'g', 'gompi', 'gompi-1.4.10.eb')
         ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
 
         # no conflicts found, no output to stderr
@@ -950,8 +947,8 @@ class RobotTest(EnhancedTestCase):
 
         # direct conflict on software version
         ecs, _ = parse_easyconfigs([
-            (os.path.join(test_easyconfigs, 'GCC-4.7.2.eb'), False),
-            (os.path.join(test_easyconfigs, 'GCC-4.9.3-2.25.eb'), False),
+            (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.7.2.eb'), False),
+            (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.9.3-2.25.eb'), False),
         ])
         self.mock_stderr(True)
         conflicts = check_conflicts(ecs, self.modtool)
@@ -963,8 +960,8 @@ class RobotTest(EnhancedTestCase):
 
         # indirect conflict on dependencies
         ecs, _ = parse_easyconfigs([
-            (os.path.join(test_easyconfigs, 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
-            (os.path.join(test_easyconfigs, 'hwloc-1.6.2-GCC-4.6.4.eb'), False),
+            (os.path.join(test_easyconfigs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
+            (os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'), False),
         ])
         self.mock_stderr(True)
         conflicts = check_conflicts(ecs, self.modtool)
@@ -980,7 +977,7 @@ class RobotTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RobotTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    unittestmain()
+    TextTestRunner(verbosity=1).run(suite())

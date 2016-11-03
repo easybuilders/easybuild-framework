@@ -28,9 +28,10 @@ Unit tests for easyconfig/format/version.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import copy
+import sys
 
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
@@ -269,10 +270,10 @@ class EasyConfigVersion(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigVersion)
+    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigVersion, sys.argv[1:])
 
 
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

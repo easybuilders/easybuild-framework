@@ -5,7 +5,7 @@
 """
 Support for IBM compilers (xlc, xlf) as toolchain compilers.
 
-@author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
+:author: Jack Perdue <j-perdue@tamu.edu> - TAMU HPRC - http://sc.tamu.edu
 """
 
 from distutils.version import LooseVersion

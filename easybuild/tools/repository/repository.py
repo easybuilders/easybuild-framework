@@ -25,14 +25,14 @@
 """
 Generic support for dealing with repositories
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses

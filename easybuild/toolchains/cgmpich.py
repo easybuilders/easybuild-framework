@@ -28,7 +28,7 @@
 """
 EasyBuild support for cgompi compiler toolchain (includes Clang, GFortran and MPICH).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 from easybuild.toolchains.clanggcc import ClangGcc

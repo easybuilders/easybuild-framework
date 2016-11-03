@@ -33,12 +33,12 @@ Things that are checked include:
 
 Usage: prep_for_release.py
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
 """
 
 import glob

@@ -26,6 +26,7 @@
 Various test utility functions.
 
 @author: Kenneth Hoste (Ghent University)
+@author Caroline De Brouwer (Ghent University)
 """
 import copy
 import fileinput
@@ -34,6 +35,7 @@ import re
 import shutil
 import sys
 import tempfile
+import unittest
 from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
@@ -122,7 +124,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
@@ -175,6 +177,13 @@ class EnhancedTestCase(_EnhancedTestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
+        # save values of $PATH & $PYTHONPATH, so they can be restored later
+        # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
+        # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
+        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
+        self.env_path = os.environ['PATH']
+        self.env_pythonpath = os.environ['PYTHONPATH']
+
         self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
         reset_module_caches()
@@ -217,6 +226,13 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
+
+    def restore_env_path_pythonpath(self):
+        """
+        Restore $PATH & $PYTHONPATH in environment using saved values.
+        """
+        os.environ['PATH'] = self.env_path
+        os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
@@ -354,6 +370,31 @@ class EnhancedTestCase(_EnhancedTestCase):
                               r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
+
+
+class TestLoaderFiltered(unittest.TestLoader):
+    """Test load that supports filtering of tests based on name."""
+
+    def loadTestsFromTestCase(self, test_case_class, filters):
+        """Return a suite of all tests cases contained in test_case_class."""
+
+        test_case_names = self.getTestCaseNames(test_case_class)
+        test_cnt = len(test_case_names)
+        retained_test_names = []
+        if len(filters) > 0:
+            for test_case_name in test_case_names:
+                if any(filt in test_case_name for filt in filters):
+                    retained_test_names.append(test_case_name)
+
+            retained_tests = ', '.join(retained_test_names)
+            tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
+            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+
+            test_cases = [test_case_class(t) for t in retained_test_names]
+        else:
+            test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
+
+        return self.suiteClass(test_cases)
 
 
 def cleanup():

@@ -34,8 +34,8 @@ The compiler drivers are quite similar to EB toolchains as they include
 linker and compiler directives to use the Cray libraries for their MPI (and network drivers)
 Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 

@@ -25,7 +25,7 @@
 """
 EasyBuild support for foss compiler toolchain (includes GCC, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gompi import Gompi

@@ -26,11 +26,11 @@
 This declares the namespace for the tools.package submodule of EasyBuild,
 which contains support for packaging and package naming schemes that can be overriden to cover site customizations.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 import pkg_resources
 pkg_resources.declare_namespace(__name__)

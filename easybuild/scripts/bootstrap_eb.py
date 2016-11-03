@@ -29,10 +29,9 @@ Bootstrap script for EasyBuild
 
 Installs distribute with included (patched) distribute_setup.py script to obtain easy_install,
 and then performs a staged install of EasyBuild:
+ * stage 0: install setuptools (which provides easy_install)
  * stage 1: install EasyBuild with easy_install to a temporary directory
- * stage 2: install EasyBuild with EasyBuild from stage 1 to a temporary directory
- * stage 3: install EasyBuild with EasyBuild from stage 2 to intended install directory
-   (default or $EASYBUILD_INSTALLPATH)
+ * stage 2: install EasyBuild with EasyBuild from stage 1 to specified install directory
 
 Authors: Kenneth Hoste (UGent), Stijn Deweirdt (UGent), Ward Poelmans (UGent)
 License: GPLv2
@@ -49,7 +48,12 @@ import shutil
 import site
 import sys
 import tempfile
+from cStringIO import StringIO
 from distutils.version import LooseVersion
+from hashlib import md5
+
+
+EB_BOOTSTRAP_VERSION = '20161005.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -108,6 +112,32 @@ def error(msg, exit=True):
 
     print("[[ERROR]] " + msg)
     sys.exit(1)
+
+
+def mock_stdout_stderr():
+    """Mock stdout/stderr channels"""
+    orig_stdout, orig_stderr = sys.stdout, sys.stderr
+    sys.stdout.flush()
+    sys.stdout = StringIO()
+    sys.stderr.flush()
+    sys.stderr = StringIO()
+
+    return orig_stdout, orig_stderr
+
+
+def restore_stdout_stderr(orig_stdout, orig_stderr):
+    """Restore stdout/stderr channels after mocking"""
+    # collect output
+    sys.stdout.flush()
+    stdout = sys.stdout.getvalue()
+    sys.stderr.flush()
+    stderr = sys.stderr.getvalue()
+
+    # restore original stdout/stderr
+    sys.stdout = orig_stdout
+    sys.stderr = orig_stderr
+
+    return stdout, stderr
 
 
 def det_lib_path(libdir):
@@ -170,7 +200,7 @@ def check_module_command(tmpdir):
     global easybuild_modules_tool
 
     if easybuild_modules_tool is not None:
-        info("Using modules tools specified by $EASYBUILD_MODULES_TOOL: %s" % easybuild_modules_tool)
+        info("Using modules tool specified by $EASYBUILD_MODULES_TOOL: %s" % easybuild_modules_tool)
         return easybuild_modules_tool
 
     def check_cmd_help(modcmd):
@@ -221,7 +251,8 @@ def check_module_command(tmpdir):
 def stage0(tmpdir):
     """STAGE 0: Prepare and install distribute via included (patched) distribute_setup.py script."""
 
-    info("\n\n+++ STAGE 0: installing distribute via included (patched) distribute_setup.py...\n\n")
+    print('\n')
+    info("+++ STAGE 0: installing distribute via included (patched) distribute_setup.py...\n")
 
     txt = DISTRIBUTE_SETUP_PY
     if not print_debug:
@@ -282,7 +313,8 @@ def stage0(tmpdir):
 def stage1(tmpdir, sourcepath, distribute_egg_dir):
     """STAGE 1: temporary install EasyBuild using distribute's easy_install."""
 
-    info("\n\n+++ STAGE 1: installing EasyBuild in temporary dir with easy_install...\n\n")
+    print('\n')
+    info("+++ STAGE 1: installing EasyBuild in temporary dir with easy_install...\n")
 
     # determine locations of source tarballs, if sources path is specified
     source_tarballs = {}
@@ -337,11 +369,24 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
     if not print_debug:
         cmd.insert(0, '--quiet')
     info("installing EasyBuild with 'easy_install %s'" % (' '.join(cmd)))
+
+    # mock stdout/stderr to capture output from easy_install
+    # run easy_install
+    orig_stdout, orig_stderr = mock_stdout_stderr()
     easy_install.main(cmd)
+    easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
+
+    debug("stdout for 'easy_install %s':\n%s" % (' '.join(cmd), easy_install_stdout))
+    debug("stderr for 'easy_install %s':\n%s" % (' '.join(cmd), easy_install_stderr))
 
     if post_vsc_base:
         info("running post install command 'easy_install %s'" % (' '.join(post_vsc_base)))
+        orig_stdout, orig_stderr = mock_stdout_stderr()
         easy_install.main(post_vsc_base)
+        easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
+
+        debug("stdout for 'easy_install %s':\n%s" % (' '.join(post_vsc_base), easy_install_stdout))
+        debug("stderr for 'easy_install %s':\n%s" % (' '.join(post_vsc_base), easy_install_stderr))
 
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, VSC_BASE)
         if pkg_egg_dir is None:
@@ -356,7 +401,10 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
     # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
-    os.environ['PYTHONPATH'] = distribute_egg_dir
+    if distribute_egg_dir is not None:
+        os.environ['PYTHONPATH'] = distribute_egg_dir
+    else:
+        del os.environ['PYTHONPATH']
 
     # template string to inject in template easyconfig
     templates = {}
@@ -435,7 +483,8 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     """STAGE 2: install EasyBuild to temporary dir with EasyBuild from stage 1."""
 
-    info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
+    print('\n')
+    info("+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n" % install_path)
 
     if distribute_egg_dir is None:
         preinstallopts = ''
@@ -513,6 +562,9 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
 def main():
     """Main script: bootstrap EasyBuild in stages."""
+
+    self_txt = open(__file__).read()
+    info("EasyBuild bootstrap script (version %s, MD5: %s)\n" % (EB_BOOTSTRAP_VERSION, md5(self_txt).hexdigest()))
 
     # disallow running as root, since stage 2 will fail
     if os.getuid() == 0:
@@ -596,9 +648,9 @@ def main():
     debug("Cleaning up %s..." % tmpdir)
     shutil.rmtree(tmpdir)
 
-    info('Done!')
+    print('')
+    info('Bootstrapping EasyBuild completed!\n')
 
-    info('')
     if install_path is not None:
         info('EasyBuild v%s was installed to %s, so make sure your $MODULEPATH includes %s' %
              (templates['version'], install_path, os.path.join(install_path, 'modules', 'all')))
@@ -607,10 +659,10 @@ def main():
              templates['version'])
         info('(default config => add "$HOME/.local/easybuild/modules/all" in $MODULEPATH)')
 
-    info('')
+    print('')
     info("Run 'module load EasyBuild', and run 'eb --help' to get help on using EasyBuild.")
     info("Set $EASYBUILD_MODULES_TOOL to '%s' to use the same modules tool as was used now." % modtool)
-    info('')
+    print('')
     info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
     info("To install software with EasyBuild to %s, make sure $EASYBUILD_INSTALLPATH is set accordingly." % install_path)
     info("See http://easybuild.readthedocs.org/en/latest/Configuration.html for details on configuring EasyBuild.")

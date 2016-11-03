@@ -26,8 +26,8 @@
 Support for Cray's LibSci library, which provides BLAS/LAPACK support.
 cfr. https://www.nersc.gov/users/software/programming-libraries/math-libraries/libsci/
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 
@@ -36,6 +36,7 @@ from easybuild.tools.toolchain.linalg import LinAlg
 
 
 CRAY_LIBSCI_MODULE_NAME = 'cray-libsci'
+TC_CONSTANT_CRAY_LIBSCI = 'CrayLibSci'
 
 
 class LibSci(LinAlg):
@@ -49,9 +50,11 @@ class LibSci(LinAlg):
     # FIXME: need to revisit this, on numpy we ended up with a serial BLAS through the wrapper.
     BLAS_LIB = []
     BLAS_LIB_MT = []
+    BLAS_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     LAPACK_MODULE_NAME = [CRAY_LIBSCI_MODULE_NAME]
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_CRAY_LIBSCI
 
     BLACS_MODULE_NAME = []
     SCALAPACK_MODULE_NAME = []

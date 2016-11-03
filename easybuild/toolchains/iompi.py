@@ -25,8 +25,8 @@
 """
 EasyBuild support for iompi compiler toolchain (includes Intel compilers (icc, ifort) and OpenMPI.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.iccifort import IccIfort

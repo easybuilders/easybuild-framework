@@ -25,13 +25,13 @@
 """
 Dependency resolution functionality, a.k.a. robot.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -59,8 +59,8 @@ def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=Fal
         robot_path.insert(0, tweaked_ecs_path)
         _log.info("Prepended list of robot search paths with %s: %s" % (tweaked_ecs_path, robot_path))
     if pr_path is not None:
-        robot_path.insert(0, pr_path)
-        _log.info("Prepended list of robot search paths with %s: %s" % (pr_path, robot_path))
+        robot_path.append(pr_path)
+        _log.info("Appended list of robot search paths with %s: %s" % (pr_path, robot_path))
 
     return robot_path
 
@@ -69,10 +69,10 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
     """
     Check for conflicts in dependency graphs for specified easyconfigs.
 
-    @param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
-    @param modtool: ModulesTool instance to use
-    @param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
-    @return: True if one or more conflicts were found, False otherwise
+    :param easyconfigs: list of easyconfig files (EasyConfig instances) to check for conflicts
+    :param modtool: ModulesTool instance to use
+    :param check_inter_ec_conflicts: also check for conflicts between (dependencies of) listed easyconfigs
+    :return: True if one or more conflicts were found, False otherwise
     """
 
     ordered_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
@@ -81,11 +81,14 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         """Create key for dictionary with all dependencies."""
         if 'ec' in spec:
             spec = spec['ec']
+
         return (spec['name'], det_full_ec_version(spec))
 
     # construct a dictionary: (name, installver) tuple to (build) dependencies
-    deps_for = {}
+    deps_for, dep_of = {}, {}
     for node in ordered_ecs:
+        node_key = mk_key(node)
+
         # exclude external modules, since we can't check conflicts on them (we don't even know the software name)
         build_deps = [mk_key(d) for d in node['builddependencies'] if not d.get('external_module', False)]
         deps = [mk_key(d) for d in node['ec'].all_dependencies if not d.get('external_module', False)]
@@ -93,38 +96,61 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
         # separate runtime deps from build deps
         runtime_deps = [d for d in deps if d not in build_deps]
 
-        deps_for[mk_key(node)] = [build_deps, runtime_deps]
+        deps_for[node_key] = (build_deps, runtime_deps)
+
+        # keep track of reverse deps too
+        for dep in deps:
+            dep_of.setdefault(dep, set()).add(node_key)
 
     if check_inter_ec_conflicts:
         # add ghost entry that depends on each of the specified easyconfigs,
         # since we want to check for conflicts between specified easyconfigs too
-        deps_for[(None, None)] = [[], [mk_key(e) for e in easyconfigs]]
+        deps_for[(None, None)] = ([], [mk_key(e) for e in easyconfigs])
 
     # iteratively expand list of dependencies
     last_deps_for = None
     while deps_for != last_deps_for:
         last_deps_for = copy.deepcopy(deps_for)
+        # (Automake, _), [], [(Autoconf, _), (GCC, _)]
         for (key, (build_deps, runtime_deps)) in last_deps_for.items():
             # extend runtime dependencies with non-build dependencies of own runtime dependencies
+            # Autoconf
             for dep in runtime_deps:
-                deps_for[key][1].extend([d for d in deps_for[dep][1] if d not in deps_for[dep][0]])
-            deps_for[key][1] = sorted(nub(deps_for[key][1]))
+                # [], [M4, GCC]
+                deps_for[key][1].extend([d for d in deps_for[dep][1]])
+
             # extend build dependencies with non-build dependencies of own build dependencies
             for dep in build_deps:
-                deps_for[key][0].extend([d for d in deps_for[dep][1] if d not in deps_for[dep][0]])
-            deps_for[key][0] = sorted(nub(deps_for[key][0]))
+                deps_for[key][0].extend([d for d in deps_for[dep][1]])
 
-    def is_conflict((name, installver), (name1, installver1), (name2, installver2)):
-        """Check whether dependencies with given name/(install) version conflict with each other."""
+            deps_for[key] = (sorted(nub(deps_for[key][0])), sorted(nub(deps_for[key][1])))
+
+            # also track reverse deps (except for ghost entry)
+            if key != (None, None):
+                for dep in build_deps + runtime_deps:
+                    dep_of.setdefault(dep, set()).add(key)
+
+    def check_conflict(parent, dep1, dep2):
+        """
+        Check whether dependencies with given name/(install) version conflict with each other.
+
+        :param parent: name & install version of 'parent' software
+        :param dep1: name & install version of 1st dependency
+        :param dep2: name & install version of 2nd dependency
+        """
         # dependencies with the same name should have the exact same install version
         # if not => CONFLICT!
-        conflict = name1 == name2 and installver1 != installver2
+        conflict = dep1[0] == dep2[0] and dep1[1] != dep2[1]
         if conflict:
-            vs_msg = "%s-%s vs %s-%s" % (name1, installver1, name2, installver2)
-            if name is None:
+            vs_msg = "%s-%s vs %s-%s " % (dep1 + dep2)
+            for dep in [dep1, dep2]:
+                if dep in dep_of:
+                    vs_msg += "\n\t%s-%s as dep of: " % dep + ', '.join('%s-%s' % d for d in sorted(dep_of[dep]))
+
+            if parent[0] is None:
                 sys.stderr.write("Conflict between (dependencies of) easyconfigs: %s\n" % vs_msg)
             else:
-                specname = '%s-%s' % (name, installver)
+                specname = '%s-%s' % parent
                 sys.stderr.write("Conflict found for dependencies of %s: %s\n" % (specname, vs_msg))
 
         return conflict
@@ -137,7 +163,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
             for dep2 in (build_deps + runtime_deps)[i+1:]:
                 # don't worry about conflicts between module itself and any of its build deps
                 if dep1 != key or dep2 not in build_deps:
-                    res |= is_conflict(key, dep1, dep2)
+                    res |= check_conflict(key, dep1, dep2)
 
     return res
 
@@ -149,9 +175,9 @@ def dry_run(easyconfigs, modtool, short=False):
     * [x] for available
     * [F] for forced
     * [R] for rebuild
-    @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
-    @param modtool: ModulesTool instance to use
-    @param short: use short format for overview: use a variable for common prefixes
+    :param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
+    :param modtool: ModulesTool instance to use
+    :param short: use short format for overview: use a variable for common prefixes
     """
     lines = []
     if build_option('robot_path') is None:
@@ -200,9 +226,9 @@ def dry_run(easyconfigs, modtool, short=False):
 def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
-    @param easyconfigs: list of easyconfigs
-    @param modtool: ModulesTool instance to use
-    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
+    :param easyconfigs: list of easyconfigs
+    :param modtool: ModulesTool instance to use
+    :param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
                             retain all deps when True, check matching build option when False
     """
     robot = build_option('robot_path')

@@ -25,8 +25,8 @@
 """
 EasyBuild support for Intel compilers toolchain (icc, ifort)
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort

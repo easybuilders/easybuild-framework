@@ -25,8 +25,8 @@
 """
 Toolchain linalg module. Contains all (scalable) linear algebra related classes
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.build_log import EasyBuildError
@@ -46,6 +46,7 @@ class LinAlg(Toolchain):
     BLAS_LIB_STATIC = False
     BLAS_LIB_DIR = ['lib']
     BLAS_INCLUDE_DIR = ['include']
+    BLAS_FAMILY = None
 
     LAPACK_IS_BLAS = False
     LAPACK_REQUIRES = ['LIBBLAS']
@@ -56,6 +57,7 @@ class LinAlg(Toolchain):
     LAPACK_LIB_GROUP = False
     LAPACK_LIB_DIR = ['lib']
     LAPACK_INCLUDE_DIR = ['include']
+    LAPACK_FAMILY = None
 
     BLACS_MODULE_NAME = None
     BLACS_LIB_DIR = ['lib']
@@ -298,3 +300,17 @@ class LinAlg(Toolchain):
 
         self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
                                        ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
+
+    def blas_family(self):
+        """ Return type of BLAS library used in this toolchain."""
+        if self.BLAS_FAMILY:
+            return self.BLAS_FAMILY
+        else:
+            raise EasyBuildError("blas_family: BLAS_FAMILY is undefined.")
+
+    def lapack_family(self):
+        """ Return type of LAPACK library used in this toolchain."""
+        if self.LAPACK_FAMILY:
+            return self.LAPACK_FAMILY
+        else:
+            raise EasyBuildError("lapack_family: LAPACK_FAMILY is undefined.")

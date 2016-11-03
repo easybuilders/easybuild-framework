@@ -25,8 +25,8 @@
 """
 CrayCCE toolchain: Cray compilers (CCE) and MPI via Cray compiler drivers + LibSci (PrgEnv-cray) and Cray FFTW
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
 from easybuild.toolchains.compiler.craype import CrayPECray
 from easybuild.toolchains.linalg.libsci import LibSci

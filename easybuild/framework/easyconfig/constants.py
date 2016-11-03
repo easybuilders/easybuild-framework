@@ -27,14 +27,15 @@
 Easyconfig constants module that provides all constants that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import platform
 from vsc.utils import fancylogger
 
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
+
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
@@ -50,17 +51,3 @@ EASYCONFIG_CONSTANTS = {
     'OS_VERSION': (get_os_version(), "System version"),
     'SYS_PYTHON_VERSION': (platform.python_version(), "System Python version (platform.python_version())"),
 }
-
-
-def constant_documentation():
-    """Generate the easyconfig constant documentation"""
-    indent_l0 = " " * 2
-    indent_l1 = indent_l0 + " " * 2
-    doc = []
-
-    doc.append("Constants that can be used in easyconfigs")
-    for cst, (val, descr) in EASYCONFIG_CONSTANTS.items():
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst, val, descr))
-
-    return "\n".join(doc)
-

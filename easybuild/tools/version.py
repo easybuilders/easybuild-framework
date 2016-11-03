@@ -25,11 +25,11 @@
 """
 Module that takes control of versioning.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 import os
 from distutils.version import LooseVersion
@@ -43,7 +43,7 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('2.9.0.dev0')
+VERSION = LooseVersion('3.0.0.dev0')
 UNKNOWN = 'UNKNOWN'
 
 def get_git_revision():

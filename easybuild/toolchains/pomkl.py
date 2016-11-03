@@ -26,9 +26,9 @@
 EasyBuild support for pomkl compiler toolchain (includes PGI compilers, OpenMPI,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
 from easybuild.toolchains.pompi import Pompi

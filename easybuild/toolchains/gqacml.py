@@ -25,7 +25,7 @@
 """
 EasyBuild support for gqacml compiler toolchain (includes GCC, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.gcc import GccToolchain

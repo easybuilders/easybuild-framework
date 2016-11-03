@@ -29,9 +29,10 @@ Unit tests for asyncprocess.py.
 """
 
 import os
+import sys
 import time
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestSuite, main
+from unittest import TextTestRunner, TestSuite
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
@@ -69,4 +70,4 @@ def suite():
     return TestSuite([AsyncProcessTest()])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

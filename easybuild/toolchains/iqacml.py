@@ -25,7 +25,7 @@
 """
 EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.iiqmpi import Iiqmpi

@@ -25,11 +25,11 @@
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 import logging
 import os
@@ -125,10 +125,21 @@ class EasyBuildLog(fancylogger.FancyLogger):
             msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
             raise EasyBuildError(msg, *args)
 
-    def deprecated(self, msg, max_ver):
-        """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
-        msg += "; see %s for more information" % DEPRECATED_DOC_URL
-        fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
+    def deprecated(self, msg, ver, max_ver=None, *args, **kwargs):
+        """
+        Print deprecation warning or raise an exception, depending on specified version(s)
+
+        :param: msg: deprecation message
+        :param ver: if max_ver is None: threshold for EasyBuild version to determine warning vs exception
+                    else: version to check against max_ver to determine warning vs exception
+        :param max_ver: version threshold for warning vs exception (compared to 'ver')
+        """
+        if max_ver is None:
+            msg += "; see %s for more information" % DEPRECATED_DOC_URL
+            kwargs['exception'] = EasyBuildError
+            fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
+        else:
+            fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
         """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
@@ -195,10 +206,10 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False):
+def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO):
     """Initialize logging."""
     if logtostdout:
-        fancylogger.logToScreen(enable=True, stdout=True)
+        fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
     else:
         if logfile is None:
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
@@ -250,10 +261,10 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
 
     Define DRY_RUN_*DIR constants, so they can be used in dry_run_msg to replace fake build/install dirs.
 
-    @param prefix: prefix of fake build/install dirs, that can be stripped off when printing
-    @param builddir: fake build dir
-    @param software_installdir: fake software install directory
-    @param module_installdir: fake module install directory
+    :param prefix: prefix of fake build/install dirs, that can be stripped off when printing
+    :param builddir: fake build dir
+    :param software_installdir: fake software install directory
+    :param module_installdir: fake module install directory
     """
     global DRY_RUN_BUILD_DIR
     DRY_RUN_BUILD_DIR = (re.compile(builddir), builddir[len(prefix):])
