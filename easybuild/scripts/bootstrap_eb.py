@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20161025.01'
+EB_BOOTSTRAP_VERSION = '20161104.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -66,7 +66,8 @@ except ImportError:
 PYPI_SOURCE_URL = 'https://pypi.python.org/packages/source'
 
 VSC_BASE = 'vsc-base'
-EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs']
+VSC_INSTALL = 'vsc-install'
+EASYBUILD_PACKAGES = [VSC_INSTALL, VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs']
 
 # set print_debug to True for detailed progress info
 print_debug = os.environ.pop('EASYBUILD_BOOTSTRAP_DEBUG', False)
@@ -440,10 +441,11 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
             if len(pkg_tarball_paths) > 1:
                 error("Multiple tarballs found for %s: %s" % (pkg, pkg_tarball_paths))
             elif len(pkg_tarball_paths) == 0:
-                if pkg != VSC_BASE:
+                if pkg not in [VSC_BASE, VSC_INSTALL]:
                     # vsc-base package is not strictly required
                     # it's only a dependency since EasyBuild v2.0;
-                    # with EasyBuild v2.0, it will be pulled in from PyPI when installing easybuild-framework
+                    # with EasyBuild v2.0, it will be pulled in from PyPI when installing easybuild-framework;
+                    # vsc-install is an optional dependency, only required to run unit tests
                     error("Missing source tarball: %s" % pkg_tarball_glob)
             else:
                 info("Found %s for %s package" % (pkg_tarball_paths[0], pkg))
@@ -514,7 +516,7 @@ def stage1(tmpdir, sourcepath, distribute_egg_dir):
 
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, pkg)
         if pkg_egg_dir is None:
-            if pkg == VSC_BASE:
+            if pkg in [VSC_BASE, VSC_INSTALL]:
                 # vsc-base is optional in older EasyBuild versions
                 continue
 
@@ -607,7 +609,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     handle = open(ebfile, 'w')
     templates.update({
         'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
-        'sources': "%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
+        'sources': "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
         'pythonpath': distribute_egg_dir,
     })
     handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
