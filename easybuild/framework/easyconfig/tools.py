@@ -46,7 +46,7 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -343,6 +343,10 @@ def det_easyconfig_paths(orig_paths):
 
                 # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
                 dirnames[:] = [d for d in dirnames if d not in build_option('ignore_dirs')]
+
+                # ignore archived easyconfigs, unless specified otherwise
+                if not build_option('consider_archived_easyconfigs'):
+                    dirnames[:] = [d for d in dirnames if d != EASYCONFIGS_ARCHIVE_DIR]
 
             # stop os.walk insanity as soon as we have all we need (outer loop)
             if not ecs_to_find:
