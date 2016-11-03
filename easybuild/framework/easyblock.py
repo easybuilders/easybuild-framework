@@ -52,8 +52,8 @@ from vsc.utils.missing import get_class_for
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
+from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -196,6 +196,7 @@ class EasyBlock(object):
         self.loaded_modules = []
 
         # iterate configure/build/options
+        self.iter_idx = 0
         self.iter_opts = {}
 
         # sanity check fail error messages to report (if any)
@@ -518,7 +519,7 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            filepath = os.path.join(srcpaths[0], self.name[0].lower(), self.name)
+            filepath = os.path.join(srcpaths[0], letter_dir_for(self.name), self.name)
             if extension:
                 filepath = os.path.join(filepath, "extensions")
             self.log.info("Creating path %s to download file to" % filepath)
@@ -556,7 +557,7 @@ class EasyBlock(object):
             for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(path, self.name)
-                letterpath = os.path.join(path, self.name.lower()[0], self.name)
+                letterpath = os.path.join(path, letter_dir_for(self.name), self.name)
 
                 # most likely paths
                 candidate_filepaths = [
@@ -922,17 +923,16 @@ class EasyBlock(object):
                 self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
-        builddeps = self.cfg.builddependencies()
-        # include 'module load' statements for dependencies in reverse order
+        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
-            if not dep in builddeps:
+            if dep['build_only']:
+                self.log.debug("Skipping build dependency %s", dep)
+            else:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-            else:
-                self.log.debug("Skipping build dependency %s" % str(dep))
 
-        self.log.debug("Full list of dependencies: %s" % deps)
+        self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
@@ -940,9 +940,10 @@ class EasyBlock(object):
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, deps)
+        self.log.debug("List of excluded deps: %s", excluded_deps)
 
         deps = [d for d in deps if d not in excluded_deps]
-        self.log.debug("List of retained dependencies: %s" % deps)
+        self.log.debug("List of retained deps to load in generated module: %s" % deps)
         recursive_unload = self.cfg['recursive_module_unload']
 
         loads = []
@@ -1333,24 +1334,39 @@ class EasyBlock(object):
         self.cfg.enable_templating = False
 
         # handle configure/build/install options that are specified as lists
-        # set first element to be used, keep track of list in *_list options dictionary
+        # set first element to be used, keep track of list in self.iter_opts
         # this will only be done during first iteration, since after that the options won't be lists anymore
-        suffix = "_list"
-        sufflen = len(suffix)
         for opt in ITERATE_OPTIONS:
             # keep track of list, supply first element as first option to handle
             if isinstance(self.cfg[opt], (list, tuple)):
-                self.iter_opts[opt + suffix] = self.cfg[opt]  # copy
-                self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt + suffix]))
+                self.iter_opts[opt] = self.cfg[opt]  # copy
+                self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+
+        if self.iter_opts:
+            self.log.info("Current iteration index: %s", self.iter_idx)
 
         # pop first element from all *_list options as next value to use
-        for (lsname, ls) in self.iter_opts.items():
-            opt = lsname[:-sufflen]  # drop '_list' part from name to get option name
-            if len(self.iter_opts[lsname]) > 0:
-                self.cfg[opt] = self.iter_opts[lsname].pop(0)  # first element will be used next
+        for opt in self.iter_opts:
+            if len(self.iter_opts[opt]) > self.iter_idx:
+                self.cfg[opt] = self.iter_opts[opt][self.iter_idx]
             else:
                 self.cfg[opt] = ''  # empty list => empty option as next value
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+
+        # re-enable templating before self.cfg values are used
+        self.cfg.enable_templating = True
+
+        # prepare for next iteration (if any)
+        self.iter_idx += 1
+
+    def restore_iterate_opts(self):
+        """Restore options that were iterated over"""
+        # disable templating, since we're messing about with values in self.cfg
+        self.cfg.enable_templating = False
+
+        for opt in self.iter_opts:
+            self.cfg[opt] = self.iter_opts[opt]
+            self.log.debug("Restored value of '%s' that was iterated over: %s", opt, self.cfg[opt])
 
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = True
@@ -1984,6 +2000,8 @@ class EasyBlock(object):
             self.log.info("Keeping builddir %s" % self.builddir)
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
+
+        self.restore_iterate_opts()
 
     def make_module_step(self, fake=False):
         """

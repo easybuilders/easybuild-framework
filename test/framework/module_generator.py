@@ -28,7 +28,7 @@ Unit tests for module_generator.py.
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 import sys
 import tempfile
@@ -57,7 +57,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test setup."""
         super(ModuleGeneratorTest, self).setUp()
         # find .eb file
-        eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
@@ -456,10 +457,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         init_config(build_options={'valid_stops': all_stops})
 
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
-        # TODO FIXME: drop this once 2.0/.yeb support works
-        ec_files = [fil for fil in ec_files if not ('v2.0/' in fil or 'yeb/' in fil)]
 
         build_options = {
             'check_osdeps': False,
@@ -519,7 +518,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         err_pattern = 'nosucheasyconfigparameteravailable'
-        self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        ec_file = os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
+        self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -535,7 +535,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
         self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/1.4.10')
 
         # test module naming scheme using all available easyconfig parameters
@@ -582,7 +582,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # determine full module name
             self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'), hidden=True)
+        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'), hidden=True)
         self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-goolf-1.4.10.eb'])
         self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/a86eb41d8f9c1d6f2d3d61cdb8f420cc2a21cada')
 
@@ -641,7 +641,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test hierarchical module naming scheme."""
 
         moduleclasses = ['base', 'compiler', 'mpi', 'numlib', 'system', 'toolchain']
-        ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
@@ -653,7 +653,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
-            ec = EasyConfig(os.path.join(ecs_dir, ecfile))
+            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*','*', ecfile))[0])
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
@@ -692,7 +692,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             test_ec(ecfile, *mns_vals)
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
+        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-4.1.3.049.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
@@ -729,7 +729,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             test_ec(ecfile, *mns_vals, init_modpaths = ['Core/%s' % c for c in moduleclasses])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
+        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-4.1.3.049.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'

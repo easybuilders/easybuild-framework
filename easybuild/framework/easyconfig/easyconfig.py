@@ -79,6 +79,9 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
+# name of easyconfigs archive subdirectory
+EASYCONFIGS_ARCHIVE_DIR = '__archive__'
+
 
 try:
     import autopep8
@@ -1285,6 +1288,24 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     return easyconfigs
 
 
+def letter_dir_for(name):
+    """
+    Determine 'letter' directory for specified software name.
+    This usually just the 1st letter of the software name (in lowercase),
+    except for funky software names, e.g. ones starting with a digit.
+    """
+    # wildcard name should result in wildcard letter
+    if name == '*':
+        letter = '*'
+    else:
+        letter = name.lower()[0]
+        # outside of a-z range, use '0'
+        if letter < 'a' or letter > 'z':
+            letter = '0'
+
+    return letter
+
+
 def create_paths(path, name, version):
     """
     Returns all the paths where easyconfig could be located
@@ -1294,11 +1315,11 @@ def create_paths(path, name, version):
     """
     cand_paths = [
         (name, version),  # e.g. <path>/GCC/4.8.2.eb
-        (name, "%s-%s" % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
-        (name.lower()[0], name, "%s-%s" % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
-        ("%s-%s" % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
+        (name, '%s-%s' % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
+        (letter_dir_for(name), name, '%s-%s' % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
+        ('%s-%s' % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
     ]
-    return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
+    return ['%s.eb' % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
 def robot_find_easyconfig(name, version):
@@ -1315,6 +1336,10 @@ def robot_find_easyconfig(name, version):
         paths = []
     elif not isinstance(paths, (list, tuple)):
         paths = [paths]
+
+    # if we should also consider archived easyconfigs, duplicate paths list with archived equivalents
+    if build_option('consider_archived_easyconfigs'):
+        paths = paths + [os.path.join(p, EASYCONFIGS_ARCHIVE_DIR) for p in paths]
 
     res = None
     for path in paths:
@@ -1398,11 +1423,7 @@ def det_location_for(path, target_dir, soft_name, target_file):
     subdir = os.path.join('easybuild', 'easyconfigs')
 
     if os.path.exists(os.path.join(target_dir, subdir)):
-        letter = soft_name.lower()[0]
-        if letter not in [chr(i) for i in range(ord('a'), ord('z') + 1)]:
-            raise EasyBuildError("Don't know which letter subdir to use for software name %s", soft_name)
-
-        target_path = os.path.join('easybuild', 'easyconfigs', letter, soft_name, target_file)
+        target_path = os.path.join('easybuild', 'easyconfigs', letter_dir_for(soft_name), soft_name, target_file)
         _log.debug("Target path for %s: %s", path, target_path)
 
         target_path = os.path.join(target_dir, target_path)

@@ -65,7 +65,8 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
-        ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
+        test_ecs = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs')
+        ec_file = find_full_path(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'))
         ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
@@ -423,6 +424,37 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
         self.assertEqual(tc.mpi_family(), "IntelMPI")
+
+    def test_blas_lapack_family(self):
+        """Test determining BLAS/LAPACK family."""
+        # check compiler-only (sub)toolchain
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), None)
+        self.assertEqual(tc.lapack_family(), None)
+        self.modtool.purge()
+
+        # check compiler/MPI-only (sub)toolchain
+        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), None)
+        self.assertEqual(tc.lapack_family(), None)
+        self.modtool.purge()
+
+        # check full toolchain including BLAS/LAPACK
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), 'OpenBLAS')
+        self.assertEqual(tc.lapack_family(), 'OpenBLAS')
+        self.modtool.purge()
+
+        # check another one
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
+        self.modtool.prepend_module_path(self.test_prefix)
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(tc.blas_family(), 'IntelMKL')
+        self.assertEqual(tc.lapack_family(), 'IntelMKL')
 
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
@@ -848,7 +880,8 @@ class ToolchainTest(EnhancedTestCase):
 
         prepped_path_envvar = os.environ['PATH']
 
-        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         ccache_dir = os.path.join(self.test_prefix, 'ccache')
         mkdir(ccache_dir, parents=True)
@@ -893,7 +926,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(which('gcc'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
-        
+
 
 
 def suite():
