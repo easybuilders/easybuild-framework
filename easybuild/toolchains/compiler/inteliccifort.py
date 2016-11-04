@@ -58,7 +58,6 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
-        'openmp': 'fopenmp',  # both -qopenmp/-fopenmp are valid for enabling OpenMP (-openmp is deprecated)
         'ieee': 'fltconsistency',
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
