@@ -79,6 +79,9 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
+# name of easyconfigs archive subdirectory
+EASYCONFIGS_ARCHIVE_DIR = '__archive__'
+
 
 try:
     import autopep8
@@ -1333,6 +1336,10 @@ def robot_find_easyconfig(name, version):
         paths = []
     elif not isinstance(paths, (list, tuple)):
         paths = [paths]
+
+    # if we should also consider archived easyconfigs, duplicate paths list with archived equivalents
+    if build_option('consider_archived_easyconfigs'):
+        paths = paths + [os.path.join(p, EASYCONFIGS_ARCHIVE_DIR) for p in paths]
 
     res = None
     for path in paths:

@@ -41,7 +41,7 @@ import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import _easyconfig_files_cache, process_easyconfig, EasyConfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
@@ -559,8 +559,6 @@ class RobotTest(EnhancedTestCase):
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
-            #'--from-pr=1239',
             '--dry-run',
             '--debug',
             '--robot',
@@ -580,6 +578,21 @@ class RobotTest(EnhancedTestCase):
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
             regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+        # test using archived easyconfigs
+        args = [
+            'ictce-3.2.2.u3.eb',
+            '--dry-run',
+            '--debug',
+            '--robot',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        self.assertErrorRegex(EasyBuildError, "Can't find", self.eb_main, args, logfile=dummylogfn, raise_error=True)
+
+        args.append('--consider-archived-easyconfigs')
+        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/ictce-3.2.2.u3.eb \(module: ictce/3.2.2.u3\)", re.M)
+        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
     def test_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
@@ -973,6 +986,32 @@ class RobotTest(EnhancedTestCase):
 
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
+
+    def test_robot_archived_easyconfigs(self):
+        """Test whether robot can pick up archived easyconfigs when asked."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-ictce-4.1.13.eb')
+        gzip_ectxt = read_file(gzip_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        tc_spec = "toolchain = {'name': 'ictce', 'version': '3.2.2.u3'}"
+        regex = re.compile("^toolchain = .*", re.M)
+        test_ectxt = regex.sub(tc_spec, gzip_ectxt)
+        write_file(test_ec, test_ectxt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        self.assertErrorRegex(EasyBuildError, "Irresolvable dependencies encountered", resolve_dependencies,
+                              ecs, self.modtool, retain_all_deps=True)
+
+        # --consider-archived-easyconfigs must be used to let robot pick up archived easyconfigs
+        init_config(build_options={
+            'consider_archived_easyconfigs': True,
+            'robot_path': [test_ecs],
+        })
+        res = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        self.assertEqual([ec['full_mod_name'] for ec in res], ['ictce/3.2.2.u3', 'gzip/1.5-ictce-3.2.2.u3'])
+        expected = os.path.join(test_ecs, '__archive__', 'i', 'ictce', 'ictce-3.2.2.u3.eb')
+        self.assertTrue(os.path.samefile(res[0]['spec'], expected))
 
 
 def suite():
