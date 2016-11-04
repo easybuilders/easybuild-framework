@@ -490,8 +490,6 @@ class EasyBlockTest(EnhancedTestCase):
         name = "pi"
         version = "3.14"
         deps = [('GCC', '4.6.4')]
-        hiddendeps = [('toy', '0.0-deps')]
-        alldeps = deps + hiddendeps  # hidden deps must be included in list of deps
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -501,9 +499,10 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = %s" % str(alldeps),
-            "hiddendependencies = %s" % str(hiddendeps),
+            "dependencies = [('GCC', '4.6.4'), ('toy', '0.0-deps')]",
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
+            # hidden deps must be included in list of (build)deps
+            "hiddendependencies = [('toy', '0.0-deps'), ('OpenMPI', '1.6.4-GCC-4.6.4')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
@@ -560,7 +559,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in deps:
+        for (name, ver) in [('GCC', '4.6.4')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -569,7 +568,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
-        for (name, ver) in hiddendeps:
+        for (name, ver) in [('toy', '0.0-deps')]:
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
@@ -577,6 +576,15 @@ class EasyBlockTest(EnhancedTestCase):
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+
+        for (name, ver) in [('OpenMPI', '1.6.4-GCC-4.6.4')]:
+            if get_module_syntax() == 'Tcl':
+                regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
+            elif get_module_syntax() == 'Lua':
+                regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+            self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
@@ -630,7 +638,7 @@ class EasyBlockTest(EnhancedTestCase):
         from easybuild.easyblocks.toy import EB_toy
         testdir = os.path.abspath(os.path.dirname(__file__))
 
-        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
 
@@ -644,7 +652,7 @@ class EasyBlockTest(EnhancedTestCase):
         """Test fetch_patches method."""
         # adjust PYTHONPATH such that test easyblocks are found
         testdir = os.path.abspath(os.path.dirname(__file__))
-        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
 
         eb.fetch_patches()
@@ -690,7 +698,7 @@ class EasyBlockTest(EnhancedTestCase):
         mkdir(tmpdir_subdir, parents=True)
         del os.environ['EASYBUILD_SOURCEPATH']  # defined by setUp
 
-        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = EasyBlock(ec['ec'])
 
         # 'downloading' a file to (first) sourcepath works
@@ -744,7 +752,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check that check_readiness step works (adding dependencies, etc.)
         ec_file = 'OpenMPI-1.6.4-GCC-4.6.4.eb'
-        ec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', ec_file)
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'o', 'OpenMPI', ec_file)
         ec = EasyConfig(ec_path)
         eb = EasyBlock(ec)
         eb.check_readiness_step()
@@ -772,7 +781,7 @@ class EasyBlockTest(EnhancedTestCase):
         w.r.t. not including any load statements for modules that build up the path to the top of the module tree.
         """
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
@@ -796,8 +805,8 @@ class EasyBlockTest(EnhancedTestCase):
         # since both icc/ifort and impi form the path to the top of the module tree
         iccifort_mods = ['icc', 'ifort', 'iccifort']
         tests = [
-            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, iccifort_mods),
-            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
+            ('i/impi/impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, iccifort_mods),
+            ('i/imkl/imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
         ]
         for ec_file, modfile_path, excluded_deps in tests:
             ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
@@ -831,8 +840,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_patch_step(self):
         """Test patch step."""
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
         orig_sources = ec['ec']['sources'][:]
 
         toy_patches = [
@@ -862,8 +871,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-gompi-1.3.12-test.eb'))
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
 
         # purposely put sanity check command in place that breaks the build,
         # to check whether sanity check is only run once;
@@ -878,7 +887,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_parallel(self):
         """Test defining of parallellism."""
-        toy_ec = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toytxt = read_file(toy_ec)
 
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
@@ -922,8 +932,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
 
         def check_start_dir(expected_start_dir):
             """Check start dir."""
@@ -952,8 +962,8 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_prepare_step(self):
         """Test prepare step (setting up build environment)."""
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec = process_easyconfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))[0]
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
 
         mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy'), parents=True)
         eb = EasyBlock(ec['ec'])

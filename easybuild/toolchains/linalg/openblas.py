@@ -31,12 +31,17 @@ Support for OpenBLAS as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_OPENBLAS = 'OpenBLAS'
+
+
 class OpenBLAS(LinAlg):
     """
     Trivial class, provides OpenBLAS support.
     """
     BLAS_MODULE_NAME = ['OpenBLAS']
     BLAS_LIB = ['openblas']
+    BLAS_FAMILY = TC_CONSTANT_OPENBLAS
 
     LAPACK_MODULE_NAME = ['OpenBLAS']
     LAPACK_IS_BLAS = True
+    LAPACK_FAMILY = TC_CONSTANT_OPENBLAS
