@@ -123,9 +123,10 @@ class EasyBuildLog(fancylogger.FancyLogger):
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
         """
+        # always raise an EasyBuildError, nothing else
+        kwargs['exception'] = EasyBuildError
         if max_ver is None:
             msg += "; see %s for more information" % DEPRECATED_DOC_URL
-            kwargs['exception'] = EasyBuildError
             fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
         else:
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
