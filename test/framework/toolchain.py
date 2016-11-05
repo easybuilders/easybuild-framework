@@ -1094,8 +1094,8 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         # check whether fake gcc was wrapped and that arguments are what they should be
-        out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DDATE="\\"\\""')
-        expected = '-Wl,-rpath=$ORIGIN/../lib:$ORIGIN/../lib64:/foo %(user)s.c -L/foo $FOO -DDATE=""'
+        out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DX="\\"\\""')
+        expected = '-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/foo %(user)s.c -L/foo $FOO -DX=""'
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
 
