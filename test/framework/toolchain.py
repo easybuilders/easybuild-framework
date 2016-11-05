@@ -468,7 +468,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-fopenmp -O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -773,11 +773,11 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'optarch': 'test'})
 
         tc_cflags = {
-            'CrayCCE': "-craype-verbose -homp -O2",
-            'CrayGNU': "-craype-verbose -fopenmp -O2",
-            'CrayIntel': "-craype-verbose -fopenmp -O2 -ftz -fp-speculation=safe -fp-model source",
-            'GCC': "-fopenmp -O2 -test",
-            'iccifort': "-fopenmp -O2 -test -ftz -fp-speculation=safe -fp-model source",
+            'CrayCCE': "-O2 -homp -craype-verbose",
+            'CrayGNU': "-O2 -fopenmp -craype-verbose",
+            'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
+            'GCC': "-O2 -test -fopenmp",
+            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
         }
 
         toolchains = [
