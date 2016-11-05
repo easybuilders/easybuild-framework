@@ -91,7 +91,7 @@ eval $rpath_args_out
 log "RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
 
 log "running '$ORIG_CMD $RPATH $CMD_ARGS'"
-eval "$ORIG_CMD $RPATH $CMD_ARGS"
+$ORIG_CMD $RPATH $CMD_ARGS
 """
 
 
@@ -770,7 +770,7 @@ class Toolchain(object):
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
         else:
-            pass#raise EasyBuildError("RPATH linking is currently only supported on Linux")
+            raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
         wrapper_dir = os.path.join(tempfile.mkdtemp(), 'rpath_wrappers')
 

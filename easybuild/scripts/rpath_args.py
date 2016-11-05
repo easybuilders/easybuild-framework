@@ -87,17 +87,14 @@ while idx < len(args):
 # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
 # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
 # see also https://linux.die.net/man/8/ld-linux;
-# make sure to wrap them in single quotes to avoid expansion of $ORIGIN when linking!
-# FIXME don't sort, preserve original order of libs
-lib_paths = ["''\\$ORIGIN/../lib''", "''\\$ORIGIN/../lib64''"] + lib_paths
+lib_paths = ['$ORIGIN/../lib', '$ORIGIN/../lib64'] + lib_paths
 
 # output: statement to define $RPATH
-# FIXME don't separate paths with ':', specify a separate -rpath arg for *each* path
-print "export RPATH='%s=%s'" % (rpath_flag, ':'.join(lib_paths))
+print "export RPATH='%s'" % ' '.join([rpath_flag + '=' + l for l in lib_paths])
 
 # make sure arguments are properly quoted, and that single/double quotes are escaped
 cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "''")
 cmd_args = re.sub(r'"([^"]*)"', r'"\\"\1\\""', re.sub(r'([$&#])', r'\\\1', cmd_args))
 
 # output: statement to define $CMD_ARGS
-print "export CMD_ARGS='%s'" % cmd_args
+print "export CMD_ARGS='%s'" % ' '.join(args) #cmd_args

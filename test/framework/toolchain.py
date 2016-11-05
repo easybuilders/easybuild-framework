@@ -937,7 +937,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
+            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS='-c foo.c'",
             ''
         ])
@@ -947,7 +947,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
+            "export RPATH='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS='foo.o'",
             ''
         ])
@@ -957,7 +957,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
+            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS=''",
             ''
         ])
@@ -967,8 +967,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
-            "export CMD_ARGS=''''''",
+            "export RPATH='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
+            "export CMD_ARGS=''",
             ''
         ])
         self.assertEqual(out, expected)
@@ -977,7 +977,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/lib64'",
+            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             "export CMD_ARGS='foo.c -L/lib64 -lfoo'",
             ''
         ])
@@ -987,7 +987,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/lib64'",
+            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             "export CMD_ARGS='foo.c -L /lib64 -lfoo'",
             ''
         ])
@@ -995,18 +995,18 @@ class ToolchainTest(EnhancedTestCase):
 
         # multiple -L arguments, order should be preserved
         args = ' '.join([
-            '-L/path/to/bar',
+            '-L/foo',
             'foo.o',
             '-L/lib64',
             '-lfoo',
             '-lbar',
-            '-L/another/path',
+            '-L/bar',
         ])
         out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':/path/to/bar:/lib64:/another/path'",
-            "export CMD_ARGS='-L/path/to/bar foo.o -L/lib64 -lfoo -lbar -L/another/path'",
+            "export RPATH='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64 -rpath=/foo -rpath=/lib64 -rpath=/bar'",
+            "export CMD_ARGS='-L/foo foo.o -L/lib64 -lfoo -lbar -L/bar'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -1030,14 +1030,14 @@ class ToolchainTest(EnhancedTestCase):
         ])
         out, ec = run_cmd("%s icc %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
-        rpath = ':'.join([
+        rpath = ' -Wl,-rpath='.join([
             '/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64',
             '/example/software/imkl/11.3.3.210-iimpi-2016b/lib',
             '/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64',
             '/example/software/gettext/0.19.8/lib',
         ])
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'':%s'" % rpath,
+            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=%s'" % rpath,
             "export CMD_ARGS='%s'" % args,
             ''
         ])
@@ -1059,9 +1059,22 @@ class ToolchainTest(EnhancedTestCase):
         cmd = "%s g++ %s" % (script, ' '.join(args))
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
+
+        cmd_args = [
+            '-DHAVE_CONFIG_H',
+            '-I.',
+            '-Ibuild',
+            '-I../../gcc',
+            '-DBASEVER="5.4.0"',
+            '-DDATESTAMP=""',
+            '-DPKGVERSION="(GCC) "',
+            '-DBUGURL="<http://gcc.gnu.org/bugs.html>"',
+            '-o build/version.o',
+            '../../gcc/version.c',
+        ]
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=''\\$ORIGIN/../lib'':''\\$ORIGIN/../lib64'''",
-            "export CMD_ARGS='%s'" % ' '.join(args),
+            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
+            "export CMD_ARGS='%s'" % ' '.join(cmd_args),
             ''
         ])
         self.assertEqual(out, expected)
