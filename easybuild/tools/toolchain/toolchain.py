@@ -41,7 +41,7 @@ from vsc.utils.missing import nub
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -55,44 +55,6 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
-
-RPATH_CMD_WRAPPER = """#!/bin/bash
-
-set -e
-
-# path to Python interpreter to use
-PYTHON=%(python)s
-
-# log file location
-RPATH_CMD_WRAPPER_LOG=%(rpath_wrapper_log)s
-
-# logging function
-function log {
-    echo "($$) [$(date "+%%Y-%%m-%%d %%H:%%M:%%S")] $1" >> $RPATH_CMD_WRAPPER_LOG
-}
-
-# Python script that determines $RPATH and filters arguments
-RPATH_ARGS_PY=%(rpath_args_py)s
-
-# command name
-CMD=`basename $0`
-# full path to original command
-ORIG_CMD=%(orig_cmd)s
-
-log "found CMD: $CMD | ORIG_CMD: $ORIG_CMD | orig args: '$(echo $@)'"
-
-# RPATH_ARGS_PY script spits out statements that define $RPATH and $CMD_ARGS
-rpath_args_out=$($PYTHON $RPATH_ARGS_PY $CMD "$@")
-
-log "rpath_args_out:
-$rpath_args_out"
-
-eval $rpath_args_out
-log "RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
-
-log "running '$ORIG_CMD $RPATH $CMD_ARGS'"
-$ORIG_CMD $RPATH $CMD_ARGS
-"""
 
 
 class Toolchain(object):
@@ -770,7 +732,7 @@ class Toolchain(object):
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
         else:
-            raise EasyBuildError("RPATH linking is currently only supported on Linux")
+            pass #raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
         wrapper_dir = os.path.join(tempfile.mkdtemp(), 'rpath_wrappers')
 
@@ -783,7 +745,13 @@ class Toolchain(object):
         if os.path.exists(rpath_args_py):
             self.log.info("Python script for RPATH wrapper found: %s", rpath_args_py)
         else:
-            raise EasyBuildError("Failed to find Python script for RPATH wrapper: %s", rpath_args_py)
+            raise EasyBuildError("Failed to find Python script for RPATH wrapper: %s (__file__: %s)", rpath_args_py, __file__)
+
+        rpath_wrapper_template = os.path.join(eb_dir, 'scripts', 'rpath_wrapper_template.sh')
+        if os.path.exists(rpath_wrapper_template):
+            self.log.info("RPATH wrapper template script found: %s", rpath_wrapper_template)
+        else:
+            raise EasyBuildError("Failed to find RPATH wrapper script: %s (__file__: %s)", rpath_wrapper_template, __file__)
 
         # prepend location to wrappers to $PATH
         setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
@@ -792,25 +760,26 @@ class Toolchain(object):
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
             orig_cmd = which(cmd)
             if orig_cmd:
-
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
                     raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
+                # enable debug mode in wrapper script by specifying location for log file
                 if build_option('debug'):
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
                 else:
                     rpath_wrapper_log = '/dev/null'
 
-                wrapper_txt = RPATH_CMD_WRAPPER % {
+                # complete template script and put it in place
+                cmd_wrapper_txt = read_file(rpath_wrapper_template) % {
                     'orig_cmd': orig_cmd,
                     'python': sys.executable,
                     'rpath_args_py': rpath_args_py,
                     'rpath_wrapper_log': rpath_wrapper_log,
                 }
-                write_file(cmd_wrapper, wrapper_txt)
+                write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
                 self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:

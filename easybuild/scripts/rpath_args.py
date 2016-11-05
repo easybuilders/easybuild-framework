@@ -35,14 +35,14 @@ import os
 import re
 import sys
 
-SHELL_QUOTE_ARG_REGEX = re.compile(r"(?<!\\)'")
+#SHELL_QUOTE_ARG_REGEX = re.compile(r"(?<!\\)'")
 
-def shell_quote_arg(arg):
-    """Quote specified argument to avoid shell interpretation"""
-    res = SHELL_QUOTE_ARG_REGEX.sub(r"'", str(arg))
-    if res == '':
-        res = "''"
-    return res
+#def shell_quote_arg(arg):
+#    """Quote specified argument to avoid shell interpretation"""
+#    res = SHELL_QUOTE_ARG_REGEX.sub(r"'", str(arg))
+#    if res == '':
+#        res = "''"
+#    return res
 
 
 cmd = sys.argv[1]
@@ -56,7 +56,10 @@ else:
 
 # filter out --enable-new-dtags if it's used;
 # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
-args = [a for a in args if a != '--enable-new-dtags']
+if '--enable-new-dtags' in args:
+    sys.stderr.write("ERROR: Found --enable-new-dtags in list of arguments for %s: %s\n" % (cmd, args))
+    sys.exit(1)
+#args = [a for a in args if a != '--enable-new-dtags']
 
 # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
 
@@ -93,8 +96,8 @@ lib_paths = ['$ORIGIN/../lib', '$ORIGIN/../lib64'] + lib_paths
 print "export RPATH='%s'" % ' '.join([rpath_flag + '=' + l for l in lib_paths])
 
 # make sure arguments are properly quoted, and that single/double quotes are escaped
-cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "''")
-cmd_args = re.sub(r'"([^"]*)"', r'"\\"\1\\""', re.sub(r'([$&#])', r'\\\1', cmd_args))
+#cmd_args = ' '.join([shell_quote_arg(a) for a in args]).replace("'", "''")
+#cmd_args = re.sub(r'"([^"]*)"', r'"\\"\1\\""', re.sub(r'([$&#])', r'\\\1', cmd_args))
 
 # output: statement to define $CMD_ARGS
-print "export CMD_ARGS='%s'" % ' '.join(args) #cmd_args
+#print "export CMD_ARGS='%s'" % ' '.join(args) #cmd_args
