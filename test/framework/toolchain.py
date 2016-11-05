@@ -937,8 +937,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS='-c foo.c'",
+            "export RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -947,8 +947,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS='foo.o'",
+            "export RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -957,8 +957,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS=''",
+            "export RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -967,8 +967,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS=''",
+            "export RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -977,8 +977,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             "export CMD_ARGS='foo.c -L/lib64 -lfoo'",
+            "export RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -987,8 +987,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             "export CMD_ARGS='foo.c -L /lib64 -lfoo'",
+            "export RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -1005,8 +1005,8 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            "export RPATH='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64 -rpath=/foo -rpath=/lib64 -rpath=/bar'",
             "export CMD_ARGS='-L/foo foo.o -L/lib64 -lfoo -lbar -L/bar'",
+            "export RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64 -rpath=/foo -rpath=/lib64 -rpath=/bar'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -1037,8 +1037,8 @@ class ToolchainTest(EnhancedTestCase):
             '/example/software/gettext/0.19.8/lib',
         ])
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=%s'" % rpath,
             "export CMD_ARGS='%s'" % args,
+            "export RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=%s'" % rpath,
             ''
         ])
         self.assertEqual(out, expected)
@@ -1073,8 +1073,8 @@ class ToolchainTest(EnhancedTestCase):
             '../../gcc/version.c',
         ]
         expected = '\n'.join([
-            "export RPATH='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             "export CMD_ARGS='%s'" % ' '.join(cmd_args),
+            "export RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
