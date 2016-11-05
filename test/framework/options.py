@@ -150,9 +150,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         outtxt = self.eb_main([])
 
-        error_msg = "ERROR Please provide one or multiple easyconfig files,"
+        error_msg = "ERROR.* Please provide one or multiple easyconfig files,"
         error_msg += " or use software build options to make EasyBuild search for easyconfigs"
-        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb is run without arguments")
+        regex = re.compile(error_msg)
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_debug(self):
         """Test enabling debug logging."""
@@ -1056,12 +1057,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args)
 
         # error message when template is not found
-        error_msg1 = "ERROR No easyconfig files found for software nosuchsoftware, and no templates available. "
+        error_msg1 = "ERROR.* No easyconfig files found for software nosuchsoftware, and no templates available. "
         error_msg1 += "I'm all out of ideas."
         # error message when template is found
         error_msg2 = "ERROR Unable to find an easyconfig for the given specifications"
-        msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
-        self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
+        regex = re.compile("(%s|%s)" % (error_msg1, error_msg2))
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_header_footer(self):
         """Test specifying a module header/footer."""
