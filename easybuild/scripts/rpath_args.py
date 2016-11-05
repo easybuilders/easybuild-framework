@@ -80,5 +80,5 @@ while idx < len(args):
 lib_paths = ['$ORIGIN/../lib', '$ORIGIN/../lib64'] + lib_paths
 
 # output: statement to define $RPATH_ARGS and $CMD_ARGS
-print "export CMD_ARGS='%s'" % ' '.join(args)
-print "export RPATH_ARGS='%s'" % ' '.join([rpath_flag + '=' + l for l in lib_paths])
+print "CMD_ARGS=(%s)" % ' '.join('"%s"' % a.replace('"', '\\"') for a in args)
+print "RPATH_ARGS='%s'" % ' '.join([rpath_flag + '=' + l for l in lib_paths])

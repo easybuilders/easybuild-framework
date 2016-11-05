@@ -19,7 +19,7 @@ log "rpath_args_out:
 $rpath_args_out"
 
 eval $rpath_args_out
-log "RPATH: '$RPATH', CMD_ARGS: '$CMD_ARGS'"
+log "RPATH_ARGS: '$RPATH_ARGS', CMD_ARGS: '$CMD_ARGS'"
 
 log "running '%(orig_cmd)s $RPATH $@'"
-%(orig_cmd)s "${RPATH_ARGS[@]}" "${CMD_ARGS[@]}"
+%(orig_cmd)s $RPATH_ARGS "${CMD_ARGS[@]}"
