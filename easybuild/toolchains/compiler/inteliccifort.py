@@ -58,6 +58,7 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
+        'ieee': 'fltconsistency',
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],

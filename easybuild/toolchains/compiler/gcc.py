@@ -56,6 +56,7 @@ class Gcc(Compiler):
         'f2c': 'ff2c',
         'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],
         'lto': 'flto',
+        'ieee': ['mieee-fp', 'fno-trapping-math'],
         'strict': ['mieee-fp', 'mno-recip'],
         'precise':['mno-recip'],
         'defaultprec':[],
