@@ -171,6 +171,10 @@ def get_toolchain_hierarchy(parent_toolchain):
         # consider both version and versionsuffix for dependencies
         cands = []
         for dep in parsed_ec['ec'].dependencies():
+            # skip dependencies that are marked as external modules
+            if dep['external_module']:
+                continue
+
             # include dep and toolchain of dep as candidates
             cands.extend([
                 {'name': dep['name'], 'version': dep['version'] + dep['versionsuffix']},

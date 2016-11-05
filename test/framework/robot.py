@@ -704,6 +704,19 @@ class RobotTest(EnhancedTestCase):
             {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
         ])
 
+        get_toolchain_hierarchy.clear()
+        build_options = {
+            'add_dummy_to_minimal_toolchains': True,
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': test_easyconfigs,
+        }
+        init_config(build_options=build_options)
+        craycce_hierarchy = get_toolchain_hierarchy({'name': 'CrayCCE', 'version': '5.1.29'})
+        self.assertEqual(craycce_hierarchy, [
+            {'name': 'dummy', 'version': ''},
+            {'name': 'CrayCCE', 'version': '5.1.29'},
+        ])
+
     def test_find_resolved_modules(self):
         """Test find_resolved_modules function."""
         nodeps = {
