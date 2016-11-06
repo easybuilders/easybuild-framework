@@ -36,44 +36,10 @@ import re
 import sys
 
 
-def det_cmd_args(args):
-    """Determine list of command line arguments to pass based on list of original command line arguments."""
-
-    # filter out --enable-new-dtags if it's used;
-    # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
-    args = [a for a in args if a != '--enable-new-dtags']
-
-    # FIXME: filter -L entries from list of arguments?
-
-    # wrap all retained arguments into single quotes to avoid further bash expansion
-    args = ["'%s'" % a.replace("'", "''") for a in args]
-
-    return ' '.join(args)
-
-
 def det_rpath_args(cmd, args):
     """Determine -rpath command line arguments to pass based on list of command line arguments."""
 
-    if any(f in args for f in ['-v', '-V', '--version', '-dumpversion']):
-        # command is run in 'version check' mode, make sure we don't include *any* -rpath arguments
-        return ''
-
-    # option to specify RPATH paths depends on command used (compiler vs linker)
-    flag_prefix = ''
-    if cmd not in ['ld', 'ld.gold']:
-        flag_prefix = '-Wl,'
-
-    # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
-    # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
-    # see also https://linux.die.net/man/8/ld-linux;
-    lib_paths = ['$ORIGIN/../lib', '$ORIGIN/../lib64']
-
     # determine set of library paths to RPATH in
-    # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
-    # FIXME skip paths in /tmp?
-    # FIXME: also consider $LIBRARY_PATH?
-    # FIXME: support to hard inject additional library paths?
-    # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
     idx = 0
     while idx < len(args):
         arg = args[idx]
@@ -88,17 +54,71 @@ def det_rpath_args(cmd, args):
 
         idx += 1
 
-    # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
-    flags = [flag_prefix + '--disable-new-dtags']
-
-    flags.extend(flag_prefix + '-rpath=' + lib_path for lib_path in lib_paths)
-
-    return ' '.join(flags)
-
 
 cmd = sys.argv[1]
 args = sys.argv[2:]
 
+# option to specify flags to linker
+flag_prefix = ''
+if cmd not in ['ld', 'ld.gold']:
+    flag_prefix = '-Wl,'
+
+version_mode = False
+cmd_args = []
+
+# process list of original command line arguments
+idx = 0
+while idx < len(args):
+
+    arg = args[idx]
+
+    # if command is run in 'version check' mode, make sure we don't include *any* -rpath arguments
+    if arg in ['-v', '-V', '--version', '-dumpversion']:
+        version_mode = True
+        cmd_args.append(arg)
+
+    # FIXME: filter -L entries from list of arguments?
+    # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
+    # FIXME skip paths in /tmp?
+    # FIXME: also consider $LIBRARY_PATH?
+    # FIXME: support to hard inject additional library paths?
+    # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
+
+    # handle -L flags, inject corresponding -rpath flag
+    elif arg.startswith('-L'):
+        # take into account that argument to -L may be separated with one or more spaces...
+        if arg == '-L':
+            # actual library path is next argument when arg='-L'
+            idx += 1
+            lib_path = args[idx]
+        else:
+            lib_path = arg[2:]
+
+        cmd_args.extend([
+            flag_prefix + '-rpath=%s' % lib_path,
+            '-L%s' % lib_path,
+        ])
+
+    # filter out --enable-new-dtags if it's used;
+    # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
+    elif arg != '--enable-new-dtags':
+        cmd_args.append(arg)
+
+    idx += 1
+
+if not version_mode:
+    cmd_args.extend([
+        # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
+        # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
+        # see also https://linux.die.net/man/8/ld-linux;
+        flag_prefix + '-rpath=$ORIGIN/../lib',
+        flag_prefix + '-rpath=$ORIGIN/../lib64',
+        # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
+        flag_prefix + '--disable-new-dtags',
+    ])
+
+# wrap all arguments into single quotes to avoid further bash expansion
+cmd_args = ["'%s'" % arg.replace("'", "''") for arg in cmd_args]
+
 # output: statement to define $CMD_ARGS and $RPATH_ARGS
-print "CMD_ARGS=(%s)" % det_cmd_args(args)
-print "RPATH_ARGS='%s'" % det_rpath_args(cmd, args)
+print "CMD_ARGS=(%s)" % ' '.join(cmd_args)
