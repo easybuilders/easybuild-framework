@@ -938,7 +938,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('-c' 'foo.c')",
-            "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
+            "RPATH_ARGS='-Wl,--disable-new-dtags -Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -948,7 +948,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('foo.o')",
-            "RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
+            "RPATH_ARGS='--disable-new-dtags -rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -958,7 +958,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=()",
-            "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
+            "RPATH_ARGS='-Wl,--disable-new-dtags -Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -968,7 +968,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('')",
-            "RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
+            "RPATH_ARGS='--disable-new-dtags -rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -978,8 +978,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('foo.c' '-L/lib64' '-lfoo')",
-            "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
-            ''
+            "RPATH_ARGS='%s'" % ' '.join([
+                '-Wl,--disable-new-dtags',
+                '-Wl,-rpath=$ORIGIN/../lib',
+                '-Wl,-rpath=$ORIGIN/../lib64',
+                '-Wl,-rpath=/lib64',
+            ]),
+            '',
         ])
         self.assertEqual(out, expected)
 
@@ -988,8 +993,13 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('foo.c' '-L' '/lib64' '-lfoo')",
-            "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
-            ''
+            "RPATH_ARGS='%s'" % ' '.join([
+                '-Wl,--disable-new-dtags',
+                '-Wl,-rpath=$ORIGIN/../lib',
+                '-Wl,-rpath=$ORIGIN/../lib64',
+                '-Wl,-rpath=/lib64',
+            ]),
+            '',
         ])
         self.assertEqual(out, expected)
 
@@ -1006,8 +1016,15 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('-L/foo' 'foo.o' '-L/lib64' '-lfoo' '-lbar' '-L/bar')",
-            "RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64 -rpath=/foo -rpath=/lib64 -rpath=/bar'",
-            ''
+            "RPATH_ARGS='%s'" % ' '.join([
+                '--disable-new-dtags',
+                '-rpath=$ORIGIN/../lib',
+                '-rpath=$ORIGIN/../lib64',
+                '-rpath=/foo',
+                '-rpath=/lib64',
+                '-rpath=/bar',
+            ]),
+            '',
         ])
         self.assertEqual(out, expected)
 
@@ -1038,8 +1055,13 @@ class ToolchainTest(EnhancedTestCase):
         ])
         expected = '\n'.join([
             "CMD_ARGS=(%s)" % args,
-            "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=%s'" % rpath,
-            ''
+            "RPATH_ARGS='%s'" % ' '.join([
+                '-Wl,--disable-new-dtags',
+                '-Wl,-rpath=$ORIGIN/../lib',
+                '-Wl,-rpath=$ORIGIN/../lib64',
+                '-Wl,-rpath=%s' % rpath,
+            ]),
+            '',
         ])
         self.assertEqual(out, expected)
 
@@ -1074,7 +1096,7 @@ class ToolchainTest(EnhancedTestCase):
         ]
         expected = '\n'.join([
             "CMD_ARGS=(%s)" % ' '.join(cmd_args),
-            "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
+            "RPATH_ARGS='-Wl,--disable-new-dtags -Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
         self.assertEqual(out, expected)
@@ -1106,7 +1128,16 @@ class ToolchainTest(EnhancedTestCase):
 
         # check whether fake gcc was wrapped and that arguments are what they should be
         out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DX="\\"\\""')
-        expected = '-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/foo %(user)s.c -L/foo $FOO -DX=""'
+        expected = ' '.join([
+            '-Wl,--disable-new-dtags',
+            '-Wl,-rpath=$ORIGIN/../lib',
+            '-Wl,-rpath=$ORIGIN/../lib64',
+            '-Wl,-rpath=/foo',
+            '%(user)s.c',
+            '-L/foo',
+            '$FOO',
+            '-DX=""',
+        ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
 
