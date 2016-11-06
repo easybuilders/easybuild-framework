@@ -132,6 +132,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'consider_archived_easyconfigs',
         'debug',
         'debug_lmod',
         'dump_autopep8',

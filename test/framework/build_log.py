@@ -67,7 +67,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        log_re = re.compile("^%s :: BOOM \(at .*:[0-9]+ in [a-z_]+\)$" % getRootLoggerName(), re.M)
+        log_re = re.compile("^%s ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$" % getRootLoggerName(), re.M)
         logtxt = open(tmplog, 'r').read()
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
@@ -99,9 +99,7 @@ class BuildLogTest(EnhancedTestCase):
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
-        log.raiseError = False
         log.error("kaput")
-        log.raiseError = True
         try:
             log.exception("oops")
         except EasyBuildError:
@@ -138,9 +136,7 @@ class BuildLogTest(EnhancedTestCase):
         log.info("%s+%s = %d", '4', '2', 42)
         args = ['this', 'is', 'just', 'a', 'test']
         log.debug("%s %s %s %s %s", *args)
-        log.raiseError = False
         log.error("foo %s baz", 'baz')
-        log.raiseError = True
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
@@ -152,14 +148,6 @@ class BuildLogTest(EnhancedTestCase):
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
-
-        # test deprecated behaviour: raise EasyBuildError on log.error and log.exception
-        os.environ['EASYBUILD_DEPRECATED'] = '2.1'
-        init_config()
-
-        log.warning("No raise for warnings")
-        self.assertErrorRegex(EasyBuildError, 'EasyBuild crashed with an error', log.error, 'foo')
-        self.assertErrorRegex(EasyBuildError, 'EasyBuild encountered an exception', log.exception, 'bar')
 
     def test_log_levels(self):
         """Test whether log levels are respected"""
