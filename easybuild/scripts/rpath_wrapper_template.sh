@@ -21,5 +21,5 @@ $rpath_args_out"
 eval $rpath_args_out
 log "RPATH_ARGS: '$RPATH_ARGS', CMD_ARGS: '$CMD_ARGS'"
 
-log "running '%(orig_cmd)s $RPATH $@'"
+log "running '%(orig_cmd)s $RPATH_ARGS $(echo \"${CMD_ARGS[@]}\")'"
 %(orig_cmd)s $RPATH_ARGS "${CMD_ARGS[@]}"
