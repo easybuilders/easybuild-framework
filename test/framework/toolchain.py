@@ -937,7 +937,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=("-c" "foo.c")',
+            "CMD_ARGS=('-c' 'foo.c')",
             "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
@@ -947,7 +947,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=("foo.o")',
+            "CMD_ARGS=('foo.o')",
             "RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             ''
         ])
@@ -957,7 +957,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=()',
+            "CMD_ARGS=()",
             "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64'",
             ''
         ])
@@ -967,7 +967,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=("")',
+            "CMD_ARGS=('')",
             "RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
             ''
         ])
@@ -977,7 +977,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=("foo.c" "-L/lib64" "-lfoo")',
+            "CMD_ARGS=('foo.c' '-L/lib64' '-lfoo')",
             "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             ''
         ])
@@ -987,7 +987,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=("foo.c" "-L" "/lib64" "-lfoo")',
+            "CMD_ARGS=('foo.c' '-L' '/lib64' '-lfoo')",
             "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=/lib64'",
             ''
         ])
@@ -1005,7 +1005,7 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
-            'CMD_ARGS=("-L/foo" "foo.o" "-L/lib64" "-lfoo" "-lbar" "-L/bar")',
+            "CMD_ARGS=('-L/foo' 'foo.o' '-L/lib64' '-lfoo' '-lbar' '-L/bar')",
             "RPATH_ARGS='-rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64 -rpath=/foo -rpath=/lib64 -rpath=/bar'",
             ''
         ])
@@ -1013,20 +1013,20 @@ class ToolchainTest(EnhancedTestCase):
 
         # slightly trimmed down real-life example (compilation of XZ)
         args = ' '.join([
-            '"-fvisibility=hidden"',
-            '"-Wall"',
-            '"-O2"',
-            '"-xHost"',
-            '"-o .libs/lzmainfo"',
-            '"lzmainfo-lzmainfo.o" "lzmainfo-tuklib_progname.o" "lzmainfo-tuklib_exit.o"',
-            '"-L/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64"',
-            '"-L/example/software/imkl/11.3.3.210-iimpi-2016b/lib"',
-            '"-L/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64"',
-            '"-L/example/software/gettext/0.19.8/lib"',
-            '"../../src/liblzma/.libs/liblzma.so"',
-            '"-lrt -liomp5 -lpthread"',
-            '"-Wl,-rpath"',
-            '"-Wl,/example/software/XZ/5.2.2-intel-2016b/lib"',
+            "'-fvisibility=hidden'",
+            "'-Wall'",
+            "'-O2'",
+            "'-xHost'",
+            "'-o .libs/lzmainfo'",
+            "'lzmainfo-lzmainfo.o' 'lzmainfo-tuklib_progname.o' 'lzmainfo-tuklib_exit.o'",
+            "'-L/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64'",
+            "'-L/example/software/imkl/11.3.3.210-iimpi-2016b/lib'",
+            "'-L/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64'",
+            "'-L/example/software/gettext/0.19.8/lib'",
+            "'../../src/liblzma/.libs/liblzma.so'",
+            "'-lrt -liomp5 -lpthread'",
+            "'-Wl,-rpath'",
+            "'-Wl,/example/software/XZ/5.2.2-intel-2016b/lib'",
         ])
         out, ec = run_cmd("%s icc %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
@@ -1037,7 +1037,7 @@ class ToolchainTest(EnhancedTestCase):
             '/example/software/gettext/0.19.8/lib',
         ])
         expected = '\n'.join([
-            'CMD_ARGS=(%s)' % args,
+            "CMD_ARGS=(%s)" % args,
             "RPATH_ARGS='-Wl,-rpath=$ORIGIN/../lib -Wl,-rpath=$ORIGIN/../lib64 -Wl,-rpath=%s'" % rpath,
             ''
         ])
@@ -1061,16 +1061,16 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
 
         cmd_args = [
-            '"-DHAVE_CONFIG_H"',
-            '"-I."',
-            '"-Ibuild"',
-            '"-I../../gcc"',
-            '"-DBASEVER=\\"5.4.0\\""',
-            '"-DDATESTAMP=\\"\\""',
-            '"-DPKGVERSION=\\"(GCC) \\""',
-            '"-DBUGURL=\\"<http://gcc.gnu.org/bugs.html>\\""',
-            '"-o" "build/version.o"',
-            '"../../gcc/version.c"',
+            "'-DHAVE_CONFIG_H'",
+            "'-I.'",
+            "'-Ibuild'",
+            "'-I../../gcc'",
+            "'-DBASEVER=\"5.4.0\"'",
+            "'-DDATESTAMP=\"\"'",
+            "'-DPKGVERSION=\"(GCC) \"'",
+            "'-DBUGURL=\"<http://gcc.gnu.org/bugs.html>\"'",
+            "'-o' 'build/version.o'",
+            "'../../gcc/version.c'",
         ]
         expected = '\n'.join([
             "CMD_ARGS=(%s)" % ' '.join(cmd_args),
