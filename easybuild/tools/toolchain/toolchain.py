@@ -741,6 +741,11 @@ class Toolchain(object):
         c_comps, fortran_comps = self.compilers()
 
         # determine path to Python script that interprets/filters command arguments and defines $RPATH
+        self.log.debug("__file__: %s" % __file__)
+        self.log.debug("abspath(__file__): %s" % os.path.abspath(__file__))
+        self.log.debug("realpath(__file__): %s" % os.path.realpath(__file__))
+        self.log.debug("toolchain.__file__: %s" % easybuild.tools.toolchain.__file__)
+        self.log.debug("cwd: %s" % os.getcwd())
         eb_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(easybuild.tools.toolchain.__file__))))
         rpath_args_py = os.path.join(eb_dir, 'scripts', 'rpath_args.py')
         if os.path.exists(rpath_args_py):
