@@ -1079,6 +1079,16 @@ class ToolchainTest(EnhancedTestCase):
         ])
         self.assertEqual(out, expected)
 
+        cmd = "%s g++ -v" % script
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "CMD_ARGS=('-v')",
+            "RPATH_ARGS=''",
+            ''
+        ])
+        self.assertEqual(out, expected)
+
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
 
