@@ -59,10 +59,9 @@ def det_rpath_args(cmd, args):
         return ''
 
     # option to specify RPATH paths depends on command used (compiler vs linker)
-    if cmd in ['ld', 'ld.gold']:
-        rpath_flag = '-rpath'
-    else:
-        rpath_flag = '-Wl,-rpath'
+    flag_prefix = ''
+    if cmd not in ['ld', 'ld.gold']:
+        flag_prefix = '-Wl,'
 
     # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
     # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
@@ -71,6 +70,7 @@ def det_rpath_args(cmd, args):
 
     # determine set of library paths to RPATH in
     # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
+    # FIXME skip paths in /tmp?
     # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
@@ -88,7 +88,12 @@ def det_rpath_args(cmd, args):
 
         idx += 1
 
-    return ' '.join([rpath_flag + '=' + l for l in lib_paths])
+    # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
+    flags = [flag_prefix + '--disable-new-dtags']
+
+    flags.extend(flag_prefix + '-rpath=' + lib_path for lib_path in lib_paths)
+
+    return ' '.join(flags)
 
 
 cmd = sys.argv[1]

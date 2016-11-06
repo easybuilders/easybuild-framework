@@ -1079,6 +1079,7 @@ class ToolchainTest(EnhancedTestCase):
         ])
         self.assertEqual(out, expected)
 
+        # verify that no -rpath arguments are injected when command is run in 'version check' mode
         cmd = "%s g++ -v" % script
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
