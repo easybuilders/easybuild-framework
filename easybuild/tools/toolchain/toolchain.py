@@ -38,7 +38,7 @@ import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-import easybuild.tools
+import easybuild.tools.toolchain
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -741,7 +741,7 @@ class Toolchain(object):
         c_comps, fortran_comps = self.compilers()
 
         # determine path to Python script that interprets/filters command arguments and defines $RPATH
-        eb_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(easybuild.tools.__file__))))
+        eb_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(easybuild.tools.toolchain.__file__))))
         rpath_args_py = os.path.join(eb_dir, 'scripts', 'rpath_args.py')
         if os.path.exists(rpath_args_py):
             self.log.info("Python script for RPATH wrapper found: %s", rpath_args_py)
