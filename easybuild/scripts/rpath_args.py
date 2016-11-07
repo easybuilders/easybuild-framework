@@ -77,7 +77,6 @@ while idx < len(args):
         version_mode = True
         cmd_args.append(arg)
 
-    # FIXME: filter -L entries from list of arguments?
     # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
     # FIXME skip paths in /tmp?
     # FIXME: also consider $LIBRARY_PATH?
@@ -94,10 +93,7 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        cmd_args.extend([
-            flag_prefix + '-rpath=%s' % lib_path,
-            '-L%s' % lib_path,
-        ])
+        cmd_args.append(flag_prefix + '-rpath=%s' % lib_path)
 
     # filter out --enable-new-dtags if it's used;
     # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again

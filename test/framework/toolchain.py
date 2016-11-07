@@ -988,7 +988,6 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = [
             "'foo.c'",
             "'-Wl,-rpath=/lib64'",
-            "'-L/lib64'",
             "'-lfoo'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
@@ -1002,7 +1001,6 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = [
             "'foo.c'",
             "'-Wl,-rpath=/lib64'",
-            "'-L/lib64'",
             "'-lfoo'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
@@ -1023,14 +1021,11 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-rpath=/foo'",
-            "'-L/foo'",
             "'foo.o'",
             "'-rpath=/lib64'",
-            "'-L/lib64'",
             "'-lfoo'",
             "'-lbar'",
             "'-rpath=/bar'",
-            "'-L/bar'",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
@@ -1064,13 +1059,9 @@ class ToolchainTest(EnhancedTestCase):
             "'-o' '.libs/lzmainfo'",
             "'lzmainfo-lzmainfo.o' 'lzmainfo-tuklib_progname.o' 'lzmainfo-tuklib_exit.o'",
             "'-Wl,-rpath=/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64'",
-            "'-L/example/software/icc/2016.3.210-GCC-5.4.0-2.26/lib/intel64'",
             "'-Wl,-rpath=/example/software/imkl/11.3.3.210-iimpi-2016b/lib'",
-            "'-L/example/software/imkl/11.3.3.210-iimpi-2016b/lib'",
             "'-Wl,-rpath=/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64'",
-            "'-L/example/software/imkl/11.3.3.210-iimpi-2016b/mkl/lib/intel64'",
             "'-Wl,-rpath=/example/software/gettext/0.19.8/lib'",
-            "'-L/example/software/gettext/0.19.8/lib'",
             "'../../src/liblzma/.libs/liblzma.so'",
             "'-lrt' '-liomp5' '-lpthread'",
             "'-Wl,-rpath'",
@@ -1140,7 +1131,6 @@ class ToolchainTest(EnhancedTestCase):
         expected = ' '.join([
             '%(user)s.c',
             '-Wl,-rpath=/foo',
-            '-L/foo',
             '$FOO',
             '-DX=""',
             '-Wl,-rpath=$ORIGIN/../lib',
