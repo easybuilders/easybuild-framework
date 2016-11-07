@@ -895,6 +895,12 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(var_defs, [])
         self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
 
+    def test_find_eb_script(self):
+        """Test find_eb_script function."""
+        self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
+        self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh')))
+        self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
+
 
 def suite():
     """ returns all the testcases in this module """

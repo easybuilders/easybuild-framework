@@ -42,7 +42,7 @@ import easybuild.tools.toolchain
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -740,19 +740,8 @@ class Toolchain(object):
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
 
-        # determine path to Python script that interprets/filters command arguments and defines $RPATH
-        eb_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(easybuild.tools.toolchain.__file__))))
-        rpath_args_py = os.path.join(eb_dir, 'scripts', 'rpath_args.py')
-        if os.path.exists(rpath_args_py):
-            self.log.info("Python script for RPATH wrapper found: %s", rpath_args_py)
-        else:
-            raise EasyBuildError("Failed to find Python script for RPATH wrapper: %s", rpath_args_py)
-
-        rpath_wrapper_template = os.path.join(eb_dir, 'scripts', 'rpath_wrapper_template.sh')
-        if os.path.exists(rpath_wrapper_template):
-            self.log.info("RPATH wrapper template script found: %s", rpath_wrapper_template)
-        else:
-            raise EasyBuildError("Failed to find RPATH wrapper script: %s", rpath_wrapper_template)
+        rpath_args_py = find_eb_script('rpath_args.py')
+        rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh')
 
         # prepend location to wrappers to $PATH
         setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
