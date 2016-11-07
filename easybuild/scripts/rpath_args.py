@@ -56,7 +56,6 @@ while idx < len(args):
         version_mode = True
         cmd_args.append(arg)
 
-    # FIXME skip paths in /tmp?
     # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
@@ -71,13 +70,19 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
+        # FIXME skip paths in /tmp, build dir, etc.?
 
-        if use_wl:
-            # glue corresponding -rpath and -L arguments together, to avoid reordering when options are passed to linker
-            cmd_args.append('-Wl,-rpath=%s,-L%s' % (lib_path, lib_path))
+        if os.path.isabs(lib_path):
+            if use_wl:
+                # glue corresponding -rpath and -L arguments together,
+                # to avoid reordering when options are passed to linker
+                cmd_args.append('-Wl,-rpath=%s,-L%s' % (lib_path, lib_path))
+            else:
+                cmd_args.extend(['-rpath=%s' % lib_path, '-L%s' % lib_path])
         else:
-            cmd_args.extend(['-rpath=%s' % lib_path, '-L%s' % lib_path])
+            # don't RPATH in relative paths;
+            # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
+            cmd_args.append('-L%s' % lib_path)
 
     # filter out --enable-new-dtags if it's used;
     # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again

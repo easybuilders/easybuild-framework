@@ -995,6 +995,19 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
+        # relative paths passed to -L are *not* RPATH'ed in
+        out, ec = run_cmd("%s gcc foo.c -L../lib -lfoo" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'foo.c'",
+            "'-L../lib'",
+            "'-lfoo'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
         # single -L argument, with value separated by a space
         out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
