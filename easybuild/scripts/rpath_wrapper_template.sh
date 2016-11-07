@@ -18,8 +18,9 @@ rpath_args_out=$(%(python)s -O %(rpath_args_py)s $CMD "$@")
 log "rpath_args_out:
 $rpath_args_out"
 
+# define $CMD_ARGS by evaluating output of rpath_args.py script
 eval $rpath_args_out
-log "CMD_ARGS: '$CMD_ARGS'"
 
-log "running '%(orig_cmd)s $(echo \"${CMD_ARGS[@]}\")'"
+# call original command with modified list of command line arguments
+log "running '%(orig_cmd)s $(echo ${CMD_ARGS[@]})'"
 %(orig_cmd)s "${CMD_ARGS[@]}"
