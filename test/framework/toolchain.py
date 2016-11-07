@@ -1133,7 +1133,7 @@ class ToolchainTest(EnhancedTestCase):
         out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DX="\\"\\""')
         expected = ' '.join([
             '%(user)s.c',
-            '-Wl,-rpath=/foo,L/foo',
+            '-Wl,-rpath=/foo,-L/foo',
             '$FOO',
             '-DX=""',
             '-Wl,-rpath=$ORIGIN/../lib',

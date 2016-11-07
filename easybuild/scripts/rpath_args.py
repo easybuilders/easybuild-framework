@@ -36,25 +36,6 @@ import re
 import sys
 
 
-def det_rpath_args(cmd, args):
-    """Determine -rpath command line arguments to pass based on list of command line arguments."""
-
-    # determine set of library paths to RPATH in
-    idx = 0
-    while idx < len(args):
-        arg = args[idx]
-        if arg.startswith('-L'):
-            # take into account that argument to -L may be separated with one or more spaces...
-            if arg == '-L':
-                # grab the next argument when arg='-L'
-                idx += 1
-                lib_paths.append(args[idx])
-            else:
-                lib_paths.append(os.path.realpath(arg[2:]))
-
-        idx += 1
-
-
 cmd = sys.argv[1]
 args = sys.argv[2:]
 
@@ -75,8 +56,6 @@ while idx < len(args):
         version_mode = True
         cmd_args.append(arg)
 
-    # FIXME: filter -L entries from list of arguments?
-    # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
     # FIXME skip paths in /tmp?
     # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
@@ -91,6 +70,8 @@ while idx < len(args):
             lib_path = args[idx]
         else:
             lib_path = arg[2:]
+
+        # FIXME can/should we actually resolve the path? what if ../../../lib was specified?
 
         if use_wl:
             # glue corresponding -rpath and -L arguments together, to avoid reordering when options are passed to linker
