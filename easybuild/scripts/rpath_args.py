@@ -58,10 +58,8 @@ def det_rpath_args(cmd, args):
 cmd = sys.argv[1]
 args = sys.argv[2:]
 
-# option to specify flags to linker
-flag_prefix = ''
-if cmd not in ['ld', 'ld.gold']:
-    flag_prefix = '-Wl,'
+# wheter or not to use -Wl to pass options to the linker
+use_wl = cmd not in ['ld', 'ld.gold']
 
 version_mode = False
 cmd_args = []
@@ -94,10 +92,11 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        cmd_args.extend([
-            flag_prefix + '-rpath=%s' % lib_path,
-            '-L%s' % lib_path,
-        ])
+        if use_wl:
+            # glue corresponding -rpath and -L arguments together, to avoid reordering when options are passed to linker
+            cmd_args.append('-Wl,-rpath=%s,-L%s' % (lib_path, lib_path))
+        else:
+            cmd_args.extend(['-rpath=%s' % lib_path, '-L%s' % lib_path])
 
     # filter out --enable-new-dtags if it's used;
     # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
@@ -107,6 +106,9 @@ while idx < len(args):
     idx += 1
 
 if not version_mode:
+    flag_prefix = ''
+    if use_wl:
+        flag_prefix = '-Wl,'
     cmd_args.extend([
         # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
         # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
