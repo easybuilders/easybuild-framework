@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,14 +26,16 @@
 """
 Easyconfig module that contains the default EasyConfig configuration parameters.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
 """
 from vsc.utils import fancylogger
+
+from easybuild.tools.build_log import EasyBuildError
 
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
@@ -86,6 +88,8 @@ DEFAULT_CONFIG = {
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
+    'github_account': [None, "GitHub account name to be used to resolve template values in source URLs", BUILD],
+    'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
@@ -108,7 +112,7 @@ DEFAULT_CONFIG = {
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
-    'unpack_options': [None, "Extra options for unpacking source", BUILD],
+    'unpack_options': ['', "Extra options for unpacking source", BUILD],
     'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", BUILD],
     'versionprefix': ['', ('Additional prefix for software version '
                            '(placed before version and toolchain name)'), BUILD],
@@ -153,15 +157,19 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
+    'whatis': [None, "List of brief (one line) package description entries", MODULES],
+    'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
+    'modluafooter': ["", "Footer to include in generated module file (Lua syntax)", MODULES],
+    'modaltsoftname': [None, "Module name to use (rather than using software name", MODULES],
     'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
-    'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
+    'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
@@ -180,7 +188,7 @@ def sorted_categories():
 def get_easyconfig_parameter_default(param):
     """Get default value for given easyconfig parameter."""
     if param not in DEFAULT_CONFIG:
-        _log.error("Unkown easyconfig parameter: %s (known: %s)" % (param, sorted(DEFAULT_CONFIG.keys())))
+        raise EasyBuildError("Unkown easyconfig parameter: %s (known: %s)", param, sorted(DEFAULT_CONFIG.keys()))
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]

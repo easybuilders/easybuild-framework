@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -7,8 +7,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -28,17 +28,17 @@
 """
 EasyBuild support for gmpolf compiler toolchain (includes GCC, MPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI") (copy from...)
-@author: Bart Verleye (University of Auckland)
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI") (copy from...)
+:author: Bart Verleye (University of Auckland)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gmpich import Gmpich
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gmpolf(Gcc, Mpich, OpenBLAS, ScaLAPACK, Fftw):
+class Gmpolf(Gmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmpolf'
+    SUBTOOLCHAIN = Gmpich.NAME

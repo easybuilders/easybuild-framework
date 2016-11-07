@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -28,8 +28,8 @@ This describes the easyconfig format versions 2.x
 
 This is a mix between version 1.0 and configparser-style configuration
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import re
@@ -37,6 +37,7 @@ import re
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
+from easybuild.tools.build_log import EasyBuildError
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -75,7 +76,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def _check_docstring(self):
         """
         Verify docstring.
-        field @author: people who contributed to the easyconfig
+        field :author: people who contributed to the easyconfig
         field @maintainer: people who can be contacted in case of problems
         """
         authors = []
@@ -89,10 +90,10 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             maintainers.append(res['name'])
 
         if self.AUTHOR_REQUIRED and not authors:
-            self.log.error("No author in docstring (regex: '%s')" % self.AUTHOR_DOCSTRING_REGEX.pattern)
+            raise EasyBuildError("No author in docstring (regex: '%s')", self.AUTHOR_DOCSTRING_REGEX.pattern)
 
         if self.MAINTAINER_REQUIRED and not maintainers:
-            self.log.error("No maintainer in docstring (regex: '%s')" % self.MAINTAINER_DOCSTRING_REGEX.pattern)
+            raise EasyBuildError("No maintainer in docstring (regex: '%s')", self.MAINTAINER_DOCSTRING_REGEX.pattern)
 
     def get_config_dict(self):
         """Return the best matching easyconfig dict"""
@@ -131,3 +132,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
         return cfg
+
+    def extract_comments(self, rawtxt):
+        """Extract comments from raw content."""
+        # this is fine-ish, it only implies that comments will be lost for format v2 easyconfig files that are dumped
+        self.log.warning("Extraction of comments not supported yet for easyconfig format v2")

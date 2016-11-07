@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,18 +25,17 @@
 """
 EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
+from easybuild.toolchains.iccifort import IccIfort
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Iimpi(IntelIccIfort, IntelMPI):
+class Iimpi(IccIfort, IntelMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI.
     """
     NAME = 'iimpi'
+    SUBTOOLCHAIN = IccIfort.NAME

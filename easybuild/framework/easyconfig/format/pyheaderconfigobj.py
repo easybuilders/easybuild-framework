@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,7 +26,7 @@
 """
 The main easyconfig format class
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import re
 
@@ -36,6 +36,7 @@ from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.systemtools import get_shared_lib_ext
 
@@ -45,11 +46,10 @@ _log = fancylogger.getLogger('easyconfig.format.pyheaderconfigobj', fname=False)
 
 def build_easyconfig_constants_dict():
     """Make a dictionary with all constants that can be used"""
-    # sanity check
     all_consts = [
         ('TEMPLATE_CONSTANTS', dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])),
         ('EASYCONFIG_CONSTANTS', dict([(key, val[0]) for key, val in EASYCONFIG_CONSTANTS.items()])),
-        ('EASYCONFIG_LICENSES', EASYCONFIG_LICENSES_DICT),
+        ('EASYCONFIG_LICENSES', dict([(klass().name, name) for name, klass in EASYCONFIG_LICENSES_DICT.items()])),
     ]
     err = []
     const_dict = {}
@@ -68,7 +68,7 @@ def build_easyconfig_constants_dict():
                 const_dict[cst_key] = cst_val
 
     if len(err) > 0:
-        _log.error("EasyConfig constants sanity check failed: %s" % ("\n".join(err)))
+        raise EasyBuildError("EasyConfig constants sanity check failed: %s", '\n'.join(err))
     else:
         return const_dict
 
@@ -128,8 +128,8 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             last_n = 100
             pre_section_tail = txt[start_section-last_n:start_section]
             sections_head = txt[start_section:start_section+last_n]
-            tup = (start_section, last_n, pre_section_tail, sections_head)
-            self.log.debug('Sections start at index %s, %d-chars context:\n"""%s""""\n<split>\n"""%s..."""' % tup)
+            self.log.debug('Sections start at index %s, %d-chars context:\n"""%s""""\n<split>\n"""%s..."""',
+                           start_section, last_n, pre_section_tail, sections_head)
 
         self.parse_pre_section(txt[:start_section])
         if start_section is not None:
@@ -148,7 +148,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             format_version = get_format_version(line)
             if format_version is not None:
                 if not format_version == self.VERSION:
-                    self.log.error("Invalid format version %s for current format class" % format_version)
+                    raise EasyBuildError("Invalid format version %s for current format class", format_version)
                 else:
                     self.log.info("Valid format version %s found" % format_version)
                 # version is not part of header
@@ -185,7 +185,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         try:
             exec(pyheader, global_vars, local_vars)
         except SyntaxError, err:
-            self.log.error("SyntaxError in easyconfig pyheader %s: %s" % (pyheader, err))
+            raise EasyBuildError("SyntaxError in easyconfig pyheader %s: %s", pyheader, err)
 
         self.log.debug("pyheader final global_vars %s" % global_vars)
         self.log.debug("pyheader final local_vars %s" % local_vars)
@@ -230,14 +230,14 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         blacklisted parameters are not allowed, mandatory parameters are mandatory unless blacklisted
         """
         if self.pyheader_localvars is None:
-            self.log.error("self.pyheader_localvars must be initialized")
+            raise EasyBuildError("self.pyheader_localvars must be initialized")
         if self.PYHEADER_BLACKLIST is None or self.PYHEADER_MANDATORY is None:
-            self.log.error('Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set')
+            raise EasyBuildError('Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set')
 
         for param in self.PYHEADER_BLACKLIST:
             if param in self.pyheader_localvars:
                 # TODO add to easyconfig unittest (similar to mandatory)
-                self.log.error('blacklisted param %s not allowed in pyheader' % param)
+                raise EasyBuildError('blacklisted param %s not allowed in pyheader', param)
 
         missing = []
         for param in self.PYHEADER_MANDATORY:
@@ -246,13 +246,13 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             if not param in self.pyheader_localvars:
                 missing.append(param)
         if missing:
-            self.log.error('mandatory parameters not provided in pyheader: %s' % ', '.join(missing))
+            raise EasyBuildError('mandatory parameters not provided in pyheader: %s', ', '.join(missing))
 
     def parse_section_block(self, section):
         """Parse the section block by trying to convert it into a ConfigObj instance"""
         try:
             self.configobj = ConfigObj(section.split('\n'))
         except SyntaxError, err:
-            self.log.error('Failed to convert section text %s: %s' % (section, err))
+            raise EasyBuildError('Failed to convert section text %s: %s', section, err)
 
         self.log.debug("Found ConfigObj instance %s" % self.configobj)

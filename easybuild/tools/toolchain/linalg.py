@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,10 +25,11 @@
 """
 Toolchain linalg module. Contains all (scalable) linear algebra related classes
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
@@ -45,6 +46,7 @@ class LinAlg(Toolchain):
     BLAS_LIB_STATIC = False
     BLAS_LIB_DIR = ['lib']
     BLAS_INCLUDE_DIR = ['include']
+    BLAS_FAMILY = None
 
     LAPACK_IS_BLAS = False
     LAPACK_REQUIRES = ['LIBBLAS']
@@ -55,6 +57,7 @@ class LinAlg(Toolchain):
     LAPACK_LIB_GROUP = False
     LAPACK_LIB_DIR = ['lib']
     LAPACK_INCLUDE_DIR = ['include']
+    LAPACK_FAMILY = None
 
     BLACS_MODULE_NAME = None
     BLACS_LIB_DIR = ['lib']
@@ -74,6 +77,8 @@ class LinAlg(Toolchain):
     SCALAPACK_LIB_STATIC = False
     SCALAPACK_LIB_DIR = ['lib']
     SCALAPACK_INCLUDE_DIR = ['include']
+
+    LIB_EXTRA = None
 
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
@@ -95,7 +100,7 @@ class LinAlg(Toolchain):
     def _set_blas_variables(self):
         """Set BLAS related variables"""
         if self.BLAS_LIB is None:
-            self.log.raiseException("_set_blas_variables: BLAS_LIB not set")
+            raise EasyBuildError("_set_blas_variables: BLAS_LIB not set")
 
         self.BLAS_LIB = self.variables.nappend('LIBBLAS', [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB])
         self.variables.add_begin_end_linkerflags(self.BLAS_LIB,
@@ -116,6 +121,10 @@ class LinAlg(Toolchain):
                 self.variables.join('LIBBLAS_MT', 'FLIBS')
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBBLAS_MT', self.LIB_MULTITHREAD, position=10)
+
+        if getattr(self, 'LIB_EXTRA', None) is not None:
+            self.variables.nappend('LIBBLAS', self.LIB_EXTRA, position=20)
+            self.variables.nappend('LIBBLAS_MT', self.LIB_EXTRA, position=20)
 
         self.variables.join('BLAS_STATIC_LIBS', 'LIBBLAS')
         self.variables.join('BLAS_MT_STATIC_LIBS', 'LIBBLAS_MT')
@@ -143,7 +152,7 @@ class LinAlg(Toolchain):
             self.variables.join('LAPACK_INC_DIR', 'BLAS_INC_DIR')
         else:
             if self.LAPACK_LIB is None:
-                self.log.raiseException("_set_lapack_variables: LAPACK_LIB not set")
+                raise EasyBuildError("_set_lapack_variables: LAPACK_LIB not set")
             self.LAPACK_LIB = self.variables.nappend('LIBLAPACK_ONLY', self.LAPACK_LIB)
             self.variables.add_begin_end_linkerflags(self.LAPACK_LIB,
                                                      toggle_startstopgroup=self.LAPACK_LIB_GROUP,
@@ -163,11 +172,15 @@ class LinAlg(Toolchain):
                 lapack_mt = ["%s_MT" % x for x in self.LAPACK_REQUIRES]
                 self.variables.join('LIBLAPACK_MT', 'LIBLAPACK_MT_ONLY', *lapack_mt)
                 if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                    self.variables.nappend('LIBLAPACK_MT', self.LIB_MULTITHREAD)
+                    self.variables.nappend('LIBLAPACK_MT', self.LIB_MULTITHREAD, position=10)
 
             else:
                 self.variables.nappend('LIBLAPACK', 'LIBLAPACK_ONLY')
                 self.variables.nappend('LIBLAPACK_MT', 'LIBLAPACK_MT_ONLY')
+
+            if getattr(self, 'LIB_EXTRA', None) is not None:
+                self.variables.nappend('LIBLAPACK', self.LIB_EXTRA, position=20)
+                self.variables.nappend('LIBLAPACK_MT', self.LIB_EXTRA, position=20)
 
             self.variables.join('LAPACK_STATIC_LIBS', 'LIBLAPACK')
             self.variables.join('LAPACK_MT_STATIC_LIBS', 'LIBLAPACK_MT')
@@ -200,6 +213,7 @@ class LinAlg(Toolchain):
             self.variables.add_begin_end_linkerflags(self.BLACS_LIB,
                                                      toggle_startstopgroup=self.BLACS_LIB_GROUP,
                                                      toggle_staticdynamic=self.BLACS_LIB_STATIC)
+
         if self.BLACS_LIB_MT is None:
             self.variables.join('LIBBLACS_MT', 'LIBBLACS')
         else:
@@ -208,6 +222,10 @@ class LinAlg(Toolchain):
                 self.variables.add_begin_end_linkerflags(self.BLACS_LIB_MT,
                                                          toggle_startstopgroup=self.BLACS_LIB_GROUP,
                                                          toggle_staticdynamic=self.BLACS_LIB_STATIC)
+
+        if getattr(self, 'LIB_EXTRA', None) is not None:
+            self.variables.nappend('LIBBLACS', self.LIB_EXTRA, position=20)
+            self.variables.nappend('LIBBLACS_MT', self.LIB_EXTRA, position=20)
 
         self.variables.join('BLACS_STATIC_LIBS', 'LIBBLACS')
         self.variables.join('BLACS_MT_STATIC_LIBS', 'LIBBLACS_MT')
@@ -222,7 +240,7 @@ class LinAlg(Toolchain):
         """Set ScaLAPACK related variables"""
 
         if self.SCALAPACK_LIB is None:
-            self.log.raiseException("_set_blas_variables: SCALAPACK_LIB not set")
+            raise EasyBuildError("_set_blas_variables: SCALAPACK_LIB not set")
 
         lib_map = {}
         if hasattr(self, 'BLAS_LIB_MAP') and self.BLAS_LIB_MAP is not None:
@@ -268,8 +286,11 @@ class LinAlg(Toolchain):
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBSCALAPACK_MT', self.LIB_MULTITHREAD)
         else:
-            self.log.raiseException("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
+            raise EasyBuildError("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
 
+        if getattr(self, 'LIB_EXTRA', None) is not None:
+            self.variables.nappend('LIBSCALAPACK', self.LIB_EXTRA, position=20)
+            self.variables.nappend('LIBSCALAPACK_MT', self.LIB_EXTRA, position=20)
 
         self.variables.join('SCALAPACK_STATIC_LIBS', 'LIBSCALAPACK')
         self.variables.join('SCALAPACK_MT_STATIC_LIBS', 'LIBSCALAPACK_MT')
@@ -280,3 +301,16 @@ class LinAlg(Toolchain):
         self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
                                        ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
 
+    def blas_family(self):
+        """ Return type of BLAS library used in this toolchain."""
+        if self.BLAS_FAMILY:
+            return self.BLAS_FAMILY
+        else:
+            raise EasyBuildError("blas_family: BLAS_FAMILY is undefined.")
+
+    def lapack_family(self):
+        """ Return type of LAPACK library used in this toolchain."""
+        if self.LAPACK_FAMILY:
+            return self.LAPACK_FAMILY
+        else:
+            raise EasyBuildError("lapack_family: LAPACK_FAMILY is undefined.")

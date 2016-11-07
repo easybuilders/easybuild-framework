@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,18 +25,19 @@
 """
 Generic support for dealing with repositories
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import import_available_modules
 
 _log = fancylogger.getLogger('repository', fname=False)
@@ -55,7 +56,7 @@ class Repository(object):
         """
         Initialize a repository. self.repo and self.subdir will be set.
         self.wc will be set to None.
-        Then, setupRepo and createWorkingCopy will be called (in that order)
+        Then, setup_repo and create_working_copy will be called (in that order)
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.subdir = subdir
@@ -126,7 +127,7 @@ def avail_repositories(check_useable=True):
     class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
     if not 'FileRepository' in class_dict:
-        _log.error('avail_repositories: FileRepository missing from list of repositories')
+        raise EasyBuildError("avail_repositories: FileRepository missing from list of repositories")
 
     return class_dict
 
@@ -144,13 +145,13 @@ def init_repository(repository, repository_path):
             elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
                 inited_repo = repo(*repository_path)
             else:
-                _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
-                           (repository_path, type(repository_path)))
+                raise EasyBuildError("repository_path should be a string or list/tuple of maximum 2 elements "
+                                     "(current: %s, type %s)", repository_path, type(repository_path))
         except Exception, err:
-            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (repository, repo.__name__, repository_path, err))
+            raise EasyBuildError("Failed to create a repository instance for %s (class %s) with args %s (msg: %s)",
+                                 repository, repo.__name__, repository_path, err)
     else:
-        _log.error('Unknown typo of repository spec: %s (type %s)' % (repo, type(repo)))
+        raise EasyBuildError("Unknown typo of repository spec: %s (type %s)", repo, type(repo))
 
     inited_repo.init()
     return inited_repo

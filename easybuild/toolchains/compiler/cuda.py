@@ -1,11 +1,11 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,7 +25,7 @@
 """
 Support for CUDA compilers as toolchain (co-)compiler.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion
@@ -92,11 +92,11 @@ class Cuda(Compiler):
             'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
             'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
         ]
-        self.variables.nappend('CUDA_CFLAGS', cuda_flags)
-        self.variables.nappend('CUDA_CXXFLAGS', cuda_flags)
+        self.variables.nextend('CUDA_CFLAGS', cuda_flags)
+        self.variables.nextend('CUDA_CXXFLAGS', cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
-        for gencode_val in self.options['cuda_gencode']:
+        for gencode_val in self.options.get('cuda_gencode', []):
             gencode_option = 'gencode %s' % gencode_val
             self.variables.nappend('CUDA_CFLAGS', gencode_option)
             self.variables.nappend('CUDA_CXXFLAGS', gencode_option)

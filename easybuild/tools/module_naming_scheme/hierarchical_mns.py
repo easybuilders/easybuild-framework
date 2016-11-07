@@ -1,11 +1,11 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,14 +25,15 @@
 """
 Implementation of an example hierarchical module naming scheme.
 
-@author: Kenneth Hoste (Ghent University)
-@author: Markus Geimer (Forschungszentrum Juelich GmbH)
+:author: Kenneth Hoste (Ghent University)
+:author: Markus Geimer (Forschungszentrum Juelich GmbH)
 """
 
 import os
 import re
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 
@@ -49,6 +50,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     'icc,ifort': ('intel', '%(icc)s'),
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+    'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
 
 
@@ -92,7 +94,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             # no compiler in toolchain, system toolchain
             res = None
         elif len(tc_comps) == 1:
-            res = (tc_comps[0]['name'], tc_comps[0]['version'])
+            res = (tc_comps[0]['name'], self.det_full_version(tc_comps[0]))
         else:
             comp_versions = dict([(comp['name'], self.det_full_version(comp)) for comp in tc_comps])
             comp_names = comp_versions.keys()
@@ -102,9 +104,10 @@ class HierarchicalMNS(ModuleNamingScheme):
                 tc_comp_ver = tc_comp_ver_tmpl % comp_versions
                 # make sure that icc/ifort versions match
                 if tc_comp_name == 'intel' and comp_versions['icc'] != comp_versions['ifort']:
-                    self.log.error("Bumped into different versions for Intel compilers: %s" % comp_versions)
+                    raise EasyBuildError("Bumped into different versions for Intel compilers: %s", comp_versions)
             else:
-                self.log.error("Unknown set of toolchain compilers, module naming scheme needs work: %s" % comp_names)
+                raise EasyBuildError("Unknown set of toolchain compilers, module naming scheme needs work: %s",
+                                     comp_names)
             res = (tc_comp_name, tc_comp_ver)
         return res
 
@@ -180,10 +183,9 @@ class HierarchicalMNS(ModuleNamingScheme):
 
         elif modclass == MODULECLASS_MPI:
             if tc_comp_info is None:
-                tup = (ec['toolchain'], ec['name'], ec['version'])
-                error_msg = ("No compiler available in toolchain %s used to install MPI library %s v%s, "
-                             "which is required by the active module naming scheme.") % tup
-                self.log.error(error_msg)
+                raise EasyBuildError("No compiler available in toolchain %s used to install MPI library %s v%s, "
+                                     "which is required by the active module naming scheme.",
+                                     ec['toolchain'], ec['name'], ec['version'])
             else:
                 tc_comp_name, tc_comp_ver = tc_comp_info
                 fullver = self.det_full_version(ec)

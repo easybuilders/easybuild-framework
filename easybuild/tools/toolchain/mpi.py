@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,14 +25,16 @@
 """
 Toolchain mpi module. Contains all MPI related classes
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import tempfile
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -56,17 +58,19 @@ class Mpi(Toolchain):
 
     MPI_UNIQUE_OPTION_MAP = None
     MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': 'cc=%(CC_base)s',
-                             '_opt_MPICXX':'cxx=%(CXX_base)s',
-                             '_opt_MPIF77':'fc=%(F77_base)s',
-                             '_opt_MPIF90':'f90=%(F90_base)s',
-                             }
+        '_opt_MPICC': 'cc=%(CC_base)s',
+        '_opt_MPICXX':'cxx=%(CXX_base)s',
+        '_opt_MPIF77':'fc=%(F77_base)s',
+        '_opt_MPIF90':'f90=%(F90_base)s',
+        '_opt_MPIFC':'fc=%(FC_base)s',
+    }
 
     MPI_COMPILER_MPICC = 'mpicc'
     MPI_COMPILER_MPICXX = 'mpicxx'
 
     MPI_COMPILER_MPIF77 = 'mpif77'
     MPI_COMPILER_MPIF90 = 'mpif90'
+    MPI_COMPILER_MPIFC = 'mpifc'
 
     MPI_LINK_INFO_OPTION = None
 
@@ -106,7 +110,7 @@ class Mpi(Toolchain):
 
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:
-                self.log.raiseException("_set_mpi_compiler_variables: mpi compiler variable %s undefined" % var)
+                raise EasyBuildError("_set_mpi_compiler_variables: mpi compiler variable %s undefined", var)
             self.variables.nappend_el(var, value)
 
             # complete compiler variable template to produce e.g. 'mpicc -cc=icc -X -Y' from 'mpicc -cc=%(CC_base)'
@@ -159,7 +163,7 @@ class Mpi(Toolchain):
         if self.MPI_FAMILY:
             return self.MPI_FAMILY
         else:
-            self.log.raiseException("mpi_family: MPI_FAMILY is undefined.")
+            raise EasyBuildError("mpi_family: MPI_FAMILY is undefined.")
 
     # FIXME: deprecate this function, use mympirun instead
     # this requires that either mympirun is packaged together with EasyBuild, or that vsc-tools is a dependency of EasyBuild
@@ -172,21 +176,25 @@ class Mpi(Toolchain):
             'cmd': cmd,
         }
 
-        # different known mpirun commands
-        mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
-        mpi_cmds = {
-            toolchain.OPENMPI: mpirun_n_cmd,  # @UndefinedVariable
-            toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-            toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-            toolchain.MVAPICH2: mpirun_n_cmd,  # @UndefinedVariable
-            toolchain.MPICH: mpirun_n_cmd,  # @UndefinedVariable
-            toolchain.MPICH2: mpirun_n_cmd,  # @UndefinedVariable
-        }
+        mpi_cmd_template = build_option('mpi_cmd_template')
+        if mpi_cmd_template:
+            self.log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
+        else:
+            # different known mpirun commands
+            mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
+            mpi_cmds = {
+                toolchain.OPENMPI: mpirun_n_cmd,  # @UndefinedVariable
+                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                toolchain.MVAPICH2: mpirun_n_cmd,  # @UndefinedVariable
+                toolchain.MPICH: mpirun_n_cmd,  # @UndefinedVariable
+                toolchain.MPICH2: mpirun_n_cmd,  # @UndefinedVariable
+            }
 
         mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
+        if mpi_cmd_template is None and mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
             # set temporary dir for mdp
             # note: this needs to be kept *short*, to avoid mpirun failing with "socket.error: AF_UNIX path too long"
@@ -213,7 +221,7 @@ class Mpi(Toolchain):
                     os.remove(fn)
                 write_file(fn, "localhost ifhn=localhost")
             except OSError, err:
-                self.log.error("Failed to create file %s: %s" % (fn, err))
+                raise EasyBuildError("Failed to create file %s: %s", fn, err)
 
             params.update({'mpdbf': "--file=%s" % fn})
 
@@ -224,11 +232,20 @@ class Mpi(Toolchain):
                     os.remove(fn)
                 write_file(fn, "localhost\n" * nr_ranks)
             except OSError, err:
-                self.log.error("Failed to create file %s: %s" % (fn, err))
+                raise EasyBuildError("Failed to create file %s: %s", fn, err)
 
             params.update({'nodesfile': "-machinefile %s" % fn})
 
-        if mpi_family in mpi_cmds.keys():
-            return mpi_cmds[mpi_family] % params
-        else:
-            self.log.error("Don't know how to create an MPI command for MPI library of type '%s'." % mpi_family)
+        if mpi_cmd_template is None:
+            if mpi_family in mpi_cmds.keys():
+                mpi_cmd_template = mpi_cmds[mpi_family]
+                self.log.info("Using template MPI command '%s' for MPI family '%s'", mpi_cmd_template, mpi_family)
+            else:
+                raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
+
+        try:
+            res = mpi_cmd_template % params
+        except KeyError as err:
+            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: %s", mpi_cmd_template, params, err)
+
+        return res

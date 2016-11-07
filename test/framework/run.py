@@ -1,11 +1,11 @@
 # #
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,11 +30,15 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import re
+import signal
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
 from easybuild.tools.run import _log as run_log
 
@@ -48,6 +52,29 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+    def test_run_cmd_negative_exit_code(self):
+        """Test run_cmd function with command that has negative exit code."""
+        # define signal handler to call in case run_cmd takes too long
+        def handler(signum, _):
+            raise RuntimeError("Signal handler called with signal %s" % signum)
+
+        # set the signal handler and a 3-second alarm
+        signal.signal(signal.SIGALRM, handler)
+        signal.alarm(3)
+
+        (_, ec) = run_cmd("kill -9 $$", log_ok=False)
+        self.assertEqual(ec, -9)
+
+        # reset the alarm
+        signal.alarm(0)
+        signal.alarm(3)
+
+        (_, ec) = run_cmd_qa("kill -9 $$", {}, log_ok=False)
+        self.assertEqual(ec, -9)
+
+        # disable the alarm
+        signal.alarm(0)
 
     def test_run_cmd_bis(self):
         """More 'complex' test for run_cmd function."""
@@ -95,36 +122,62 @@ class RunTest(EnhancedTestCase):
         errors = parse_log_for_error("error failed", True)
         self.assertEqual(len(errors), 1)
 
-    def test_run_cmd_suse(self):
-        """Test run_cmd on SuSE systems, which have $PROFILEREAD set."""
-        # avoid warning messages
-        run_log_level = run_log.getEffectiveLevel()
-        run_log.setLevel('ERROR')
+    def test_dry_run(self):
+        """Test use of functions under (extended) dry run."""
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
 
-        # run_cmd should also work if $PROFILEREAD is set (very relevant for SuSE systems)
-        profileread = os.environ.get('PROFILEREAD', None)
-        os.environ['PROFILEREAD'] = 'profilereadxxx'
-        try:
-            (out, ec) = run_cmd("echo hello")
-        except Exception, err:
-            out, ec = "ERROR: %s" % err, 1
+        self.mock_stdout(True)
+        run_cmd("somecommand foo 123 bar")
+        txt = self.get_stdout()
+        self.mock_stdout(False)
 
-        # make sure it's restored again before we can fail the test
-        if profileread is not None:
-            os.environ['PROFILEREAD'] = profileread
-        else:
-            del os.environ['PROFILEREAD']
+        expected_regex = re.compile('\n'.join([
+            r"  running command \"somecommand foo 123 bar\"",
+            r"  \(in .*\)",
+        ]))
+        self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
 
-        self.assertEqual(out, "hello\n")
-        self.assertEqual(ec, 0)
-        run_log.setLevel(run_log_level)
+        # check disabling 'verbose'
+        self.mock_stdout(True)
+        run_cmd("somecommand foo 123 bar", verbose=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        self.assertEqual(txt, '')
+
+        # check forced run
+        outfile = os.path.join(self.test_prefix, 'cmd.out')
+        self.assertFalse(os.path.exists(outfile))
+        self.mock_stdout(True)
+        run_cmd("echo 'This is always echoed' > %s" % outfile, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        # nothing printed to stdout, but command was run
+        self.assertEqual(txt, '')
+        self.assertTrue(os.path.exists(outfile))
+        self.assertEqual(read_file(outfile), "This is always echoed\n")
+
+        # Q&A commands
+        self.mock_stdout(True)
+        run_cmd_qa("some_qa_cmd", {'question1': 'answer1'})
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        expected_regex = re.compile('\n'.join([
+            r"  running interactive command \"some_qa_cmd\"",
+            r"  \(in .*\)",
+        ]))
+        self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(RunTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,7 +30,7 @@ or
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 from distutils import log
 
@@ -73,8 +73,9 @@ easybuild_packages = [
     "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
     "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.deprecated",
-    "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme", "easybuild.tools.repository",
-    "test.framework", "test",
+    "easybuild.tools.job", "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme",
+    "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
+    "easybuild.tools.repository", "test.framework", "test",
 ]
 
 setup(
@@ -88,10 +89,22 @@ implement support for installing particular (groups of) software packages.""",
     keywords="software build building installation installing compilation HPC scientific",
     url="http://hpcugent.github.com/easybuild",
     packages=easybuild_packages,
-    package_dir={'test.framework': "test/framework"},
-    package_data={"test.framework": find_rel_test()},
-    scripts=["eb", "optcomplete.bash", "minimal_bash_completion.bash"],
-    data_files=[],
+    package_dir={'test.framework': 'test/framework'},
+    package_data={'test.framework': find_rel_test(),},
+    scripts=[
+        'eb',
+        # bash completion
+        'optcomplete.bash',
+        'minimal_bash_completion.bash',
+        'eb_bash_completion.bash',
+        # utility scripts
+        'easybuild/scripts/bootstrap_eb.py',
+        'easybuild/scripts/install_eb_dep.sh',
+    ],
+    data_files=[
+        ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
+        ('etc', glob.glob('etc/*')),
+    ],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -99,12 +112,24 @@ implement support for installing particular (groups of) software packages.""",
         "Intended Audience :: System Administrators",
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 2.4",
+        "Programming Language :: Python :: 2.6",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",
     provides=["eb"] + easybuild_packages,
     test_suite="test.framework.suite",
     zip_safe=False,
-    install_requires=["vsc-base >= 2.0.3"],
+    install_requires=[
+        'setuptools >= 0.6',
+        "vsc-install >= 0.9.19",
+        "vsc-base >= 2.5.4",
+    ],
+    extras_require = {
+        'yeb': ["PyYAML >= 3.11"],
+        'coloredlogs': [
+            'coloredlogs',
+            'humanfriendly',  # determine whether terminal supports ANSI color
+        ],
+    },
+    namespace_packages=['easybuild'],
 )

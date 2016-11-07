@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -7,8 +7,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -28,10 +28,11 @@
 """
 Support for Clang as toolchain compiler.
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+:author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -81,10 +82,16 @@ class Clang(Compiler):
         'veryloose': ['ffast-math'],
     }
 
+    # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.INTEL : 'march=native',
         systemtools.AMD : 'march=native',
         systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+    }
+    # used with --optarch=GENERIC
+    COMPILER_GENERIC_OPTION = {
+        systemtools.AMD : 'march=x86-64 -mtune=generic',
+        systemtools.INTEL : 'march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'clang'
@@ -95,9 +102,9 @@ class Clang(Compiler):
     LIB_MATH = ['m']
 
     def _set_compiler_vars(self):
+        """Set compiler variables."""
         super(Clang, self)._set_compiler_vars()
 
         if self.options.get('32bit', None):
-            self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for " \
-                                    "32bit Clang in EasyBuild")
+            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit Clang in EasyBuild")
 

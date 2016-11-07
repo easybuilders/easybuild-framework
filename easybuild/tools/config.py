@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,44 +25,54 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
+import glob
 import os
 import random
 import string
 import tempfile
 import time
 from vsc.utils import fancylogger
-from vsc.utils.missing import nub, FrozenDictKnownKeys
+from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
-import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
-import easybuild.tools.environment as env
-from easybuild.tools.environment import read_environment as _read_environment
-from easybuild.tools.run import run_cmd
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 
 
 _log = fancylogger.getLogger('config', fname=False)
 
 
+PKG_TOOL_FPM = 'fpm'
+PKG_TYPE_RPM = 'rpm'
+
+
+DEFAULT_JOB_BACKEND = 'PbsPython'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
+DEFAULT_MODULE_SYNTAX = 'Tcl'
 DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
+    'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
     'subdir_software': 'software',
 }
+DEFAULT_PKG_RELEASE = '1'
+DEFAULT_PKG_TOOL = PKG_TOOL_FPM
+DEFAULT_PKG_TYPE = PKG_TYPE_RPM
+DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
@@ -83,28 +93,61 @@ BUILD_OPTIONS_CMDLINE = {
         'download_timeout',
         'dump_test_report',
         'easyblock',
+        'extra_modules',
         'filter_deps',
+        'filter_env_vars',
+        'hide_deps',
+        'hide_toolchains',
         'from_pr',
+        'git_working_dirs_path',
+        'pr_branch_name',
+        'pr_target_account',
+        'pr_target_branch',
+        'pr_target_repo',
         'github_user',
+        'github_org',
         'group',
         'ignore_dirs',
+        'job_backend_config',
+        'job_cores',
+        'job_max_walltime',
+        'job_output_dir',
+        'job_polling_interval',
+        'job_target_resource',
         'modules_footer',
+        'modules_header',
+        'mpi_cmd_template',
         'only_blocks',
         'optarch',
+        'parallel',
         'regtest_output_dir',
         'skip',
         'stop',
-        'suffix_modules_path',
+        'subdir_user_modules',
         'test_report_env_filter',
         'testoutput',
         'umask',
+        'zip_logs',
     ],
     False: [
+        'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'consider_archived_easyconfigs',
         'debug',
+        'debug_lmod',
+        'dump_autopep8',
+        'extended_dry_run',
         'experimental',
+        'fixed_installdir_naming_scheme',
         'force',
+        'group_writable_installdir',
         'hidden',
+        'install_latest_eb_release',
+        'minimal_toolchains',
+        'module_only',
+        'package',
+        'read_only_installdir',
+        'rebuild',
         'robot',
         'sequential',
         'set_gid_bit',
@@ -112,16 +155,41 @@ BUILD_OPTIONS_CMDLINE = {
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
+        'use_ccache',
+        'use_f90cache',
+        'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_tmpdir',
+        'extended_dry_run_ignore_errors',
+        'mpi_tests',
     ],
+    'warn': [
+        'strict',
+    ],
+    DEFAULT_PKG_RELEASE: [
+        'package_release',
+    ],
+    DEFAULT_PKG_TOOL: [
+        'package_tool',
+    ],
+    DEFAULT_PKG_TYPE: [
+        'package_type',
+    ],
+    GENERAL_CLASS: [
+        'suffix_modules_path',
+    ],
+    'defaultopt': [
+        'default_opt_level',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
     None: [
         'build_specs',
         'command_line',
+        'external_modules_metadata',
         'pr_path',
         'robot_path',
         'valid_module_classes',
@@ -177,20 +245,26 @@ class ConfigurationVariables(FrozenDictKnownKeys):
 
     # list of known/required keys
     REQUIRED = [
-        'config',
-        'prefix',
         'buildpath',
+        'config',
         'installpath',
-        'sourcepath',
+        'installpath_modules',
+        'installpath_software',
+        'job_backend',
+        'logfile_format',
+        'moduleclasses',
+        'module_naming_scheme',
+        'module_syntax',
+        'modules_tool',
+        'packagepath',
+        'package_naming_scheme',
+        'prefix',
         'repository',
         'repositorypath',
-        'logfile_format',
-        'tmp_logdir',
-        'moduleclasses',
+        'sourcepath',
         'subdir_modules',
         'subdir_software',
-        'modules_tool',
-        'module_naming_scheme',
+        'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
 
@@ -199,10 +273,9 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         For all known/required keys, check if exists and return all key/value pairs.
             no_missing: boolean, when True, will throw error message for missing values
         """
-        missing = [x for x in self.KNOWN_KEYS if not x in self]
+        missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
-            msg = 'Cannot determine value for configuration variables %s. Please specify it.' % missing
-            self.log.error(msg)
+            raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
 
         return self.items()
 
@@ -234,7 +307,7 @@ def init(options, config_options_dict):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
-        _log.error("Value for sourcepath has invalid type (%s): %s" % (type(sourcepath), sourcepath))
+        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -256,7 +329,14 @@ def init_build_options(build_options=None, cmdline_options=None):
             cmdline_options.force = True
             retain_all_deps = True
 
-        if cmdline_options.dep_graph or cmdline_options.dry_run or cmdline_options.dry_run_short:
+        if cmdline_options.new_pr or cmdline_options.update_pr:
+            _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
+            retain_all_deps = True
+
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
+                                      cmdline_options.dry_run, cmdline_options.dry_run_short,
+                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
+        if any(auto_ignore_osdeps_options):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
             cmdline_options.ignore_osdeps = True
 
@@ -286,9 +366,15 @@ def init_build_options(build_options=None, cmdline_options=None):
     return BuildOptions(bo)
 
 
-def build_option(key):
+def build_option(key, **kwargs):
     """Obtain value specified build option."""
-    return BuildOptions()[key]
+    build_options = BuildOptions()
+    if key in build_options:
+        return build_options[key]
+    elif 'default' in kwargs:
+        return kwargs['default']
+    else:
+        raise EasyBuildError("Undefined build option: %s", key)
 
 
 def build_path():
@@ -321,9 +407,22 @@ def install_path(typ=None):
     elif typ == 'mod':
         typ = 'modules'
 
+    known_types = ['modules', 'software']
+    if typ not in known_types:
+        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+
     variables = ConfigurationVariables()
-    suffix = variables['subdir_%s' % typ]
-    return os.path.join(variables['installpath'], suffix)
+
+    key = 'installpath_%s' % typ
+    res = variables[key]
+    if res is None:
+        key = 'subdir_%s' % typ
+        res = os.path.join(variables['installpath'], variables[key])
+        _log.debug("%s install path as specified by 'installpath' and '%s': %s", typ, key, res)
+    else:
+        _log.debug("%s install path as specified by '%s': %s", typ, key, res)
+
+    return res
 
 
 def get_repository():
@@ -340,6 +439,20 @@ def get_repositorypath():
     return ConfigurationVariables()['repositorypath']
 
 
+def get_package_naming_scheme():
+    """
+    Return the package naming scheme
+    """
+    return ConfigurationVariables()['package_naming_scheme']
+
+
+def package_path():
+    """
+    Return the path where built packages are copied to
+    """
+    return ConfigurationVariables()['packagepath']
+
+
 def get_modules_tool():
     """
     Return modules tool (EnvironmentModulesC, Lmod, ...)
@@ -350,9 +463,24 @@ def get_modules_tool():
 
 def get_module_naming_scheme():
     """
-    Return module naming scheme (EasyBuild, ...)
+    Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
+
+
+def get_job_backend():
+    """
+    Return job execution backend (PBS, GC3Pie, ...)
+    """
+    # 'job_backend' key will only be present after EasyBuild config is initialized
+    return ConfigurationVariables().get('job_backend', None)
+
+
+def get_module_syntax():
+    """
+    Return module syntax (Lua, Tcl)
+    """
+    return ConfigurationVariables()['module_syntax']
 
 
 def log_file_format(return_directory=False):
@@ -388,18 +516,26 @@ def get_build_log_path():
     return res
 
 
-def get_log_filename(name, version, add_salt=False):
+def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     """
     Generate a filename to be used for logging
+
+    :param name: software name ('%(name)s')
+    :param version: software version ('%(version)s')
+    :param add_salt: add salt (5 random characters)
+    :param date: string representation of date to use ('%(date)s')
+    :param timestamp: timestamp to use ('%(time)s')
     """
-    date = time.strftime("%Y%m%d")
-    timeStamp = time.strftime("%H%M%S")
+    if date is None:
+        date = time.strftime("%Y%m%d")
+    if timestamp is None:
+        timestamp = time.strftime("%H%M%S")
 
     filename = log_file_format() % {
         'name': name,
         'version': version,
         'date': date,
-        'time': timeStamp,
+        'time': timestamp,
     }
 
     if add_salt:
@@ -418,14 +554,51 @@ def get_log_filename(name, version, add_salt=False):
     return filepath
 
 
-def read_only_installdir():
+def find_last_log(curlog):
     """
-    Return whether installation dir should be fully read-only after installation.
+    Find location to last log file that is still available.
+
+    :param curlog: location to log file of current session
+    :return: path to last log file (or None if no log files were found)
     """
-    # FIXME (see issue #123): add a config option to set this, should be True by default (?)
-    # this also needs to be checked when --force is used;
-    # install dir will have to (temporarily) be made writeable again for owner in that case
-    return False
+    variables = ConfigurationVariables()
+    log_dir = get_build_log_path()
+    if variables['tmp_logdir'] is None:
+        # take info account that last part of default temporary logdir is random, if --tmp-logdir is not specified
+        log_dir = os.path.join(os.path.dirname(log_dir), '*')
+
+    glob_pattern = os.path.join(log_dir, 'easybuild*.log')  # see init_logging
+    _log.info("Looking for log files that match filename pattern '%s'...", glob_pattern)
+
+    try:
+        my_uid = os.getuid()
+        paths = []
+        for path in glob.glob(glob_pattern):
+            path_info = os.stat(path)
+            # only retain logs owned by current user
+            if path_info.st_uid == my_uid:
+                paths.append((path_info.st_mtime, path))
+            else:
+                _log.debug("Skipping %s, not owned by current user", path)
+
+        # sorted retained paths by modification time, most recent last
+        sorted_paths = [p for (_, p) in sorted(paths)]
+
+    except OSError as err:
+        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
+
+    try:
+        # log of current session is typically listed last, should be taken into account
+        res = sorted_paths[-1]
+        if os.path.exists(curlog) and os.path.samefile(res, curlog):
+            res = sorted_paths[-2]
+
+    except IndexError:
+        _log.debug("No last log file found (sorted retained paths: %s)", sorted_paths)
+        res = None
+
+    _log.debug("Picked %s as last log file (current: %s) from %s", res, curlog, sorted_paths)
+    return res
 
 
 def module_classes():
@@ -438,46 +611,3 @@ def module_classes():
 def read_environment(env_vars, strict=False):
     """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
     _log.nosupport("read_environment has moved to easybuild.tools.environment", '2.0')
-
-
-def set_tmpdir(tmpdir=None, raise_error=False):
-    """Set temporary directory to be used by tempfile and others."""
-    try:
-        if tmpdir is not None:
-            if not os.path.exists(tmpdir):
-                os.makedirs(tmpdir)
-            current_tmpdir = tempfile.mkdtemp(prefix='eb-', dir=tmpdir)
-        else:
-            # use tempfile default parent dir
-            current_tmpdir = tempfile.mkdtemp(prefix='eb-')
-    except OSError, err:
-        _log.error("Failed to create temporary directory (tmpdir: %s): %s" % (tmpdir, err))
-
-    _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
-
-    for var in ['TMPDIR', 'TEMP', 'TMP']:
-        env.setvar(var, current_tmpdir)
-
-    # reset to make sure tempfile picks up new temporary directory to use
-    tempfile.tempdir = None
-
-    # test if temporary directory allows to execute files, warn if it doesn't
-    try:
-        fd, tmptest_file = tempfile.mkstemp()
-        os.close(fd)
-        os.chmod(tmptest_file, 0700)
-        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
-            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
-            msg += "This can cause problems in the build process, consider using --tmpdir."
-            if raise_error:
-                _log.error(msg)
-            else:
-                _log.warning(msg)
-        else:
-            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
-        os.remove(tmptest_file)
-
-    except OSError, err:
-        _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
-
-    return current_tmpdir

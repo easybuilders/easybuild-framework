@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,14 +26,15 @@
 """
 This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import operator as op
 import re
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -79,8 +80,8 @@ class VersionOperator(object):
     def __init__(self, versop_str=None, error_on_parse_failure=False):
         """
         Initialise VersionOperator instance.
-        @param versop_str: intialise with version operator string
-        @param error_on_parse_failure: log.error in case of parse error
+        :param versop_str: intialise with version operator string
+        :param error_on_parse_failure: raise EasyBuildError in case of parse error
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -100,7 +101,7 @@ class VersionOperator(object):
         """Special function to deal with parse errors"""
         # TODO major issue what to do in case of misparse. error or not?
         if self.error_on_parse_failure:
-            self.log.error(msg)
+            raise EasyBuildError(msg)
         else:
             self.log.debug(msg)
 
@@ -122,7 +123,7 @@ class VersionOperator(object):
         """
         versop_dict = self.parse_versop_str(versop_str)
         if versop_dict is None:
-            self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
+            raise EasyBuildError("Failed to parse '%s' as a version operator string", versop_str)
         else:
             for k, v in versop_dict.items():
                 setattr(self, k, v)
@@ -132,20 +133,20 @@ class VersionOperator(object):
         """
         Convert argument to an EasyVersion instance if needed, and return self.operator(<argument>, self.version)
             Versions only, no suffix.
-        @param test_version: a version string or EasyVersion instance
+        :param test_version: a version string or EasyVersion instance
         """
         # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
-            self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
+            raise EasyBuildError('Not a valid %s. Not initialised yet?', self.__class__.__name__)
 
         if isinstance(test_version, basestring):
             test_version = self._convert(test_version)
         elif not isinstance(test_version, EasyVersion):
-            self.log.error("test: argument should be a basestring or EasyVersion (type %s)" % (type(test_version)))
+            raise EasyBuildError("test: argument should be a basestring or EasyVersion (type %s)", type(test_version))
 
         res = self.operator(test_version, self.version)
-        tup = (test_version, self.REVERSE_OPERATOR_MAP[self.operator], self.version, res)
-        self.log.debug("result of testing expression '%s %s %s': %s" % tup)
+        self.log.debug("result of testing expression '%s %s %s': %s",
+                       test_version, self.REVERSE_OPERATOR_MAP[self.operator], self.version, res)
 
         return res
 
@@ -178,7 +179,7 @@ class VersionOperator(object):
         if versop is None:
             return False
         elif not isinstance(versop, self.__class__):
-            self.log.error("Types don't match in comparison: %s, expected %s" % (type(versop), self.__class__))
+            raise EasyBuildError("Types don't match in comparison: %s, expected %s", type(versop), self.__class__)
         return self.version == versop.version and self.operator == versop.operator and self.suffix == versop.suffix
 
     def __ne__(self, versop):
@@ -190,7 +191,7 @@ class VersionOperator(object):
         Create the version regular expression with operator support.
         This supports version expressions like '> 5' (anything strict larger than 5),
         or '<= 1.2' (anything smaller than or equal to 1.2)
-        @param begin_end: boolean, create a regex with begin/end match
+        :param begin_end: boolean, create a regex with begin/end match
         """
         # construct escaped operator symbols, e.g. '\<\='
         operators = []
@@ -254,8 +255,8 @@ class VersionOperator(object):
     def parse_versop_str(self, versop_str, versop_dict=None):
         """
         If argument contains a version operator, returns a dict with version and operator; returns None otherwise
-        @param versop_str: the string to parse
-        @param versop_dict: advanced usage: pass intialised versop_dict (eg for ToolchainVersionOperator)
+        :param versop_str: the string to parse
+        :param versop_dict: advanced usage: pass intialised versop_dict (eg for ToolchainVersionOperator)
         """
         if versop_dict is None:
             versop_dict = {}
@@ -270,7 +271,7 @@ class VersionOperator(object):
             versop_dict['versop_str'] = versop_str
 
         if not 'versop_str' in versop_dict:
-            self.log.error('Missing versop_str in versop_dict %s' % versop_dict)
+            raise EasyBuildError('Missing versop_str in versop_dict %s', versop_dict)
 
         version = self._convert(versop_dict['version_str'])
         operator = self._convert_operator(versop_dict['operator_str'], version=version)
@@ -283,7 +284,7 @@ class VersionOperator(object):
 
     def _boundary_check(self, other):
         """Return the boundary checks via testing: is self in other, and is other in self
-        @param other: a VersionOperator instance
+        :param other: a VersionOperator instance
         """
         boundary_self_in_other = other.test(self.version)
         boundary_other_in_self = self.test(other.version)
@@ -295,7 +296,7 @@ class VersionOperator(object):
         
         Returns 2 booleans: has_overlap, is_conflict
         
-        @param versop_other: a VersionOperator instance
+        :param versop_other: a VersionOperator instance
         
         Examples:
             '> 3' and '> 3' : equal, and thus overlap (no conflict)
@@ -311,8 +312,8 @@ class VersionOperator(object):
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
         if not isinstance(versop_other, self.__class__):
-            self.log.error('overlap/conflict check needs instance of self %s (got type %s)' %
-                           (self.__class__.__name__, type(versop_other)))
+            raise EasyBuildError("overlap/conflict check needs instance of self %s (got type %s)",
+                                 self.__class__.__name__, type(versop_other))
 
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
@@ -379,7 +380,7 @@ class VersionOperator(object):
         Returns True if it is more strict in case of overlap, or if self.version > versop_other.version otherwise.
         Returns None in case of conflict.
 
-        @param versop_other: a VersionOperator instance
+        :param versop_other: a VersionOperator instance
 
         Examples:
             '> 2' > '> 1' : True, order by strictness equals order by boundaries for >, >=
@@ -424,12 +425,12 @@ class VersionOperator(object):
             Suffix are not considered.
         """
         if len(self.ORDERED_OPERATORS) != len(self.OPERATOR_MAP):
-            self.log.error('Inconsistency between ORDERED_OPERATORS and OPERATORS (lists are not of same length)')
+            raise EasyBuildError("Inconsistency between ORDERED_OPERATORS and OPERATORS (lists are not of same length)")
 
         # ensure this function is only used for non-conflicting version operators
         _, conflict = self.test_overlap_and_conflict(versop_other)
         if conflict:
-            self.log.error("Conflicting version operator expressions should not be compared with _gt_safe")
+            raise EasyBuildError("Conflicting version operator expressions should not be compared with _gt_safe")
 
         ordered_operators = [self.OPERATOR_MAP[x] for x in self.ORDERED_OPERATORS]
         if self.version == versop_other.version:
@@ -449,7 +450,7 @@ class ToolchainVersionOperator(VersionOperator):
     def __init__(self, tcversop_str=None):
         """
         Initialise VersionOperator instance.
-        @param tcversop_str: intialise with toolchain version operator string
+        :param tcversop_str: intialise with toolchain version operator string
         """
         super(ToolchainVersionOperator, self).__init__()
 
@@ -467,7 +468,7 @@ class ToolchainVersionOperator(VersionOperator):
     def _get_all_toolchain_names(self, search_string=''):
         """
         Initialise each search_toolchain request, save in module constant TOOLCHAIN_NAMES.
-        @param search_string: passed to search_toolchain function.
+        :param search_string: passed to search_toolchain function.
         """
         global TOOLCHAIN_NAMES
         if not search_string in TOOLCHAIN_NAMES:
@@ -530,14 +531,14 @@ class ToolchainVersionOperator(VersionOperator):
         tcversop_dict = super(ToolchainVersionOperator, self).parse_versop_str(None, versop_dict=tcversop_dict)
 
         if tcversop_dict.get('version_str', None) is not None and tcversop_dict.get('operator_str', None) is None:
-            self.log.error("Toolchain version found, but no operator (use ' == '?).")
+            raise EasyBuildError("Toolchain version found, but no operator (use ' == '?).")
 
         self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
 
     def _boundary_check(self, other):
         """Return the boundary checks via testing: is self in other, and is other in self
-        @param other: a ToolchainVersionOperator instance
+        :param other: a ToolchainVersionOperator instance
         """
         boundary_self_in_other = other.test(self.tc_name, self.version)
         boundary_other_in_self = self.test(other.tc_name, other.version)
@@ -547,20 +548,19 @@ class ToolchainVersionOperator(VersionOperator):
         """
         Check if a toolchain with name name and version version would fit 
             in this ToolchainVersionOperator 
-        @param name: toolchain name
-        @param version: a version string or EasyVersion instance
+        :param name: toolchain name
+        :param version: a version string or EasyVersion instance
         """
         # checks whether this ToolchainVersionOperator instance is valid using __bool__ function
         if not self:
-            self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
+            raise EasyBuildError('Not a valid %s. Not initialised yet?', self.__class__.__name__)
 
         tc_name_res = name == self.tc_name
         if not tc_name_res:
             self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, name))
         version_res = super(ToolchainVersionOperator, self).test(version)
         res = tc_name_res and version_res
-        tup = (tc_name_res, version_res, res)
-        self.log.debug("result of testing expression tc_name_res %s version_res %s: %s" % tup)
+        self.log.debug("result of testing expression tc_name_res %s version_res %s: %s", tc_name_res, version_res, res)
 
         return res
 
@@ -614,16 +614,16 @@ class OrderedVersionOperators(object):
         After add, versop_new is in the OrderedVersionOperators. If the same versop_new was already in it,
         it will update the data (if not None) (and not raise an error)
 
-        @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
-        @param data: additional data for supplied version operator to be stored
-        @param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
+        :param versop_new: VersionOperator instance (or will be converted into one if type basestring)
+        :param data: additional data for supplied version operator to be stored
+        :param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
                        instead of overriding the existing data with the new data (method used for updating is .update)    
         """
         if isinstance(versop_new, basestring):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
-            tup = (versop_new, type(versop_new))
-            self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % tup)
+            raise EasyBuildError("add: argument must be a VersionOperator instance or basestring: %s; type %s",
+                                 versop_new, type(versop_new))
 
         if versop_new in self.versops:
             self.log.debug("Versop %s already added." % versop_new)
@@ -632,9 +632,9 @@ class OrderedVersionOperators(object):
             gt_test = [versop_new > versop for versop in self.versops]
             if None in gt_test:
                 # conflict
-                msg = 'add: conflict(s) between versop_new %s and existing versions %s'
                 conflict_versops = [(idx, self.versops[idx]) for idx, gt_val in enumerate(gt_test) if gt_val is None]
-                self.log.error(msg % (versop_new, conflict_versops))
+                raise EasyBuildError("add: conflict(s) between versop_new %s and existing versions %s",
+                                     versop_new, conflict_versops)
             else:
                 if True in gt_test:
                     # determine first element for which comparison is True
@@ -655,8 +655,8 @@ class OrderedVersionOperators(object):
         if update and versop_new_str in self.datamap:
             self.log.debug("Keeping track of data for %s UPDATE: %s" % (versop_new_str, data))
             if not hasattr(self.datamap[versop_new_str], 'update'):
-                tup = (versop_new_str, type(self.datamap[versop_new_str]))
-                self.log.error("Can't update on datamap key %s type %s" % tup)
+                raise EasyBuildError("Can't update on datamap key %s type %s",
+                                     versop_new_str, type(self.datamap[versop_new_str]))
             self.datamap[versop_new_str].update(data)
         else:
             self.log.debug("Keeping track of data for %s SET: %s" % (versop_new_str, data))
@@ -665,11 +665,11 @@ class OrderedVersionOperators(object):
     def get_data(self, versop):
         """Return the data for versop from datamap"""
         if not isinstance(versop, VersionOperator):
-            tup = (versop, type(versop))
-            self.log.error(("get_data: argument must be a VersionOperator instance: %s; type %s") % tup)
+            raise EasyBuildError("get_data: argument must be a VersionOperator instance: %s; type %s",
+                                  versop, type(versop))
 
         versop_str = str(versop)
         if versop_str in self.datamap:
             return self.datamap[versop_str]
         else:
-            self.log.error('No data in datamap for versop %s' % versop)
+            raise EasyBuildError("No data in datamap for versop %s", versop)

@@ -1,11 +1,11 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,12 +25,12 @@
 """
 Utility functions for implementating module naming schemes.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import string
@@ -52,18 +52,19 @@ def det_full_ec_version(ec):
     """
 
     ecver = None
+    toolchain = ec.get('toolchain', {'name': SYSTEM_TOOLCHAIN_NAME})
 
     # determine main install version based on toolchain
-    if ec['toolchain']['name'] == SYSTEM_TOOLCHAIN_NAME:
+    if toolchain['name'] == SYSTEM_TOOLCHAIN_NAME:
         ecver = ec['version']
-    elif ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
-        _log.deprecated("Use of dummy toolchain", '3.0')
+    elif toolchain['name'] == DUMMY_TOOLCHAIN_NAME:
+        _log.deprecated("Use of dummy toolchain", '4.0')
         ecver = ec['version']
     else:
-        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
+        ecver = "%s-%s-%s" % (ec['version'], toolchain['name'], toolchain['version'])
 
     # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
+    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec.get('versionsuffix', '')] if x])
 
     return ecver
 

@@ -1,0 +1,44 @@
+_internal_variables_:
+    - &version 1.4.10
+
+    - &comp_name GCC
+    - &comp_version 4.7.2
+    - &comp [*comp_name, *comp_version]
+
+    - &blaslib OpenBLAS
+    - &blasver 0.2.6
+    - &blas !join [*blaslib, -, *blasver]
+    - &blas_suff -LAPACK-3.4.2
+
+    - &comp_mpi_tc [gompi, *version]
+
+
+easyblock: Toolchain
+
+name: goolf
+version: *version
+
+homepage: (none)
+description: |
+    GNU Compiler Collection (GCC) based compiler toolchain, including
+    OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK.
+
+toolchain: {name: dummy, version: dummy}
+
+# compiler toolchain dependencies
+# we need GCC and OpenMPI as explicit dependencies instead of gompi toolchain
+# because of toolchain preperation functions
+dependencies:
+    - *comp_name: *comp_version
+    - OpenMPI: 1.6.4
+      toolchain: *comp
+    - *blaslib: *blasver
+      versionsuffix: *blas_suff
+      toolchain: *comp_mpi_tc
+    - FFTW: 3.3.3
+      toolchain: *comp_mpi_tc
+    - ScaLAPACK: 2.0.2
+      versionsuffix: !join [-, *blas, *blas_suff]
+      toolchain: *comp_mpi_tc
+
+moduleclass: toolchain

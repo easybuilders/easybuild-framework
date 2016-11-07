@@ -1,11 +1,11 @@
 ##
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,27 +26,30 @@
 Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import re
+import sys
+
 from os.path import exists as orig_os_path_exists
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, LINUX, POWER, UNKNOWN, VENDORS
-from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
+from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
+from easybuild.tools.systemtools import CPU_FAMILIES, DARWIN, LINUX, UNKNOWN
+from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
+from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
+from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.systemtools import get_system_info, get_total_memory, get_gcc_version
 
-
-MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
-PROC_CPUINFO_FP = '/proc/cpuinfo'
 
 PROC_CPUINFO_TXT = None
-PROC_CPUINFO_TXT_ARM = """processor : 0
+PROC_CPUINFO_TXT_RASPI2 = """processor : 0
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
 Features : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm
@@ -55,7 +58,7 @@ CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
 CPU revision : 5
- 
+
 processor : 1
 model name : ARMv7 Processor rev 5 (v7l)
 BogoMIPS : 57.60
@@ -64,24 +67,115 @@ CPU implementer : 0x41
 CPU architecture: 7
 CPU variant : 0x0
 CPU part : 0xc07
-CPU revision : 5 
+CPU revision : 5
+"""
+PROC_CPUINFO_TXT_ODROID_XU3 = """processor	: 0
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 84.00
+Features	: swp half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x0
+CPU part	: 0xc07
+CPU revision	: 3
+
+processor	: 4
+model name	: ARMv7 Processor rev 3 (v7l)
+BogoMIPS	: 120.00
+Features	: swp half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt
+CPU implementer	: 0x41
+CPU architecture: 7
+CPU variant	: 0x2
+CPU part	: 0xc0f
+CPU revision	: 3
+"""
+PROC_CPUINFO_TXT_XGENE2 = """processor	: 0
+cpu MHz		: 2400.000
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
+CPU implementer	: 0x50
+CPU architecture: 8
+CPU variant	: 0x1
+CPU part	: 0x000
+CPU revision	: 0
+"""
+PROC_CPUINFO_TXT_THUNDERX = """processor	: 0
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32
+CPU implementer	: 0x43
+CPU architecture: 8
+CPU variant	: 0x1
+CPU part	: 0x0a1
+CPU revision	: 0
 """
 PROC_CPUINFO_TXT_POWER = """processor	: 0
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
 revision	: 2.3 (pvr 003f 0203)
- 
+
 processor	: 13
 cpu		: POWER7 (architected), altivec supported
 clock		: 3550.000000MHz
 revision	: 2.3 (pvr 003f 0203)
- 
+
 timebase	: 512000000
 platform	: pSeries
 model		: IBM,8205-E6C
 machine		: CHRP IBM,8205-E6C
 """
-PROC_CPUINFO_TXT_X86 = """processor	: 0
+PROC_CPUINFO_TXT_AMD = """processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 8
+model name	: Six-Core AMD Opteron(tm) Processor 2427
+stepping	: 0
+microcode	: 0x10000da
+cpu MHz		: 2200.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 0
+cpu cores	: 6
+apicid		: 8
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+bogomips	: 4400.54
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate
+
+processor	: 1
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 8
+model name	: Six-Core AMD Opteron(tm) Processor 2427
+stepping	: 0
+microcode	: 0x10000da
+cpu MHz		: 2200.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 6
+core id		: 1
+cpu cores	: 6
+apicid		: 9
+initial apicid	: 1
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save pausefilter vmmcall
+bogomips	: 4400.54
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate
+"""
+PROC_CPUINFO_TXT_INTEL = """processor	: 0
 vendor_id	: GenuineIntel
 cpu family	: 6
 model		: 45
@@ -133,6 +227,52 @@ cache_alignment	: 64
 address sizes	: 46 bits physical, 48 bits virtual
 power management:
 """
+PROC_MEMINFO_TXT = """MemTotal:       66059108 kB
+MemFree:         2639988 kB
+Buffers:          236368 kB
+Cached:         59396644 kB
+SwapCached:           84 kB
+Active:          3288736 kB
+Inactive:       56906588 kB
+Active(anon):     246284 kB
+Inactive(anon):   348796 kB
+Active(file):    3042452 kB
+Inactive(file): 56557792 kB
+Unevictable:     1048576 kB
+Mlocked:            2048 kB
+SwapTotal:      20971516 kB
+SwapFree:       20969556 kB
+Dirty:                76 kB
+Writeback:             0 kB
+AnonPages:       1610864 kB
+Mapped:           118176 kB
+Shmem:             32744 kB
+Slab:             891272 kB
+SReclaimable:     646764 kB
+SUnreclaim:       244508 kB
+KernelStack:       18960 kB
+PageTables:        31528 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    54001068 kB
+Committed_AS:    2331888 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:      492584 kB
+VmallocChunk:   34325311012 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:   1232896 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:        5056 kB
+DirectMap2M:     2045952 kB
+DirectMap1G:    65011712 kB
+"""
+
+MACHINE_NAME = None
 
 
 def mocked_read_file(fp):
@@ -140,22 +280,27 @@ def mocked_read_file(fp):
     known_fps = {
         MAX_FREQ_FP:  '2850000',
         PROC_CPUINFO_FP: PROC_CPUINFO_TXT,
+        PROC_MEMINFO_FP: PROC_MEMINFO_TXT,
     }
     if fp in known_fps:
         return known_fps[fp]
     else:
         return read_file(fp)
 
+
 def mocked_os_path_exists(mocked_fp, fp):
     """Mocked version of os.path.exists, returns True for a particular specified filepath."""
     return fp == mocked_fp
 
+
 def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
-        "ldd --version" : "ldd (GNU libc) 2.12",
+        "gcc --version": "gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)",
+        "ldd --version": "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
+        "sysctl -n hw.memsize": '8589934592',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
@@ -168,6 +313,9 @@ def mocked_run_cmd(cmd, **kwargs):
     else:
         return run_cmd(cmd, **kwargs)
 
+def mocked_uname():
+    """Mocked version of platform.uname, with specified contents for known machine names."""
+    return ('Linux', 'localhost', '3.16', '3.16', MACHINE_NAME, '')
 
 class SystemToolsTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
@@ -179,6 +327,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_os_path_exists = st.os.path.exists
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
+        self.orig_platform_uname = st.platform.uname
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -186,6 +335,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.read_file = self.orig_read_file
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
+        st.platform.uname = self.orig_platform_uname
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
@@ -220,16 +370,27 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        MACHINE_NAME = 'x86_64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_model(), "Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz")
 
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
+        self.assertEqual(get_cpu_model(), "Six-Core AMD Opteron(tm) Processor 2427")
+
+        MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_model(), "IBM,8205-E6C")
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
-        self.assertEqual(get_cpu_model(), "ARMv7 Processor rev 5 (v7l)")
+        MACHINE_NAME = 'armv7l'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
+        self.assertEqual(get_cpu_model(), "ARM Cortex-A7")
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
+        self.assertEqual(get_cpu_model(), "ARM Cortex-A7 + Cortex-A15")
 
     def test_cpu_model_darwin(self):
         """Test getting CPU model (mocked for Darwin)."""
@@ -240,8 +401,8 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_speed_native(self):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
-        self.assertTrue(isinstance(cpu_speed, float))
-        self.assertTrue(cpu_speed > 0.0)
+        self.assertTrue(isinstance(cpu_speed, float) or cpu_speed is None)
+        self.assertTrue(cpu_speed > 0.0 or cpu_speed is None)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
@@ -254,7 +415,7 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
 
         # /proc/cpuinfo on Linux x86 (no cpufreq)
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_speed(), 2600.075)
 
         # /proc/cpuinfo on Linux POWER
@@ -271,26 +432,64 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_speed(), 2400.0)
 
-    def test_cpu_vendor(self):
+    def test_cpu_architecture_native(self):
+        """Test getting the CPU architecture."""
+        arch = get_cpu_architecture()
+        self.assertTrue(arch in CPU_ARCHITECTURES)
+
+    def test_cpu_architecture(self):
+        """Test getting the CPU architecture (mocked)."""
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
+
+        machine_names = {
+            'aarch64': AARCH64,
+            'aarch64_be': AARCH64,
+            'armv7l': AARCH32,
+            'ppc64': POWER,
+            'ppc64le': POWER,
+            'x86_64': X86_64,
+            'some_fancy_arch': UNKNOWN,
+        }
+        for name in machine_names:
+            MACHINE_NAME = name
+            self.assertEqual(get_cpu_architecture(), machine_names[name])
+
+    def test_cpu_vendor_native(self):
         """Test getting CPU vendor."""
         cpu_vendor = get_cpu_vendor()
-        self.assertTrue(cpu_vendor in VENDORS.values() + [UNKNOWN])
+        self.assertTrue(cpu_vendor in CPU_VENDORS)
 
     def test_cpu_vendor_linux(self):
         """Test getting CPU vendor (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
-
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
         global PROC_CPUINFO_TXT
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+
+        MACHINE_NAME = 'x86_64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_vendor(), INTEL)
 
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
+        self.assertEqual(get_cpu_vendor(), AMD)
+
+        MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_vendor(), IBM)
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        MACHINE_NAME = 'armv7l'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_vendor(), ARM)
+
+        MACHINE_NAME = 'aarch64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
+        self.assertEqual(get_cpu_vendor(), APM)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
+        self.assertEqual(get_cpu_vendor(), CAVIUM)
 
     def test_cpu_vendor_darwin(self):
         """Test getting CPU vendor (mocked for Darwin)."""
@@ -300,6 +499,7 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_cpu_family_native(self):
         """Test get_cpu_family function."""
+        run_cmd.clear_cache()
         cpu_family = get_cpu_family()
         self.assertTrue(cpu_family in CPU_FAMILIES or cpu_family == UNKNOWN)
 
@@ -308,14 +508,32 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.platform.uname = mocked_uname
+        global MACHINE_NAME
         global PROC_CPUINFO_TXT
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        MACHINE_NAME = 'x86_64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_INTEL
         self.assertEqual(get_cpu_family(), INTEL)
 
-        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_AMD
+        self.assertEqual(get_cpu_family(), AMD)
+
+        MACHINE_NAME = 'armv7l'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RASPI2
         self.assertEqual(get_cpu_family(), ARM)
 
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ODROID_XU3
+        self.assertEqual(get_cpu_family(), ARM)
+
+        MACHINE_NAME = 'aarch64'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_XGENE2
+        self.assertEqual(get_cpu_family(), ARM)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_THUNDERX
+        self.assertEqual(get_cpu_family(), ARM)
+
+        MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
 
@@ -323,6 +541,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test get_cpu_family function (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
+        run_cmd.clear_cache()
         self.assertEqual(get_cpu_family(), INTEL)
 
     def test_os_type(self):
@@ -380,6 +599,23 @@ class SystemToolsTest(EnhancedTestCase):
         os_version = get_os_version()
         self.assertTrue(isinstance(os_version, basestring) or os_version == UNKNOWN)
 
+    def test_gcc_version_native(self):
+        """Test getting gcc version."""
+        gcc_version = get_gcc_version()
+        self.assertTrue(isinstance(gcc_version, basestring) or gcc_version == None)
+
+    def test_gcc_version_linux(self):
+        """Test getting gcc version (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_gcc_version(), '5.1.1')
+
+    def test_gcc_version_darwin(self):
+        """Test getting gcc version (mocked for Darwin)."""
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = lambda *args, **kwargs: ("Apple LLVM version 7.0.0 (clang-700.1.76)", 0)
+        self.assertEqual(get_gcc_version(), None)
+
     def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
@@ -396,6 +632,24 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.DARWIN
         self.assertEqual(get_glibc_version(), UNKNOWN)
 
+    def test_get_total_memory_linux(self):
+        """Test the function that gets the total memory."""
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_MEMINFO_FP, fp)
+        self.assertEqual(get_total_memory(), 64510)
+
+    def test_get_total_memory_darwin(self):
+        """Test the function that gets the total memory."""
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_total_memory(), 8192)
+
+    def test_get_total_memory_native(self):
+        """Test the function that gets the total memory."""
+        memtotal = get_total_memory()
+        self.assertTrue(isinstance(memtotal, int))
+
     def test_system_info(self):
         """Test getting system info."""
         system_info = get_system_info()
@@ -403,14 +657,14 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_det_parallelism_native(self):
         """Test det_parallelism function (native calls)."""
-        self.assertTrue(det_parallelism(None, None) > 0)
+        self.assertTrue(det_parallelism() > 0)
         # specified parallellism
-        self.assertEqual(det_parallelism(5, None), 5)
+        self.assertEqual(det_parallelism(par=5), 5)
         # max parallellism caps
-        self.assertEqual(det_parallelism(None, 1), 1)
+        self.assertEqual(det_parallelism(maxpar=1), 1)
         self.assertEqual(det_parallelism(16, 1), 1)
-        self.assertEqual(det_parallelism(5, 2), 2)
-        self.assertEqual(det_parallelism(5, 10), 5)
+        self.assertEqual(det_parallelism(par=5, maxpar=2), 2)
+        self.assertEqual(det_parallelism(par=5, maxpar=10), 5)
 
     def test_det_parallelism_mocked(self):
         """Test det_parallelism function (with mocked ulimit/get_avail_core_count)."""
@@ -418,18 +672,25 @@ class SystemToolsTest(EnhancedTestCase):
 
         # mock number of available cores to 8
         st.get_avail_core_count = lambda: 8
-        self.assertTrue(det_parallelism(None, None), 8)
+        self.assertTrue(det_parallelism(), 8)
         # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
         st.run_cmd = mocked_run_cmd
-        self.assertTrue(det_parallelism(None, None), 4)
-        self.assertTrue(det_parallelism(6, None), 4)
-        self.assertTrue(det_parallelism(2, None), 2)
+        self.assertTrue(det_parallelism(), 4)
+        self.assertTrue(det_parallelism(par=6), 4)
+        self.assertTrue(det_parallelism(maxpar=2), 2)
 
         st.get_avail_core_count = orig_get_avail_core_count
 
+    def test_det_terminal_size(self):
+        """Test det_terminal_size function."""
+        (height, width) = st.det_terminal_size()
+        self.assertTrue(isinstance(height, int) and height > 0)
+        self.assertTrue(isinstance(width, int) and width > 0)
+
+
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(SystemToolsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(SystemToolsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

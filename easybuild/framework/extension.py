@@ -1,11 +1,11 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,17 +26,18 @@
 Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
 """
 import copy
 import os
 
-from easybuild.tools.config import build_path
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option, build_path
 from easybuild.tools.run import run_cmd
 
 
@@ -52,15 +53,19 @@ class Extension(object):
         self.log = self.master.log
         self.cfg = self.master.cfg.copy()
         self.ext = copy.deepcopy(ext)
+        self.dry_run = self.master.dry_run
 
         if not 'name' in self.ext:
-            self.log.error("'name' is missing in supplied class instance 'ext'.")
+            raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
 
-        self.src = self.ext.get('src', None)
-        self.patches = self.ext.get('patches', None)
+        # parent sanity check paths/commands are not relevant for extension
+        self.cfg['sanity_check_commands'] = []
+        self.cfg['sanity_check_paths'] = []
+
+        # list of source/patch files: we use an empty list as default value like in EasyBlock
+        self.src = self.ext.get('src', [])
+        self.patches = self.ext.get('patches', [])
         self.options = copy.deepcopy(self.ext.get('options', {}))
-
-        self.toolchain.prepare(self.cfg['onlytcmod'])
 
         self.sanity_check_fail_msgs = []
 
@@ -109,9 +114,9 @@ class Extension(object):
         """
 
         try:
-            os.chdir(build_path())
+            os.chdir(self.installdir)
         except OSError, err:
-            self.log.error("Failed to change directory: %s" % err)
+            raise EasyBuildError("Failed to change %s: %s", self.installdir, err)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False

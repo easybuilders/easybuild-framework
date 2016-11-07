@@ -1,0 +1,43 @@
+##
+# This file is an EasyBuild reciPY as per https://github.com/hpcugent/easybuild
+#
+# Copyright:: Copyright (c) 2012-2013 Cyprus Institute / CaSToRC
+# Authors::   Thekla Loizou <t.loizou@cyi.ac.cy>
+# License::   MIT/GPL
+# $Id$
+#
+# This work implements a part of the HPCBIOS project and is a component of the policy:
+# http://hpcbios.readthedocs.org/en/latest/HPCBIOS_06-19.html
+##
+easyblock = 'ConfigureMake'
+
+name = 'gzip'
+version = '1.4'
+
+homepage = "http://www.gzip.org/"
+description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+
+# test toolchain specification
+toolchain = {'name': 'GCC','version': '4.6.3'}
+
+# source tarball filename
+sources = ['%s-%s.tar.gz'%(name,version)]
+
+# download location for source files
+source_urls = [GNU_SOURCE]
+
+hiddendependencies = [('toy', '0.0', '-deps', True)]
+dependencies = hiddendependencies  # hidden deps must be included in list of deps
+
+# make sure the gzip and gunzip binaries are available after installation
+sanity_check_paths = {
+    'files': ["bin/gunzip", "bin/gzip"],
+    'dirs': [],
+}
+
+# run 'gzip -h' and 'gzip --version' after installation
+sanity_check_commands = [True, ('gzip', '--version')]
+
+software_license = GPLv3
+
+moduleclass = 'tools'

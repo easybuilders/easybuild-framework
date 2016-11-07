@@ -1,0 +1,25 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel C/C++ and Fortran compilers
+    }
+}
+
+module-whatis {Intel C/C++ and Fortran compilers}
+
+set root    /tmp/iccifort/2011.13.367
+
+conflict    iccifort
+
+if { ![is-loaded icc/2011.13.367] } {
+    module load icc/2011.13.367
+}
+
+if { ![is-loaded ifort/2011.13.367] } {
+    module load ifort/2011.13.367
+}
+
+
+setenv	EBROOTICCIFORT		"$root"
+setenv	EBVERSIONICCIFORT		"2011.13.367"
+setenv	EBDEVELICCIFORT		"$root/easybuild/iccifort-2011.13.367-easybuild-devel"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -28,15 +28,15 @@ Sine this script will actually parse all easyconfigs and easyblocks
 it will only produce a list of Packages that can actually be handled
 correctly by easybuild.
 
-@author: Jens Timmerman (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 from datetime import date
 from optparse import OptionParser
 
-import easybuild.tools.build_log  # ensure use of EasyBuildLog
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import Githubfs
 from vsc.utils import fancylogger
 
@@ -101,7 +101,7 @@ else:
 # configure EasyBuild, by parsing options
 eb_go = eboptions.parse_options(args=args)
 config.init(eb_go.options, eb_go.get_options_by_section('config'))
-config.init_build_options({'validate': False})
+config.init_build_options({'validate': False, 'external_modules_metadata': {}})
 
 
 configs = []
@@ -125,7 +125,7 @@ for root, subfolders, files in walk(options.path):
             ec = EasyConfig(ec_file)
             log.info("found valid easyconfig %s" % ec)
             if not ec.name in names:
-                log.info("found new software package %s" % ec)
+                log.info("found new software package %s" % ec.name)
                 ec.easyblock = None
                 # check if an easyblock exists
                 ebclass = get_easyblock_class(None, name=ec.name, default_fallback=False)
@@ -136,7 +136,7 @@ for root, subfolders, files in walk(options.path):
                 configs.append(ec)
                 names.append(ec.name)
         except Exception, err:
-            log.error("faulty easyconfig %s: %s" % (ec_file, err))
+            raise EasyBuildError("faulty easyconfig %s: %s", ec_file, err)
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])
 # sort by name

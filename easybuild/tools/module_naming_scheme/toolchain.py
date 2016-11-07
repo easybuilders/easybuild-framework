@@ -1,11 +1,11 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,11 +25,12 @@
 """
 Toolchain querying support for module naming schemes.
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME
 
@@ -77,7 +78,7 @@ def det_toolchain_element_details(tc, elem):
         if tc_ec['name'] == elem:
             tc_elem_details = tc_ec
         else:
-            _log.error("No toolchain element '%s' found for toolchain %s: %s" % (elem, tc.as_dict(), tc_ec))
+            raise EasyBuildError("No toolchain element '%s' found for toolchain %s: %s", elem, tc.as_dict(), tc_ec)
     _toolchain_details_cache[key] = tc_elem_details
     _log.debug("Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict))
     return _toolchain_details_cache[key]
@@ -87,7 +88,7 @@ def det_toolchain_compilers(ec):
     """
     Determine compilers of toolchain for given EasyConfig instance.
 
-    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
     tc_elems = ec.toolchain.definition()
     if ec.toolchain.name == SYSTEM_TOOLCHAIN_NAME:
@@ -98,14 +99,15 @@ def det_toolchain_compilers(ec):
         tc_comps = None
     elif not TOOLCHAIN_COMPILER in tc_elems:
         # every toolchain should have at least a compiler
-        _log.error("No compiler found in toolchain %s: %s" % (ec.toolchain.as_dict(), tc_elems))
+        raise EasyBuildError("No compiler found in toolchain %s: %s", ec.toolchain.as_dict(), tc_elems)
     elif tc_elems[TOOLCHAIN_COMPILER]:
         tc_comps = []
         for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
             tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
     else:
-        _log.error("Empty list of compilers for %s toolchain definition: %s" % (ec.toolchain.as_dict(), tc_elems))
-    _log.debug("Found compilers %s for toolchain %s (%s)" % (tc_comps, ec.toolchain.name, ec.toolchain.as_dict()))
+        raise EasyBuildError("Empty list of compilers for %s toolchain definition: %s",
+                             ec.toolchain.as_dict(), tc_elems)
+    _log.debug("Found compilers %s for toolchain %s (%s)", tc_comps, ec.toolchain.name, ec.toolchain.as_dict())
 
     return tc_comps
 
@@ -114,12 +116,13 @@ def det_toolchain_mpi(ec):
     """
     Determine MPI library of toolchain for given EasyConfig instance.
 
-    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
     tc_elems = ec.toolchain.definition()
     if TOOLCHAIN_MPI in tc_elems:
         if not tc_elems[TOOLCHAIN_MPI]:
-            _log.error("Empty list of MPI libs for %s toolchain definition: %s" % (ec.toolchain.as_dict(), tc_elems))
+            raise EasyBuildError("Empty list of MPI libs for %s toolchain definition: %s",
+                                 ec.toolchain.as_dict(), tc_elems)
         # assumption: only one MPI toolchain element
         tc_mpi = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_MPI][0])
     else:
