@@ -336,7 +336,7 @@ def check_easy_install_cmd():
         debug("Checking %s..." % easy_install)
         res = False
         if os.path.exists(easy_install):
-            cmd = "PYTHONPATH='%s' %s --version" % (os.getenv('PYTHONPATH', ''), easy_install)
+            cmd = "PYTHONPATH='%s' %s %s --version" % (os.getenv('PYTHONPATH', ''), sys.executable, easy_install)
             os.system("%s > %s 2>&1" % (cmd, outfile))
             outtxt = open(outfile).read().strip()
             debug("Output of '%s':\n%s" % (cmd, outtxt))
@@ -591,7 +591,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         # ensure that (latest) setuptools is installed as well alongside EasyBuild,
         # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
         # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
-        preinstallopts += "easy_install -U --prefix %(installdir)s setuptools && "
+        preinstallopts += "%s $(which easy_install) -U --prefix %(installdir)s setuptools && " % sys.executable
 
     # vsc-install is a runtime dependency for the EasyBuild unit test suite,
     # and is easily picked up from stage1 rather than being actually installed, so force it
@@ -600,7 +600,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
         if len(vsc_install_tarball_paths) == 1:
             vsc_install = vsc_install_tarball_paths[0]
-    preinstallopts += "easy_install -U --prefix %%(installdir)s %s && " % vsc_install
+    preinstallopts += "%s $(which easy_install) -U --prefix %%(installdir)s %s && " % (sys.executable, vsc_install)
 
     templates.update({
         'preinstallopts': preinstallopts,
