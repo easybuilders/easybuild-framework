@@ -595,11 +595,11 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     # vsc-install is a runtime dependency for the EasyBuild unit test suite,
     # and is easily picked up from stage1 rather than being actually installed, so force it
-    vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
-    if len(vsc_install_tarball_paths) == 1:
-        vsc_install = vsc_install_tarball_paths[0]
-    else:
-        vsc_install = 'vsc-install'
+    vsc_install = 'vsc-install'
+    if sourcepath:
+        vsc_install_tarball_paths = glob.glob(os.path.join(sourcepath, 'vsc-install*.tar.gz'))
+        if len(vsc_install_tarball_paths) == 1:
+            vsc_install = vsc_install_tarball_paths[0]
     preinstallopts += "easy_install -U --prefix %%(installdir)s %s && " % vsc_install
 
     templates.update({
