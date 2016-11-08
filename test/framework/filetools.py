@@ -524,6 +524,10 @@ class FileToolsTest(EnhancedTestCase):
         os.environ['HOME'] = new_home
         self.assertEqual(ft.expand_glob_paths(['~/*.txt']), [os.path.join(new_home, 'test.txt')])
 
+        # check behaviour if glob that has no (file) matches is passed
+        glob_pat = os.path.join(self.test_prefix, 'test_*')
+        self.assertErrorRegex(EasyBuildError, "No files found using glob pattern", ft.expand_glob_paths, [glob_pat])
+
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
         # set umask hard to run test reliably
