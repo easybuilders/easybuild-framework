@@ -588,10 +588,15 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     preinstallopts = ''
 
     if distribute_egg_dir is not None:
+        # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
+        # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH;
+        # this is required for the easy_install from stage 1 to work
+        preinstallopts += "export PYTHONPATH=%s:$PYTHONPATH && " % distribute_egg_dir
+
         # ensure that (latest) setuptools is installed as well alongside EasyBuild,
         # since it is a required runtime dependency for recent vsc-base and EasyBuild versions
         # this is necessary since we provide our own distribute installation during the bootstrap (cfr. stage0)
-        preinstallopts += "%s $(which easy_install) -U --prefix %(installdir)s setuptools && " % sys.executable
+        preinstallopts += "%s $(which easy_install) -U --prefix %%(installdir)s setuptools && " % sys.executable
 
     # vsc-install is a runtime dependency for the EasyBuild unit test suite,
     # and is easily picked up from stage1 rather than being actually installed, so force it
