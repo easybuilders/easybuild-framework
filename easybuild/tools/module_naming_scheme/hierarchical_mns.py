@@ -50,7 +50,8 @@ COMP_NAME_VERSION_TEMPLATES = {
     'icc,ifort': ('intel', '%(icc)s'),
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
-    'CUDA,icc,ifort': ('intel-CUDA', '%(icc)s-%(CUDA)s'),
+    # icc+ifort is mapped to 'intel', so use CUDA+intel here
+    'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
 
@@ -186,7 +187,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                                 comp_versions.update({tc_comp_name: tc_comp_ver})
 
                         comp_ver_keys = re.findall(r'%\((\w+)\)s', comp_ver_tmpl)
-                        if all(comp_ver_key in comp_versions.keys() for comp_ver_key in comp_ver_keys):
+                        if all(comp_ver_key in comp_versions for comp_ver_key in comp_ver_keys):
                             comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
                             break
             else:
