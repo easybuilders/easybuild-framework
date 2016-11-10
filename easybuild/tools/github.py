@@ -252,7 +252,7 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     :return: latest SHA1
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
-                                          github_user=github_user, token=token)
+                                          github_user=github_user, token=token, per_page=GITHUB_MAX_PER_PAGE)
     if not status == HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)",
                              branch, account, repo, status, data)
@@ -264,7 +264,10 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
             break
 
     if res is None:
-        raise EasyBuildError("No branch with name %s found in repo %s/%s (%s)", branch, account, repo, data)
+        error_msg = "No branch with name %s found in repo %s/%s" % (branch, account, repo)
+        if len(data) >= GITHUB_MAX_PER_PAGE:
+            error_msg += "; only %d branches were checked (too many branches in %s/%s?)" % (len(data), account, repo)
+        raise EasyBuildError(error_msg + ': ' + ', '.join([x[u'name'] for x in data]))
 
     return res
 
