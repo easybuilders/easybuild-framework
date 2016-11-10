@@ -692,6 +692,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                       ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
             imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [],
                       [], ['Core']),
+            'impi-4.1.3.049-iccifortcuda-test.eb': ('impi/4.1.3.049', 'Compiler/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22',
+                                                    ['MPI/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22/impi/4.1.3.049'],
+                                                    ['MPI/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22/impi/4.1.3.049'],
+                                                    ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
