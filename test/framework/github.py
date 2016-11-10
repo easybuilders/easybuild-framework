@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -34,12 +34,15 @@ import random
 import re
 import shutil
 import string
+import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from urllib2 import URLError
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
+from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 import easybuild.tools.github as gh
 
@@ -131,7 +134,6 @@ class GithubTest(EnhancedTestCase):
         try:
             ec_files = gh.fetch_easyconfigs_from_pr(2481, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
             self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
-            self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in glob.glob(os.path.join(tmpdir, '*', '*'))]))
 
             # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
             err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
@@ -240,10 +242,43 @@ class GithubTest(EnhancedTestCase):
 
         self.assertTrue(gh.validate_github_token(self.github_token, GITHUB_TEST_ACCOUNT))
 
+    def test_find_easybuild_easyconfig(self):
+        """Test for find_easybuild_easyconfig function"""
+        if self.github_token is None:
+            print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
+            return
+        path = gh.find_easybuild_easyconfig()
+        expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
+        regex = re.compile(expected)
+        self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
+        self.assertTrue(os.path.exists(path), "Path %s exists" % path)
+
+    def test_find_patches(self):
+        """ Test for find_software_name_for_patch """
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        ec_path = os.path.join(testdir, 'easyconfigs')
+        init_config(build_options={
+            'allow_modules_tool_mismatch': True,
+            'minimal_toolchains': True,
+            'use_existing_modules': True,
+            'external_modules_metadata': ConfigObj(),
+            'robot_path': [ec_path],
+            'valid_module_classes': module_classes(),
+            'validate': False,
+        })
+        self.mock_stdout(True)
+        ec = gh.find_software_name_for_patch('toy-0.0_typo.patch')
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(ec == 'toy')
+        reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
+        self.assertTrue(re.search(reg, txt))
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(GithubTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

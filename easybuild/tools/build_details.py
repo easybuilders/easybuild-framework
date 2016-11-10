@@ -3,7 +3,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,8 +25,8 @@
 All required to provide details of build environment 
 and allow for reproducable builds
 
-@author: Kenneth Hoste (Ghent University)
-@author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import time
 from easybuild.tools.filetools import det_size

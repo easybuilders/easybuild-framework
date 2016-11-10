@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,8 +25,8 @@
 """
 Toolchain mpi module. Contains all MPI related classes
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import tempfile
@@ -34,6 +34,7 @@ import tempfile
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -175,21 +176,25 @@ class Mpi(Toolchain):
             'cmd': cmd,
         }
 
-        # different known mpirun commands
-        mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
-        mpi_cmds = {
-            toolchain.OPENMPI: mpirun_n_cmd,  # @UndefinedVariable
-            toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-            toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-            toolchain.MVAPICH2: mpirun_n_cmd,  # @UndefinedVariable
-            toolchain.MPICH: mpirun_n_cmd,  # @UndefinedVariable
-            toolchain.MPICH2: mpirun_n_cmd,  # @UndefinedVariable
-        }
+        mpi_cmd_template = build_option('mpi_cmd_template')
+        if mpi_cmd_template:
+            self.log.info("Using specified template for MPI commands: %s", mpi_cmd_template)
+        else:
+            # different known mpirun commands
+            mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
+            mpi_cmds = {
+                toolchain.OPENMPI: mpirun_n_cmd,  # @UndefinedVariable
+                toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                toolchain.MVAPICH2: mpirun_n_cmd,  # @UndefinedVariable
+                toolchain.MPICH: mpirun_n_cmd,  # @UndefinedVariable
+                toolchain.MPICH2: mpirun_n_cmd,  # @UndefinedVariable
+            }
 
         mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
+        if mpi_cmd_template is None and mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
             # set temporary dir for mdp
             # note: this needs to be kept *short*, to avoid mpirun failing with "socket.error: AF_UNIX path too long"
@@ -231,7 +236,16 @@ class Mpi(Toolchain):
 
             params.update({'nodesfile': "-machinefile %s" % fn})
 
-        if mpi_family in mpi_cmds.keys():
-            return mpi_cmds[mpi_family] % params
-        else:
-            raise EasyBuildError("Don't know how to create an MPI command for MPI library of type '%s'.", mpi_family)
+        if mpi_cmd_template is None:
+            if mpi_family in mpi_cmds.keys():
+                mpi_cmd_template = mpi_cmds[mpi_family]
+                self.log.info("Using template MPI command '%s' for MPI family '%s'", mpi_cmd_template, mpi_family)
+            else:
+                raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
+
+        try:
+            res = mpi_cmd_template % params
+        except KeyError as err:
+            raise EasyBuildError("Failed to complete MPI cmd template '%s' with %s: %s", mpi_cmd_template, params, err)
+
+        return res

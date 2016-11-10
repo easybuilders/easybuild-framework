@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,13 +25,13 @@
 """
 Easyconfig module that provides functionality for tweaking existing eaysconfig (.eb) files.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import copy
 import glob
@@ -94,18 +94,15 @@ def tweak(easyconfigs, build_specs, modtool, targetdir=None):
     # keep track of originally listed easyconfigs (via their path)
     listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
-    # obtain full dependency graph for specified easyconfigs
-    # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
-    orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
-
     # determine toolchain based on last easyconfigs
-    toolchain = orig_ecs[-1]['ec']['toolchain']
-    _log.debug("Filtering using toolchain %s" % toolchain)
+    if orig_ecs:
+        toolchain = orig_ecs[-1]['ec']['toolchain']
+        _log.debug("Filtering using toolchain %s" % toolchain)
 
-    # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
-    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
-        while orig_ecs[0]['ec']['toolchain'] != toolchain:
-            orig_ecs = orig_ecs[1:]
+        # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
+        if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+            while orig_ecs[0]['ec']['toolchain'] != toolchain:
+                orig_ecs = orig_ecs[1:]
 
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
@@ -272,8 +269,8 @@ def pick_version(req_ver, avail_vers):
     This function returns both the version to be used, which is equal to the required version
     if it was specified, and the version picked that matches that closest.
 
-    @param req_ver: required version
-    @param avail_vers: list of available versions
+    :param req_ver: required version
+    :param avail_vers: list of available versions
     """
 
     if not avail_vers:
@@ -306,9 +303,9 @@ def find_matching_easyconfigs(name, installver, paths):
     """
     Find easyconfigs that match specified name/installversion in specified list of paths.
 
-    @param name: software name
-    @param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
-    @param paths: list of paths to search easyconfigs in
+    :param name: software name
+    :param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
+    :param paths: list of paths to search easyconfigs in
     """
     ec_files = []
     for path in paths:
@@ -574,9 +571,9 @@ def obtain_ec_for(specs, paths, fp=None):
     Either select between available ones, or use the best suited available one
     to generate a new easyconfig file.
 
-    @param specs: list of available easyconfig files
-    @param paths: a list of paths where easyconfig files can be found
-    @param fp: the desired file name
+    :param specs: list of available easyconfig files
+    :param paths: a list of paths where easyconfig files can be found
+    :param fp: the desired file name
     """
 
     # ensure that at least name is specified

@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,9 +25,9 @@
 """
 Interface module to TORQUE (PBS).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from distutils.version import LooseVersion
 import os
@@ -111,7 +111,7 @@ class PbsPython(JobBackend):
         """
         Add a job to the queue.
 
-        @param dependencies: jobs on which this job depends.
+        :param dependencies: jobs on which this job depends.
         """
         if dependencies:
             job.add_dependencies(dependencies)

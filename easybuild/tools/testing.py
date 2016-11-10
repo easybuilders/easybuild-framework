@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -28,10 +28,10 @@ dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
 
-@author: Toon Willems (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Stijn De Weirdt (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -60,9 +60,9 @@ _log = fancylogger.getLogger('testing', fname=False)
 def regtest(easyconfig_paths, modtool, build_specs=None):
     """
     Run regression test, using easyconfigs available in given path
-    @param easyconfig_paths: path of easyconfigs to run regtest on
-    @param modtool: ModulesTool instance to use
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    :param easyconfig_paths: path of easyconfigs to run regtest on
+    :param modtool: ModulesTool instance to use
+    :param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
     cur_dir = os.getcwd()
@@ -280,11 +280,11 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state):
     """
     Upload/dump overall test report
-    @param ecs_with_res: processed easyconfigs with build result (success/failure)
-    @param orig_cnt: number of original easyconfig paths
-    @param success: boolean indicating whether all builds were successful
-    @param msg: message to be included in test report
-    @param init_session_state: initial session state info to include in test report
+    :param ecs_with_res: processed easyconfigs with build result (success/failure)
+    :param orig_cnt: number of original easyconfig paths
+    :param success: boolean indicating whether all builds were successful
+    :param msg: message to be included in test report
+    :param init_session_state: initial session state info to include in test report
     """
     dump_path = build_option('dump_test_report')
     pr_nr = build_option('from_pr')

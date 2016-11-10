@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,8 +25,8 @@
 """
 Implementation of a categorized module naming scheme using module classes.
 
-@author: Maxime Schmitt (University of Luxembourg)
-@author: Xavier Besseron (University of Luxembourg)
+:author: Maxime Schmitt (University of Luxembourg)
+:author: Xavier Besseron (University of Luxembourg)
 """
 
 import os
@@ -44,9 +44,8 @@ class CategorizedModuleNamingScheme(ModuleNamingScheme):
         """
         Determine full module name from given easyconfig, according to the thematic module naming scheme.
 
-        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
-
-        @return: string representing full module name, e.g.: 'biology/ABySS/1.3.4-goolf-1.4.10'
+        :param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
+        :return: string representing full module name, e.g.: 'biology/ABySS/1.3.4-goolf-1.4.10'
         """
         return os.path.join(ec['moduleclass'], ec['name'], det_full_ec_version(ec))
 

@@ -36,7 +36,7 @@
 """
 Implementation of a hierarchical module naming scheme using module classes.
 
-@author: Markus Geimer (Juelich Supercomputing Centre)
+:author: Markus Geimer (Juelich Supercomputing Centre)
 """
 
 import os

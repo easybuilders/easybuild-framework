@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -28,10 +28,11 @@ Unit tests for .yeb easyconfig format
 @author: Caroline De Brouwer (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
@@ -39,6 +40,7 @@ from easybuild.framework.easyconfig.format.yeb import is_yeb_format
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file, write_file
+
 
 try:
     import yaml
@@ -66,6 +68,14 @@ class YebTest(EnhancedTestCase):
             print "Skipping test_parse_yeb (no PyYAML available)"
             return
 
+        build_options = {
+            'check_osdeps': False,
+            'external_modules_metadata': {},
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs')
         test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
@@ -79,12 +89,14 @@ class YebTest(EnhancedTestCase):
             'SQLite-3.8.10.2-goolf-1.4.10',
             'Python-2.7.10-ictce-4.1.13',
             'CrayCCE-5.1.29',
+            'toy-0.0',
         ]
 
         for filename in test_files:
             ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
             # compare with parsed result of .eb easyconfig
-            ec_eb = EasyConfig(os.path.join(test_easyconfigs, '%s.eb' % filename))
+            ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
+            ec_eb = EasyConfig(ec_file)
 
             no_match = False
             for key in sorted(ec_yeb.asdict()):
@@ -105,7 +117,7 @@ class YebTest(EnhancedTestCase):
         self.assertTrue(is_yeb_format(test_yeb, None))
         self.assertTrue(is_yeb_format(None, raw_yeb))
 
-        test_eb = os.path.join(testdir, 'easyconfigs', 'gzip-1.4.eb')
+        test_eb = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
         raw_eb = read_file(test_eb)
 
         self.assertFalse(is_yeb_format(test_eb, None))
@@ -145,7 +157,7 @@ class YebTest(EnhancedTestCase):
         # only test bad cases - the right ones are tested with the test files in test_parse_yeb
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
-        expected = r'Can not convert list .* to name and version dict. Expected 2 elements'
+        expected = r'Can not convert list .* to toolchain dict. Expected 2 or 3 elements'
         self.assertErrorRegex(EasyBuildError, expected, EasyConfig, os.path.join(test_easyconfigs, 'bzip-bad-toolchain.yeb'))
 
     def test_external_module_toolchain(self):
@@ -174,7 +186,7 @@ class YebTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(YebTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(YebTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

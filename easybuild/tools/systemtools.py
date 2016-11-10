@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,7 +25,7 @@
 """
 Module with useful functions for getting system information
 
-@author: Jens Timmerman (Ghent University)
+:author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
 import fcntl
@@ -48,13 +48,28 @@ from easybuild.tools.run import run_cmd
 
 _log = fancylogger.getLogger('systemtools', fname=False)
 
-# constants
-AMD = 'AMD'
-ARM = 'ARM'
-IBM = 'IBM'
-INTEL = 'Intel'
+# Architecture constants
+AARCH32 = 'AArch32'
+AARCH64 = 'AArch64'
 POWER = 'POWER'
+X86_64 = 'x86_64'
 
+# Vendor constants
+AMD = 'AMD'
+APM = 'Applied Micro'
+ARM = 'ARM'
+BROADCOM = 'Broadcom'
+CAVIUM = 'Cavium'
+DEC = 'DEC'
+IBM = 'IBM'
+INFINEON = 'Infineon'
+INTEL = 'Intel'
+MARVELL = 'Marvell'
+MOTOROLA = 'Motorola/Freescale'
+NVIDIA = 'NVIDIA'
+QUALCOMM = 'Qualcomm'
+
+# OS constants
 LINUX = 'Linux'
 DARWIN = 'Darwin'
 
@@ -64,12 +79,40 @@ MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
-CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
-VENDORS = {
-    'ARM': ARM,
+CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER]
+CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+# ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
+# (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
+VENDOR_IDS = {
+    '0x41': ARM,
+    '0x42': BROADCOM,
+    '0x43': CAVIUM,
+    '0x44': DEC,
+    '0x49': INFINEON,
+    '0x4D': MOTOROLA,
+    '0x4E': NVIDIA,
+    '0x50': APM,
+    '0x51': QUALCOMM,
+    '0x56': MARVELL,
+    '0x69': INTEL,
     'AuthenticAMD': AMD,
     'GenuineIntel': INTEL,
     'IBM': IBM,
+}
+# ARM Cortex part numbers from the corresponding ARM Processor Technical Reference Manuals,
+# see http://infocenter.arm.com - Cortex-A series processors, Section "Main ID Register"
+ARM_CORTEX_IDS = {
+    '0xc05': 'Cortex-A5',
+    '0xc07': 'Cortex-A7',
+    '0xc08': 'Cortex-A8',
+    '0xc09': 'Cortex-A9',
+    '0xc0e': 'Cortex-A17',
+    '0xc0f': 'Cortex-A15',
+    '0xd03': 'Cortex-A53',
+    '0xd07': 'Cortex-A57',
+    '0xd08': 'Cortex-A72',
+    '0xd09': 'Cortex-A73',
 }
 
 
@@ -111,7 +154,7 @@ def get_total_memory():
     """
     Try to ascertain this node's total memory
 
-    @return: total memory as an integer, specifically a number of megabytes
+    :return: total memory as an integer, specifically a number of megabytes
     """
     memtotal = None
     os_type = get_os_type()
@@ -137,34 +180,75 @@ def get_total_memory():
     return memtotal
 
 
+def get_cpu_architecture():
+    """
+    Try to detect the CPU architecture
+
+    :return: a value from the CPU_ARCHITECTURES list
+    """
+    power_regex = re.compile("ppc64.*")
+    aarch64_regex = re.compile("aarch64.*")
+    aarch32_regex = re.compile("arm.*")
+
+    system, node, release, version, machine, processor = platform.uname()
+
+    arch = UNKNOWN
+    if machine == X86_64:
+        arch = X86_64
+    elif power_regex.match(machine):
+        arch = POWER
+    elif aarch64_regex.match(machine):
+        arch = AARCH64
+    elif aarch32_regex.match(machine):
+        arch = AARCH32
+
+    if arch == UNKNOWN:
+        _log.warning("Failed to determine CPU architecture, returning %s", arch)
+    else:
+        _log.debug("Determined CPU architecture: %s", arch)
+
+    return arch
+
+
 def get_cpu_vendor():
     """
     Try to detect the CPU vendor
 
-    @return: a value from the VENDORS dict
+    :return: a value from the CPU_VENDORS list
     """
     vendor = None
     os_type = get_os_type()
 
-    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
-        txt = read_file(PROC_CPUINFO_FP)
-        arch = UNKNOWN
+    if os_type == LINUX:
+        vendor_regex = None
 
-        vendor_regex = re.compile(r"(vendor_id.*?)?\s*:\s*(?P<vendor>(?(1)\S+|(?:IBM|ARM)))")
-        res = vendor_regex.search(txt)
-        if res:
-            arch = res.group('vendor')
-        if arch in VENDORS:
-            vendor = VENDORS[arch]
-            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
-                       vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
+        arch = get_cpu_architecture()
+        if arch == X86_64:
+            vendor_regex = re.compile(r"vendor_id\s+:\s*(\S+)")
+        elif arch == POWER:
+            vendor_regex = re.compile(r"model\s+:\s*(\w+)")
+        elif arch in [AARCH32, AARCH64]:
+            vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
+
+        if vendor_regex and os.path.exists(PROC_CPUINFO_FP):
+            vendor_id = None
+
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+            res = vendor_regex.search(proc_cpuinfo)
+            if res:
+                vendor_id = res.group(1)
+
+            if vendor_id in VENDOR_IDS:
+                vendor = VENDOR_IDS[vendor_id]
+                _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s",
+                           vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
         out, ec = run_cmd(cmd, force_in_dry_run=True)
         out = out.strip()
-        if ec == 0 and out in VENDORS:
-            vendor = VENDORS[out]
+        if ec == 0 and out in VENDOR_IDS:
+            vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
     if vendor is None:
@@ -177,7 +261,7 @@ def get_cpu_vendor():
 def get_cpu_family():
     """
     Determine CPU family.
-    @return: a value from the CPU_FAMILIES list
+    :return: a value from the CPU_FAMILIES list
     """
     family = None
     vendor = get_cpu_vendor()
@@ -186,11 +270,16 @@ def get_cpu_family():
         _log.debug("Using vendor as CPU family: %s" % family)
 
     else:
+        arch = get_cpu_architecture()
+        if arch in [AARCH32, AARCH64]:
+            # Custom ARM-based designs from other vendors
+            family = ARM
+
         # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
-        if os.path.exists(PROC_CPUINFO_FP):
-            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+        elif os.path.exists(PROC_CPUINFO_FP):
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
-            if power_regex.search(cpuinfo_txt):
+            if power_regex.search(proc_cpuinfo):
                 family = POWER
                 _log.debug("Determined CPU family using regex '%s' in %s: %s",
                            power_regex.pattern, PROC_CPUINFO_FP, family)
@@ -210,15 +299,33 @@ def get_cpu_model():
     os_type = get_os_type()
 
     if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
-        # we need 'model name' on Linux/x86, but 'model' is there first with different info
-        # 'model name' is not there for Linux/POWER, but 'model' has the right info
-        model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
-        txt = read_file(PROC_CPUINFO_FP)
-        res = model_regex.search(txt)
-        if res is not None:
-            model = res.group('model').strip()
-            _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
-                       model_regex.pattern, PROC_CPUINFO_FP, model)
+        proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+
+        arch = get_cpu_architecture()
+        if arch in [AARCH32, AARCH64]:
+            # On ARM platforms, no model name is provided in /proc/cpuinfo.  However, for vanilla ARM cores
+            # we can reverse-map the part number.
+            vendor = get_cpu_vendor()
+            if vendor == ARM:
+                model_regex = re.compile(r"CPU part\s+:\s*(\S+)", re.M)
+                # There can be big.LITTLE setups with different types of cores!
+                model_ids = model_regex.findall(proc_cpuinfo)
+                if model_ids:
+                    id_list = []
+                    for model_id in sorted(set(model_ids)):
+                        id_list.append(ARM_CORTEX_IDS.get(model_id, UNKNOWN))
+                    model = vendor + ' ' + ' + '.join(id_list)
+                    _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
+                               model_regex.pattern, PROC_CPUINFO_FP, model)
+        else:
+            # we need 'model name' on Linux/x86, but 'model' is there first with different info
+            # 'model name' is not there for Linux/POWER, but 'model' has the right info
+            model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
+            res = model_regex.search(proc_cpuinfo)
+            if res is not None:
+                model = res.group('model').strip()
+                _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s",
+                           model_regex.pattern, PROC_CPUINFO_FP, model)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
@@ -252,10 +359,10 @@ def get_cpu_speed():
         # Linux without cpu scaling
         elif os.path.exists(PROC_CPUINFO_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
-            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER
             cpu_freq_regex = re.compile(r"^(?:cpu MHz|clock)\s*:\s*(?P<cpu_freq>\d+(?:\.\d+)?)", re.M)
-            res = cpu_freq_regex.search(cpuinfo_txt)
+            res = cpu_freq_regex.search(proc_cpuinfo)
             if res:
                 cpu_freq = float(res.group('cpu_freq'))
                 _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
@@ -575,7 +682,7 @@ def det_parallelism(par=None, maxpar=None):
 def det_terminal_size():
     """
     Determine the current size of the terminal window.
-    @return: tuple with terminal width and height
+    :return: tuple with terminal width and height
     """
     # see http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
     try:

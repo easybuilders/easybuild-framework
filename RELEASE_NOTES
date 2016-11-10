@@ -3,6 +3,150 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.9.0 (September 23rd 2016)
+----------------------------
+
+feature release
+- note: vsc-base 2.5.4 or more recent is now required
+- various small enhancements, including:
+    - change option `--color` choices to auto/always/never (#1701, #1898, #1911)
+    - add support for 'hidden' easyconfig parameter (#1837)
+    - add support for using ccache and f90cache compiler caching tools (#1844, #1912)
+        - see --use-ccache and --use-f90cache
+    - update Cray metadata for 16.06 CrayPE release (#1851)
+    - also include patch files in --new-pr and --update-pr (#1852)
+    - handle deleted files in --new-pr (#1853)
+    - add support for --install-latest-eb-release (#1861)
+    - add support for hiding toolchains, see --hide-toolchains and 'hidden' key in 'toolchain' spec (#1871)
+    - add template for GitHub source URL (#1872)
+    - add support for combining --new-pr/--update-pr and --robot (#1881)
+    - add support for --list-software and --list-installed-software (#1883, #1910, #1917)
+    - print message on which extension is being installed, incl. progress counter (#1886, #1914)
+    - add support for --github-org to specify GitHub organisation rather than GitHub user (#1894)
+    - add support for running Lmod in debug mode (#1895)
+    - avoid needless use of deepcopy, speed up support for templating in easyconfigs (#1897)
+    - convert all_dependencies to a property in EasyConfig class (#1909)
+    - add support for --mpi-cmd-template (#1918)
+    - add support for --disable-mpi-tests (#1920)
+- various bug fixes, including:
+    - merge with develop when using --from-pr (#1838, #1867)
+    - ensure --new-pr doesn't open empty pull requests (#1846)
+    - better error handling for outdated GitPython module in --check-github (#1847)
+    - fix formatting for generated easyblocks documentation (#1860)
+    - make sure the robot ignores filtered dependencies (#1862)
+    - honor --filter-deps under --minimal-toolchains (#1863)
+    - correct format for 'param' and 'author' tags in docstrings (#1866)
+    - ignore failing bootstrap test in Travis config file (#1870)
+    - make sure all output of executed command is included in generated temporary log file (#1873, #1874)
+    - ensure --show_hidden is used in the correct location for 'avail' with Lmod (#1875)
+    - make sure self.path is passed down in copy method of EasyConfig object (#1884)
+    - take into account possible multi-line modloadmsg in ModuleGeneratorLua (#1885)
+    - fix extracting .bz2 source files (#1889)
+    - don't resolve path to Lmod command (#1892)
+    - fix skipping of stage 0 in bootstrap script (#1893)
+    - fix function signature of log.deprecated compared to fancylogger.deprecated (#1896, #1899)
+    - apply patch to Tcl/C environment modules tool for Tcl 8.6 support in Travis config (#1901)
+    - fix combining --extended-dry-run with --from-pr (#1902)
+    - also template dict keys (#1904)
+    - don't pass '--try-*' command-line options to EB instance running within job script (#1908)
+    - add workaround for incorrectly passing command line arguments with --job (#1915)
+    - fix issues with --module-only (#1919, #1924, #1925)
+        - correctly deal with specified start_dir
+        - do not remove installation directory when build-in-installdir is enabled
+    - make sure 'which' function returns path to a file (#1921)
+    - fix :param:, :return: tags in docstrings & add test for it (#1923)
+
+
+v2.8.2 (July 13th 2016)
+-----------------------
+
+bugfix release
+- various small enhancements, including:
+    - add support for rst output for --list-* and --avail-* (#1339)
+    - add support for 'eb --check-conflicts' (#1747, #1807, #1833)
+    - ensure nice error message when non-existing path is passed to apply_regex_substitutions (#1788)
+    - add check for module output, empty stdout is a sign of trouble with Lmod (#1793)
+    - add multi-threaded FFT to toolchain (#1802)
+    - avoid special characters like '[', ']' in path to temporary directory (#1808)
+    - add support for --zip-logs (#1820)
+    - add support for --extra-modules (#1821)
+    - add type conversion for 'checksums' and 'patches' parameter in .yeb easyconfigs (#1826, #1840)
+    - add support for filtering tests by name (#1828)
+    - add support for --avail-toolchain-opts (#1830, #1839)
+    - use absolute path for robot and easyconfig files (#1834)
+    - add backup URL for tarballs hosted on SourceForge in install_eb_deps.sh script (#1843)
+- various bug fixes, including:
+    - fix installation of Lua in install_eb_dep.sh script (#1789)
+    - fix OpenMP flag for Cray compiler wrappers (#1794)
+    - only reset $MODULEPATH before loading a module if environment was reset (#1795)
+    - include vsc-install as dependency in setup.py (#1805)
+    - cache $PATH & $PYTHONPATH in test setUp, restore them in tests where 'eb' is used (#1806)
+    - don't reset $MODULEPATH in stage 2 of bootstrap script, support forced installation during stage 2 (#1810)
+    - fix issue with templates defined by deps being required while still parsing deps (#1812)
+    - skip unneeded unuse/use commands on tail of $MODULEPATH in check_module_path (#1813)
+    - fix auto-convert for all *dependencies params in .yeb easyconfigs, ensure version is a string (#1818)
+    - fix keyring version in Travis config (#1819)
+    - fix dumping of .yeb easyconfig files in easyconfigs archive (#1822)
+    - fix format of supported easyconfig templates in help output (#1825)
+    - stick to pydot 1.1.0 for Python 2.6 in Travis config (#1827)
+
+
+v2.8.1 (May 30th 2016)
+----------------------
+
+bugfix release
+- various bug fixes, including:
+    - fix error message on missing module command in bootstrap script (#1772)
+    - expand ~ in paths specified to --include-* (#1774)
+    - break after deleting cache entry to avoid attempt to delete cache entry again (#1776)
+    - avoid changing $MODULEPATH when prepending with symlink of path already at head of $MODULEPATH (#1777)
+    - filter out duplicates in find_flexlm_license (#1779)
+    - stick with GitPython < 2.0 with Py2.6 in Travis configuration (#1781)
+    - don't use LooseVersion to define version_major/version_minor (#1783)
+
+v2.8.0 (May 18th 2016)
+----------------------
+
+feature + bugfix release
+- significant speedup improvements of EasyBuild itself, thanks to:
+    - stop creating ModulesTool instances over and over again (#1735)
+    - cache result of 'module avail' calls (#1742)
+- add support for using PGI as toolchain compiler (#1342, #1664, #1759, #1761, #1764)
+    - incl. new toolchain definitions pompi and pomkl (#1724)
+- add test configuration for Travis (#1733, #1737, #1743, #1767)
+- various other enhancements, including:
+    - add get_total_memory() function in systemtools module (#1623)
+    - ignore __init__.py files in --include-* (#1704)
+    - use -fopenmp rather than -openmp for Intel compilers, since -openmp is deprecated (#1718)
+    - add modules to metadata for Cray modules (#1721)
+    - make sure user write permissions are set after failed removal attempt of installation directory (#1722)
+    - escape special characters in software name in find_related_easyconfigs (#1726)
+    - add support for CrayPGI compiler toolchain (#1729)
+    - ensure read permission to all installed files for everybody (unless other options specify otherwise) (#1731)
+    - also consider $LMOD_CMD in bootstrap script (#1736)
+    - translate PyPI download URL to alternate URL with a hash (#1749)
+    - make get_software_libdir compatible with -x (#1750)
+    - set $LMOD_REDIRECT to 'no' when initialising Lmod (#1755)
+    - add test for broken modules tool setup affecting 'module use' (#1758)
+- various bug fixes, including:
+    - isolate 'options' tests from easyblocks other than the ones included in the tests (#1699)
+    - don't run 'module purge' in tests, since EasyBuild may be made available through a module (#1702)
+    - avoid rehandling --include-* options over and over again during --show-config (#1705)
+    - remove useless test_cwd (#1706)
+    - fix bootstrap script: make sure setuptools installed in stage0 is still available at end of stage1 (#1727)
+    - forcibly create target branch in --update-pr (#1728)
+    - remove check whether 'easybuild' is being imported from dir that contains easybuild/__init__.py (#1730)
+    - (re)install vsc-base during stage1 using --always-copy in bootstrap script, if needed (#1732)
+    - use os.path.realpath in test_wrong_modulepath to avoid symlinked path breaking the test (#1740)
+    - unset $PYTHONPATH in before tested bootstrapped EasyBuild module (#1743)
+    - take into account that paths in modulepath may be symlinks in test_module_caches (#1745)
+    - change to install dir rather than buildpath in sanity check of extension, latter may not exist (#1746, #1748)
+    - only load modules using short module names (#1754)
+    - (re)load modules for build deps in extensions_step (#1762)
+    - fix modpath_extensions_for method: take into account modules in Lua syntax (#1766)
+    - fix broken link to VSC website in license headers (#1768)
+
+
 v2.7.0 (March 20th 2016)
 ------------------------
 

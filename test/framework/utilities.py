@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -26,6 +26,7 @@
 Various test utility functions.
 
 @author: Kenneth Hoste (Ghent University)
+@author Caroline De Brouwer (Ghent University)
 """
 import copy
 import fileinput
@@ -34,6 +35,7 @@ import re
 import shutil
 import sys
 import tempfile
+import unittest
 from pkg_resources import fixup_namespace_packages
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
@@ -122,7 +124,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
@@ -175,6 +177,13 @@ class EnhancedTestCase(_EnhancedTestCase):
         test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
         easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
 
+        # save values of $PATH & $PYTHONPATH, so they can be restored later
+        # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
+        # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
+        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
+        self.env_path = os.environ['PATH']
+        self.env_pythonpath = os.environ['PYTHONPATH']
+
         self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
         reset_module_caches()
@@ -218,6 +227,13 @@ class EnhancedTestCase(_EnhancedTestCase):
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
 
+    def restore_env_path_pythonpath(self):
+        """
+        Restore $PATH & $PYTHONPATH in environment using saved values.
+        """
+        os.environ['PATH'] = self.env_path
+        os.environ['PYTHONPATH'] = self.env_pythonpath
+
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
         for modpath in curr_module_paths():
@@ -225,7 +241,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        os.environ['MODULEPATH'] = ''
+        if 'MODULEPATH' in os.environ:
+            del os.environ['MODULEPATH']
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()
@@ -314,6 +331,17 @@ class EnhancedTestCase(_EnhancedTestCase):
                               line)
                 sys.stdout.write(line)
 
+        # make sure paths for 'module use' commands exist; required for modulecmd
+        mod_subdirs = [
+            os.path.join('Compiler', 'GCC', '4.7.2'),
+            os.path.join('Compiler', 'GCC', '4.8.3'),
+            os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+            os.path.join('MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
+        ]
+        for mod_subdir in mod_subdirs:
+            mkdir(os.path.join(mod_prefix, mod_subdir), parents=True)
+
     def setup_categorized_hmns_modules(self):
         """Setup categorized hierarchical modules to run tests on."""
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
@@ -343,6 +371,31 @@ class EnhancedTestCase(_EnhancedTestCase):
                               r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
+
+
+class TestLoaderFiltered(unittest.TestLoader):
+    """Test load that supports filtering of tests based on name."""
+
+    def loadTestsFromTestCase(self, test_case_class, filters):
+        """Return a suite of all tests cases contained in test_case_class."""
+
+        test_case_names = self.getTestCaseNames(test_case_class)
+        test_cnt = len(test_case_names)
+        retained_test_names = []
+        if len(filters) > 0:
+            for test_case_name in test_case_names:
+                if any(filt in test_case_name for filt in filters):
+                    retained_test_names.append(test_case_name)
+
+            retained_tests = ', '.join(retained_test_names)
+            tup = (test_case_class.__name__, '|'.join(filters), len(retained_test_names), test_cnt, retained_tests)
+            print "Filtered %s tests using '%s', retained %d/%d tests: %s" % tup
+
+            test_cases = [test_case_class(t) for t in retained_test_names]
+        else:
+            test_cases = [test_case_class(test_case_name) for test_case_name in test_case_names]
+
+        return self.suiteClass(test_cases)
 
 
 def cleanup():

@@ -28,7 +28,7 @@ Sine this script will actually parse all easyconfigs and easyblocks
 it will only produce a list of Packages that can actually be handled
 correctly by easybuild.
 
-@author: Jens Timmerman (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 from datetime import date
 from optparse import OptionParser

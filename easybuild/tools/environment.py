@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,8 +25,8 @@
 """
 Utility module for modifying os.environ
 
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
@@ -85,7 +85,7 @@ def setvar(key, value, verbose=True):
     put key in the environment with value
     tracks added keys until write_changes has been called
 
-    @param verbose: include message in dry run output for defining this environment variable
+    :param verbose: include message in dry run output for defining this environment variable
     """
     if key in os.environ:
         oldval_info = "previous value: '%s'" % os.environ[key]
@@ -137,8 +137,8 @@ def restore_env_vars(env_keys):
 def read_environment(env_vars, strict=False):
     """
     Read variables from the environment
-        @param: env_vars: a dict with key a name, value a environment variable name
-        @param: strict, boolean, if True enforces that all specified environment variables are found
+    :param env_vars: a dict with key a name, value a environment variable name
+    :param strict: boolean, if True enforces that all specified environment variables are found
     """
     result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
 

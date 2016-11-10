@@ -37,8 +37,8 @@ harder example, adding someone as copyright holder to all .py files in a source 
     python addheader.py licenseheader.txt src/ ".*\.py" "^((?!includes).)*$" "# Copyright .* Jens Timmerman*"
 where licenseheader.txt contains '# Copyright 2012 Jens Timmerman'
 
-@author: Jens Timmerman (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 import re

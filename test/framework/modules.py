@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -34,8 +34,10 @@ import os
 import re
 import tempfile
 import shutil
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from distutils.version import StrictVersion
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
@@ -43,8 +45,9 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import Lmod, get_software_root, get_software_version, get_software_libdir
-from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
+from easybuild.tools.modules import Lmod, curr_module_paths, get_software_root, get_software_version
+from easybuild.tools.modules import get_software_libdir, invalidate_module_caches_for, modules_tool
+from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
@@ -101,7 +104,15 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
-        self.assertEqual(len(ms), TEST_MODULES_COUNT)
+
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+            # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
+            self.assertTrue('bzip2/.1.0.6' in ms)
+            self.assertTrue('toy/.0.0-deps' in ms)
+            self.assertTrue('OpenMPI/.1.6.4-GCC-4.6.4' in ms)
+        else:
+            self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
     def test_exists(self):
         """Test if testing for module existence works."""
@@ -154,11 +165,37 @@ class ModulesTest(EnhancedTestCase):
 
         # trying to load a module not on the top level of a hierarchy should fail
         mods = [
-            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
-            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing dep
+            # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
+            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',
+            # missing dep
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',
         ]
         for mod in mods:
             self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [mod])
+
+    def test_prepend_module_path(self):
+        """Test prepend_module_path method."""
+        test_path = tempfile.mkdtemp(prefix=self.test_prefix)
+        self.modtool.prepend_module_path(test_path)
+        self.assertTrue(os.path.samefile(curr_module_paths()[0], test_path))
+
+        # prepending same path again is fine, no changes to $MODULEPATH
+        modulepath = curr_module_paths()
+        self.modtool.prepend_module_path(test_path)
+        self.assertEqual(modulepath, curr_module_paths())
+
+        # prepending path that is 'deeper down' in $MODULEPATH works, brings it back to front
+        test_mods_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        self.assertTrue(any(os.path.samefile(test_mods_dir, p) for p in modulepath))
+        self.modtool.prepend_module_path(test_mods_dir)
+        self.assertTrue(os.path.samefile(curr_module_paths()[0], test_mods_dir))
+
+        # prepending path that is a symlink to the current head of $MODULEPATH is a no-op
+        modulepath = curr_module_paths()
+        symlink_path = os.path.join(self.test_prefix, 'symlink_modules')
+        os.symlink(modulepath[0], symlink_path)
+        self.modtool.prepend_module_path(symlink_path)
+        self.assertEqual(modulepath, curr_module_paths())
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
@@ -298,6 +335,119 @@ class ModulesTest(EnhancedTestCase):
         path = self.modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+    def test_path_to_top_of_module_tree_lua(self):
+        """Test path_to_top_of_module_tree function on modules in Lua syntax."""
+        if isinstance(self.modtool, Lmod):
+            orig_modulepath = os.environ.get('MODULEPATH')
+            self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+            curr_modulepath = os.environ.get('MODULEPATH')
+            error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
+            self.assertEqual(curr_modulepath, None, error_msg)
+
+            top_moddir = os.path.join(self.test_prefix, 'test_modules')
+            core_dir = os.path.join(top_moddir, 'Core')
+            mkdir(core_dir, parents=True)
+            self.modtool.use(core_dir)
+            self.assertTrue(os.path.samefile(os.environ.get('MODULEPATH'), core_dir))
+
+            # install toy modules in Lua syntax that are sufficient to test path_to_top_of_module_tree with
+            intel_mod_dir = os.path.join(top_moddir, 'Compiler', 'intel', '2016')
+            intel_mod = 'prepend_path("MODULEPATH", "%s")\n' % intel_mod_dir
+            write_file(os.path.join(core_dir, 'intel', '2016.lua'), intel_mod)
+
+            impi_mod_dir = os.path.join(top_moddir, 'MPI', 'intel', '2016', 'impi', '2016')
+            impi_mod = 'prepend_path("MODULEPATH", "%s")\n' % impi_mod_dir
+            write_file(os.path.join(intel_mod_dir, 'impi', '2016.lua'), impi_mod)
+
+            imkl_mod = 'io.stderr:write("Hi from the imkl module")\n'
+            write_file(os.path.join(impi_mod_dir, 'imkl', '2016.lua'), imkl_mod)
+
+            self.assertEqual(self.modtool.available(), ['intel/2016'])
+
+            imkl_deps = ['intel/2016', 'impi/2016']
+
+            # modules that compose toolchain are expected to be loaded
+            self.modtool.load(imkl_deps)
+
+            res = self.modtool.path_to_top_of_module_tree(core_dir, 'imkl/2016', impi_mod_dir, imkl_deps)
+            self.assertEqual(res, ['impi/2016', 'intel/2016'])
+
+        else:
+            print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
+
+    def test_modpath_extensions_for(self):
+        """Test modpath_extensions_for method."""
+        self.setup_hierarchical_modules()
+
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        expected = {
+            'GCC/4.7.2': [os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2')],
+            'OpenMPI/1.6.4': [os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')],
+            'FFTW/3.3.3': [],
+        }
+        res = self.modtool.modpath_extensions_for(['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3'])
+        self.assertEqual(res, expected)
+
+        expected = {
+            'icc/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
+            'ifort/2013.5.192-GCC-4.8.3': [os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3')],
+        }
+        res = self.modtool.modpath_extensions_for(['icc/2013.5.192-GCC-4.8.3', 'ifort/2013.5.192-GCC-4.8.3'])
+        self.assertEqual(res, expected)
+
+        # error for non-existing modules
+        error_pattern = "Can't get value from a non-existing module"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
+
+        # test result in case conditional loads are used
+        test_mod = 'test-modpaths/1.2.3.4'
+        test_modfile = os.path.join(mod_dir, test_mod)
+        test_modtxt = '\n'.join([
+            '#%Module',
+            "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
+            # quoted path
+            'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
+            # using prepend-path & quoted
+            ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
+            # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
+            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
+            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            "}",
+        ])
+        write_file(test_modfile, test_modtxt)
+
+        expected = {
+            test_mod: [
+                os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
+                os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
+                os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+                os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+            ]
+        }
+        self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
+
+        # also test with module file in Lua syntax if Lmod is used as modules tool
+        if isinstance(self.modtool, Lmod):
+
+            test_mod = 'test-modpaths-lua/1.2.3.4'
+            test_modfile = os.path.join(mod_dir, test_mod + '.lua')
+
+            test_modtxt = '\n'.join([
+                # indented without guard
+                '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
+                'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
+                'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
+                # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
+                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
+                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                'end',
+            ])
+            write_file(test_modfile, test_modtxt)
+
+            expected = {test_mod: expected['test-modpaths/1.2.3.4']}
+
+            self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
+
     def test_path_to_top_of_module_tree_categorized_hmns(self):
         """
         Test function to determine path to top of the module tree for a categorized hierarchical module naming
@@ -425,6 +575,13 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(any([os.path.samefile(nonpath, mp) for mp in modulepaths]))
         shutil.rmtree(nonpath)
 
+        # create symlink to entry in $MODULEPATH we're going to use, and add it to $MODULEPATH
+        # invalidate_module_caches_for should be able to deal with this
+        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        mods_symlink = os.path.join(self.test_prefix, 'modules_symlink')
+        os.symlink(test_mods_path, mods_symlink)
+        self.modtool.use(mods_symlink)
+
         # no caching for 'avail' commands with an argument
         self.assertTrue(self.modtool.available('GCC'))
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
@@ -454,21 +611,77 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(self.modtool.show('FFTW') is show_res_fftw)
 
         # invalidate caches with correct path
-        modpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(modpath, mp) for mp in modulepaths]))
+        self.assertTrue(any([os.path.exists(mp) and os.path.samefile(test_mods_path, mp) for mp in modulepaths]))
         paths_in_key = [p for p in avail_cache_key[0].split('=')[1].split(os.pathsep) if p]
-        self.assertTrue(any([os.path.exists(p) and os.path.samefile(modpath, p) for p in paths_in_key]))
+        self.assertTrue(any([os.path.exists(p) and os.path.samefile(test_mods_path, p) for p in paths_in_key]))
 
         # verify cache invalidation, caches should be empty again
-        invalidate_module_caches_for(modpath)
+        invalidate_module_caches_for(test_mods_path)
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
+
+    def test_module_use_bash(self):
+        """Test whether effect of 'module use' is preserved when a new bash session is started."""
+        # this test is here as check for a nasty bug in how the modules tool is deployed
+        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1756,
+        # https://bugzilla.redhat.com/show_bug.cgi?id=1326075
+        modules_dir = os.path.abspath(os.path.join(self.test_prefix, 'modules'))
+        self.assertFalse(modules_dir in os.environ['MODULEPATH'])
+
+        mkdir(modules_dir, parents=True)
+        self.modtool.use(modules_dir)
+        modulepath = os.environ['MODULEPATH']
+        self.assertTrue(modules_dir in modulepath)
+
+        out, _ = run_cmd("bash -c 'echo MODULEPATH: $MODULEPATH'", simple=False)
+        self.assertEqual(out.strip(), "MODULEPATH: %s" % modulepath)
+        self.assertTrue(modules_dir in out)
+
+    def test_load_in_hierarchy(self):
+        """Test whether loading a module in a module hierarchy results in loading the correct module."""
+        self.setup_hierarchical_modules()
+
+        mod_dir = os.path.join(self.test_installpath, 'modules', 'all')
+        core_mod_dir = os.path.join(mod_dir, 'Core')
+
+        # create an extra (dummy) hwloc module in Core
+        hwloc_mod = os.path.join(core_mod_dir, 'hwloc', '1.6.2')
+        write_file(hwloc_mod, "#%Module\nsetenv EBROOTHWLOC /path/to/dummy/hwloc")
+
+        # set up $MODULEPATH to point to top of hierarchy
+        self.modtool.use(core_mod_dir)
+
+        self.assertEqual(os.environ.get('EBROOTHWLOC'), None)
+
+        # check whether dummy hwloc is loaded
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertEqual(os.environ['EBROOTHWLOC'], '/path/to/dummy/hwloc')
+
+        # make sure that compiler-dependent hwloc test module exists
+        gcc_mod_dir = os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2')
+        self.assertTrue(os.path.exists(os.path.join(gcc_mod_dir, 'hwloc', '1.6.2')))
+
+        # test loading of compiler-dependent hwloc test module
+        self.modtool.purge()
+        self.modtool.use(gcc_mod_dir)
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
+
+        # ensure that correct module is loaded when hierarchy is defined by loading the GCC module
+        # (side-effect is that ModulesTool instance doesn't track the change being made to $MODULEPATH)
+        # verifies bug fixed in https://github.com/hpcugent/easybuild-framework/pull/1795
+        self.modtool.purge()
+        self.modtool.unuse(gcc_mod_dir)
+        self.modtool.load(['GCC/4.7.2'])
+        self.assertEqual(os.environ['EBROOTGCC'], '/tmp/software/Core/GCC/4.7.2')
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModulesTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

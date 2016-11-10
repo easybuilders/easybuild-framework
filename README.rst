@@ -38,20 +38,12 @@ The code in the ``vsc`` directory originally comes from the *vsc-base* package
 
 *Build status overview:*
 
-* **master** branch *(Python 2.4, Python 2.6, Python 2.7)*
+* **master** branch:
 
-  .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python24/badge/icon
-      :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python24/
-  .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master/badge/icon
-      :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master/
-  .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python27/badge/icon
-      :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python27/
+  .. image:: https://travis-ci.org/hpcugent/easybuild-framework.svg?branch=master
+      :target: https://travis-ci.org/hpcugent/easybuild-framework/branches
 
-* **develop** branch *(Python 2.4, Python 2.6, Python 2.7)*
+* **develop** branch:
 
-  .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python24/badge/icon
-      :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python24/
-  .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop/badge/icon
-      :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop/
-  .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python27/badge/icon
-      :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python27/
+  .. image:: https://travis-ci.org/hpcugent/easybuild-framework.svg?branch=develop
+      :target: https://travis-ci.org/hpcugent/easybuild-framework/branches

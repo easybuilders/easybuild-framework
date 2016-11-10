@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -26,7 +26,7 @@
 """
 This module implements all supported formats and their converters 
 
-@author: Stijn De Weirdt (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
 """
 import re
 
@@ -64,8 +64,8 @@ class Convert(Wrapper):
 
     def _split_string(self, txt, sep=None, max=0):
         """Split using sep, return list with results.
-            @param sep: if not provided, self.SEPARATOR is tried
-            @param max: split in max+1 elements (default: 0 == no limit)
+            :param sep: if not provided, self.SEPARATOR is tried
+            :param max: split in max+1 elements (default: 0 == no limit)
         """
         if sep is None:
             if self.SEPARATOR is None:
