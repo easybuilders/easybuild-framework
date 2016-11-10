@@ -684,6 +684,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                          ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
             'CUDA-5.5.22.eb': ('CUDA/5.5.22', 'Core', [],
                                [], ['Core']),
+            'CUDA-5.5.22-iccifort-2013.5.192-GCC-4.8.3.eb': ('CUDA/5.5.22', 'Compiler/intel/2013.5.192-GCC-4.8.3',
+                                                             [], [], ['Core']),
             impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/4.1.3.049' % iccver],
                       ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
             imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [],
