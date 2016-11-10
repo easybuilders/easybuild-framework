@@ -111,8 +111,8 @@ class IntelIccIfort(Compiler):
             raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
                                  self.COMPILER_MODULE_NAME)
 
-        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
+        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)[0:2]
+        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
 
         if not ifort_version == icc_version:
             raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
@@ -133,7 +133,7 @@ class IntelIccIfort(Compiler):
     def set_variables(self):
         """Set the variables."""
         # -fopenmp is not supported in old versions (11.x)
-        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)
+        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
         if LooseVersion(icc_version) < LooseVersion('12'):
             self.options.options_map['openmp'] = 'openmp'
 
