@@ -384,7 +384,15 @@ def find_easyconfigs(path, ignore_dirs=None):
 
 def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filename_only=False, terse=False):
     """
-    Search for a particular file (only prints)
+    Search for files using in specified paths using specified search query (regular expression)
+
+    :param paths: list of paths to search in
+    :param query: search query to use (regular expression); will be used case-insensitive
+    :param short: figure out common prefix of hits, use variable to factor it out
+    :param ignore_dirs: list of directories to ignore (default: ['.git', '.svn'])
+    :param silent: whether or not to remain silent (don't print anything)
+    :param filename_only: only return filenames, not file paths
+    :param terse: stick to terse (machine-readable) output, as opposed to pretty-printing
     """
     if ignore_dirs is None:
         ignore_dirs = ['.git', '.svn']
@@ -395,27 +403,25 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     # compile regex, case-insensitive
     query = re.compile(query, re.I)
 
-    var_lines = []
-    hit_lines = []
+    var_defs = []
+    hits = []
     var_index = 1
     var = None
     for path in paths:
-        hits = []
-        hit_in_path = False
+        path_hits = []
         if not terse:
             print_msg("Searching (case-insensitive) for '%s' in %s " % (query.pattern, path), log=_log, silent=silent)
 
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
                 if query.search(filename):
-                    if not hit_in_path:
+                    if not path_hits:
                         var = "CFGS%d" % var_index
                         var_index += 1
-                        hit_in_path = True
                     if filename_only:
-                        hits.append(filename)
+                        path_hits.append(filename)
                     else:
-                        hits.append(os.path.join(dirpath, filename))
+                        path_hits.append(os.path.join(dirpath, filename))
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
@@ -423,22 +429,17 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
             dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
-        hits = sorted(hits)
+        path_hits = sorted(path_hits)
 
-        if hits and not terse:
-            common_prefix = det_common_path_prefix(hits)
-            if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_lines.append("%s=%s" % (var, common_prefix))
-                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in hits])
+        if path_hits:
+            common_prefix = det_common_path_prefix(path_hits)
+            if not terse and short and common_prefix is not None and len(common_prefix) > len(var) * 2:
+                var_defs.append((var, common_prefix))
+                hits.extend([os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in path_hits])
             else:
-                hit_lines.extend([" * %s" % fn for fn in hits])
+                hits.extend(path_hits)
 
-    if terse:
-        for line in hits:
-            print(line)
-    else:
-        for line in var_lines + hit_lines:
-            print_msg(line, log=_log, silent=silent, prefix=False)
+    return var_defs, hits
 
 
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
@@ -960,7 +961,11 @@ def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []
     for glob_path in glob_paths:
-        paths.extend([f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)])
+        add_paths = [f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)]
+        if add_paths:
+            paths.extend(add_paths)
+        else:
+            raise EasyBuildError("No files found using glob pattern '%s'", glob_path)
 
     return nub(paths)
 

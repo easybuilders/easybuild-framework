@@ -3,18 +3,19 @@ python: 2.6
 env:
   matrix:
     # purposely specifying slowest builds first, to gain time overall
-    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
-    - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
-    - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
-    - ENV_MOD_VERSION=3.2.10
-    - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+    - LMOD_VERSION=5.8
+    - LMOD_VERSION=5.8 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - LMOD_VERSION=6.6.2
+    - LMOD_VERSION=6.6.2 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
 matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
   include:
     # also test default configuration with Python 2.7
     - python: 2.7
-      env: ENV_MOD_VERSION=3.2.10
+      env: LMOD_VERSION=5.8
 addons:
   apt:
     packages:
@@ -54,6 +55,8 @@ install:
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
     - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
 script:
+    # make sure 'ml' alias is defined, otherwise sourcing the init script fails (silently) for Lmod (< 5.9.3)
+    - if [ ! -z $MOD_INIT ] && [ ! -z $LMOD_VERSION ]; then alias ml=foobar; fi
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
     # set up environment for EasyBuild framework tests
@@ -75,7 +78,7 @@ script:
     # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
     - cd $HOME
     # test bootstrap script
-    - EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID || echo "bootstrap FAILED"
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module

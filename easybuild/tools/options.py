@@ -43,7 +43,9 @@ import tempfile
 import vsc.utils.generaloption
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
+from vsc.utils.fancylogger import setLogLevel
 from vsc.utils.generaloption import GeneralOption
+from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
@@ -52,7 +54,7 @@ from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, raise_easybuilderror
+from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
 from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
@@ -310,11 +312,13 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
                       {'metavar':'WHEN'}),
+            'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
+            'devel': ("Enable including of development log messages", None, 'store_true', False),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
@@ -644,6 +648,10 @@ class EasyBuildOptions(GeneralOption):
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
         build_log.EXPERIMENTAL = self.options.experimental
+
+        # enable devel logging
+        if self.options.devel:
+            setLogLevel(DEVEL_LOG_LEVEL)
 
         # set strictness of run module
         if self.options.strict:

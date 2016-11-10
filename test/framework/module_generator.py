@@ -438,19 +438,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
         else:
-            expected = '\nif mode() == "load" then\n    io.stderr:write("test")\nend\n'
+            expected = '\nif mode() == "load" then\n    io.stderr:write([==[test]==])\nend\n'
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
-            if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.8'):
-                lua_load_msg = '\n'.join([
-                    '',
-                    'if mode() == "load" then',
-                    '    io.stderr:write([==[test $test \\$test',
-                    '    test $foo \\$bar]==])',
-                    'end',
-                    '',
-                ])
-                self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+            lua_load_msg = '\n'.join([
+                '',
+                'if mode() == "load" then',
+                '    io.stderr:write([==[test $test \\$test',
+                '    test $foo \\$bar]==])',
+                'end',
+                '',
+            ])
+            self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
@@ -672,21 +671,27 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core', ['Compiler/GCC/4.7.2'],
                              ['Compiler/GCC/4.7.2'], ['Core']),
             'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2', ['MPI/GCC/4.7.2/OpenMPI/1.6.4'],
-                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
+                                           ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
             'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4', [],
-                             [], ['Core']),
+                                         [], ['Core']),
             'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core', [],
-                             [], ['Core']),
+                                [], ['Core']),
             'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver],
-                             ['Compiler/intel/%s' % iccver], ['Core']),
+                                            ['Compiler/intel/%s' % iccver], ['Core']),
             'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core', ['Compiler/intel/2013.3.163'],
-                             ['Compiler/intel/2013.3.163'], ['Core']),
+                                    ['Compiler/intel/2013.3.163'], ['Core']),
             'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2', ['Compiler/GCC-CUDA/4.8.2-5.5.22'],
-                             ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
+                                         ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
+            'CUDA-5.5.22.eb': ('CUDA/5.5.22', 'Core', [],
+                               [], ['Core']),
+            'CUDA-5.5.22-iccifort-2013.5.192-GCC-4.8.3.eb': ('CUDA/5.5.22', 'Compiler/intel/2013.5.192-GCC-4.8.3',
+                                                             ['Compiler/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22'],
+                                                             ['Compiler/intel-CUDA/2013.5.192-GCC-4.8.3-5.5.22'],
+                                                             ['Core']),
             impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/4.1.3.049' % iccver],
-                             ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
+                      ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
             imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [],
-                             [], ['Core']),
+                      [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)

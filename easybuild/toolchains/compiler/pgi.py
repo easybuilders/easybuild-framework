@@ -59,6 +59,7 @@ class Pgi(Compiler):
         'r8': 'r8',
         'optarch': '', # PGI by default generates code for the arch it is running on!
         'openmp': 'mp',
+        'ieee': 'Kieee',
         'strict': ['Mnoflushz','Kieee'],
         'precise': ['Mnoflushz'],
         'defaultprec': ['Mflushz'],
