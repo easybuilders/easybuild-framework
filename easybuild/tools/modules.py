@@ -253,7 +253,10 @@ class ModulesTool(object):
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
-            raise EasyBuildError("%s modules tool can not be used, '%s' command is not available.", mod_tool, self.cmd)
+            mod_tools = avail_modules_tools().keys()
+            error_msg = "%s modules tool can not be used, '%s' command is not available" % (mod_tool, self.cmd)
+            error_msg += "; use --modules-tool to specify a different modules tool to use (%s)" % ', '.join(mod_tools)
+            raise EasyBuildError(error_msg)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
