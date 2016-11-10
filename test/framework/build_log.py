@@ -149,6 +149,51 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
+    def test_log_levels(self):
+        """Test whether log levels are respected"""
+        fd, tmplog = tempfile.mkstemp()
+        os.close(fd)
+
+        # set log format, for each regex searching
+        setLogFormat("%(name)s [%(levelname)s] :: %(message)s")
+
+        # test basic log methods
+        logToFile(tmplog, enable=True)
+        log = getLogger('test_easybuildlog')
+
+        for level in ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'DEVEL']:
+            log.setLevelName(level)
+            log.raiseError = False
+            log.error('kaput')
+            log.deprecated('almost kaput', '10000000000000')
+            log.raiseError = True
+            log.warn('this is a warning')
+            log.info('fyi')
+            log.debug('gdb')
+            log.devel('tmi')
+
+        logToFile(tmplog, enable=False)
+        logtxt = read_file(tmplog)
+
+        root = getRootLoggerName()
+
+        devel_msg = r"%s.test_easybuildlog \[DEVEL\] :: tmi" % root
+        debug_msg = r"%s.test_easybuildlog \[DEBUG\] :: gdb" % root
+        info_msg = r"%s.test_easybuildlog \[INFO\] :: fyi" % root
+        warning_msg = r"%s.test_easybuildlog \[WARNING\] :: this is a warning" % root
+        deprecated_msg = r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality, .*: almost kaput; see .*" % root
+        error_msg = r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root
+
+        expected_logtxt = '\n'.join([
+            error_msg,
+            error_msg, deprecated_msg, warning_msg,
+            error_msg, deprecated_msg, warning_msg, info_msg,
+            error_msg, deprecated_msg, warning_msg, info_msg, debug_msg,
+            error_msg, deprecated_msg, warning_msg, info_msg, debug_msg, devel_msg,
+        ])
+        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
+        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+
 
 def suite():
     """ returns all the testcases in this module """

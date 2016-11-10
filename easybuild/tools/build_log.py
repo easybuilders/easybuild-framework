@@ -31,6 +31,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 """
+import logging
 import os
 import re
 import sys
@@ -56,6 +57,10 @@ DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-func
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
+
+
+DEVEL_LOG_LEVEL = logging.DEBUG - 1
+logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
 
 
 class EasyBuildError(LoggedException):
@@ -142,6 +147,10 @@ class EasyBuildLog(fancylogger.FancyLogger):
         args = (self.caller_info(),) + args
 
         fancylogger.FancyLogger.error(self, ebmsg, *args, **kwargs)
+
+    def devel(self, msg, *args, **kwargs):
+        """Print development log message"""
+        self.log(DEVEL_LOG_LEVEL, msg, *args, **kwargs)
 
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
