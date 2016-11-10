@@ -438,19 +438,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
         else:
-            expected = '\nif mode() == "load" then\n    io.stderr:write("test")\nend\n'
+            expected = '\nif mode() == "load" then\n    io.stderr:write([==[test]==])\nend\n'
             self.assertEqual(expected, self.modgen.msg_on_load('test'))
 
-            if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.8'):
-                lua_load_msg = '\n'.join([
-                    '',
-                    'if mode() == "load" then',
-                    '    io.stderr:write([==[test $test \\$test',
-                    '    test $foo \\$bar]==])',
-                    'end',
-                    '',
-                ])
-                self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+            lua_load_msg = '\n'.join([
+                '',
+                'if mode() == "load" then',
+                '    io.stderr:write([==[test $test \\$test',
+                '    test $foo \\$bar]==])',
+                'end',
+                '',
+            ])
+            self.assertEqual(lua_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""

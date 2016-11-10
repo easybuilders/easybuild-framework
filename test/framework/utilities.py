@@ -241,7 +241,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        os.environ['MODULEPATH'] = ''
+        if 'MODULEPATH' in os.environ:
+            del os.environ['MODULEPATH']
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()
