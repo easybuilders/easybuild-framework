@@ -33,10 +33,10 @@ from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Intelc(Iimpic, IntelMKL, IntelFFTW):
+class Intelcuda(Iimpic, IntelMKL, IntelFFTW):
     """Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
         Intel Math Kernel Library (MKL), Intel FFTW wrappers and CUDA"""
 
-    NAME = 'intelc'
+    NAME = 'intelcuda'
 
     SUBTOOLCHAIN = Iimpic.NAME
