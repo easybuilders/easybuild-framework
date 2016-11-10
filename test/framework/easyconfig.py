@@ -1093,7 +1093,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
         write_file(ec_file, ec_txt)
 
-        self.assertErrorRegex(EasyBuildError, "No easyconfig for .* that matches toolchain hierarchy",
+        self.assertErrorRegex(EasyBuildError, "Failed to determine minimal toolchain for dep .*",
                               EasyConfig, ec_file, validate=False)
 
         build_options.update({'filter_deps': ['deptobefiltered']})

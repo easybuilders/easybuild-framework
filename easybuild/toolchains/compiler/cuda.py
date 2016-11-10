@@ -92,8 +92,8 @@ class Cuda(Compiler):
             'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
             'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
         ]
-        self.variables.nappend('CUDA_CFLAGS', cuda_flags)
-        self.variables.nappend('CUDA_CXXFLAGS', cuda_flags)
+        self.variables.nextend('CUDA_CFLAGS', cuda_flags)
+        self.variables.nextend('CUDA_CXXFLAGS', cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
         for gencode_val in self.options.get('cuda_gencode', []):

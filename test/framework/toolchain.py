@@ -282,7 +282,7 @@ class ToolchainTest(EnhancedTestCase):
                 if opt == 'optarch':
                     flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
                 else:
-                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                    flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -364,27 +364,31 @@ class ToolchainTest(EnhancedTestCase):
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
-        # check default precision flag
+        # check default precision: no specific flag for GCC
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.set_options({})
         tc.prepare()
         for var in flag_vars:
-            flags = tc.get_variable(var)
-            val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP['defaultprec']])
-            self.assertTrue(val in flags)
+            self.assertEqual(os.getenv(var), "-O2 -march=native")
 
         # check other precision flags
-        for opt in ['strict', 'precise', 'loose', 'veryloose']:
+        prec_flags = {
+            'ieee': "-mieee-fp -fno-trapping-math",
+            'strict': "-mieee-fp -mno-recip",
+            'precise': "-mno-recip",
+            'loose': "-mrecip -mno-ieee-fp",
+            'veryloose': "-mrecip=all -mno-ieee-fp",
+        }
+        for prec in prec_flags:
             for enable in [True, False]:
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-                tc.set_options({opt: enable})
+                tc.set_options({prec: enable})
                 tc.prepare()
-                val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
                 for var in flag_vars:
-                    flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(val in flags)
+                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
                     else:
-                        self.assertTrue(val not in flags)
+                        self.assertEqual(os.getenv(var), "-O2 -march=native")
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -459,12 +463,12 @@ class ToolchainTest(EnhancedTestCase):
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
         tc = self.get_toolchain("goolfc", version="1.3.12")
-        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
+        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10'], 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -756,7 +760,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
-        tc.options.update({'openmp': True})
+        tc.set_options({'openmp': True})
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
@@ -769,11 +773,11 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'optarch': 'test'})
 
         tc_cflags = {
-            'CrayCCE': "-craype-verbose -O2",
-            'CrayGNU': "-craype-verbose -O2",
-            'CrayIntel': "-craype-verbose -O2 -ftz -fp-speculation=safe -fp-model source",
-            'GCC': "-O2 -test",
-            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source",
+            'CrayCCE': "-O2 -homp -craype-verbose",
+            'CrayGNU': "-O2 -fopenmp -craype-verbose",
+            'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
+            'GCC': "-O2 -test -fopenmp",
+            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
         }
 
         toolchains = [
@@ -789,7 +793,8 @@ class ToolchainTest(EnhancedTestCase):
             for tcname, tcversion in toolchains:
                 tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
                                    mns=ActiveMNS(), modtool=self.modtool)
-                tc.set_options({})
+                # also check whether correct compiler flag for OpenMP is used while we're at it
+                tc.set_options({'openmp': True})
                 tc.prepare()
                 expected_cflags = tc_cflags[tcname]
                 msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
