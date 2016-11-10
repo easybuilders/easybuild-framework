@@ -2677,7 +2677,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # output of --show-full-config includes additional lines for options with default values
         expected_lines.extend([
             r"force\s* \(D\) = False",
-            r"module-syntax\s* \(D\) = Tcl",
+            r"modules-tool\s* \(D\) = Lmod",
+            r"module-syntax\s* \(D\) = Lua",
             r"umask\s* \(D\) = None",
         ])
 
