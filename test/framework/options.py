@@ -150,9 +150,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         outtxt = self.eb_main([])
 
-        error_msg = "ERROR Please provide one or multiple easyconfig files,"
+        error_msg = "ERROR.* Please provide one or multiple easyconfig files,"
         error_msg += " or use software build options to make EasyBuild search for easyconfigs"
-        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb is run without arguments")
+        regex = re.compile(error_msg)
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_debug(self):
         """Test enabling debug logging."""
@@ -1056,12 +1057,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args)
 
         # error message when template is not found
-        error_msg1 = "ERROR No easyconfig files found for software nosuchsoftware, and no templates available. "
+        error_msg1 = "ERROR.* No easyconfig files found for software nosuchsoftware, and no templates available. "
         error_msg1 += "I'm all out of ideas."
         # error message when template is found
         error_msg2 = "ERROR Unable to find an easyconfig for the given specifications"
-        msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
-        self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
+        regex = re.compile("(%s|%s)" % (error_msg1, error_msg2))
+        self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
 
     def test_header_footer(self):
         """Test specifying a module header/footer."""
@@ -2255,7 +2256,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--minimal-toolchains',
-            '--experimental',
             '--module-naming-scheme=HierarchicalMNS',
             '--dry-run',
         ]
@@ -2388,10 +2388,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--new-pr',
-            '--experimental',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
-            toy_patch,
             '-D',
             '--disable-cleanup-tmpdir',
         ]
@@ -2399,6 +2397,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
+
+        # determine location of repo clone, can be used to test --git-working-dirs-path (and save time)
+        dirs = glob.glob(os.path.join(self.test_prefix, 'eb-*', '*', 'git-working-dir*'))
+        if len(dirs) == 1:
+            git_working_dir = dirs[0]
+        else:
+            self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
 
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
@@ -2409,19 +2414,35 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
-            r".*/toy-0.0_typo.patch\s*\|",
-            r"^\s*2 files changed",
+            r"^\s*1 file changed",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # determine location of repo clone, can be used to test --git-working-dirs-path (and save time)
-        dirs = glob.glob(os.path.join(self.test_prefix, 'eb-*', '*', 'git-working-dir*'))
-        if len(dirs) == 1:
-            git_working_dir = dirs[0]
-        else:
-            self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
+        # a custom commit message is required when doing more than just adding new easyconfigs (e.g., adding a patch)
+        args.extend([
+            '--git-working-dirs-path=%s' % git_working_dir,
+            toy_patch,
+        ])
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
+
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
+        self.mock_stdout(False)
+
+        # add required commit message, try again
+        args.append('--pr-commit-msg="just a test"')
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs[-1] = r"^\s*2 files changed"
+        regexs.append(r".*/toy-0.0_typo.patch\s*\|")
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         GITHUB_TEST_ORG = 'test-organization'
         args.extend([
@@ -2460,13 +2481,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # PR for EasyBuild v2.5.0 release
             # we need a PR where the base branch is still available ('develop', in this case)
             '--update-pr=2237',
-            '--experimental',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
             '-D',
             # only to speed things up
             '--git-working-dirs-path=%s' % git_working_dir,
         ]
+
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg when using --update-pr"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args.append('--pr-commit-msg="just a test"')
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout()
@@ -2492,12 +2517,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--new-pr',
-            '--experimental',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             ':bzip2-1.0.6.eb',
             '-D',
             '--disable-cleanup-tmpdir',
             '--pr-title=delete bzip2-1.6.0',
+            '--pr-commit-msg="delete bzip2-1.6.0.eb"'
         ]
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
@@ -2544,7 +2569,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--new-pr',
-            '--experimental',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             os.path.join(self.test_prefix, 'foo-1.0.eb'),
             '-D',
@@ -2584,7 +2608,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # try to open new pr with unchanged file
         args = [
             '--new-pr',
-            '--experimental',
             ec,
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -2654,7 +2677,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # output of --show-full-config includes additional lines for options with default values
         expected_lines.extend([
             r"force\s* \(D\) = False",
-            r"module-syntax\s* \(D\) = Tcl",
+            r"modules-tool\s* \(D\) = Lmod",
+            r"module-syntax\s* \(D\) = Lua",
             r"umask\s* \(D\) = None",
         ])
 

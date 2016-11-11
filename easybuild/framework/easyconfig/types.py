@@ -297,9 +297,8 @@ def to_toolchain_dict(spec):
 
 
 def to_name_version_dict(spec):
-    """Deprecated in favor of to_toolchain_dict."""
-    _log.deprecated("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
-    return to_toolchain_dict(spec)
+    """No longer supported, replaced by to_toolchain_dict."""
+    _log.nosupport("to_name_version_dict; use to_toolchain_dict instead.", '3.0')
 
 
 def to_list_of_strings_and_tuples(spec):

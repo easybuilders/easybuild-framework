@@ -985,7 +985,11 @@ def expand_glob_paths(glob_paths):
     """Expand specified glob paths to a list of unique non-glob paths to only files."""
     paths = []
     for glob_path in glob_paths:
-        paths.extend([f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)])
+        add_paths = [f for f in glob.glob(os.path.expanduser(glob_path)) if os.path.isfile(f)]
+        if add_paths:
+            paths.extend(add_paths)
+        else:
+            raise EasyBuildError("No files found using glob pattern '%s'", glob_path)
 
     return nub(paths)
 
