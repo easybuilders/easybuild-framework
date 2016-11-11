@@ -937,11 +937,11 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
-            "'-c'",
-            "'foo.c'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
+            "'-c'",
+            "'foo.c'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -954,10 +954,10 @@ class ToolchainTest(EnhancedTestCase):
             ''
         ])
         cmd_args = [
-            "'foo.o'",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
+            "'foo.o'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -975,10 +975,10 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
-            "''",
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
+            "''",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -986,12 +986,13 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
-            "'foo.c'",
-            "'-Wl,-rpath=/lib64,-L/lib64'",
-            "'-lfoo'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+            "'-Wl,-rpath=/lib64'",
+            "'-L/lib64'",
+            "'-lfoo'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -999,12 +1000,12 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L../lib -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
-            "'foo.c'",
-            "'-L../lib'",
-            "'-lfoo'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+            "'-L../lib'",
+            "'-lfoo'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -1012,12 +1013,13 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
-            "'foo.c'",
-            "'-Wl,-rpath=/lib64,-L/lib64'",
-            "'-lfoo'",
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+            "'-Wl,-rpath=/lib64'",
+            "'-L/lib64'",
+            "'-lfoo'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -1033,6 +1035,9 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
             "'-rpath=/foo'",
             "'-L/foo'",
             "'foo.o'",
@@ -1042,9 +1047,6 @@ class ToolchainTest(EnhancedTestCase):
             "'-lbar'",
             "'-rpath=/bar'",
             "'-L/bar'",
-            "'-rpath=$ORIGIN/../lib'",
-            "'-rpath=$ORIGIN/../lib64'",
-            "'--disable-new-dtags'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -1068,23 +1070,27 @@ class ToolchainTest(EnhancedTestCase):
         out, ec = run_cmd("%s icc %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
             "'-fvisibility=hidden'",
             "'-Wall'",
             "'-O2'",
             "'-xHost'",
             "'-o' '.libs/lzmainfo'",
             "'lzmainfo-lzmainfo.o' 'lzmainfo-tuklib_progname.o' 'lzmainfo-tuklib_exit.o'",
-            "'-Wl,-rpath=/icc/lib/intel64,-L/icc/lib/intel64'",
-            "'-Wl,-rpath=/imkl/lib,-L/imkl/lib'",
-            "'-Wl,-rpath=/imkl/mkl/lib/intel64,-L/imkl/mkl/lib/intel64'",
-            "'-Wl,-rpath=/gettext/lib,-L/gettext/lib'",
+            "'-Wl,-rpath=/icc/lib/intel64'",
+            "'-L/icc/lib/intel64'",
+            "'-Wl,-rpath=/imkl/lib'",
+            "'-L/imkl/lib'",
+            "'-Wl,-rpath=/imkl/mkl/lib/intel64'",
+            "'-L/imkl/mkl/lib/intel64'",
+            "'-Wl,-rpath=/gettext/lib'",
+            "'-L/gettext/lib'",
             "'../../src/liblzma/.libs/liblzma.so'",
             "'-lrt' '-liomp5' '-lpthread'",
             "'-Wl,-rpath'",
             "'-Wl,/example/software/XZ/5.2.2-intel-2016b/lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -1106,6 +1112,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
 
         cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
             "'-DHAVE_CONFIG_H'",
             "'-I.'",
             "'-Ibuild'",
@@ -1116,9 +1125,6 @@ class ToolchainTest(EnhancedTestCase):
             "'-DBUGURL=\"<http://gcc.gnu.org/bugs.html>\"'",
             "'-o' 'build/version.o'",
             "'../../gcc/version.c'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -1145,13 +1151,14 @@ class ToolchainTest(EnhancedTestCase):
         # check whether fake gcc was wrapped and that arguments are what they should be
         out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DX="\\"\\""')
         expected = ' '.join([
-            '%(user)s.c',
-            '-Wl,-rpath=/foo,-L/foo',
-            '$FOO',
-            '-DX=""',
             '-Wl,-rpath=$ORIGIN/../lib',
             '-Wl,-rpath=$ORIGIN/../lib64',
             '-Wl,--disable-new-dtags',
+            '%(user)s.c',
+            '-Wl,-rpath=/foo',
+            '-L/foo',
+            '$FOO',
+            '-DX=""',
         ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 

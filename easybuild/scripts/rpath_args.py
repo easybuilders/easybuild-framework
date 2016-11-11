@@ -40,7 +40,10 @@ cmd = sys.argv[1]
 args = sys.argv[2:]
 
 # wheter or not to use -Wl to pass options to the linker
-use_wl = cmd not in ['ld', 'ld.gold']
+if cmd in ['ld', 'ld.gold']:
+    flag_prefix = ''
+else:
+    flag_prefix = '-Wl,'
 
 version_mode = False
 cmd_args = []
@@ -73,12 +76,7 @@ while idx < len(args):
         # FIXME skip paths in /tmp, build dir, etc.?
 
         if os.path.isabs(lib_path):
-            if use_wl:
-                # glue corresponding -rpath and -L arguments together,
-                # to avoid reordering when options are passed to linker
-                cmd_args.append('-Wl,-rpath=%s,-L%s' % (lib_path, lib_path))
-            else:
-                cmd_args.extend(['-rpath=%s' % lib_path, '-L%s' % lib_path])
+            cmd_args.extend([flag_prefix + '-rpath=%s' % lib_path, '-L%s' % lib_path])
         else:
             # don't RPATH in relative paths;
             # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
@@ -92,10 +90,7 @@ while idx < len(args):
     idx += 1
 
 if not version_mode:
-    flag_prefix = ''
-    if use_wl:
-        flag_prefix = '-Wl,'
-    cmd_args.extend([
+    cmd_args = [
         # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
         # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
         # see also https://linux.die.net/man/8/ld-linux;
@@ -103,7 +98,7 @@ if not version_mode:
         flag_prefix + '-rpath=$ORIGIN/../lib64',
         # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
         flag_prefix + '--disable-new-dtags',
-    ])
+    ] + cmd_args
 
 # wrap all arguments into single quotes to avoid further bash expansion
 cmd_args = ["'%s'" % arg.replace("'", "''") for arg in cmd_args]
