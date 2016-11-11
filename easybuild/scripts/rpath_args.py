@@ -46,7 +46,7 @@ else:
     flag_prefix = '-Wl,'
 
 version_mode = False
-cmd_args = []
+cmd_args, cmd_args_rpath = [], []
 
 # process list of original command line arguments
 idx = 0
@@ -62,6 +62,7 @@ while idx < len(args):
     # FIXME: also consider $LIBRARY_PATH?
     # FIXME: support to hard inject additional library paths?
     # FIXME: support to specify list of path prefixes that should not be RPATH'ed into account?
+    # FIXME skip paths in /tmp, build dir, etc.?
 
     # handle -L flags, inject corresponding -rpath flag
     elif arg.startswith('-L'):
@@ -73,10 +74,11 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        # FIXME skip paths in /tmp, build dir, etc.?
-
         if os.path.isabs(lib_path):
-            cmd_args.extend([flag_prefix + '-rpath=%s' % lib_path, '-L%s' % lib_path])
+            # inject -rpath flag in front for every -L with an absolute path,
+            # also retain the -L flag (without reordering!)
+            cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
+            cmd_args.append('-L%s' % lib_path)
         else:
             # don't RPATH in relative paths;
             # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
@@ -88,6 +90,9 @@ while idx < len(args):
         cmd_args.append(arg)
 
     idx += 1
+
+# add -rpath flags in front
+cmd_args = cmd_args_rpath + cmd_args
 
 if not version_mode:
     cmd_args = [
