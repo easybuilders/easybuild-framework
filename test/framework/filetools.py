@@ -902,7 +902,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_find_eb_script(self):
         """Test find_eb_script function."""
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
-        self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh')))
+        self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
         self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
 

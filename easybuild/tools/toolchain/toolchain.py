@@ -743,7 +743,7 @@ class Toolchain(object):
         c_comps, fortran_comps = self.compilers()
 
         rpath_args_py = find_eb_script('rpath_args.py')
-        rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh')
+        rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
         # prepend location to wrappers to $PATH
         setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
