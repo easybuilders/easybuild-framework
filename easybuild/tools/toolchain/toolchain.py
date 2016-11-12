@@ -764,7 +764,7 @@ class Toolchain(object):
                 else:
                     rpath_wrapper_log = '/dev/null'
 
-                rpath_filter = ','.join(build_option('rpath_filter')) or ''
+                rpath_filter = ','.join(build_option('rpath_filter') or [])
 
                 # complete template script and put it in place
                 cmd_wrapper_txt = read_file(rpath_wrapper_template) % {
