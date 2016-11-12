@@ -1814,7 +1814,7 @@ class EasyBlock(object):
         else:
             self._sanity_check_step(*args, **kwargs)
 
-    def _sanity_check_rpath(self):
+    def sanity_check_rpath(self, rpath_dirs=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         fails = []
@@ -1828,12 +1828,13 @@ class EasyBlock(object):
         not_found_regex = re.compile('not found', re.M)
         readelf_rpath_regex = re.compile('(RPATH)', re.M)
 
-        dirpaths = [
-            os.path.join(self.installdir, 'bin'),
-            os.path.join(self.installdir, 'lib'),
-            os.path.join(self.installdir, 'lib64'),
-        ]
-        for dirpath in dirpaths:
+        if rpath_dirs is None:
+            rpath_dirs = ['bin', 'lib', 'lib64']
+            self.log.info("Using default subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+        else:
+            self.log.info("Using specified subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+
+        for dirpath in [os.path.join(self.installdir, d) for d in rpath_dirs]:
             if os.path.exists(dirpath):
                 self.log.debug("Sanity checking RPATH for files in %s", dirpath)
 
@@ -1971,7 +1972,7 @@ class EasyBlock(object):
             self.dry_run_msg("  (none)")
 
         if build_option('rpath'):
-            self._sanity_check_rpath()
+            self.sanity_check_rpath()
 
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
@@ -2040,7 +2041,7 @@ class EasyBlock(object):
             self.clean_up_fake_module(fake_mod_data)
 
         if build_option('rpath'):
-            rpath_fails = self._sanity_check_rpath()
+            rpath_fails = self.sanity_check_rpath()
             if rpath_fails:
                 self.log.warning("RPATH sanity check failed!")
                 self.sanity_check_fail_msgs.extend(rpath_fails)
