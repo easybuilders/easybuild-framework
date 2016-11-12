@@ -1843,7 +1843,7 @@ class EasyBlock(object):
 
                     out, ec = run_cmd("file %s" % path, simple=False)
                     if ec:
-                        fails.append("Failed to run 'find %s': %s" % (path, out))
+                        fails.append("Failed to run 'file %s': %s" % (path, out))
 
                     # only run ldd/readelf on dynamically linked executables/libraries
                     # example output:

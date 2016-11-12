@@ -116,4 +116,4 @@ if not version_mode:
 cmd_args = ["'%s'" % arg.replace("'", "''") for arg in cmd_args]
 
 # output: statement to define $CMD_ARGS and $RPATH_ARGS
-print "CMD_ARGS=(%s)" % ' '.join(cmd_args)
+print("CMD_ARGS=(%s)" % ' '.join(cmd_args))
