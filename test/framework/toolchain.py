@@ -39,7 +39,6 @@ from distutils.version import LooseVersion
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
-import easybuild.tools.build_log
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
@@ -1150,6 +1149,10 @@ class ToolchainTest(EnhancedTestCase):
         # enable --rpath and prepare toolchain
         init_config(build_options={'rpath': True})
         tc = self.get_toolchain('gompi', version='1.3.12')
+
+        # preparing RPATH wrappers requires --experimental, need to bypass that here
+        tc.log.experimental = lambda x: x
+
         tc.prepare()
 
         # check whether fake gcc was wrapped and that arguments are what they should be

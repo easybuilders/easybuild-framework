@@ -730,6 +730,8 @@ class Toolchain(object):
         """
         Put RPATH wrapper script in place for compiler and linker commands
         """
+        self.log.experimental("Using wrapper scripts for compiler/linker commands that enforce RPATH linking")
+
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
         else:
