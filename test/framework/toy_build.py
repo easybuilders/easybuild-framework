@@ -1236,7 +1236,10 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
-        self.test_toy_build(extra_args=['--rpath'])
+        self.test_toy_build(extra_args=['--rpath', '--experimental'])
+
+        # also test use of --rpath-filter (this just replicates the default value, but fine)
+        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/usr/lib,/lib', '--experimental'])
 
 
 def suite():
