@@ -29,8 +29,6 @@
 # the list of command line arguments, injecting -rpath flags, etc.,
 # before actually calling the original compiler/linker command.
 #
-# All %(foo)s substrings are template values that will be filled by EasyBuild.
-#
 # author: Kenneth Hoste (HPC-UGent)
 
 set -e
