@@ -50,7 +50,9 @@ if rpath_filter:
     rpath_filter = rpath_filter.split(',')
 else:
     # don't RPATH system library locations by default
-    rpath_filter = ['/lib', '/usr/lib']
+    rpath_filter = ['/lib.*', '/usr/lib.*']
+
+rpath_filter = [re.compile('^%s$' % regex) for regex in rpath_filter]
 
 version_mode = False
 cmd_args, cmd_args_rpath = [], []
@@ -81,7 +83,7 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        if os.path.isabs(lib_path) and not any(lib_path.startswith(f) for f in rpath_filter):
+        if os.path.isabs(lib_path) and not any(regex.match(lib_path) for regex in rpath_filter):
             # inject -rpath flag in front for every -L with an absolute path,
             # also retain the -L flag (without reordering!)
             cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
