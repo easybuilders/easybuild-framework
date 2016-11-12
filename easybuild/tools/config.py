@@ -120,6 +120,7 @@ BUILD_OPTIONS_CMDLINE = {
         'only_blocks',
         'optarch',
         'parallel',
+        'rpath_filter',
         'regtest_output_dir',
         'skip',
         'stop',

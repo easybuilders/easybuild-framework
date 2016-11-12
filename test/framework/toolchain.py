@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, write_file, which
+from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -933,11 +933,10 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_rpath_args_script(self):
         """Test rpath_args.py script"""
-        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        script = os.path.join(topdir, 'easybuild', 'scripts', 'rpath_args.py')
+        script = find_eb_script('rpath_args.py')
 
         # simplest possible compiler command
-        out, ec = run_cmd("%s gcc -c foo.c" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' -c foo.c" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-Wl,-rpath=$ORIGIN/../lib'",
@@ -949,7 +948,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # linker command, --enable-new-dtags should be filtered out
-        out, ec = run_cmd("%s ld --enable-new-dtags foo.o" % script, simple=False)
+        out, ec = run_cmd("%s ld '' --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('foo.o')",
@@ -965,7 +964,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test passing no arguments
-        out, ec = run_cmd("%s gcc" % script, simple=False)
+        out, ec = run_cmd("%s gcc ''" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-Wl,-rpath=$ORIGIN/../lib'",
@@ -975,7 +974,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # test passing a single empty argument
-        out, ec = run_cmd("%s ld.gold ''" % script, simple=False)
+        out, ec = run_cmd("%s ld.gold '' ''" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-rpath=$ORIGIN/../lib'",
@@ -986,21 +985,21 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument
-        out, ec = run_cmd("%s gcc foo.c -L/lib64 -lfoo" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' foo.c -L/foo -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
-            "'-Wl,-rpath=/lib64'",
+            "'-Wl,-rpath=/foo'",
             "'foo.c'",
-            "'-L/lib64'",
+            "'-L/foo'",
             "'-lfoo'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # relative paths passed to -L are *not* RPATH'ed in
-        out, ec = run_cmd("%s gcc foo.c -L../lib -lfoo" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' foo.c -L../lib -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-Wl,-rpath=$ORIGIN/../lib'",
@@ -1013,43 +1012,53 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # single -L argument, with value separated by a space
-        out, ec = run_cmd("%s gcc foo.c -L   /lib64 -lfoo" % script, simple=False)
+        out, ec = run_cmd("%s gcc '' foo.c -L   /foo -lfoo" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-Wl,-rpath=$ORIGIN/../lib'",
             "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
-            "'-Wl,-rpath=/lib64'",
+            "'-Wl,-rpath=/foo'",
             "'foo.c'",
-            "'-L/lib64'",
+            "'-L/foo'",
             "'-lfoo'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # multiple -L arguments, order should be preserved
-        args = ' '.join([
-            '-L/foo',
-            'foo.o',
-            '-L/lib64',
-            '-lfoo',
-            '-lbar',
-            '-L/bar',
-        ])
-        out, ec = run_cmd("%s ld %s" % (script, args), simple=False)
+        # paths that start with /lib or /usr/lib are *not* RPATH'ed (due to default rpath filter)
+        out, ec = run_cmd("%s ld '' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
             "'-rpath=/foo'",
-            "'-rpath=/lib64'",
             "'-rpath=/bar'",
             "'-L/foo'",
             "'foo.o'",
             "'-L/lib64'",
             "'-lfoo'",
             "'-lbar'",
+            "'-L/usr/lib'",
             "'-L/bar'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # test specifying of custom rpath filter
+        out, ec = run_cmd("%s ld '/foo,/bar' -L/foo foo.o -L/lib64 -lfoo -L/bar -lbar" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
+            "'-rpath=/lib64'",
+            "'-L/foo'",
+            "'foo.o'",
+            "'-L/lib64'",
+            "'-lfoo'",
+            "'-L/bar'",
+            "'-lbar'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -1070,7 +1079,7 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,-rpath',
             '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
         ])
-        out, ec = run_cmd("%s icc %s" % (script, args), simple=False)
+        out, ec = run_cmd("%s icc '' %s" % (script, args), simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
             "'-Wl,-rpath=$ORIGIN/../lib'",
@@ -1110,7 +1119,7 @@ class ToolchainTest(EnhancedTestCase):
             '-o build/version.o',
             '../../gcc/version.c',
         ]
-        cmd = "%s g++ %s" % (script, ' '.join(args))
+        cmd = "%s g++ '' %s" % (script, ' '.join(args))
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
 
@@ -1132,7 +1141,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
-        cmd = "%s g++ -v" % script
+        cmd = "%s g++ '' -v" % script
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         self.assertEqual(out.strip(), "CMD_ARGS=('-v')")
@@ -1147,7 +1156,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # enable --rpath and prepare toolchain
-        init_config(build_options={'rpath': True})
+        init_config(build_options={'rpath': True, 'rpath_filter': ['/bar']})
         tc = self.get_toolchain('gompi', version='1.3.12')
 
         # preparing RPATH wrappers requires --experimental, need to bypass that here
@@ -1156,7 +1165,8 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         # check whether fake gcc was wrapped and that arguments are what they should be
-        out, _ = run_cmd('gcc ${USER}.c -L/foo \'$FOO\' -DX="\\"\\""')
+        # no -rpath for /bar because of rpath filter
+        out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
         expected = ' '.join([
             '-Wl,-rpath=$ORIGIN/../lib',
             '-Wl,-rpath=$ORIGIN/../lib64',
@@ -1164,6 +1174,7 @@ class ToolchainTest(EnhancedTestCase):
             '-Wl,-rpath=/foo',
             '%(user)s.c',
             '-L/foo',
+            '-L/bar',
             '$FOO',
             '-DX=""',
         ])

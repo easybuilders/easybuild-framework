@@ -37,13 +37,20 @@ import sys
 
 
 cmd = sys.argv[1]
-args = sys.argv[2:]
+rpath_filter = sys.argv[2]
+args = sys.argv[3:]
 
 # wheter or not to use -Wl to pass options to the linker
 if cmd in ['ld', 'ld.gold']:
     flag_prefix = ''
 else:
     flag_prefix = '-Wl,'
+
+if rpath_filter:
+    rpath_filter = rpath_filter.split(',')
+else:
+    # don't RPATH system library locations by default
+    rpath_filter = ['/lib', '/usr/lib']
 
 version_mode = False
 cmd_args, cmd_args_rpath = [], []
@@ -74,7 +81,7 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        if os.path.isabs(lib_path):
+        if os.path.isabs(lib_path) and not any(lib_path.startswith(f) for f in rpath_filter):
             # inject -rpath flag in front for every -L with an absolute path,
             # also retain the -L flag (without reordering!)
             cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
