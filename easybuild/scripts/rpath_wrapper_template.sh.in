@@ -35,7 +35,8 @@ set -e
 
 # logging function
 function log {
-    # escape '%' with another '%', since this is a template script
+    # escape percent signs, since this is a template script
+    # that will templated using Python string templating
     echo "($$) [$(date "+%%Y-%%m-%%d %%H:%%M:%%S")] $1" >> %(rpath_wrapper_log)s
 }
 
