@@ -1026,7 +1026,6 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # multiple -L arguments, order should be preserved
-        # paths that start with /lib or /usr/lib are *not* RPATH'ed (due to default rpath filter)
         out, ec = run_cmd("%s ld '' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % script, simple=False)
         self.assertEqual(ec, 0)
         cmd_args = [
@@ -1034,6 +1033,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
             "'-rpath=/foo'",
+            "'-rpath=/lib64'",
+            "'-rpath=/usr/lib'",
             "'-rpath=/bar'",
             "'-L/foo'",
             "'foo.o'",
@@ -1156,7 +1157,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # enable --rpath and prepare toolchain
-        init_config(build_options={'rpath': True, 'rpath_filter': ['/bar']})
+        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
         tc = self.get_toolchain('gompi', version='1.3.12')
 
         # preparing RPATH wrappers requires --experimental, need to bypass that here
