@@ -634,7 +634,7 @@ class Toolchain(object):
 
         return (c_comps, fortran_comps)
 
-    def prepare(self, onlymod=None, silent=False, loadmod=True):
+    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -645,6 +645,7 @@ class Toolchain(object):
                          (If string: comma separated list of variables that will be ignored).
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
+        :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         """
         if loadmod:
             self._load_modules(silent=silent)
@@ -726,9 +727,11 @@ class Toolchain(object):
         self.cached_compilers.update(compilers)
         self.log.debug("Cached compilers (after preparing for %s): %s", cache_tool, self.cached_compilers)
 
-    def prepare_rpath_wrappers(self):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
+
+        :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         """
         self.log.experimental("Using wrapper scripts for compiler/linker commands that enforce RPATH linking")
 
@@ -748,6 +751,14 @@ class Toolchain(object):
         # prepend location to wrappers to $PATH
         setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
 
+        # figure out list of patterns to use in rpath filter
+        rpath_filter = build_option('rpath_filter')
+        if rpath_filter is None:
+            rpath_filter = ['/lib.*', '/usr.*']
+            self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
+        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
+        self.log.debug("Combined RPATH filter: '%s'" % rpath_filter)
+
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
             orig_cmd = which(cmd)
@@ -763,8 +774,6 @@ class Toolchain(object):
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
                 else:
                     rpath_wrapper_log = '/dev/null'
-
-                rpath_filter = ','.join(build_option('rpath_filter') or [])
 
                 # complete template script and put it in place
                 cmd_wrapper_txt = read_file(rpath_wrapper_template) % {

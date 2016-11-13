@@ -187,6 +187,9 @@ class EasyBlock(object):
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
 
+        # list of locations to include in RPATH filter used by toolchain
+        self.rpath_filter_dirs = []
+
         # logging
         self.log = None
         self.logfile = None
@@ -1585,8 +1588,15 @@ class EasyBlock(object):
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
 
+        # list of paths to include in RPATH filter;
+        # only include builddir if we're not building in installation directory
+        if os.getenv('TMPDIR'):
+            self.rpath_filter_dirs.append(os.getenv('TMPDIR'))
+        if not self.build_in_installdir:
+            self.rpath_filter_dirs.append(self.builddir)
+
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs)
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:
@@ -1748,7 +1758,8 @@ class EasyBlock(object):
             else:
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
-                inst.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False)
+                inst.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
             # real work
             inst.prerun()
