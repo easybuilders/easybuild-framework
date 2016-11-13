@@ -1590,8 +1590,7 @@ class EasyBlock(object):
 
         # list of paths to include in RPATH filter;
         # only include builddir if we're not building in installation directory
-        if os.getenv('TMPDIR'):
-            self.rpath_filter_dirs.append(os.getenv('TMPDIR'))
+        self.rpath_filter_dirs.append(tempfile.gettempdir())
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
