@@ -442,6 +442,30 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False, filen
     return var_defs, hits
 
 
+def find_eb_script(script_name):
+    """Find EasyBuild script with given name (in easybuild/scripts subdirectory)."""
+    filetools, eb_dir = __file__, None
+    if os.path.isabs(filetools):
+        eb_dir = os.path.dirname(os.path.dirname(filetools))
+    else:
+        # go hunting for absolute path to filetools module via sys.path;
+        # we can't rely on os.path.abspath or os.path.realpath, since they leverage os.getcwd()...
+        for path in sys.path:
+            path = os.path.abspath(path)
+            if os.path.exists(os.path.join(path, filetools)):
+                eb_dir = os.path.dirname(os.path.dirname(os.path.join(path, filetools)))
+                break
+
+    if eb_dir is None:
+        raise EasyBuildError("Failed to find parent directory for 'easybuild/scripts' subdirectory")
+
+    script_loc = os.path.join(eb_dir, 'scripts', script_name)
+    if not os.path.exists(script_loc):
+        raise EasyBuildError("Script '%s' not found at expected location: %s", script_name, script_loc)
+
+    return script_loc
+
+
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     """
     Compute checksum of specified file.

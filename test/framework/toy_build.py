@@ -1234,6 +1234,13 @@ class ToyBuildTest(EnhancedTestCase):
             ec = EasyConfigParser(dumped_toy_ec).get_config_dict()
             self.assertEqual(ec['buildopts'], expected_buildopts)
 
+    def test_toy_rpath(self):
+        """Test toy build using --rpath."""
+        self.test_toy_build(extra_args=['--rpath', '--experimental'])
+
+        # also test use of --rpath-filter
+        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/test.*,/foo.*', '--experimental'])
+
 
 def suite():
     """ return all the tests in this file """
