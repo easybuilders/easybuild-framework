@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,14 +25,15 @@
 """
 Tools to run commands.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
+import functools
 import os
 import re
 import signal
@@ -60,20 +61,57 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
+
+CACHED_COMMANDS = [
+    "sysctl -n hw.cpufrequency_max",  # used in get_cpu_speed (OS X)
+    "sysctl -n hw.memsize",  # used in get_total_memory (OS X)
+    "sysctl -n hw.ncpu",  # used in get_avail_core_count (OS X)
+    "sysctl -n machdep.cpu.brand_string",  # used in get_cpu_model (OS X)
+    "sysctl -n machdep.cpu.vendor",  # used in get_cpu_vendor (OS X)
+    "type module",  # used in ModulesTool.check_module_function
+    "ulimit -u",  # used in det_parallelism
+]
+
+
+def run_cmd_cache(func):
+    """Function decorator to cache (and retrieve cached) results of running commands."""
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(cmd, *args, **kwargs):
+        """Retrieve cached result of selected commands, or run specified and collect & cache result."""
+
+        # fetch from cache if available, cache it if it's not
+        if cmd in cache:
+            _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
+            return cache[cmd]
+        else:
+            res = func(cmd, *args, **kwargs)
+            if cmd in CACHED_COMMANDS:
+                cache[cmd] = res
+            return res
+
+    # expose clear method of cache to wrapped function
+    cache_aware_func.clear_cache = cache.clear
+
+    return cache_aware_func
+
+
+@run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
             force_in_dry_run=False, verbose=True):
     """
     Run specified command (in a subshell)
-    @param cmd: command to run
-    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    @param log_all: always log command output and exit code
-    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    @param inp: the input given to the command via stdin
-    @param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
-    @param log_output: indicate whether all output of command should be logged to a separate tempoary logfile
-    @param path: path to execute the command in; current working directory is used if unspecified
-    @param force_in_dry_run: force running the command during dry run
-    @param verbose: include message on running the command in dry run output
+    :param cmd: command to run
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_all: always log command output and exit code
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param inp: the input given to the command via stdin
+    :param regex: regex used to check the output for errors;  if True it will use the default (see parse_log_for_error)
+    :param log_output: indicate whether all output of command should be logged to a separate temporary logfile
+    :param path: path to execute the command in; current working directory is used if unspecified
+    :param force_in_dry_run: force running the command during dry run
+    :param verbose: include message on running the command in dry run output
     """
     cwd = os.getcwd()
 
@@ -132,7 +170,10 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         ec = p.poll()
 
     # read remaining data (all of it)
-    stdouterr += p.stdout.read()
+    output = p.stdout.read()
+    if runLog:
+        runLog.write(output)
+    stdouterr += output
 
     # not needed anymore. subprocess does this correct?
     # ec=os.WEXITSTATUS(ec)
@@ -152,15 +193,15 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None, maxhits=50):
     """
     Run specified interactive command (in a subshell)
-    @param cmd: command to run
-    @param qa: dictionary which maps question to answers
-    @param no_qa: list of patters that are not questions
-    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    @param log_all: always log command output and exit code
-    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
-    @param std_qa: dictionary which maps question regex patterns to answers
-    @param path: path to execute the command is; current working directory is used if unspecified
+    :param cmd: command to run
+    :param qa: dictionary which maps question to answers
+    :param no_qa: list of patters that are not questions
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param log_all: always log command output and exit code
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param std_qa: dictionary which maps question regex patterns to answers
+    :param path: path to execute the command is; current working directory is used if unspecified
     """
     cwd = os.getcwd()
 
@@ -365,13 +406,13 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
     Parse command output and construct return value.
-    @param cmd: executed command
-    @param stdouterr: combined stdout/stderr of executed command
-    @param ec: exit code of executed command
-    @param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
-    @param log_all: always log command output and exit code
-    @param log_ok: only run output/exit code for failing commands (exit code non-zero)
-    @param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
+    :param cmd: executed command
+    :param stdouterr: combined stdout/stderr of executed command
+    :param ec: exit code of executed command
+    :param simple: if True, just return True/False to indicate success, else return a tuple: (output, exit_code)
+    :param log_all: always log command output and exit code
+    :param log_ok: only run output/exit code for failing commands (exit code non-zero)
+    :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     """
     if strictness == IGNORE:
         check_ec = False

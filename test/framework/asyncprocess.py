@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -29,9 +29,10 @@ Unit tests for asyncprocess.py.
 """
 
 import os
+import sys
 import time
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestSuite, main
+from unittest import TextTestRunner, TestSuite
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
@@ -69,4 +70,4 @@ def suite():
     return TestSuite([AsyncProcessTest()])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

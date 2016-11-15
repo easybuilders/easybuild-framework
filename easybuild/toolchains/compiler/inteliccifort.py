@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,8 +25,8 @@
 """
 Support for Intel compilers (icc, ifort) as toolchain compilers.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion
@@ -58,7 +58,7 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHost',
-        'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
+        'ieee': 'fltconsistency',
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
@@ -111,8 +111,8 @@ class IntelIccIfort(Compiler):
             raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
                                  self.COMPILER_MODULE_NAME)
 
-        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
+        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)[0:2]
+        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
 
         if not ifort_version == icc_version:
             raise EasyBuildError("_set_compiler_vars: mismatch between icc version %s and ifort version %s",
@@ -129,3 +129,12 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+
+    def set_variables(self):
+        """Set the variables."""
+        # -fopenmp is not supported in old versions (11.x)
+        icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
+        if LooseVersion(icc_version) < LooseVersion('12'):
+            self.options.options_map['openmp'] = 'openmp'
+
+        super(IntelIccIfort, self).set_variables()

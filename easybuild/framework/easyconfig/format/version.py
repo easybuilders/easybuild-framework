@@ -1,11 +1,11 @@
 # #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,8 +26,8 @@
 """
 This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import operator as op
 import re
@@ -80,8 +80,8 @@ class VersionOperator(object):
     def __init__(self, versop_str=None, error_on_parse_failure=False):
         """
         Initialise VersionOperator instance.
-        @param versop_str: intialise with version operator string
-        @param error_on_parse_failure: raise EasyBuildError in case of parse error
+        :param versop_str: intialise with version operator string
+        :param error_on_parse_failure: raise EasyBuildError in case of parse error
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -133,7 +133,7 @@ class VersionOperator(object):
         """
         Convert argument to an EasyVersion instance if needed, and return self.operator(<argument>, self.version)
             Versions only, no suffix.
-        @param test_version: a version string or EasyVersion instance
+        :param test_version: a version string or EasyVersion instance
         """
         # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
@@ -191,7 +191,7 @@ class VersionOperator(object):
         Create the version regular expression with operator support.
         This supports version expressions like '> 5' (anything strict larger than 5),
         or '<= 1.2' (anything smaller than or equal to 1.2)
-        @param begin_end: boolean, create a regex with begin/end match
+        :param begin_end: boolean, create a regex with begin/end match
         """
         # construct escaped operator symbols, e.g. '\<\='
         operators = []
@@ -255,8 +255,8 @@ class VersionOperator(object):
     def parse_versop_str(self, versop_str, versop_dict=None):
         """
         If argument contains a version operator, returns a dict with version and operator; returns None otherwise
-        @param versop_str: the string to parse
-        @param versop_dict: advanced usage: pass intialised versop_dict (eg for ToolchainVersionOperator)
+        :param versop_str: the string to parse
+        :param versop_dict: advanced usage: pass intialised versop_dict (eg for ToolchainVersionOperator)
         """
         if versop_dict is None:
             versop_dict = {}
@@ -284,7 +284,7 @@ class VersionOperator(object):
 
     def _boundary_check(self, other):
         """Return the boundary checks via testing: is self in other, and is other in self
-        @param other: a VersionOperator instance
+        :param other: a VersionOperator instance
         """
         boundary_self_in_other = other.test(self.version)
         boundary_other_in_self = self.test(other.version)
@@ -296,7 +296,7 @@ class VersionOperator(object):
         
         Returns 2 booleans: has_overlap, is_conflict
         
-        @param versop_other: a VersionOperator instance
+        :param versop_other: a VersionOperator instance
         
         Examples:
             '> 3' and '> 3' : equal, and thus overlap (no conflict)
@@ -380,7 +380,7 @@ class VersionOperator(object):
         Returns True if it is more strict in case of overlap, or if self.version > versop_other.version otherwise.
         Returns None in case of conflict.
 
-        @param versop_other: a VersionOperator instance
+        :param versop_other: a VersionOperator instance
 
         Examples:
             '> 2' > '> 1' : True, order by strictness equals order by boundaries for >, >=
@@ -450,7 +450,7 @@ class ToolchainVersionOperator(VersionOperator):
     def __init__(self, tcversop_str=None):
         """
         Initialise VersionOperator instance.
-        @param tcversop_str: intialise with toolchain version operator string
+        :param tcversop_str: intialise with toolchain version operator string
         """
         super(ToolchainVersionOperator, self).__init__()
 
@@ -468,7 +468,7 @@ class ToolchainVersionOperator(VersionOperator):
     def _get_all_toolchain_names(self, search_string=''):
         """
         Initialise each search_toolchain request, save in module constant TOOLCHAIN_NAMES.
-        @param search_string: passed to search_toolchain function.
+        :param search_string: passed to search_toolchain function.
         """
         global TOOLCHAIN_NAMES
         if not search_string in TOOLCHAIN_NAMES:
@@ -538,7 +538,7 @@ class ToolchainVersionOperator(VersionOperator):
 
     def _boundary_check(self, other):
         """Return the boundary checks via testing: is self in other, and is other in self
-        @param other: a ToolchainVersionOperator instance
+        :param other: a ToolchainVersionOperator instance
         """
         boundary_self_in_other = other.test(self.tc_name, self.version)
         boundary_other_in_self = self.test(other.tc_name, other.version)
@@ -548,8 +548,8 @@ class ToolchainVersionOperator(VersionOperator):
         """
         Check if a toolchain with name name and version version would fit 
             in this ToolchainVersionOperator 
-        @param name: toolchain name
-        @param version: a version string or EasyVersion instance
+        :param name: toolchain name
+        :param version: a version string or EasyVersion instance
         """
         # checks whether this ToolchainVersionOperator instance is valid using __bool__ function
         if not self:
@@ -614,9 +614,9 @@ class OrderedVersionOperators(object):
         After add, versop_new is in the OrderedVersionOperators. If the same versop_new was already in it,
         it will update the data (if not None) (and not raise an error)
 
-        @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
-        @param data: additional data for supplied version operator to be stored
-        @param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
+        :param versop_new: VersionOperator instance (or will be converted into one if type basestring)
+        :param data: additional data for supplied version operator to be stored
+        :param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
                        instead of overriding the existing data with the new data (method used for updating is .update)    
         """
         if isinstance(versop_new, basestring):

@@ -1,11 +1,11 @@
 ##
-# Copyright 2012-2015 Ghent University
+# Copyright 2012-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -25,8 +25,8 @@
 """
 Support for GCC (GNU Compiler Collection) as toolchain compiler.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 import easybuild.tools.systemtools as systemtools
@@ -56,7 +56,7 @@ class Gcc(Compiler):
         'f2c': 'ff2c',
         'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],
         'lto': 'flto',
-        'openmp': 'fopenmp',
+        'ieee': ['mieee-fp', 'fno-trapping-math'],
         'strict': ['mieee-fp', 'mno-recip'],
         'precise':['mno-recip'],
         'defaultprec':[],

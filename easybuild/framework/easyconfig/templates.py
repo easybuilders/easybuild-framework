@@ -1,11 +1,11 @@
 #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -27,8 +27,8 @@
 Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import re
 from vsc.utils import fancylogger
@@ -42,15 +42,16 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
+    ('nameletter', "First letter of software name"),
     ('toolchain_name', "Toolchain name"),
     ('toolchain_version', "Toolchain version"),
     ('version_major_minor', "Major.Minor version"),
     ('version_major', "Major version"),
     ('version_minor', "Minor version"),
-    ('nameletter', "First letter of software name"),
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
+    'github_account',
     'name',
     'version',
     'versionsuffix',
@@ -67,6 +68,14 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
     ('installdir', "Installation directory"),
     ('builddir', "Build directory"),
 ]
+# software names for which to define <pref>ver and <pref>shortver templates
+TEMPLATE_SOFTWARE_VERSIONS = [
+    # software name, prefix for *ver and *shortver
+    ('Java', 'java'),
+    ('Perl', 'perl'),
+    ('Python', 'py'),
+    ('R', 'r'),
+]
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
     # source url constants
@@ -80,7 +89,9 @@ TEMPLATE_CONSTANTS = [
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
-    ('GNU_SAVANNAH_SOURCE', 'http://download.savannah.gnu.org/releases/%(namelower)s',
+    ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
+     'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
+    ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
      'gnu.org source url'),
@@ -134,7 +145,6 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     # ignore
     if ignore is None:
         ignore = []
-
     # make dict
     template_values = {}
 
@@ -144,8 +154,13 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     for name in TEMPLATE_NAMES_EASYCONFIG:
         if name in ignore:
             continue
+
+        # check if this template name is already handled
+        if template_values.get(name[0]) is not None:
+            continue
+
         if name[0].startswith('toolchain_'):
-            tc = config.get('toolchain')[0]
+            tc = config.get('toolchain')
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
@@ -154,40 +169,56 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
-            version = config['version'][0]
+            version = config['version']
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
-                version = LooseVersion(version).version
+                version = version.split('.')
                 try:
-                    major = str(version[0])
+                    major = version[0]
                     template_values['version_major'] = major
-                    minor = str(version[1])
+                    minor = version[1]
                     template_values['version_minor'] = minor
-                    template_values['version_major_minor'] = ".".join([major, minor])
+                    template_values['version_major_minor'] = '.'.join([major, minor])
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
                 # only go through this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+
         elif name[0].endswith('letter'):
             # parse first letters
             if name[0].startswith('name'):
-                softname = config['name'][0]
+                softname = config['name']
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
         else:
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 
-    # step 2: add remaining from config
+    # step 2: define *ver and *shortver templates
+    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        for dep in config.get('dependencies', []):
+            if isinstance(dep, dict):
+                dep_name, dep_version = dep['name'], dep['version']
+            elif isinstance(dep, (list, tuple)):
+                dep_name, dep_version = dep[0], dep[1]
+            else:
+                raise EasyBuildError("Unexpected type for dependency: %s", dep)
+
+            if isinstance(dep_name, basestring) and dep_name.lower() == name.lower():
+                template_values['%sver' % pref] = dep_version
+                template_values['%sshortver' % pref] = '.'.join(dep_version.split('.')[:2])
+                break
+
+    # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:
         if name in ignore:
             continue
         if name in config:
-            template_values[name] = config[name][0]
-            _log.debug('name: %s, config: %s', name, config[name][0])
+            template_values[name] = config[name]
+            _log.debug('name: %s, config: %s', name, config[name])
 
-    # step 3. make lower variants if not skip_lower
+    # step 4. make lower variants if not skip_lower
     if not skip_lower:
         for name in TEMPLATE_NAMES_LOWER:
             if name in ignore:
@@ -216,13 +247,15 @@ def to_template_str(value, templ_const, templ_val):
         old_value = value
         # check for constant values
         for tval, tname in templ_const.items():
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1' + tname + r'\2', value)
 
         for tval, tname in templ_val.items():
             # only replace full words with templates: word to replace should be at the beginning of a line
             # or be preceded by a non-alphanumeric (\W). It should end at the end of a line or be succeeded
             # by another non-alphanumeric.
-            value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
+            if tval in value:
+                value = re.sub(r'(^|\W)' + re.escape(tval) + r'(\W|$)', r'\1%(' + tname + r')s\2', value)
 
     return value
 
@@ -237,23 +270,29 @@ def template_documentation():
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
     for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
 
-    # step 2: add remaining self._config
+    # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
+    doc.append("Template names/values for (short) software versions")
+    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
+
+    # step 3: add remaining self._config
     doc.append('Template names/values as set in easyconfig')
     for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (indent_l1, name))
+        doc.append("%s%%(%s)s" % (indent_l1, name))
 
-    # step 3. make lower variants
+    # step 4. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
+        doc.append("%s%%(%s)s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
 
-    # step 4. self.template_values can/should be updated from outside easyconfig
+    # step 5. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
 
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:

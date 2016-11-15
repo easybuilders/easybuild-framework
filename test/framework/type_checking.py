@@ -1,11 +1,11 @@
 # #
-# Copyright 2015-2015 Ghent University
+# Copyright 2015-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -27,21 +27,25 @@ Unit tests for easyconfig/types.py
 
 @author: Kenneth Hoste (Ghent University)
 """
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.framework.easyconfig.types import as_hashable, check_element_types, check_key_types, check_known_keys
 from easybuild.framework.easyconfig.types import check_required_keys, check_type_of_param_value, convert_value_type
-from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, NAME_VERSION_DICT
-from easybuild.framework.easyconfig.types import is_value_of_type, to_name_version_dict, to_dependencies, to_dependency
+from easybuild.framework.easyconfig.types import DEPENDENCIES, DEPENDENCY_DICT, TOOLCHAIN_DICT
+from easybuild.framework.easyconfig.types import SANITY_CHECK_PATHS_DICT, STRING_OR_TUPLE_LIST
+from easybuild.framework.easyconfig.types import is_value_of_type, to_checksums, to_dependencies, to_dependency
+from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples, to_toolchain_dict
+from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict
+from easybuild.tools.build_log import EasyBuildError
 
 
 class TypeCheckingTest(EnhancedTestCase):
     """Tests for value type checking of easyconfig parameters."""
 
-    def test_check_type_of_param_value(self):
-        """Test check_type_of_param_value function."""
+    def test_check_type_of_param_value_name_version(self):
+        """Test check_type_of_param_value function for name/version."""
         # check selected values that should be strings
         for key in ['name', 'version']:
             self.assertEqual(check_type_of_param_value(key, 'foo'), (True, 'foo'))
@@ -59,8 +63,16 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(check_type_of_param_value('version', 1.5), (False, None))
         self.assertEqual(check_type_of_param_value('version', 1.5, auto_convert=True), (True, '1.5'))
 
+    def test_check_type_of_param_value_toolchain(self):
+        """Test check_type_of_param_value function for toolchain."""
+
         # check type checking of toolchain (non-trivial type: dict with only name/version keys & string values)
         toolchain = {'name': 'goolf', 'version': '1.4.10'}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        # check type checking of toolchain (non-trivial type: dict with name/version keys & string values + hidden spec)
+        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': True}
+        self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
+        toolchain = {'name': 'goolf', 'version': '1.4.10', 'hidden': False}
         self.assertEqual(check_type_of_param_value('toolchain', toolchain), (True, toolchain))
         # missing 'version' key
         self.assertEqual(check_type_of_param_value('toolchain', {'name': 'intel'}), (False, None))
@@ -72,6 +84,90 @@ class TypeCheckingTest(EnhancedTestCase):
         toolchain = {'name': 'intel', 'version': '2015a'}
         for tcspec in ["intel, 2015a", ['intel', '2015a'], toolchain]:
             self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
+        toolchain = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        for tcspec in ["intel, 2015a, True", ['intel', '2015a', 'True'], toolchain]:
+            self.assertEqual(check_type_of_param_value('toolchain', tcspec, auto_convert=True), (True, toolchain))
+
+    def test_check_type_of_param_value_deps(self):
+        """Test check_type_of_param_value function for *dependencies."""
+
+        # dependencies (type check)
+        inputs = [
+            [],
+            [{'name': 'foo', 'version': '1.2.3'}],
+            [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': ''}],
+            [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': '', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
+            [{'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
+            [{'name': 'foo', 'version': '1.2.3'}, {'name': 'bar', 'version': '3.4.5'}],
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('dependencies', inp), (True, inp))
+
+        inputs = [
+            ['foo'],
+            [{'name': 'foo'}],
+            ['foo,1.2.3'],
+            [{'foo': '1.2.3'}],
+            [('foo', '1.2.3')],
+            [{'name': 'foo', 'version': '1.2.3'}, ('bar', '3.4.5')],
+            [{'name': 'foo', 'version': '1.2.3', 'somekey': 'wrong'}],
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('dependencies', inp), (False, None))
+
+        # dependencies (auto-convert)
+        self.assertEqual(check_type_of_param_value('dependencies', [{'foo': '1.2.3'}], auto_convert=True),
+                         (True, [{'name': 'foo', 'version': '1.2.3'}]))
+        # tuple values pass through untouched (are handled later by EasyConfig._parse_dependency)
+        inp = [('foo', '1.2.3')]
+        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), (True, [('foo', '1.2.3')]))
+        inp = [('foo', '1.2.3'), {'bar': '3.4.5'}, ('baz', '9.8.7')]
+        out = (True, [('foo', '1.2.3'), {'name': 'bar', 'version': '3.4.5'}, ('baz', '9.8.7')])
+        self.assertEqual(check_type_of_param_value('dependencies', inp, auto_convert=True), out)
+
+        # osdependencies (type check)
+        inputs = [
+            ['zlib'],
+            [('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
+            ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')],
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('osdependencies', inp), (True, inp))
+
+        inp = ['zlib', ['openssl-devel', 'libssl-dev', 'libopenssl-devel']]
+        self.assertEqual(check_type_of_param_value('osdependencies', inp), (False, None))
+
+        # osdependencies (auto-convert)
+        out = ['zlib', ('openssl-devel', 'libssl-dev', 'libopenssl-devel')]
+        self.assertEqual(check_type_of_param_value('osdependencies', inp, auto_convert=True), (True, out))
+
+    def test_check_type_of_param_value_sanity_check_paths(self):
+        """Test check_type_of_param_value function for sanity_check_paths."""
+
+        # sanity_check_paths (type check)
+        inputs = [
+            {'files': [], 'dirs': []},
+            {'files': ['bin/foo'], 'dirs': [('lib', 'lib64')]},
+            {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': []},
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (True, inp))
+
+        inputs = [
+            {},
+            {'files': []},
+            {'files': [], 'dirs': [], 'somethingelse': []},
+            {'files': [['bin/foo']], 'dirs': []},
+            {'files': [], 'dirs': [1]},
+            {'files': ['foo'], 'dirs': [(1, 2)]},
+        ]
+        for inp in inputs:
+            self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (False, None))
+
+        # sanity_check_paths (auto-convert)
+        inp = {'files': ['bin/foo', ['bin/bar', 'bin/baz']], 'dirs': [['lib', 'lib64', 'lib32']]}
+        out = {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': [('lib', 'lib64', 'lib32')]}
+        self.assertEqual(check_type_of_param_value('sanity_check_paths', inp, auto_convert=True), (True, out))
 
     def test_convert_value_type(self):
         """Test convert_value_type function."""
@@ -107,27 +203,44 @@ class TypeCheckingTest(EnhancedTestCase):
             pass
         self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
 
-    def test_to_name_version_dict(self):
+    def test_to_toolchain_dict(self):
         """ Test toolchain string to dict conversion """
         # normal cases
-        self.assertEqual(to_name_version_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version_dict(('intel', '2015a')), {'name': 'intel', 'version': '2015a'})
-        self.assertEqual(to_name_version_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+        self.assertEqual(to_toolchain_dict(('intel', '2015a')), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_toolchain_dict("intel, 2015a"), {'name': 'intel', 'version': '2015a'})
+        self.assertEqual(to_toolchain_dict(['gcc', '4.7']), {'name': 'gcc', 'version': '4.7'})
+
+        # incl. hidden spec
+        expected = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        self.assertEqual(to_toolchain_dict("intel, 2015a, True"), expected)
+        expected = {'name': 'intel', 'version': '2015a', 'hidden': False}
+        self.assertEqual(to_toolchain_dict(('intel', '2015a', 'False')), expected)
+        expected = {'name': 'gcc', 'version': '4.7', 'hidden': True}
+        self.assertEqual(to_toolchain_dict(['gcc', '4.7', 'True']), expected)
+
         tc = {'name': 'intel', 'version': '2015a'}
-        self.assertEqual(to_name_version_dict(tc), tc)
+        self.assertEqual(to_toolchain_dict(tc), tc)
+
+        tc = {'name': 'intel', 'version': '2015a', 'hidden': True}
+        self.assertEqual(to_toolchain_dict(tc), tc)
 
         # wrong type
-        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to name and version dict is not supported",
-                              to_name_version_dict, 1000)
+        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
+                              to_toolchain_dict, 1000)
 
         # wrong number of elements
-        errstr = "Can not convert .* to name and version .*. Expected 2 elements"
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel, 2015, a")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, "intel")
-        self.assertErrorRegex(EasyBuildError, errstr, to_name_version_dict, ['gcc', '4', '7'])
+        errstr = "Can not convert .* to toolchain dict. Expected 2 or 3 elements"
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, True, a")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', 'False', '7'])
+
+        # invalid truth value
+        errstr = "invalid truth value .*"
+        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, "intel, 2015, foo")
+        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
 
         # missing keys
-        self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_name_version_dict, {'name': 'intel'})
+        self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_toolchain_dict, {'name': 'intel'})
 
     def test_to_dependency(self):
         """ Test dependency dict to tuple conversion """
@@ -227,13 +340,13 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type("foo", int))
 
         # toolchain type check
-        self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, NAME_VERSION_DICT))
+        self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, TOOLCHAIN_DICT))
         # version value should be string, not int
-        self.assertFalse(is_value_of_type({'name': 'intel', 'version': 100}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': 100}, TOOLCHAIN_DICT))
         # missing version key
-        self.assertFalse(is_value_of_type({'name': 'intel', 'foo': 'bar'}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel', 'foo': 'bar'}, TOOLCHAIN_DICT))
         # extra key, shouldn't be there
-        self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, TOOLCHAIN_DICT))
 
         # dependency type check
         self.assertTrue(is_value_of_type({'name': 'intel', 'version': '2015a'}, DEPENDENCY_DICT))
@@ -244,7 +357,7 @@ class TypeCheckingTest(EnhancedTestCase):
             'versionsuffix': 'foo',
         }, DEPENDENCY_DICT))
         # no version key
-        self.assertFalse(is_value_of_type({'name': 'intel'}, NAME_VERSION_DICT))
+        self.assertFalse(is_value_of_type({'name': 'intel'}, TOOLCHAIN_DICT))
         # too many keys
         self.assertFalse(is_value_of_type({
             'name': 'intel',
@@ -275,6 +388,37 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # no extra keys allowed, only name/version/versionsuffix/toolchain
         self.assertFalse(is_value_of_type({'name': 'intel', 'version': '2015a', 'foo': 'bar'}, DEPENDENCIES))
+
+        # list of strings and tuples test
+        self.assertTrue(is_value_of_type(['foo', ('bar', 'bat')], STRING_OR_TUPLE_LIST))
+        self.assertTrue(is_value_of_type(['foo', 'bar'], STRING_OR_TUPLE_LIST))
+        self.assertTrue(is_value_of_type([('foo', 'fob'), ('bar', 'bat')], STRING_OR_TUPLE_LIST))
+        self.assertTrue(is_value_of_type([], STRING_OR_TUPLE_LIST))
+
+        # list element, not allowed (should be tuple or string)
+        self.assertFalse(is_value_of_type(['foo', ['bar', 'bat']], STRING_OR_TUPLE_LIST))
+        # int element, not allowed (should be tuple or string)
+        self.assertFalse(is_value_of_type(['foo', 1], STRING_OR_TUPLE_LIST))
+
+        # sanity_check_paths test
+        self.assertTrue(is_value_of_type({'files': ['one', 'two'], 'dirs': ['dirA', 'dirB']}, SANITY_CHECK_PATHS_DICT))
+        self.assertTrue(is_value_of_type({'files': ['f1', ('f2a', 'f2b')], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        self.assertTrue(is_value_of_type({'files': [], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+
+        # list element for 'files', should be string or tuple
+        self.assertFalse(is_value_of_type({'files': ['f1', ['f2a', 'f2b']], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # missing 'dirs' key
+        self.assertFalse(is_value_of_type({'files': ['f1', 'f2']}, SANITY_CHECK_PATHS_DICT))
+        # tuple rather than list
+        self.assertFalse(is_value_of_type({'files': (1, 2), 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # int elements rather than strings/tuples-of-strings
+        self.assertFalse(is_value_of_type({'files': [1, 2], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # one int element is not allowed either
+        self.assertFalse(is_value_of_type({'files': ['foo', 2], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
+        # extra key is not allowed
+        self.assertFalse(is_value_of_type({'files': [], 'dirs': [], 'foo': []}, SANITY_CHECK_PATHS_DICT))
+        # no keys at all
+        self.assertFalse(is_value_of_type({}, SANITY_CHECK_PATHS_DICT))
 
     def test_as_hashable(self):
         """Test as_hashable function."""
@@ -325,11 +469,15 @@ class TypeCheckingTest(EnhancedTestCase):
 
     def test_check_element_types(self):
         """Test check_element_types function."""
-        # checking types of list elements
+        # checking types of list/tuple elements
         self.assertTrue(check_element_types(['one', 'two'], [str]))
+        self.assertTrue(check_element_types(('one', 'two'), [str]))
         self.assertTrue(check_element_types(['one', 'two'], [int, str]))
+        self.assertTrue(check_element_types(('one', 'two'), [int, str]))
         self.assertTrue(check_element_types(['one', 2], [int, str]))
+        self.assertTrue(check_element_types(('one', 2), [int, str]))
         self.assertFalse(check_element_types(['one', 2], [int]))
+        self.assertFalse(check_element_types(('one', 2), [int]))
 
         # checking types of dict values (simple list of allowed types)
         self.assertTrue(check_element_types({'one': 1, 2: 'two'}, [int, str]))
@@ -351,11 +499,77 @@ class TypeCheckingTest(EnhancedTestCase):
         # errors
         self.assertErrorRegex(EasyBuildError, "Don't know how to check element types .*", check_element_types, 1, [])
 
+    def test_to_list_of_strings_and_tuples(self):
+        """Test to_list_of_strings_and_tuples function."""
+        # no conversion, already right type
+        self.assertEqual(to_list_of_strings_and_tuples([]), [])
+        self.assertEqual(to_list_of_strings_and_tuples([()]), [()])
+        self.assertEqual(to_list_of_strings_and_tuples(['foo']), ['foo'])
+        self.assertEqual(to_list_of_strings_and_tuples([('foo', 'bar')]), [('foo', 'bar')])
+        self.assertEqual(to_list_of_strings_and_tuples([('foo', 'bar'), 'baz']), [('foo', 'bar'), 'baz'])
+
+        # actual conversion
+        self.assertEqual(to_list_of_strings_and_tuples(()), [])
+        self.assertEqual(to_list_of_strings_and_tuples(('foo',)), ['foo'])
+        self.assertEqual(to_list_of_strings_and_tuples([['bar', 'baz']]), [('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples((['bar', 'baz'],)), [('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples(['foo', ['bar', 'baz']]), ['foo', ('bar', 'baz')])
+        self.assertEqual(to_list_of_strings_and_tuples(('foo', ['bar', 'baz'])), ['foo', ('bar', 'baz')])
+
+        # conversion failures
+        self.assertErrorRegex(EasyBuildError, "Expected value to be a list", to_list_of_strings_and_tuples, 'foo')
+        error_msg = "Expected elements to be of type string, tuple or list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, ['foo', 1])
+        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, (1,))
+
+    def test_to_sanity_check_paths_dict(self):
+        """Test to_sanity_check_paths_dict function."""
+        # no conversion, already right type
+        inputs = [
+            {'files': [], 'dirs': []},
+            {'files': ['foo', 'bar'], 'dirs': []},
+            {'files': [], 'dirs': ['baz']},
+            {'files': ['foo', ('bar', 'baz')], 'dirs': [('one', '2', 'three')]},
+        ]
+        for inp in inputs:
+            self.assertEqual(to_sanity_check_paths_dict(inp), inp)
+
+        # actual conversion
+        inputs = [
+            ({'files': ['foo'], 'dirs': [['bar', 'baz']]}, {'files': ['foo'], 'dirs': [('bar', 'baz')]}),
+            ({'files': ['foo', ['bar', 'baz']], 'dirs': []}, {'files': ['foo', ('bar', 'baz')], 'dirs': []}),
+            ({'files': (), 'dirs': [('f1', 'f2'), ['1', '2', '3'], 'x']},
+             {'files': [], 'dirs': [('f1', 'f2'), ('1', '2', '3'), 'x']}),
+        ]
+        for inp, out in inputs:
+            self.assertEqual(to_sanity_check_paths_dict(inp), out)
+
+        # conversion failures
+        self.assertErrorRegex(EasyBuildError, "Expected value to be a dict", to_sanity_check_paths_dict, [])
+        error_msg = "Expected value to be a list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': 'foo', 'dirs': []})
+        error_msg = "Expected elements to be of type string, tuple or list"
+        self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': [], 'dirs': [1]})
+
+    def test_to_checksums(self):
+        """Test to_checksums function."""
+        test_inputs = [
+            ['be662daa971a640e40be5c804d9d7d10'],
+            ['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')],
+            [['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')]],
+            [('md5', 'be662daa971a640e40be5c804d9d7d10')],
+            ['be662daa971a640e40be5c804d9d7d10', ('adler32', '0x998410035'), ('crc32', '0x1553842328'),
+             ('md5', 'be662daa971a640e40be5c804d9d7d10'), ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
+             ('size', 273)],
+        ]
+        for checksums in test_inputs:
+            self.assertEqual(to_checksums(checksums), checksums)
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(TypeCheckingTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

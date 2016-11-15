@@ -4,8 +4,8 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -30,8 +30,9 @@ Unit tests for parallelbuild.py
 import os
 import re
 import stat
-from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
@@ -108,25 +109,27 @@ class ParallelBuildTest(EnhancedTestCase):
         PbsPython.ppn = mock
         pbs_python.PbsJob = MockPbsJob
 
+        topdir = os.path.dirname(os.path.abspath(__file__))
+
         build_options = {
             'external_modules_metadata': {},
-            'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            'robot_path': os.path.join(topdir, 'easyconfigs', 'test_ecs'),
             'valid_module_classes': config.module_classes(),
             'validate': False,
             'job_cores': 3,
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
         easyconfigs = process_easyconfig(ec_file)
-        ordered_ecs = resolve_dependencies(easyconfigs)
+        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         self.assertEqual(len(jobs), 8)
         regex = re.compile("echo '.*/gzip-1.5-goolf-1.4.10.eb'")
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
-        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), retain_all_deps=True)
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
         jobs = submit_jobs(ordered_ecs, '', testing=False, prepare_first=False)
 
         # make sure command is correct, and that --hidden is there when it needs to be
@@ -190,22 +193,24 @@ class ParallelBuildTest(EnhancedTestCase):
         adjust_permissions(os.path.dirname(output_dir), stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH,
                            add=False, recursive=False)
 
+        topdir = os.path.dirname(os.path.abspath(__file__))
+
         build_options = {
             'job_backend_config': gc3pie_cfgfile,
             'job_max_walltime': 24,
             'job_output_dir': output_dir,
             'job_polling_interval': 0.2,  # quick polling
             'job_target_resource': 'ebtestlocalhost',
-            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'robot_path': os.path.join(topdir, 'easyconfigs', 'test_ecs'),
             'silent': True,
             'valid_module_classes': config.module_classes(),
             'validate': False,
         }
         options = init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
 
-        ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
-        ordered_ecs = resolve_dependencies(easyconfigs)
+        ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
@@ -217,9 +222,9 @@ class ParallelBuildTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ParallelBuildTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, sys.argv[1:])
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    main()
+    TextTestRunner(verbosity=1).run(suite())

@@ -1,11 +1,11 @@
 #
-# Copyright 2013-2015 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -27,8 +27,8 @@
 Easyconfig licenses module that provides all licenses that can
 be used within an Easyconfig file.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 
 from vsc.utils import fancylogger
@@ -136,7 +136,7 @@ class LicenseGCCOld(LicenseGPLv2):
 
 
 class LicenseZlib(LicenseOpen):
-    """The zlib License is a permissive free software license 
+    """The zlib License is a permissive free software license
         http://www.zlib.net/zlib_license.html
     """
     DESCRIPTION = ("Permission is granted to anyone to use this software for any purpose,"
@@ -146,7 +146,7 @@ class LicenseZlib(LicenseOpen):
 
 
 class LicenseLibpng(LicenseOpen):
-    """The PNG license is derived from the zlib license, 
+    """The PNG license is derived from the zlib license,
         http://libpng.org/pub/png/src/libpng-LICENSE.txt
     """
     HIDDEN = False
@@ -167,20 +167,3 @@ def what_licenses():
 
 
 EASYCONFIG_LICENSES_DICT = what_licenses()
-
-
-def license_documentation():
-    """Generate the easyconfig licenses documentation"""
-    indent_l0 = ' ' * 2
-    indent_l1 = indent_l0 + ' ' * 2
-    doc = []
-
-    doc.append("Constants that can be used in easyconfigs")
-    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
-        lic_inst = lic()
-        strver = ''
-        if lic_inst.version:
-            strver = " (version: %s)" % '.'.join([str(d) for d in lic_inst.version])
-        doc.append("%s%s: %s%s" % (indent_l1, lic_inst.name, lic_inst.description, strver))
-
-    return '\n'.join(doc)

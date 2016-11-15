@@ -1,11 +1,11 @@
 ##
-# Copyright 2014-2015 Ghent University
+# Copyright 2014-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -34,12 +34,15 @@ The compiler drivers are quite similar to EB toolchains as they include
 linker and compiler directives to use the Cray libraries for their MPI (and network drivers)
 Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+:author: Petar Forai (IMP/IMBA, Austria)
+:author: Kenneth Hoste (Ghent University)
 """
+import copy
+
 import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
+from easybuild.toolchains.compiler.pgi import TC_CONSTANT_PGI, Pgi
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
@@ -59,7 +62,7 @@ class CrayPECompiler(Compiler):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = {
-        'dynamic': (False, "Generate dynamically linked executable"),
+        'dynamic': (True, "Generate dynamically linked executable"),
         'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
@@ -98,6 +101,9 @@ class CrayPECompiler(Compiler):
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
 
+        # copy unique option map, since we fiddle with it later
+        self.COMPILER_UNIQUE_OPTION_MAP = copy.deepcopy(self.COMPILER_UNIQUE_OPTION_MAP)
+
     def _set_optimal_architecture(self):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
@@ -105,7 +111,7 @@ class CrayPECompiler(Compiler):
             raise EasyBuildError("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             craype_mod_name = self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}
-            if self.modules_tool.exist([craype_mod_name])[0]:
+            if self.modules_tool.exist([craype_mod_name], skip_avail=True)[0]:
                 self.modules_tool.load([craype_mod_name])
             else:
                 raise EasyBuildError("Necessary craype module with name '%s' is not available (optarch: '%s')",
@@ -147,6 +153,19 @@ class CrayPEIntel(CrayPECompiler):
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
+class CrayPEPGI(CrayPECompiler):
+    """Support for using the Cray PGI compiler wrappers."""
+    PRGENV_MODULE_NAME_SUFFIX = 'pgi'  # PrgEnv-pgi
+    COMPILER_FAMILY = TC_CONSTANT_PGI
+
+    def __init__(self, *args, **kwargs):
+        """CrayPEPGI constructor."""
+        super(CrayPEPGI, self).__init__(*args, **kwargs)
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'mp'
+        for precflag in self.COMPILER_PREC_FLAGS:
+            self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Pgi.COMPILER_UNIQUE_OPTION_MAP[precflag]
+
+
 class CrayPECray(CrayPECompiler):
     """Support for using the Cray CCE compiler wrappers."""
     PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
@@ -155,5 +174,6 @@ class CrayPECray(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
         super(CrayPECray, self).__init__(*args, **kwargs)
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'homp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []

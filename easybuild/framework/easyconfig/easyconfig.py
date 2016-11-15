@@ -1,11 +1,11 @@
 # #
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -26,17 +26,19 @@
 """
 Easyconfig module that contains the EasyConfig class.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Toon Willems (Ghent University)
-@author: Ward Poelmans (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Toon Willems (Ghent University)
+:author: Ward Poelmans (Ghent University)
+:author: Alan O'Cais (Juelich Supercomputing Centre)
 """
 
 import copy
 import difflib
+import functools
 import os
 import re
 import shutil
@@ -45,28 +47,29 @@ from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, mkdir, read_file, write_file
-from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
-from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
-from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.systemtools import check_os_dependency
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
-from easybuild.tools.toolchain.utilities import get_toolchain
-from easybuild.tools.utilities import quote_py_str, quote_str, remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
+from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
-from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
+from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
-
+from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option, get_module_naming_scheme
+from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, mkdir, read_file, write_file
+from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
+from easybuild.tools.modules import modules_tool
+from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.systemtools import check_os_dependency
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
+from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
+from easybuild.tools.utilities import quote_py_str, remove_unwanted_chars
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
@@ -75,6 +78,9 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+
+# name of easyconfigs archive subdirectory
+EASYCONFIGS_ARCHIVE_DIR = '__archive__'
 
 
 try:
@@ -105,6 +111,131 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     return new_ec_method
 
 
+def toolchain_hierarchy_cache(func):
+    """Function decorator to cache (and retrieve cached) toolchain hierarchy queries."""
+    cache = {}
+
+    @functools.wraps(func)
+    def cache_aware_func(toolchain):
+        """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
+        cache_key = (toolchain['name'], toolchain['version'])
+
+        # fetch from cache if available, cache it if it's not
+        if cache_key in cache:
+            _log.debug("Using cache to return hierarchy for toolchain %s: %s", str(toolchain), cache[cache_key])
+            return cache[cache_key]
+        else:
+            toolchain_hierarchy = func(toolchain)
+            cache[cache_key] = toolchain_hierarchy
+            return cache[cache_key]
+
+    # Expose clear method of cache to wrapped function
+    cache_aware_func.clear = cache.clear
+
+    return cache_aware_func
+
+
+@toolchain_hierarchy_cache
+def get_toolchain_hierarchy(parent_toolchain):
+    """
+    Determine list of subtoolchains for specified parent toolchain.
+    Result starts with the most minimal subtoolchains first, ends with specified toolchain.
+
+    The dummy toolchain is considered the most minimal subtoolchain only if the add_dummy_to_minimal_toolchains
+    build option is enabled.
+
+    :param parent_toolchain: dictionary with name/version of parent toolchain
+    """
+    # obtain list of all possible subtoolchains
+    _, all_tc_classes = search_toolchain('')
+    subtoolchains = dict((tc_class.NAME, getattr(tc_class, 'SUBTOOLCHAIN', None)) for tc_class in all_tc_classes)
+
+    current_tc_name, current_tc_version = parent_toolchain['name'], parent_toolchain['version']
+    subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+
+    # the parent toolchain is at the top of the hierarchy
+    toolchain_hierarchy = [parent_toolchain]
+
+    while subtoolchain_name:
+        # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain
+        path = robot_find_easyconfig(current_tc_name, current_tc_version)
+        if path is None:
+            raise EasyBuildError("Could not find easyconfig for %s toolchain version %s",
+                                 current_tc_name, current_tc_version)
+
+        # parse the easyconfig
+        parsed_ec = process_easyconfig(path, validate=False)[0]
+
+        # search for version of the subtoolchain in dependencies
+        # considers deps + toolchains of deps + deps of deps + toolchains of deps of deps
+        # consider both version and versionsuffix for dependencies
+        cands = []
+        for dep in parsed_ec['ec'].dependencies():
+            # skip dependencies that are marked as external modules
+            if dep['external_module']:
+                continue
+
+            # include dep and toolchain of dep as candidates
+            cands.extend([
+                {'name': dep['name'], 'version': dep['version'] + dep['versionsuffix']},
+                dep['toolchain'],
+            ])
+
+            # find easyconfig file for this dep and parse it
+            ecfile = robot_find_easyconfig(dep['name'], det_full_ec_version(dep))
+            if ecfile is None:
+                raise EasyBuildError("Could not find easyconfig for dependency %s with version %s",
+                                     dep['name'], det_full_ec_version(dep))
+            easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
+
+            # include deps and toolchains of deps of this dep
+            for depdep in easyconfig.dependencies():
+                cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
+                cands.append(depdep['toolchain'])
+
+        # only retain candidates that match subtoolchain name
+        cands = [c for c in cands if c['name'] == subtoolchain_name]
+
+        uniq_subtc_versions = set([subtc['version'] for subtc in cands])
+
+        if len(uniq_subtc_versions) == 1:
+            subtoolchain_version = cands[0]['version']
+
+        elif len(uniq_subtc_versions) == 0:
+            # only retain GCCcore as subtoolchain if version was found
+            if subtoolchain_name == GCCcore.NAME:
+                _log.info("No version found for %s; assuming legacy toolchain and skipping it as subtoolchain.",
+                          subtoolchain_name)
+                subtoolchain_name = GCCcore.SUBTOOLCHAIN
+                subtoolchain_version = ''
+            # dummy toolchain: end of the line
+            elif subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                subtoolchain_version = ''
+            else:
+                raise EasyBuildError("No version found for subtoolchain %s in dependencies of %s",
+                                     subtoolchain_name, current_tc_name)
+        else:
+            if subtoolchain_name == DUMMY_TOOLCHAIN_NAME:
+                # Don't care about multiple versions of dummy
+                _log.info("Ignoring multiple versions of %s in toolchain hierarchy", DUMMY_TOOLCHAIN_NAME)
+                subtoolchain_version = ''
+            else:
+                raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
+                                     subtoolchain_name, current_tc_name, unique_dep_tc_versions)
+
+        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
+            # we're done
+            break
+
+        # add to hierarchy and move to next
+        current_tc_name, current_tc_version = subtoolchain_name, subtoolchain_version
+        subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
+        toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
+
+    _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
+    return toolchain_hierarchy
+
+
 class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
@@ -114,13 +245,13 @@ class EasyConfig(object):
                  auto_convert_value_types=True):
         """
         initialize an easyconfig.
-        @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
-        @param extra_options: dictionary with extra variables that can be set for this specific instance
-        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
-        @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
-        @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
-        @param rawtxt: raw contents of easyconfig file
-        @param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
+        :param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
+        :param extra_options: dictionary with extra variables that can be set for this specific instance
+        :param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
+        :param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
+        :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        :param rawtxt: raw contents of easyconfig file
+        :param auto_convert_value_types: indicates wether types of easyconfig values should be automatically converted
                                          in case they are wrong
         """
         self.template_values = None
@@ -140,6 +271,8 @@ class EasyConfig(object):
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
+
+        self.modules_tool = modules_tool()
 
         # use legacy module classes as default
         self.valid_module_classes = build_option('valid_module_classes')
@@ -187,9 +320,6 @@ class EasyConfig(object):
                                        auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
-        # handle allowed system dependencies
-        self.handle_allowed_system_deps()
-
         # perform validations
         self.validation = build_option('validate') and validate
         if self.validation:
@@ -198,14 +328,11 @@ class EasyConfig(object):
         # filter hidden dependencies from list of dependencies
         self.filter_hidden_deps()
 
-        # list of *all* dependencies, including hidden/build deps & toolchain, but excluding filtered deps
-        self.all_dependencies = copy.deepcopy(self.dependencies())
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            self.all_dependencies.append(self.toolchain.as_dict())
+        self._all_dependencies = None
 
         # keep track of whether the generated module file should be hidden
         if hidden is None:
-            hidden = build_option('hidden')
+            hidden = self['hidden'] or build_option('hidden')
         self.hidden = hidden
 
         # set installdir/module info
@@ -245,6 +372,9 @@ class EasyConfig(object):
         ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
+        # since rawtxt is defined, self.path may not get inherited, make sure it does
+        if self.path:
+            ec.path = self.path
 
         return ec
 
@@ -318,16 +448,11 @@ class EasyConfig(object):
         # update templating dictionary
         self.generate_template_values()
 
+        # finalize dependencies w.r.t. minimal toolchains & module names
+        self._finalize_dependencies()
+
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
-
-    def handle_allowed_system_deps(self):
-        """Handle allowed system dependencies."""
-        for (name, version) in self['allow_system_deps']:
-            # root is set to name, not an actual path
-            env.setvar(get_software_root_env_var_name(name), name)
-            # version is expected to be something that makes sense
-            env.setvar(get_software_version_env_var_name(name), version)
 
     def validate(self, check_osdeps=True):
         """
@@ -520,6 +645,7 @@ class EasyConfig(object):
             # provide list of (direct) toolchain dependencies (name & version), if easyconfig can be found for toolchain
             tcdeps = None
             tcname, tcversion = self['toolchain']['name'], self['toolchain']['version']
+
             if tcname != DUMMY_TOOLCHAIN_NAME:
                 tc_ecfile = robot_find_easyconfig(tcname, tcversion)
                 if tc_ecfile is None:
@@ -528,13 +654,25 @@ class EasyConfig(object):
                 else:
                     self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
                     tc_ec = process_easyconfig(tc_ecfile)[0]
-                    tcdeps = tc_ec['dependencies']
+                    tcdeps = tc_ec['ec'].dependencies()
                     self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
 
-            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS(), tcdeps=tcdeps)
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'],
+                                            mns=ActiveMNS(), tcdeps=tcdeps, modtool=self.modules_tool)
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
+
+    @property
+    def all_dependencies(self):
+        """Return list of all dependencies, incl. hidden/build deps & toolchain, but excluding filtered deps."""
+        if self._all_dependencies is None:
+            self.log.debug("Composing list of all dependencies (incl. toolchain)")
+            self._all_dependencies = copy.deepcopy(self.dependencies())
+            if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                self._all_dependencies.append(self.toolchain.as_dict())
+
+        return self._all_dependencies
 
     def dump(self, fp):
         """
@@ -610,8 +748,8 @@ class EasyConfig(object):
         ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden',
          'external_module']
 
-        @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
-        @param build_only: indicate whether this is a build-only dependency
+        :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        :param build_only: indicate whether this is a build-only dependency
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -627,6 +765,7 @@ class EasyConfig(object):
             'versionsuffix': '',
             # toolchain with which this dependency is installed
             'toolchain': None,
+            'toolchain_inherited': False,
             # boolean indicating whether we're dealing with a dummy toolchain for this dependency
             'dummy': False,
             # boolean indicating whether the module for this dependency is (to be) installed hidden
@@ -690,29 +829,32 @@ class EasyConfig(object):
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
         tc_spec = dependency['toolchain']
-        if tc_spec is not None:
-            # (true) boolean value simply indicates that a dummy toolchain is used
-            if isinstance(tc_spec, bool) and tc_spec:
+        if tc_spec is None:
+            self.log.debug("Inheriting parent toolchain %s for dep %s (until deps are finalised)", tc, dependency)
+            dependency['toolchain_inherited'] = True
+
+        # (true) boolean value simply indicates that a dummy toolchain is used
+        elif isinstance(tc_spec, bool) and tc_spec:
                 tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
-            # two-element list/tuple value indicates custom toolchain specification
-            elif isinstance(tc_spec, (list, tuple,)):
-                if len(tc_spec) == 2:
-                    tc = {'name': tc_spec[0], 'version': tc_spec[1]}
-                else:
-                    raise EasyBuildError("List/tuple value for toolchain should have two elements (%s)", str(tc_spec))
-            elif isinstance(tc_spec, dict):
-                if 'name' in tc_spec and 'version' in tc_spec:
-                    tc = copy.deepcopy(tc_spec)
-                else:
-                    raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
+
+        # two-element list/tuple value indicates custom toolchain specification
+        elif isinstance(tc_spec, (list, tuple,)):
+            if len(tc_spec) == 2:
+                tc = {'name': tc_spec[0], 'version': tc_spec[1]}
             else:
-                raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
+                raise EasyBuildError("List/tuple value for toolchain should have two elements (%s)", str(tc_spec))
+
+        elif isinstance(tc_spec, dict):
+            if 'name' in tc_spec and 'version' in tc_spec:
+                tc = copy.deepcopy(tc_spec)
+            else:
+                raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
+
+        else:
+            raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
 
         self.log.debug("Derived toolchain to use for dependency %s, based on toolchain spec %s: %s", dep, tc_spec, tc)
         dependency['toolchain'] = tc
-
-        # make sure 'dummy' value is set correctly
-        dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
 
         # validations
         if dependency['name'] is None:
@@ -721,17 +863,86 @@ class EasyConfig(object):
         if dependency['version'] is None:
             raise EasyBuildError("Dependency specified without version: %s", dependency)
 
-        # set module names
-        dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
-        dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
-
         return dependency
+
+    def _finalize_dependencies(self):
+        """Finalize dependency parameters, after initial parsing."""
+
+        filter_deps = build_option('filter_deps')
+
+        for key in DEPENDENCY_PARAMETERS:
+            # loop over a *copy* of dependency dicts (with resolved templates);
+            # to update the original dep dict, we need to index with idx into self._config[key][0]...
+            for idx, dep in enumerate(self[key]):
+
+                # reference to original dep dict, this is the one we should be updating
+                orig_dep = self._config[key][0][idx]
+
+                if filter_deps and orig_dep['name'] in filter_deps:
+                    self.log.debug("Skipping filtered dependency %s when finalising dependencies", orig_dep['name'])
+                    continue
+
+                # handle dependencies with inherited (non-dummy) toolchain
+                # this *must* be done after parsing all dependencies, to avoid problems with templates like %(pyver)s
+                if dep['toolchain_inherited'] and dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                    tc = None
+                    dep_str = '%s %s%s' % (dep['name'], dep['version'], dep['versionsuffix'])
+                    self.log.debug("Figuring out toolchain to use for dep %s...", dep)
+                    if build_option('minimal_toolchains'):
+                        # determine 'smallest' subtoolchain for which a matching easyconfig file is available
+                        self.log.debug("Looking for minimal toolchain for dependency %s (parent toolchain: %s)...",
+                                       dep_str, dep['toolchain'])
+                        tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool)
+                        if tc is None:
+                            raise EasyBuildError("Failed to determine minimal toolchain for dep %s", dep_str)
+                    else:
+                        # try finding subtoolchain for dep for which an easyconfig file is available
+                        # this may fail, since it requires that the easyconfigs for parent toolchain
+                        # and subtoolchains are available
+                        try:
+                            tc = robot_find_minimal_toolchain_of_dependency(dep, self.modules_tool, parent_first=True)
+                            self.log.debug("Using subtoolchain %s for dep %s", tc, dep_str)
+                        except EasyBuildError as err:
+                            self.log.debug("Ignoring error while looking for subtoolchain for dep %s: %s", dep_str, err)
+
+                    if tc is None:
+                        tc = dep['toolchain']
+                        self.log.debug("Inheriting toolchain %s from parent for dep %s", tc, dep_str)
+
+                    # put derived toolchain in place, or complain if none could be found
+                    self.log.debug("Figured out toolchain to use for dep %s: %s", dep_str, tc)
+                    dep['toolchain'] = orig_dep['toolchain'] = tc
+
+                if not dep['external_module']:
+                    # make sure 'dummy' is set correctly
+                    orig_dep['dummy'] = dep['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+
+                    # set module names
+                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
+                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
 
     def generate_template_values(self):
         """Try to generate all template values."""
-        # TODO proper recursive code https://github.com/hpcugent/easybuild-framework/issues/474
+
         self._generate_template_values(skip_lower=True)
         self._generate_template_values(skip_lower=False)
+
+        # recursive call, until there are no more changes to template values;
+        # important since template values may include other templates
+        prev_template_values = None
+        cont = True
+        while cont:
+            cont = False
+            for key in self.template_values:
+                try:
+                    curr_val = self.template_values[key]
+                    new_val = curr_val % self.template_values
+                    if new_val != curr_val:
+                        cont = True
+                    self.template_values[key] = new_val
+                except KeyError:
+                    # KeyError's may occur when not all templates are defined yet, but these are safe to ignore
+                    pass
 
     def _generate_template_values(self, ignore=None, skip_lower=True):
         """Actual code to generate the template values"""
@@ -742,9 +953,11 @@ class EasyConfig(object):
         # (eg the run_setp code in EasyBlock)
 
         # step 1-3 work with easyconfig.templates constants
-        # use a copy to make sure the original is not touched/modified
-        template_values = template_constant_dict(copy.deepcopy(self._config),
-                                                 ignore=ignore, skip_lower=skip_lower)
+        # disable templating with creating dict with template values to avoid looping back to here via __getitem__
+        prev_enable_templating = self.enable_templating
+        self.enable_templating = False
+        template_values = template_constant_dict(self, ignore=ignore, skip_lower=skip_lower)
+        self.enable_templating = prev_enable_templating
 
         # update the template_values dict
         self.template_values.update(template_values)
@@ -982,13 +1195,14 @@ def resolve_template(value, tmpl_dict):
         # '%%' -> '%%%%'
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
-        value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
+        if '%' in value:
+            value = re.sub(re.compile(r'(%)(?!%*\(\w+\)s)'), r'\1\1', value)
 
-        try:
-            value = value % tmpl_dict
-        except KeyError:
-            _log.warning("Unable to resolve template value %s with dict %s" %
-                             (value, tmpl_dict))
+            try:
+                value = value % tmpl_dict
+            except KeyError:
+                _log.warning("Unable to resolve template value %s with dict %s" %
+                                 (value, tmpl_dict))
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}
@@ -1007,7 +1221,7 @@ def resolve_template(value, tmpl_dict):
         elif isinstance(value, tuple):
             value = tuple(resolve_template(list(value), tmpl_dict))
         elif isinstance(value, dict):
-            value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
+            value = dict((resolve_template(k, tmpl_dict), resolve_template(v, tmpl_dict)) for k, v in value.items())
 
     return value
 
@@ -1015,10 +1229,11 @@ def resolve_template(value, tmpl_dict):
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
-    @param path: path to easyconfig file
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    @param validate: whether or not to perform validation
-    @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+    :param path: path to easyconfig file
+    :param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    :param validate: whether or not to perform validation
+    :param parse_only: only parse easyconfig superficially (faster, but results in partial info)
+    :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
@@ -1059,7 +1274,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 'dependencies': [],
                 'builddependencies': [],
                 'hiddendependencies': [],
-                'hidden': hidden,
+                'hidden': ec.hidden,
             })
             if len(blocks) > 1:
                 easyconfig['original_spec'] = path
@@ -1080,15 +1295,33 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(dep)
 
             # add toolchain as dependency too
-            if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-                dep = ec.toolchain.as_dict()
-                _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
-                easyconfig['dependencies'].append(dep)
+            if ec['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                tc = ec.toolchain.as_dict()
+                _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
+                easyconfig['dependencies'].append(tc)
 
     if cache_key is not None:
         _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
 
     return easyconfigs
+
+
+def letter_dir_for(name):
+    """
+    Determine 'letter' directory for specified software name.
+    This usually just the 1st letter of the software name (in lowercase),
+    except for funky software names, e.g. ones starting with a digit.
+    """
+    # wildcard name should result in wildcard letter
+    if name == '*':
+        letter = '*'
+    else:
+        letter = name.lower()[0]
+        # outside of a-z range, use '0'
+        if letter < 'a' or letter > 'z':
+            letter = '0'
+
+    return letter
 
 
 def create_paths(path, name, version):
@@ -1100,11 +1333,11 @@ def create_paths(path, name, version):
     """
     cand_paths = [
         (name, version),  # e.g. <path>/GCC/4.8.2.eb
-        (name, "%s-%s" % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
-        (name.lower()[0], name, "%s-%s" % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
-        ("%s-%s" % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
+        (name, '%s-%s' % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
+        (letter_dir_for(name), name, '%s-%s' % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
+        ('%s-%s' % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
     ]
-    return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
+    return ['%s.eb' % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
 def robot_find_easyconfig(name, version):
@@ -1122,6 +1355,10 @@ def robot_find_easyconfig(name, version):
     elif not isinstance(paths, (list, tuple)):
         paths = [paths]
 
+    # if we should also consider archived easyconfigs, duplicate paths list with archived equivalents
+    if build_option('consider_archived_easyconfigs'):
+        paths = paths + [os.path.join(p, EASYCONFIGS_ARCHIVE_DIR) for p in paths]
+
     res = None
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
@@ -1138,13 +1375,94 @@ def robot_find_easyconfig(name, version):
     return res
 
 
+def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, parent_first=False):
+    """
+    Find the minimal toolchain of a dependency
+
+    :param dep: dependency target dict (long and short module names may not exist yet)
+    :param parent_tc: toolchain from which to derive the toolchain hierarchy to search (default: use dep's toolchain)
+    :param parent_first: reverse order in which subtoolchains are considered: parent toolchain, then subtoolchains
+    :return: minimal toolchain for which an easyconfig exists for this dependency (and matches build_options)
+    """
+    if parent_tc is None:
+        parent_tc = dep['toolchain']
+
+    avail_modules = []
+    if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+        avail_modules = modtool.available()
+
+    newdep = copy.deepcopy(dep)
+
+    toolchain_hierarchy = get_toolchain_hierarchy(parent_tc)
+    if parent_first:
+        toolchain_hierarchy = toolchain_hierarchy[::-1]
+
+    possible_toolchains = []
+    # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
+    for tc in toolchain_hierarchy:
+        newdep['toolchain'] = tc
+        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+        if eb_file is not None:
+            module_exists = False
+            # if necessary check if module exists
+            if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+                full_mod_name = ActiveMNS().det_full_module_name(newdep)
+                # fallback to checking with modtool.exist is required,
+                # for hidden modules and external modules where module name may be partial
+                module_exists = full_mod_name in avail_modules or modtool.exist([full_mod_name], skip_avail=True)[0]
+            # add the toolchain to list of possibilities
+            possible_toolchains.append({'toolchain': tc, 'module_exists': module_exists})
+
+    if possible_toolchains:
+        _log.debug("List of possible minimal toolchains for %s: %s", dep, possible_toolchains)
+
+        # select the toolchain to return, defaulting to the first element (lowest possible toolchain)
+        minimal_toolchain = possible_toolchains[0]['toolchain']
+        if build_option('use_existing_modules') and not build_option('retain_all_deps'):
+            # take the last element in the case of using existing modules (allows for potentially better optimisation)
+            filtered_possibilities = [tc for tc in possible_toolchains if tc['module_exists']]
+            if filtered_possibilities:
+                # take the last element (the maximum toolchain where a module exists already)
+                minimal_toolchain = filtered_possibilities[-1]['toolchain']
+    else:
+        _log.info("Irresolvable dependency found (even with minimal toolchains): %s", dep)
+        minimal_toolchain = None
+
+    _log.info("Minimally resolving dependency %s using toolchain %s", dep, minimal_toolchain)
+    return minimal_toolchain
+
+
+def det_location_for(path, target_dir, soft_name, target_file):
+    """
+    Determine path to easyconfigs directory for specified software name, using specified target file name.
+
+    :param path: path of file to copy
+    :param target_dir: (parent) target directory, should contain easybuild/easyconfigs subdirectory
+    :param soft_name: software name (to determine location to copy to)
+    :param target_file: target file name
+    :return: full path to the right location
+    """
+    subdir = os.path.join('easybuild', 'easyconfigs')
+
+    if os.path.exists(os.path.join(target_dir, subdir)):
+        target_path = os.path.join('easybuild', 'easyconfigs', letter_dir_for(soft_name), soft_name, target_file)
+        _log.debug("Target path for %s: %s", path, target_path)
+
+        target_path = os.path.join(target_dir, target_path)
+
+    else:
+        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
+
+    return target_path
+
+
 def copy_easyconfigs(paths, target_dir):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
 
-    @paths: list of paths to copy to git working dir
-    @target_dir: target directory
-    @return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
+    :param paths: list of paths to copy to git working dir
+    :param target_dir: target directory
+    :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
     """
     file_info = {
         'ecs': [],
@@ -1152,41 +1470,42 @@ def copy_easyconfigs(paths, target_dir):
         'new': [],
     }
 
-    a_to_z = [chr(i) for i in range(ord('a'), ord('z') + 1)]
-    subdir = os.path.join('easybuild', 'easyconfigs')
+    for path in paths:
+        ecs = process_easyconfig(path, validate=False)
+        if len(ecs) == 1:
+            file_info['ecs'].append(ecs[0]['ec'])
 
-    if os.path.exists(os.path.join(target_dir, subdir)):
-        for path in paths:
-            ecs = process_easyconfig(path, validate=False)
-            if len(ecs) == 1:
-                file_info['ecs'].append(ecs[0]['ec'])
-                name = file_info['ecs'][-1].name
-                ec_filename = '%s-%s.eb' % (name, det_full_ec_version(file_info['ecs'][-1]))
+            soft_name = file_info['ecs'][-1].name
+            ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
 
-                letter = name.lower()[0]
-                if letter not in a_to_z:
-                    raise EasyBuildError("Don't know which letter subdir to use for %s", name)
+            target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
-                target_path = os.path.join(subdir, letter, name, ec_filename)
-                _log.debug("Target path for %s: %s", path, target_path)
+            copy_file(path, target_path)
+            file_info['paths_in_repo'].append(target_path)
+            file_info['new'].append(os.path.exists(target_path))
 
-                full_target_path = os.path.join(target_dir, target_path)
-                try:
-                    file_info['new'].append(not os.path.exists(full_target_path))
-
-                    mkdir(os.path.dirname(full_target_path), parents=True)
-                    shutil.copy2(path, full_target_path)
-                    _log.info("%s copied to %s", path, full_target_path)
-                except OSError as err:
-                    raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
-
-                file_info['paths_in_repo'].append(target_path)
-            else:
-                raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
-    else:
-        raise EasyBuildError("Subdirectory %s not found in %s", subdir, target_dir)
+        else:
+            raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
 
     return file_info
+
+
+def copy_patch_files(patch_specs, target_dir):
+    """
+    Copy patch files to specified directory, in the 'right' location according to the software name they relate to.
+
+    :param patch_specs: list of tuples with patch file location and name of software they are for
+    :param target_dir: target directory
+    """
+    patched_files = {
+        'paths_in_repo': [],
+    }
+    for patch_path, soft_name in patch_specs:
+        target_path = det_location_for(patch_path, target_dir, soft_name, os.path.basename(patch_path))
+        copy_file(patch_path, target_path)
+        patched_files['paths_in_repo'].append(target_path)
+
+    return patched_files
 
 
 class ActiveMNS(object):

@@ -1,11 +1,11 @@
 ##
-# Copyright 2009-2015 Ghent University
+# Copyright 2009-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -27,7 +27,7 @@ EasyBuild support for building and installing toy, implemented as an easyblock
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 import platform
 import shutil
@@ -66,9 +66,10 @@ class EB_toy(EasyBlock):
         """Build toy."""
         if name is None:
             name = self.name
-        run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s' % {
+        run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s %(buildopts)s' % {
             'name': name,
             'prebuildopts': self.cfg['prebuildopts'],
+            'buildopts': self.cfg['buildopts'],
         })
 
     def install_step(self, name=None):
@@ -77,8 +78,9 @@ class EB_toy(EasyBlock):
             name = self.name
         bindir = os.path.join(self.installdir, 'bin')
         mkdir(bindir, parents=True)
-        if os.path.exists(name):
-            shutil.copy2(name, bindir)
+        for filename in glob.glob('%s_*' % name) + [name]:
+            if os.path.exists(filename):
+                shutil.copy2(filename, bindir)
         # also install a dummy libtoy.a, to make the default sanity check happy
         libdir = os.path.join(self.installdir, 'lib')
         mkdir(libdir, parents=True)
