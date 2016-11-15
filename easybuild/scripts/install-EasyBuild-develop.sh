@@ -26,11 +26,11 @@ github_clone_branch()
 
     cd "${INSTALL_DIR}"
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
-    git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
+    git clone --branch "${BRANCH}" "https://github.com/${GITHUB_USERNAME}/${REPO}.git"
 
     echo "=== Adding and fetching HPC-UGent GitHub repository @ hpcugent/${REPO} ..."
     cd "${REPO}"
-    git remote add "github_hpcugent" "git@github.com:hpcugent/${REPO}.git"
+    git remote add "github_hpcugent" "https://github.com/hpcugent/${REPO}.git"
     git fetch github_hpcugent
     git branch --set-upstream "${BRANCH}" "github_hpcugent/${BRANCH}"
 }
