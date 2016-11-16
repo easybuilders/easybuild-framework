@@ -85,4 +85,4 @@ script:
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
     # note: temporarily disabled because bootstrap test fails, cfr. https://github.com/hpcugent/easybuild-framework/issues/1869
-    #- module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
+    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
