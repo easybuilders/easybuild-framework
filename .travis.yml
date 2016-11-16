@@ -75,8 +75,8 @@ script:
     # run test suite
     - python -O -m test.framework.suite
     # configure EasyBuild before running bootstrap (modules tool/syntax to use)
-    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
-    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
     - cd $HOME
     # test bootstrap script
