@@ -36,7 +36,6 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import StrictVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
@@ -136,6 +135,35 @@ class ModuleGenerator(object):
         :param body: (multiline) string with if body (in correct syntax, without indentation)
         :param negative: boolean indicating whether the condition should be negated
         :param else_body: optional body for 'else' part
+        """
+        raise NotImplementedError
+
+    def define_env_var(self, env_var):
+        """
+        Determine whether environment variable with specified name should be defined or not.
+
+        :param env_var: name of environment variable to check
+        """
+        return env_var not in (build_option('filter_env_vars') or [])
+
+    def set_environment(self, key, value, relpath=False):
+        """
+        Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
+        """
+        raise NotImplementedError
+
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+        """
+        Generate prepend-path statements for the given list of paths.
+
+        :param key: environment variable to prepend paths to
+        :param paths: list of paths to prepend
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
         raise NotImplementedError
 
@@ -330,7 +358,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
-        template = "prepend-path\t%s\t\t%s\n"
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to prepend environment variable $%s, as specified", key)
+            return ''
 
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
@@ -353,7 +383,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        statements = [template % (key, p) for p in abspaths]
+        statements = ['prepend-path\t%s\t\t%s\n' % (key, p) for p in abspaths]
         return ''.join(statements)
 
     def use(self, paths, prefix=None, guarded=False):
@@ -380,8 +410,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def set_environment(self, key, value, relpath=False):
         """
-        Generate setenv statement for the given key/value pair.
+        Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
         """
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to define environment variable $%s, as specified", key)
+            return ''
+
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         if relpath:
             if value:
@@ -560,6 +598,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to prepend environment variable $%s, as specified", key)
+            return ''
+
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s", paths, key)
             paths = [paths]
@@ -611,7 +653,15 @@ class ModuleGeneratorLua(ModuleGenerator):
     def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
         """
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to define environment variable $%s, as specified", key)
+            return ''
+
         if relpath:
             if value:
                 val = self.PATH_JOIN_TEMPLATE % value
@@ -625,14 +675,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
-        if '\n' in msg:
-            if StrictVersion(modules_tool().version) >= StrictVersion('5.8'):
-                stmt_tmpl = 'io.stderr:write([==[%s]==])'
-            else:
-                raise EasyBuildError("Lmod 5.8 (or more recent) is required for multiline load messages in Lua modules")
-        else:
-            stmt_tmpl = 'io.stderr:write("%s")'
-
+        # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
+        stmt_tmpl = 'io.stderr:write([==[%s]==])'
         return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
 
     def set_alias(self, key, value):

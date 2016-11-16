@@ -107,9 +107,10 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
-            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertTrue('bzip2/.1.0.6' in ms)
             self.assertTrue('toy/.0.0-deps' in ms)
+            self.assertTrue('OpenMPI/.1.6.4-GCC-4.6.4' in ms)
         else:
             self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
@@ -337,8 +338,11 @@ class ModulesTest(EnhancedTestCase):
     def test_path_to_top_of_module_tree_lua(self):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
         if isinstance(self.modtool, Lmod):
+            orig_modulepath = os.environ.get('MODULEPATH')
             self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
-            self.assertEqual(os.environ.get('MODULEPATH'), None)
+            curr_modulepath = os.environ.get('MODULEPATH')
+            error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
+            self.assertEqual(curr_modulepath, None, error_msg)
 
             top_moddir = os.path.join(self.test_prefix, 'test_modules')
             core_dir = os.path.join(top_moddir, 'Core')

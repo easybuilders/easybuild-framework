@@ -109,16 +109,18 @@ class ParallelBuildTest(EnhancedTestCase):
         PbsPython.ppn = mock
         pbs_python.PbsJob = MockPbsJob
 
+        topdir = os.path.dirname(os.path.abspath(__file__))
+
         build_options = {
             'external_modules_metadata': {},
-            'robot_path': os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            'robot_path': os.path.join(topdir, 'easyconfigs', 'test_ecs'),
             'valid_module_classes': config.module_classes(),
             'validate': False,
             'job_cores': 3,
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb')
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
@@ -126,7 +128,7 @@ class ParallelBuildTest(EnhancedTestCase):
         regex = re.compile("echo '.*/gzip-1.5-goolf-1.4.10.eb'")
         self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
 
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
         jobs = submit_jobs(ordered_ecs, '', testing=False, prepare_first=False)
 
@@ -191,20 +193,22 @@ class ParallelBuildTest(EnhancedTestCase):
         adjust_permissions(os.path.dirname(output_dir), stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH,
                            add=False, recursive=False)
 
+        topdir = os.path.dirname(os.path.abspath(__file__))
+
         build_options = {
             'job_backend_config': gc3pie_cfgfile,
             'job_max_walltime': 24,
             'job_output_dir': output_dir,
             'job_polling_interval': 0.2,  # quick polling
             'job_target_resource': 'ebtestlocalhost',
-            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'robot_path': os.path.join(topdir, 'easyconfigs', 'test_ecs'),
             'silent': True,
             'valid_module_classes': config.module_classes(),
             'validate': False,
         }
         options = init_config(args=['--job-backend=GC3Pie'], build_options=build_options)
 
-        ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

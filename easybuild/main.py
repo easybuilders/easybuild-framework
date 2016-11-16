@@ -178,10 +178,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # set by option parsers via set_tmpdir
     eb_tmpdir = tempfile.gettempdir()
 
+    search_query = options.search or options.search_filename or options.search_short
+
     # initialise logging for main
     global _log
     _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
-                                 silent=(testing or options.terse), colorize=options.color)
+                                 silent=(testing or options.terse or search_query), colorize=options.color)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -198,8 +200,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, build_specs) = process_software_build_specs(options)
-
-    search_query = options.search or options.search_filename or options.search_short
 
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
@@ -269,6 +269,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.list_software,
         options.review_pr,
         options.terse,
+        search_query,
     ]
     if any(early_stop_options):
         cleanup(logfile, eb_tmpdir, testing, silent=True)

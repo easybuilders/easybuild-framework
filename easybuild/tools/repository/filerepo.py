@@ -102,9 +102,14 @@ class FileRepository(Repository):
         statsprefix = prefix
         statssuffix = "]\n"
         if previous:
-            stats = previous.append(stats)
+            statstxt = statscomment + statsprefix + '\n'
+            for entry in previous + [stats]:
+                statstxt += stats_to_str(entry, isyeb=yeb_format) + ',\n'
+            statstxt += statssuffix
+        else:
+            statstxt = statscomment + statsprefix + stats_to_str(stats, isyeb=yeb_format) + statssuffix
 
-        txt += statscomment + statsprefix + stats_to_str(stats, isyeb=yeb_format) + statssuffix
+        txt += statstxt
         write_file(dest, txt)
 
         return dest

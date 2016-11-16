@@ -67,7 +67,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        log_re = re.compile("^%s :: BOOM \(at .*:[0-9]+ in [a-z_]+\)$" % getRootLoggerName(), re.M)
+        log_re = re.compile("^%s ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$" % getRootLoggerName(), re.M)
         logtxt = open(tmplog, 'r').read()
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
@@ -99,9 +99,7 @@ class BuildLogTest(EnhancedTestCase):
         log.deprecated("anotherwarning", newer_ver)
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
-        log.raiseError = False
         log.error("kaput")
-        log.raiseError = True
         try:
             log.exception("oops")
         except EasyBuildError:
@@ -138,9 +136,7 @@ class BuildLogTest(EnhancedTestCase):
         log.info("%s+%s = %d", '4', '2', 42)
         args = ['this', 'is', 'just', 'a', 'test']
         log.debug("%s %s %s %s %s", *args)
-        log.raiseError = False
         log.error("foo %s baz", 'baz')
-        log.raiseError = True
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
@@ -153,13 +149,50 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
-        # test deprecated behaviour: raise EasyBuildError on log.error and log.exception
-        os.environ['EASYBUILD_DEPRECATED'] = '2.1'
-        init_config()
+    def test_log_levels(self):
+        """Test whether log levels are respected"""
+        fd, tmplog = tempfile.mkstemp()
+        os.close(fd)
 
-        log.warning("No raise for warnings")
-        self.assertErrorRegex(EasyBuildError, 'EasyBuild crashed with an error', log.error, 'foo')
-        self.assertErrorRegex(EasyBuildError, 'EasyBuild encountered an exception', log.exception, 'bar')
+        # set log format, for each regex searching
+        setLogFormat("%(name)s [%(levelname)s] :: %(message)s")
+
+        # test basic log methods
+        logToFile(tmplog, enable=True)
+        log = getLogger('test_easybuildlog')
+
+        for level in ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'DEVEL']:
+            log.setLevelName(level)
+            log.raiseError = False
+            log.error('kaput')
+            log.deprecated('almost kaput', '10000000000000')
+            log.raiseError = True
+            log.warn('this is a warning')
+            log.info('fyi')
+            log.debug('gdb')
+            log.devel('tmi')
+
+        logToFile(tmplog, enable=False)
+        logtxt = read_file(tmplog)
+
+        root = getRootLoggerName()
+
+        devel_msg = r"%s.test_easybuildlog \[DEVEL\] :: tmi" % root
+        debug_msg = r"%s.test_easybuildlog \[DEBUG\] :: gdb" % root
+        info_msg = r"%s.test_easybuildlog \[INFO\] :: fyi" % root
+        warning_msg = r"%s.test_easybuildlog \[WARNING\] :: this is a warning" % root
+        deprecated_msg = r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality, .*: almost kaput; see .*" % root
+        error_msg = r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root
+
+        expected_logtxt = '\n'.join([
+            error_msg,
+            error_msg, deprecated_msg, warning_msg,
+            error_msg, deprecated_msg, warning_msg, info_msg,
+            error_msg, deprecated_msg, warning_msg, info_msg, debug_msg,
+            error_msg, deprecated_msg, warning_msg, info_msg, debug_msg, devel_msg,
+        ])
+        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
+        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
 
 def suite():

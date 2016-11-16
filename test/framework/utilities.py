@@ -124,7 +124,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
@@ -241,7 +241,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        os.environ['MODULEPATH'] = ''
+        if 'MODULEPATH' in os.environ:
+            del os.environ['MODULEPATH']
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()

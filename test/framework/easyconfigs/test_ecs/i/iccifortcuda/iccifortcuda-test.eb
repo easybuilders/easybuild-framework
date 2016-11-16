@@ -1,0 +1,22 @@
+easyblock = 'Toolchain'
+
+name = 'iccifortcuda'
+version = 'test'
+
+homepage = '(none)'
+description = """Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL, with CUDA toolkit"""
+
+toolchain = {'name': 'dummy', 'version': 'dummy'}
+
+comp_name = 'iccifort'
+comp_ver = '2013.5.192'
+gccsuff = '-GCC-4.8.3'
+cudacomp = (comp_name, '%s%s' % (comp_ver, gccsuff))
+
+dependencies = [
+    ('icc', comp_ver, gccsuff),
+    ('ifort', comp_ver, gccsuff),
+    ('CUDA', '5.5.22', '', cudacomp),
+]
+
+moduleclass = 'toolchain'
