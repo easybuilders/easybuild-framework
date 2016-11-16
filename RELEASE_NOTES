@@ -11,7 +11,7 @@ feature release
   - make robot always consider subtoolchains, even without --minimal-toolchains (but in reverse order) (#1973)
   - clean up behaviour that was deprecated for EasyBuild v3.0 (#1978)
   - change default config to use Lmod/Lua for modules tool/syntax, GC3Pie as job backend (#1985)
-  - the minimal required version of Lmod was bumped to 5.8
+  - the minimal required version of Lmod was bumped to 5.8 (#1985)
 - major new features:
   - (experimental) support for RPATH linking via --rpath (#1942)
     - see http://easybuild.readthedocs.org/en/latest/RPATH-support.html
@@ -26,7 +26,7 @@ feature release
     - see --filter-env-vars
   - clean up output of EasyBuild bootstrap script & add version (#1944)
   - improved ARM platform/CPU detection (#1953)
-  - use '0' as letter dir for funky software names that don't start with a letter (#1954)
+  - use '0' as letter dir for funky software names that don't start with a letter, e.g., 3to2 (#1954)
   - make bootstrap script aware of vsc-install for offline installation (#1955)
   - add support for blas_family() and lapack_family() methods in Toolchain instances (#1961)
   - make copy_file dry-run aware (#1963)
