@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20161109.01'
+EB_BOOTSTRAP_VERSION = '20161116.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -88,8 +88,9 @@ EASYBUILD_BOOTSTRAP_SKIP_STAGE0 = os.environ.pop('EASYBUILD_BOOTSTRAP_SKIP_STAGE
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
-# If the modules tool is specified, use it
+# If the modules tool/syntax is specified, use it
 easybuild_modules_tool = os.environ.get('EASYBUILD_MODULES_TOOL', None)
+easybuild_module_syntax = os.environ.get('EASYBUILD_MODULE_SYNTAX', None)
 
 
 #
@@ -200,6 +201,10 @@ def prep(path):
 
     os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
     debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
+    if easybuild_module_syntax:
+        os.environ['EASYBUILD_MODULE_SYNTAX'] = easybuild_module_syntax
+        debug("$EASYBUILD_MODULE_SYNTAX set to %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
 
 
 def check_module_command(tmpdir):
