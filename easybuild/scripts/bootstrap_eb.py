@@ -205,11 +205,12 @@ def prep(path):
     if easybuild_module_syntax:
         # if module syntax is specified, use it
         os.environ['EASYBUILD_MODULE_SYNTAX'] = easybuild_module_syntax
+        debug("Using specified module syntax: %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
     elif easybuild_modules_tool != 'Lmod':
         # Lua is the default module syntax, but that requires Lmod
         # if Lmod is not being used, use Tcl module syntax
         os.environ['EASYBUILD_MODULE_SYNTAX'] = 'Tcl'
-    debug("$EASYBUILD_MODULE_SYNTAX set to %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
+        debug("$EASYBUILD_MODULE_SYNTAX set to %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
 
 
 
