@@ -80,7 +80,7 @@ script:
     # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
     - cd $HOME
     # test bootstrap script
-    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
