@@ -74,13 +74,10 @@ script:
       fi
     # run test suite
     - python -O -m test.framework.suite
-    # configure EasyBuild before running bootstrap (modules tool/syntax to use)
-    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
-    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
     - cd $HOME
     # test bootstrap script
-    - EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
