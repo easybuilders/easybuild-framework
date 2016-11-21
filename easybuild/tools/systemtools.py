@@ -515,13 +515,19 @@ def check_os_dependency(dep):
     # - should be extended to files later?
     found = None
     cmd = None
-    if which('rpm'):
-        cmd = "rpm -q %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
-
-    if not found and which('dpkg'):
-        cmd = "dpkg -s %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
+    os_to_pkgcmd_map = {
+	'ubuntu': 'dpkg',
+	'debian': 'dpkg',
+    }
+    pkg_cmd_flag = {
+	'dpkg': '-s',
+	'rpm': '-q',
+    }
+    os_name = get_os_name()
+    pkg_cmd = os_to_pkgcmd_map.get(os_name, 'rpm')
+    if which(pkg_cmd):
+	cmd = "%s %s %s" % (pkg_cmd, pkg_cmd_flag.get(pkg_cmd), dep)
+	found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True)
 
     if cmd is None:
         # fallback for when os-dependency is a binary/library
