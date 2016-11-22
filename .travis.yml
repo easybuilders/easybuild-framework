@@ -61,9 +61,6 @@ script:
     - if [ ! -z $MOD_INIT ] && [ ! -z $LMOD_VERSION ]; then alias ml=foobar; fi
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
-    # set up environment for EasyBuild framework tests
-    - export PATH=$TRAVIS_BUILD_DIR:$PATH
-    - export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
     - if [ ! -z $GITHUB_TOKEN ]; then
         if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
@@ -72,14 +69,24 @@ script:
         fi;
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
       fi
+    # create 'source distribution' tarball, like we do when publishing a release to PyPI
+    - python setup.py sdist
+    - ls -l $TRAVIS_BUILD_DIR/dist/
+    # set up environment for EasyBuild framework tests
+    - export PATH=/tmp/$TRAVIS_JOB_ID/bin:$PATH
+    - export PYTHONPATH=/tmp/$TRAVIS_JOB_ID/lib/python$TRAVIS_PYTHON_VERSION/site-packages
+    # install easybuild-framework to unique temporary location using prepared sdist tarball
+    - mkdir -p $PYTHONPATH; easy_install --prefix /tmp/$TRAVIS_JOB_ID $TRAVIS_BUILD_DIR/dist/easybuild-framework*tar.gz
+    # move outside of checkout of easybuild-framework repository,
+    # to run tests on an *installed* version of the EasyBuild framework;
+    # this is done to catch possible packaging issues
+    - cd $HOME
     # run test suite
     - python -O -m test.framework.suite
-    # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
-    - cd $HOME
     # test bootstrap script
-    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
     # note: temporarily disabled because bootstrap test fails, cfr. https://github.com/hpcugent/easybuild-framework/issues/1869
-    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
+    - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version
