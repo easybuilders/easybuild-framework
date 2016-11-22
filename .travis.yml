@@ -70,7 +70,7 @@ script:
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
       fi
     # create 'source distribution' tarball, like we do when publishing a release to PyPI
-    - python setup.py sdist
+    - cd $TRAVIS_BUILD_DIR; python setup.py sdist
     - ls -l $TRAVIS_BUILD_DIR/dist/
     # set up environment for EasyBuild framework tests
     - export PATH=/tmp/$TRAVIS_JOB_ID/bin:$PATH
