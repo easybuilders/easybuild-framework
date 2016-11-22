@@ -199,6 +199,11 @@ class GC3Pie(JobBackend):
         :param dependencies: jobs on which this job depends.
         """
         self.jobs.add(job, dependencies)
+        self.log.debug(
+            "Enqueued GC3Pie task %s to build %s %s",
+            job, job.name, ((" (depends on: " +
+                             ', '.join(sorted(dep.name for dep in dependencies))
+                             + ")") if dependencies else ""))
         # since it's not trivial to determine the correct job count from self.jobs, we keep track of a count ourselves
         self.job_cnt += 1
 
