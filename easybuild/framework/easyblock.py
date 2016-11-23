@@ -2037,7 +2037,7 @@ class EasyBlock(object):
                 self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
-                self.log.debug("sanity check command %s ran successfully! (output: %s)" % (command, out))
+                self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
