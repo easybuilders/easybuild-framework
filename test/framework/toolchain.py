@@ -367,6 +367,10 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch], 'mcpu=cortex-a72.cortex-a53')
 
+        tc = self.get_toolchain("GCCcore", version="6.2.0")
+        tc.prepare()
+        self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch], 'mcpu=native')
+
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
