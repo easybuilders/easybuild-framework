@@ -45,7 +45,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -223,7 +223,7 @@ class ModulesTool(object):
 
                 # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
                 # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-                self.version = self.version.replace('rc', 'b')
+                self.version = self.version.replace('rc', 'b').replace('-beta', 'b1')
                 if len(self.version.split('.')) > 3:
                     self.version = '.'.join(self.version.split('.')[:3])
 
@@ -253,7 +253,10 @@ class ModulesTool(object):
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
-            raise EasyBuildError("%s modules tool can not be used, '%s' command is not available.", mod_tool, self.cmd)
+            mod_tools = avail_modules_tools().keys()
+            error_msg = "%s modules tool can not be used, '%s' command is not available" % (mod_tool, self.cmd)
+            error_msg += "; use --modules-tool to specify a different modules tool to use (%s)" % ', '.join(mod_tools)
+            raise EasyBuildError(error_msg)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -573,7 +576,7 @@ class ModulesTool(object):
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
-        os.environ[key] = os.pathsep.join(paths)
+        setvar(key, os.pathsep.join(paths))
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -876,7 +879,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """Set environment variable with given name to the given list of paths."""
         super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
-        os.environ['%s_modshare' % key] = ':1:'.join(paths)
+        setvar('%s_modshare' % key, ':1:'.join(paths))
 
     def run_module(self, *args, **kwargs):
         """
@@ -936,22 +939,20 @@ class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    # required and optimal version
-    # we need at least Lmod v5.6.3 (and it can't be a release candidate)
-    REQ_VERSION = '5.6.3'
+    REQ_VERSION = '5.8'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
-    SHOW_HIDDEN_OPTION = '--show_hidden'
+    SHOW_HIDDEN_OPTION = '--show-hidden'
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
-        os.environ['LMOD_QUIET'] = '1'
+        setvar('LMOD_QUIET', '1')
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
-        os.environ['LMOD_IGNORE_CACHE'] = '1'
+        setvar('LMOD_IGNORE_CACHE', '1')
         # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
-        os.environ['LMOD_REDIRECT'] = 'no'
+        setvar('LMOD_REDIRECT', 'no')
 
         super(Lmod, self).__init__(*args, **kwargs)
 
@@ -996,10 +997,8 @@ class Lmod(ModulesTool):
 
         :param name: a (partial) module name for filtering (default: None)
         """
-        extra_args = []
-        if StrictVersion(self.version) >= StrictVersion('5.7.5'):
-            # make hidden modules visible for recent version of Lmod
-            extra_args = [self.SHOW_HIDDEN_OPTION]
+        # make hidden modules visible (requires Lmod 5.7.5)
+        extra_args = [self.SHOW_HIDDEN_OPTION]
 
         mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
 

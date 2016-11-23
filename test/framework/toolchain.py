@@ -39,14 +39,13 @@ from distutils.version import LooseVersion
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
-import easybuild.tools.build_log
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import mkdir, read_file, write_file, which
+from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -296,7 +295,7 @@ class ToolchainTest(EnhancedTestCase):
                 if opt == 'optarch':
                     flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
                 else:
-                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                    flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -396,27 +395,31 @@ class ToolchainTest(EnhancedTestCase):
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
-        # check default precision flag
+        # check default precision: no specific flag for GCC
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.set_options({})
         tc.prepare()
         for var in flag_vars:
-            flags = tc.get_variable(var)
-            val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP['defaultprec']])
-            self.assertTrue(val in flags)
+            self.assertEqual(os.getenv(var), "-O2 -march=native")
 
         # check other precision flags
-        for opt in ['strict', 'precise', 'loose', 'veryloose']:
+        prec_flags = {
+            'ieee': "-mieee-fp -fno-trapping-math",
+            'strict': "-mieee-fp -mno-recip",
+            'precise': "-mno-recip",
+            'loose': "-mrecip -mno-ieee-fp",
+            'veryloose': "-mrecip=all -mno-ieee-fp",
+        }
+        for prec in prec_flags:
             for enable in [True, False]:
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-                tc.set_options({opt: enable})
+                tc.set_options({prec: enable})
                 tc.prepare()
-                val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
                 for var in flag_vars:
-                    flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(val in flags)
+                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
                     else:
-                        self.assertTrue(val not in flags)
+                        self.assertEqual(os.getenv(var), "-O2 -march=native")
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -491,12 +494,12 @@ class ToolchainTest(EnhancedTestCase):
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
         tc = self.get_toolchain("goolfc", version="1.3.12")
-        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
+        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10'], 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -788,7 +791,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
-        tc.options.update({'openmp': True})
+        tc.set_options({'openmp': True})
         tc.prepare()
         self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
         self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
@@ -801,11 +804,11 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'optarch': 'test'})
 
         tc_cflags = {
-            'CrayCCE': "-craype-verbose -O2",
-            'CrayGNU': "-craype-verbose -O2",
-            'CrayIntel': "-craype-verbose -O2 -ftz -fp-speculation=safe -fp-model source",
-            'GCC': "-O2 -test",
-            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source",
+            'CrayCCE': "-O2 -homp -craype-verbose",
+            'CrayGNU': "-O2 -fopenmp -craype-verbose",
+            'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
+            'GCC': "-O2 -test -fopenmp",
+            'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
         }
 
         toolchains = [
@@ -821,7 +824,8 @@ class ToolchainTest(EnhancedTestCase):
             for tcname, tcversion in toolchains:
                 tc = get_toolchain({'name': tcname, 'version': tcversion}, {},
                                    mns=ActiveMNS(), modtool=self.modtool)
-                tc.set_options({})
+                # also check whether correct compiler flag for OpenMP is used while we're at it
+                tc.set_options({'openmp': True})
                 tc.prepare()
                 expected_cflags = tc_cflags[tcname]
                 msg = "Expected $CFLAGS found for toolchain %s: %s" % (tcname, expected_cflags)
@@ -959,6 +963,255 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
         self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
 
+    def test_rpath_args_script(self):
+        """Test rpath_args.py script"""
+        script = find_eb_script('rpath_args.py')
+
+        # simplest possible compiler command
+        out, ec = run_cmd("%s gcc '' -c foo.c" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-c'",
+            "'foo.c'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # linker command, --enable-new-dtags should be filtered out
+        out, ec = run_cmd("%s ld '' --enable-new-dtags foo.o" % script, simple=False)
+        self.assertEqual(ec, 0)
+        expected = '\n'.join([
+            "CMD_ARGS=('foo.o')",
+            "RPATH_ARGS='--disable-new-dtags -rpath=$ORIGIN/../lib -rpath=$ORIGIN/../lib64'",
+            ''
+        ])
+        cmd_args = [
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
+            "'foo.o'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # test passing no arguments
+        out, ec = run_cmd("%s gcc ''" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # test passing a single empty argument
+        out, ec = run_cmd("%s ld.gold '' ''" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
+            "''",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # single -L argument
+        out, ec = run_cmd("%s gcc '' foo.c -L/foo -lfoo" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=/foo'",
+            "'foo.c'",
+            "'-L/foo'",
+            "'-lfoo'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # relative paths passed to -L are *not* RPATH'ed in
+        out, ec = run_cmd("%s gcc '' foo.c -L../lib -lfoo" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+            "'-L../lib'",
+            "'-lfoo'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # single -L argument, with value separated by a space
+        out, ec = run_cmd("%s gcc '' foo.c -L   /foo -lfoo" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=/foo'",
+            "'foo.c'",
+            "'-L/foo'",
+            "'-lfoo'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # multiple -L arguments, order should be preserved
+        out, ec = run_cmd("%s ld '' -L/foo foo.o -L/lib64 -lfoo -lbar -L/usr/lib -L/bar" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
+            "'-rpath=/foo'",
+            "'-rpath=/lib64'",
+            "'-rpath=/usr/lib'",
+            "'-rpath=/bar'",
+            "'-L/foo'",
+            "'foo.o'",
+            "'-L/lib64'",
+            "'-lfoo'",
+            "'-lbar'",
+            "'-L/usr/lib'",
+            "'-L/bar'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # test specifying of custom rpath filter
+        out, ec = run_cmd("%s ld '/fo.*,/bar.*' -L/foo foo.o -L/lib64 -lfoo -L/bar -lbar" % script, simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
+            "'-rpath=/lib64'",
+            "'-L/foo'",
+            "'foo.o'",
+            "'-L/lib64'",
+            "'-lfoo'",
+            "'-L/bar'",
+            "'-lbar'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # slightly trimmed down real-life example (compilation of XZ)
+        args = ' '.join([
+            '-fvisibility=hidden',
+            '-Wall',
+            '-O2',
+            '-xHost',
+            '-o .libs/lzmainfo',
+            'lzmainfo-lzmainfo.o lzmainfo-tuklib_progname.o lzmainfo-tuklib_exit.o',
+            '-L/icc/lib/intel64',
+            '-L/imkl/lib',
+            '-L/imkl/mkl/lib/intel64',
+            '-L/gettext/lib',
+            '../../src/liblzma/.libs/liblzma.so',
+            '-lrt -liomp5 -lpthread',
+            '-Wl,-rpath',
+            '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
+        ])
+        out, ec = run_cmd("%s icc '' %s" % (script, args), simple=False)
+        self.assertEqual(ec, 0)
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=/icc/lib/intel64'",
+            "'-Wl,-rpath=/imkl/lib'",
+            "'-Wl,-rpath=/imkl/mkl/lib/intel64'",
+            "'-Wl,-rpath=/gettext/lib'",
+            "'-fvisibility=hidden'",
+            "'-Wall'",
+            "'-O2'",
+            "'-xHost'",
+            "'-o' '.libs/lzmainfo'",
+            "'lzmainfo-lzmainfo.o' 'lzmainfo-tuklib_progname.o' 'lzmainfo-tuklib_exit.o'",
+            "'-L/icc/lib/intel64'",
+            "'-L/imkl/lib'",
+            "'-L/imkl/mkl/lib/intel64'",
+            "'-L/gettext/lib'",
+            "'../../src/liblzma/.libs/liblzma.so'",
+            "'-lrt' '-liomp5' '-lpthread'",
+            "'-Wl,-rpath'",
+            "'-Wl,/example/software/XZ/5.2.2-intel-2016b/lib'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # trimmed down real-life example involving quotes and escaped quotes (compilation of GCC)
+        args = [
+            '-DHAVE_CONFIG_H',
+            '-I.',
+            '-Ibuild',
+            '-I../../gcc',
+            '-DBASEVER="\\"5.4.0\\""',
+            '-DDATESTAMP="\\"\\""',
+            '-DPKGVERSION="\\"(GCC) \\""',
+            '-DBUGURL="\\"<http://gcc.gnu.org/bugs.html>\\""',
+            '-o build/version.o',
+            '../../gcc/version.c',
+        ]
+        cmd = "%s g++ '' %s" % (script, ' '.join(args))
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+
+        cmd_args = [
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-DHAVE_CONFIG_H'",
+            "'-I.'",
+            "'-Ibuild'",
+            "'-I../../gcc'",
+            "'-DBASEVER=\"5.4.0\"'",
+            "'-DDATESTAMP=\"\"'",
+            "'-DPKGVERSION=\"(GCC) \"'",
+            "'-DBUGURL=\"<http://gcc.gnu.org/bugs.html>\"'",
+            "'-o' 'build/version.o'",
+            "'../../gcc/version.c'",
+        ]
+        self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # verify that no -rpath arguments are injected when command is run in 'version check' mode
+        cmd = "%s g++ '' -v" % script
+        out, ec = run_cmd(cmd, simple=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out.strip(), "CMD_ARGS=('-v')")
+
+    def test_toolchain_prepare_rpath(self):
+        """Test toolchain.prepare under --rpath"""
+
+        # put fake 'gcc' command in place that just echos its arguments
+        fake_gcc = os.path.join(self.test_prefix, 'fake', 'gcc')
+        write_file(fake_gcc, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_gcc, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+
+        # enable --rpath and prepare toolchain
+        init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
+        tc = self.get_toolchain('gompi', version='1.3.12')
+
+        # preparing RPATH wrappers requires --experimental, need to bypass that here
+        tc.log.experimental = lambda x: x
+
+        tc.prepare()
+
+        # check whether fake gcc was wrapped and that arguments are what they should be
+        # no -rpath for /bar because of rpath filter
+        out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
+        expected = ' '.join([
+            '-Wl,-rpath=$ORIGIN/../lib',
+            '-Wl,-rpath=$ORIGIN/../lib64',
+            '-Wl,--disable-new-dtags',
+            '-Wl,-rpath=/foo',
+            '%(user)s.c',
+            '-L/foo',
+            '-L/bar',
+            '$FOO',
+            '-DX=""',
+        ])
+        self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
 
 
 def suite():

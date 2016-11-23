@@ -35,7 +35,6 @@ import shutil
 import stat
 import sys
 import tempfile
-from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -211,14 +210,9 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
         shutil.copy2(os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb'), ec_file)
 
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) < StrictVersion('5.8'):
-            modloadmsg = 'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'
-            modloadmsg_regex_tcl = 'THANKS.*, I AM toy v0.0"'
-            modloadmsg_regex_lua = '"THANKS., I AM toy v0.0"'
-        else:
-            modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
-            modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0"'
-            modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\]==\]'
+        modloadmsg = 'THANKS FOR LOADING ME\\nI AM %(name)s v%(version)s'
+        modloadmsg_regex_tcl = 'THANKS.*\n\s*I AM toy v0.0"'
+        modloadmsg_regex_lua = '\[==\[THANKS.*\n\s*I AM toy v0.0\]==\]'
 
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
@@ -260,8 +254,8 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
             self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
             mod_load_msg = r'^if mode\(\) == "load" then\n\s*io.stderr:write\(%s\)$' % modloadmsg_regex_lua
-            self.assertTrue(re.search(mod_load_msg, toy_module_txt, re.M))
-            self.assertTrue(re.search(r'^io.stderr:write\("oh hai!"\)$', toy_module_txt, re.M))
+            regex = re.compile(mod_load_msg, re.M)
+            self.assertTrue(regex.search(toy_module_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_module_txt))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
@@ -831,22 +825,14 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module += '.lua'
         toy_mod_txt = read_file(toy_module)
 
-        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) < StrictVersion('5.8'):
-            modloadmsg_tcl = [
-                r'    puts stderr "THANKS FOR LOADING ME, I AM toy v0.0"',
-            ]
-            modloadmsg_lua = [
-                r'    io.stderr:write\("THANKS FOR LOADING ME, I AM toy v0.0"\)',
-            ]
-        else:
-            modloadmsg_tcl = [
-                r'    puts stderr "THANKS FOR LOADING ME',
-                r'    I AM toy v0.0"',
-            ]
-            modloadmsg_lua = [
-                r'    io.stderr:write\(\[==\[THANKS FOR LOADING ME',
-                r'    I AM toy v0.0\]==\]\)',
-            ]
+        modloadmsg_tcl = [
+            r'    puts stderr "THANKS FOR LOADING ME',
+            r'    I AM toy v0.0"',
+        ]
+        modloadmsg_lua = [
+            r'    io.stderr:write\(\[==\[THANKS FOR LOADING ME',
+            r'    I AM toy v0.0\]==\]\)',
+        ]
 
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
@@ -1247,6 +1233,13 @@ class ToyBuildTest(EnhancedTestCase):
             dumped_toy_ec = os.path.join(self.test_prefix, 'ebfiles_repo', 'toy', os.path.basename(toy_ec))
             ec = EasyConfigParser(dumped_toy_ec).get_config_dict()
             self.assertEqual(ec['buildopts'], expected_buildopts)
+
+    def test_toy_rpath(self):
+        """Test toy build using --rpath."""
+        self.test_toy_build(extra_args=['--rpath', '--experimental'])
+
+        # also test use of --rpath-filter
+        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/test.*,/foo.*', '--experimental'])
 
 
 def suite():
