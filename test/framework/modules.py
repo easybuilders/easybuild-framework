@@ -51,7 +51,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 76
+TEST_MODULES_COUNT = 77
 
 
 class ModulesTest(EnhancedTestCase):
@@ -94,9 +94,9 @@ class ModulesTest(EnhancedTestCase):
         """Test if getting a (restricted) list of available modules works."""
         self.init_testmods()
 
-        # test modules include 3 GCC modules
+        # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
-        self.assertEqual(ms, ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2'])
+        self.assertEqual(ms, ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2', 'GCCcore/6.2.0'])
 
         # test modules include one GCC/4.6.3 module
         ms = self.modtool.available(mod_name='GCC/4.6.3')
