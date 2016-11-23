@@ -45,7 +45,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -576,7 +576,7 @@ class ModulesTool(object):
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
-        os.environ[key] = os.pathsep.join(paths)
+        setvar(key, os.pathsep.join(paths))
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -879,7 +879,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """Set environment variable with given name to the given list of paths."""
         super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
-        os.environ['%s_modshare' % key] = ':1:'.join(paths)
+        setvar('%s_modshare' % key, ':1:'.join(paths))
 
     def run_module(self, *args, **kwargs):
         """
@@ -948,11 +948,11 @@ class Lmod(ModulesTool):
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
-        os.environ['LMOD_QUIET'] = '1'
+        setvar('LMOD_QUIET', '1')
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
-        os.environ['LMOD_IGNORE_CACHE'] = '1'
+        setvar('LMOD_IGNORE_CACHE', '1')
         # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
-        os.environ['LMOD_REDIRECT'] = 'no'
+        setvar('LMOD_REDIRECT', 'no')
 
         super(Lmod, self).__init__(*args, **kwargs)
 
