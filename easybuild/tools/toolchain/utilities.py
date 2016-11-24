@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -30,8 +30,8 @@ Easy access to actual Toolchain classes
 
 Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import re
@@ -55,7 +55,8 @@ _log = fancylogger.getLogger("toolchain.utilities")
 def search_toolchain(name):
     """
     Obtain a Toolchain instance for the toolchain with specified name, next to a list of available toolchains.
-    @return Toolchain instance (or None), found_toolchains
+    :param name: toolchain name
+    :return: Toolchain instance (or None), found_toolchains
     """
 
     package = easybuild.tools.toolchain
@@ -112,10 +113,16 @@ def search_toolchain(name):
     return None, found_tcs
 
 
-def get_toolchain(tc, tcopts, mns=None, tcdeps=None):
+def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
     """
     Return an initialized toolchain for the given specifications.
     If none is available in the toolchain instances cache, a new one is created.
+
+    :param tc: dictionary specifying toolchain name/version
+    :param tcopts: dictionary specifying toolchain options
+    :param mns: module naming scheme to use
+    :param tcdeps: toolchain dependencies (i.e. toolchain components)
+    :param modtool: ModulesTool instance to use
     """
     key = (tc['name'], tc['version'])
     if key in _initial_toolchain_instances:
@@ -126,7 +133,9 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None):
         if not tc_class:
             all_tcs_names = ','.join([x.NAME for x in all_tcs])
             raise EasyBuildError("Toolchain %s not found, available toolchains: %s", tc['name'], all_tcs_names)
-        tc_inst = tc_class(version=tc['version'], mns=mns, tcdeps=tcdeps)
+
+        hidden = tc.get('hidden', False)
+        tc_inst = tc_class(version=tc['version'], mns=mns, tcdeps=tcdeps, modtool=modtool, hidden=hidden)
         tc_dict = tc_inst.as_dict()
         _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
 

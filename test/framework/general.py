@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -29,12 +29,14 @@ Unit tests for general aspects of the EasyBuild framework
 """
 import os
 import re
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import vsc
 
 import easybuild.framework
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -84,7 +86,7 @@ class GeneralTest(EnhancedTestCase):
             pass
 
         err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
-        self.assertErrorRegex(ImportError, err_pat, bar)
+        self.assertErrorRegex(EasyBuildError, err_pat, bar)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')
@@ -92,12 +94,34 @@ class GeneralTest(EnhancedTestCase):
                 pass
 
         err_pat = r"required module 'thisdoesnotexist' is not available \(available from http://example.com\)"
-        self.assertErrorRegex(ImportError, err_pat, Foo().foobar)
+        self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
+
+    def test_docstrings(self):
+        """Make sure tags included in docstrings are correctly formatted."""
+        # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
+        easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
+
+        docstring_regexes = [
+            re.compile("@author"),
+            re.compile("@param"),
+            re.compile("@return"),
+        ]
+
+        for dirpath, _, filenames in os.walk(easybuild_loc):
+            for filename in [f for f in filenames if f.endswith('.py')]:
+                # script that translates @param into :param ...: contains @param, so just skip that
+                if filename == 'fix_docs.py':
+                    continue
+
+                path = os.path.join(dirpath, filename)
+                txt = read_file(path)
+                for regex in docstring_regexes:
+                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(GeneralTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(GeneralTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

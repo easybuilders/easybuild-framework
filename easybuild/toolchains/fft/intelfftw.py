@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,8 +25,8 @@
 """
 Support for Intel FFTW as toolchain FFT library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import os
 from distutils.version import LooseVersion
@@ -59,10 +59,12 @@ class IntelFFTW(Fftw):
             bitsuff = '_ilp64'
         compsuff = '_intel'
         if get_software_root('icc') is None:
-            if get_software_root('GCC'):
+            if get_software_root('PGI'):
+                compsuff = '_pgi'
+            elif get_software_root('GCC'):
                 compsuff = '_gnu'
             else:
-                raise EasyBuildError("Not using Intel compilers or GCC, don't know compiler suffix for FFTW libraries.")
+                raise EasyBuildError("Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries.")
 
         fftw_libs = ["fftw3xc%s%s" % (compsuff, picsuff)]
         if self.options['usempi']:
@@ -85,15 +87,15 @@ class IntelFFTW(Fftw):
         # so make sure libraries are there before FFT_LIB is set
         imklroot = get_software_root(self.FFT_MODULE_NAME[0])
         fft_lib_dirs = [os.path.join(imklroot, d) for d in self.FFT_LIB_DIR]
-        # filter out gfortran from list of FFTW libraries to check for, since it's not provided by imkl
-        check_fftw_libs = [lib for lib in fftw_libs if lib != 'gfortran']
+        # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
+        check_fftw_libs = [lib for lib in fftw_libs if lib not in ['dl', 'gfortran']]
         fftw_lib_exists = lambda x: any([os.path.exists(os.path.join(d, "lib%s.a" % x)) for d in fft_lib_dirs])
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
             msg = "Not all FFTW interface libraries %s are found in %s" % (check_fftw_libs, fft_lib_dirs)
             msg += ", can't set $FFT_LIB."
-            if build_option('extended_dry_run'):
+            if self.dry_run:
                 dry_run_warning(msg, silent=build_option('silent'))
             else:
                 raise EasyBuildError(msg)

@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -26,8 +26,8 @@
 """
 The main easyconfig format class
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import re
@@ -139,7 +139,7 @@ class Squashed(object):
     def add_toolchain(self, squashed):
         """
         Add squashed instance from a toolchain section
-        @param squashed: a Squashed instance
+        :param squashed: a Squashed instance
         """
         # TODO unify with add_version, make one .add()
         # data from toolchain
@@ -150,8 +150,8 @@ class Squashed(object):
     def add_version(self, section, squashed):
         """
         Add squashed instance from version section
-        @param section: the version section versionoperator instance
-        @param squashed: a Squashed instance
+        :param section: the version section versionoperator instance
+        :param squashed: a Squashed instance
         """
         # TODO unify with add_toolchain, make one .add()
         # don't update res_sections
@@ -213,7 +213,7 @@ class EBConfigObj(object):
     def __init__(self, configobj=None):
         """
         Initialise EBConfigObj instance
-        @param configobj: ConfigObj instance
+        :param configobj: ConfigObj instance
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -239,8 +239,8 @@ class EBConfigObj(object):
 
         Returns a dict of (nested) Sections
 
-        @param toparse: a Section (or ConfigObj) instance, basically a dict of (unparsed) sections
-        @param current: the current NestedDict 
+        :param toparse: a Section (or ConfigObj) instance, basically a dict of (unparsed) sections
+        :param current: the current NestedDict 
         """
         # note: configobj already converts comma-separated strings in lists
         #
@@ -338,7 +338,7 @@ class EBConfigObj(object):
         Parse configobj using using recursive parse_sections. 
         Then split off the default and supported sections. 
 
-        @param configobj: ConfigObj instance
+        :param configobj: ConfigObj instance
         """
         # keep reference to original (in case it's needed/wanted)
         self.configobj = configobj
@@ -387,9 +387,9 @@ class EBConfigObj(object):
         Project the multidimensional easyconfig to single easyconfig
         It (tries to) detect conflicts in the easyconfig.
 
-        @param version: version to keep
-        @param tcname: toolchain name to keep
-        @param tcversion: toolchain version to keep
+        :param version: version to keep
+        :param tcname: toolchain name to keep
+        :param tcversion: toolchain version to keep
         """
         self.log.debug('Start squash with sections %s' % self.sections)
 
@@ -410,10 +410,10 @@ class EBConfigObj(object):
         """
         Project the multidimensional easyconfig (or subsection thereof) to single easyconfig
         Returns Squashed instance for the processed block.
-        @param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and 
+        :param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and 
                             tcversion (toolchain version to keep)
-        @param processed: easyconfig (Top)NestedDict
-        @param sanity: dictionary to keep track of section markers and detect conflicts 
+        :param processed: easyconfig (Top)NestedDict
+        :param sanity: dictionary to keep track of section markers and detect conflicts 
         """
         version, tcname, tcversion = vt_tuple
         res_sections = {}
@@ -450,11 +450,11 @@ class EBConfigObj(object):
         """
         Squash NestedDict instance, returns dict with already squashed data 
             from possible higher sections 
-        @param key: section key
-        @param nested_dict: the nested_dict instance
-        @param squashed: Squashed instance
-        @param sanity: the sanity dict
-        @param vt_tuple: version, tc_name, tc_version tuple
+        :param key: section key
+        :param nested_dict: the nested_dict instance
+        :param squashed: Squashed instance
+        :param sanity: the sanity dict
+        :param vt_tuple: version, tc_name, tc_version tuple
         """
         version, tcname, tcversion = vt_tuple
         res_sections = {}
@@ -490,11 +490,11 @@ class EBConfigObj(object):
         """
         Squash VERSION_OPERATOR_VALUE_TYPES value 
             return None or new Squashed instance 
-        @param key: section key
-        @param nested_dict: the nested_dict instance
-        @param squashed: Squashed instance
-        @param sanity: the sanity dict
-        @param vt_tuple: version, tc_name, tc_version tuple
+        :param key: section key
+        :param nested_dict: the nested_dict instance
+        :param squashed: Squashed instance
+        :param sanity: the sanity dict
+        :param vt_tuple: version, tc_name, tc_version tuple
         """
         version, tcname, tcversion = vt_tuple
         if key == 'toolchains':

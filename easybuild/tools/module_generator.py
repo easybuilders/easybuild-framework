@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,12 +25,12 @@
 """
 Generating module files.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Stijn De Weirdt (Ghent University)
+:author: Dries Verdegem (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Pieter De Baets (Ghent University)
+:author: Jens Timmerman (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import re
@@ -131,10 +131,51 @@ class ModuleGenerator(object):
         """
         Return formatted conditional statement, with given condition and body.
 
-        @param condition: string containing the statement for the if condition (in correct syntax)
-        @param body: (multiline) string with if body (in correct syntax, without indentation)
-        @param negative: boolean indicating whether the condition should be negated
-        @param else_body: optional body for 'else' part
+        :param condition: string containing the statement for the if condition (in correct syntax)
+        :param body: (multiline) string with if body (in correct syntax, without indentation)
+        :param negative: boolean indicating whether the condition should be negated
+        :param else_body: optional body for 'else' part
+        """
+        raise NotImplementedError
+
+    def define_env_var(self, env_var):
+        """
+        Determine whether environment variable with specified name should be defined or not.
+
+        :param env_var: name of environment variable to check
+        """
+        return env_var not in (build_option('filter_env_vars') or [])
+
+    def set_environment(self, key, value, relpath=False):
+        """
+        Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
+        """
+        raise NotImplementedError
+
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+        """
+        Generate prepend-path statements for the given list of paths.
+
+        :param key: environment variable to prepend paths to
+        :param paths: list of paths to prepend
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        """
+        raise NotImplementedError
+
+    def msg_on_load(self, msg):
+        """
+        Add a message that should be printed when loading the module.
+        """
+        raise NotImplementedError
+
+    def set_alias(self, key, value):
+        """
+        Generate set-alias statement in modulefile for the given key/value pair.
         """
         raise NotImplementedError
 
@@ -148,9 +189,9 @@ class ModuleGenerator(object):
         """
         Generate load statement for specified module.
 
-        @param mod_name: name of module to generate load statement for
-        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        @param unload_modules: name(s) of module to unload first
+        :param mod_name: name of module to generate load statement for
+        :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        :param unload_modules: name(s) of module to unload first
         """
         raise NotImplementedError
 
@@ -158,7 +199,7 @@ class ModuleGenerator(object):
         """
         Generate unload statement for specified module.
 
-        @param mod_name: name of module to generate unload statement for
+        :param mod_name: name of module to generate unload statement for
         """
         raise NotImplementedError
 
@@ -166,9 +207,9 @@ class ModuleGenerator(object):
         """
         Generate swap statement for specified module names.
 
-        @param mod_name_out: name of module to unload (swap out)
-        @param mod_name_in: name of module to load (swap in)
-        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        :param mod_name_out: name of module to unload (swap out)
+        :param mod_name_in: name of module to load (swap in)
+        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
         raise NotImplementedError
 
@@ -193,10 +234,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Return formatted conditional statement, with given condition and body.
 
-        @param condition: string containing the statement for the if condition (in correct syntax)
-        @param body: (multiline) string with if body (in correct syntax, without indentation)
-        @param negative: boolean indicating whether the condition should be negated
-        @param else_body: optional body for 'else' part
+        :param condition: string containing the statement for the if condition (in correct syntax)
+        :param body: (multiline) string with if body (in correct syntax, without indentation)
+        :param negative: boolean indicating whether the condition should be negated
+        :param else_body: optional body for 'else' part
         """
         if negative:
             lines = ["if { ![ %s ] } {" % condition]
@@ -264,9 +305,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate load statement for specified module.
 
-        @param mod_name: name of module to generate load statement for
-        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        @param unload_module: name(s) of module to unload first
+        :param mod_name: name of module to generate load statement for
+        :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        :param unload_module: name(s) of module to unload first
         """
         body = []
         if unload_modules:
@@ -287,7 +328,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate unload statement for specified module.
 
-        @param mod_name: name of module to generate unload statement for
+        :param mod_name: name of module to generate unload statement for
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
@@ -295,9 +336,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate swap statement for specified module names.
 
-        @param mod_name_out: name of module to unload (swap out)
-        @param mod_name_in: name of module to load (swap in)
-        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        :param mod_name_out: name of module to unload (swap out)
+        :param mod_name_in: name of module to load (swap in)
+        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
         body = "module swap %s %s" % (mod_name_out, mod_name_in)
         if guarded:
@@ -312,12 +353,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate prepend-path statements for the given list of paths.
 
-        @param key: environment variable to prepend paths to
-        @param paths: list of paths to prepend
-        @param allow_abs: allow providing of absolute paths
-        @param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param key: environment variable to prepend paths to
+        :param paths: list of paths to prepend
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
-        template = "prepend-path\t%s\t\t%s\n"
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to prepend environment variable $%s, as specified", key)
+            return ''
 
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
@@ -340,15 +383,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        statements = [template % (key, p) for p in abspaths]
+        statements = ['prepend-path\t%s\t\t%s\n' % (key, p) for p in abspaths]
         return ''.join(statements)
 
     def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
-        @param paths: list of module path extensions to generate use statements for; paths will be quoted
-        @param prefix: optional path prefix; not quoted, i.e., can be a statement
-        @param guarded: use statements will be guarded to only apply if path exists
+        :param paths: list of module path extensions to generate use statements for; paths will be quoted
+        :param prefix: optional path prefix; not quoted, i.e., can be a statement
+        :param guarded: use statements will be guarded to only apply if path exists
         """
         use_statements = []
         for path in paths:
@@ -367,8 +410,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def set_environment(self, key, value, relpath=False):
         """
-        Generate setenv statement for the given key/value pair.
+        Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
         """
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to define environment variable $%s, as specified", key)
+            return ''
+
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         if relpath:
             if value:
@@ -429,10 +480,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Return formatted conditional statement, with given condition and body.
 
-        @param condition: string containing the statement for the if condition (in correct syntax)
-        @param body: (multiline) string with if body (in correct syntax, without indentation)
-        @param negative: boolean indicating whether the condition should be negated
-        @param else_body: optional body for 'else' part
+        :param condition: string containing the statement for the if condition (in correct syntax)
+        :param body: (multiline) string with if body (in correct syntax, without indentation)
+        :param negative: boolean indicating whether the condition should be negated
+        :param else_body: optional body for 'else' part
         """
         if negative:
             lines = ["if not %s then" % condition]
@@ -494,9 +545,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate load statement for specified module.
 
-        @param mod_name: name of module to generate load statement for
-        @param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        @param unload_modules: name(s) of module to unload first
+        :param mod_name: name of module to generate load statement for
+        :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
+        :param unload_modules: name(s) of module to unload first
         """
         body = []
         if unload_modules:
@@ -517,7 +568,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate unload statement for specified module.
 
-        @param mod_name: name of module to generate unload statement for
+        :param mod_name: name of module to generate unload statement for
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
 
@@ -525,9 +576,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate swap statement for specified module names.
 
-        @param mod_name_out: name of module to unload (swap out)
-        @param mod_name_in: name of module to load (swap in)
-        @param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        :param mod_name_out: name of module to unload (swap out)
+        :param mod_name_in: name of module to load (swap in)
+        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
         body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
         if guarded:
@@ -542,11 +593,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate prepend-path statements for the given list of paths
 
-        @param key: environment variable to prepend paths to
-        @param paths: list of paths to prepend
-        @param allow_abs: allow providing of absolute paths
-        @param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param key: environment variable to prepend paths to
+        :param paths: list of paths to prepend
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
         """
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to prepend environment variable $%s, as specified", key)
+            return ''
+
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s", paths, key)
             paths = [paths]
@@ -576,9 +631,9 @@ class ModuleGeneratorLua(ModuleGenerator):
     def use(self, paths, prefix=None, guarded=False):
         """
         Generate module use statements for given list of module paths.
-        @param paths: list of module path extensions to generate use statements for; paths will be quoted
-        @param prefix: optional path prefix; not quoted, i.e., can be a statement
-        @param guarded: use statements will be guarded to only apply if path exists
+        :param paths: list of module path extensions to generate use statements for; paths will be quoted
+        :param prefix: optional path prefix; not quoted, i.e., can be a statement
+        :param guarded: use statements will be guarded to only apply if path exists
         """
         use_statements = []
         for path in paths:
@@ -598,7 +653,15 @@ class ModuleGeneratorLua(ModuleGenerator):
     def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
         """
+        if not self.define_env_var(key):
+            self.log.info("Not including statement to define environment variable $%s, as specified", key)
+            return ''
+
         if relpath:
             if value:
                 val = self.PATH_JOIN_TEMPLATE % value
@@ -612,7 +675,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write("%s")' % msg)])
+        # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
+        stmt_tmpl = 'io.stderr:write([==[%s]==])'
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
 
     def set_alias(self, key, value):
         """
@@ -661,19 +726,19 @@ def module_load_regex(modfilepath):
     return re.compile(regex, re.M)
 
 
-def dependencies_for(mod_name, depth=sys.maxint):
+def dependencies_for(mod_name, modtool, depth=sys.maxint):
     """
     Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
-    @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
+    :param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
     """
-    mod_filepath = modules_tool().modulefile_path(mod_name)
+    mod_filepath = modtool.modulefile_path(mod_name)
     modtxt = read_file(mod_filepath)
     loadregex = module_load_regex(mod_filepath)
     mods = loadregex.findall(modtxt)
 
     if depth > 0:
         # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, depth=depth - 1) for mod in mods]
+        moddeps = [dependencies_for(mod, modtool, depth=depth - 1) for mod in mods]
     else:
         # ignore any deeper dependencies
         moddeps = []
