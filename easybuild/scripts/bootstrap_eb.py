@@ -90,6 +90,7 @@ orig_os_environ = copy.deepcopy(os.environ)
 
 # If the modules tool is specified, use it
 easybuild_modules_tool = os.environ.get('EASYBUILD_MODULES_TOOL', None)
+easybuild_module_syntax = os.environ.get('EASYBUILD_MODULE_SYNTAX', None)
 
 
 #
@@ -200,6 +201,17 @@ def prep(path):
 
     os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
     debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
+    if easybuild_module_syntax:
+        # if module syntax is specified, use it
+        os.environ['EASYBUILD_MODULE_SYNTAX'] = easybuild_module_syntax
+        debug("Using specified module syntax: %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
+    elif easybuild_modules_tool != 'Lmod':
+        # Lua is the default module syntax, but that requires Lmod
+        # if Lmod is not being used, use Tcl module syntax
+        os.environ['EASYBUILD_MODULE_SYNTAX'] = 'Tcl'
+        debug("$EASYBUILD_MODULE_SYNTAX set to %s" % os.environ['EASYBUILD_MODULE_SYNTAX'])
+
 
 
 def check_module_command(tmpdir):
