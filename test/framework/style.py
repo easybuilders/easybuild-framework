@@ -25,7 +25,7 @@
 """
 Style tests for easyconfig files.
 
-@author: Ward Poelmans (Ghent University)
+:author: Ward Poelmans (Ghent University)
 """
 
 import glob
