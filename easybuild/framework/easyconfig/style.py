@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -21,7 +21,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
+
 """
 Style tests for easyconfig files using pep8.
 
@@ -50,7 +51,7 @@ _log = fancylogger.getLogger('easyconfig.style', fname=False)
 # Read the pep8 docs to understand the arguments of these functions:
 # https://pep8.readthedocs.org or more specifically:
 # https://pep8.readthedocs.org/en/latest/developer.html#contribute
-def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines):
+def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines):  # pylint:disable=unused-argument
     """
     W299
     Warn about trailing whitespace, except for the description and comments.
@@ -59,7 +60,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines
     The arguments are explained at
     https://pep8.readthedocs.org/en/latest/developer.html#contribute
     """
-    comment_re = re.compile('^\s*#')
+    comment_re = re.compile(r'^\s*#')
     if comment_re.match(physical_line):
         return None
 
@@ -69,7 +70,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines
 
     # if the warning is about the multiline string of description
     # we will not issue a warning
-    keys_re = re.compile("^(?P<key>[a-z_]+)\s*=\s*")
+    keys_re = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 
     # starting from the current line and going to the top,
     # check that if the first `key = value` that is found, has
@@ -90,9 +91,9 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines
 def style_conformance(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
-    @param easyconfigs list of file paths to easyconfigs
-    @param verbose print our statistics and be verbose about the errors and warning
-    @return the number of warnings and errors
+    :param easyconfigs list of file paths to easyconfigs
+    :param verbose print our statistics and be verbose about the errors and warning
+    :return the number of warnings and errors
     """
     # importing autopep8 changes some pep8 functions.
     # We reload it to be sure to get the real pep8 functions.
@@ -102,7 +103,7 @@ def style_conformance(easyconfigs, verbose=False):
     # any function in this module starting with `_eb_check_` will be used.
     cands = globals()
     for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith('_eb_check_')]):
-        _log.debug("Adding custom style check %s" % check_function)
+        _log.debug("Adding custom style check %s", check_function)
         pep8.register_check(check_function)
 
     pep8style = pep8.StyleGuide(quiet=False, config_file=None)
