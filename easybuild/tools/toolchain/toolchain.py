@@ -57,6 +57,8 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
 
+RPATH_WRAPPERS_SUBDIR = 'rpath_wrappers'
+
 
 class Toolchain(object):
     """General toolchain class"""
@@ -727,6 +729,15 @@ class Toolchain(object):
         self.cached_compilers.update(compilers)
         self.log.debug("Cached compilers (after preparing for %s): %s", cache_tool, self.cached_compilers)
 
+    @staticmethod
+    def is_rpath_wrapper(path):
+        """
+        Check whether command at specified location already is an RPATH wrapper script rather than the actual command
+        """
+        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(path)) == RPATH_WRAPPERS_SUBDIR
+        calls_rpath_args = 'rpath_args.py $CMD' in read_file(path)
+        return in_rpath_wrappers_dir and calls_rpath_args
+
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
@@ -740,7 +751,7 @@ class Toolchain(object):
         else:
             raise EasyBuildError("RPATH linking is currently only supported on Linux")
 
-        wrapper_dir = os.path.join(tempfile.mkdtemp(), 'rpath_wrappers')
+        wrapper_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
@@ -762,7 +773,14 @@ class Toolchain(object):
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
             orig_cmd = which(cmd)
+
             if orig_cmd:
+                # bail out early if command already is a wrapped;
+                # this may occur when building extensions
+                if self.is_rpath_wrapper(orig_cmd):
+                    self.log.info("%s already seems to be an RPATH wrapper script, not wrapping it again!", orig_cmd)
+                    continue
+
                 cmd_wrapper = os.path.join(wrapper_dir, cmd)
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...

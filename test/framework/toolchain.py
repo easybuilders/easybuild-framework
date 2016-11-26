@@ -1166,6 +1166,16 @@ class ToolchainTest(EnhancedTestCase):
 
         tc.prepare()
 
+        # check that wrapper is indeed in place
+        res = which('gcc', retain_all=True)
+        # there should be at least 2 hits: the RPATH wrapper, and our fake 'gcc' command (there may be real ones too)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gcc))
+        # any other available 'gcc' commands should not be a wrapper or our fake gcc
+        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
+
         # check whether fake gcc was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
         out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
@@ -1181,6 +1191,16 @@ class ToolchainTest(EnhancedTestCase):
             '-DX=""',
         ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+
+        # calling prepare() again should *not* result in wrapping the existing RPATH wrappers
+        # this can happen when building extensions
+        tc.prepare()
+        res = which('gcc', retain_all=True)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gcc))
+        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
 
 
 def suite():

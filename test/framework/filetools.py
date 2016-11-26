@@ -150,13 +150,29 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(path is None)
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
-        foo, bar = os.path.join(self.test_prefix, 'foo'), os.path.join(self.test_prefix, 'bar')
+        # put a directory 'foo' in place (should be ignored by 'which')
+        foo = os.path.join(self.test_prefix, 'foo')
         ft.mkdir(foo)
         ft.adjust_permissions(foo, stat.S_IRUSR|stat.S_IXUSR)
+        # put executable file 'bar' in place
+        bar = os.path.join(self.test_prefix, 'bar')
         ft.write_file(bar, '#!/bin/bash')
         ft.adjust_permissions(bar, stat.S_IRUSR|stat.S_IXUSR)
         self.assertEqual(ft.which('foo'), None)
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        # add another location to 'bar', which should only return the first location by default
+        barbis = os.path.join(self.test_prefix, 'more', 'bar')
+        ft.write_file(barbis, '#!/bin/bash')
+        ft.adjust_permissions(barbis, stat.S_IRUSR|stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.environ['PATH'], os.path.dirname(barbis))
+        self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        # test getting *all* locations to specified command
+        res = ft.which('bar', retain_all=True)
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], bar))
+        self.assertTrue(os.path.samefile(res[1], barbis))
 
     def test_checksums(self):
         """Test checksum functionality."""
