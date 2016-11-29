@@ -31,10 +31,9 @@ Style tests for easyconfig files.
 import glob
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoaderFiltered, TextTestRunner
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 from vsc.utils import fancylogger
-
 from easybuild.framework.easyconfig.style import style_conformance
 
 try:
