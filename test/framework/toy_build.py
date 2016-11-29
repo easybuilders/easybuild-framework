@@ -1140,9 +1140,14 @@ class ToyBuildTest(EnhancedTestCase):
             # that will fail if the corresponding modules are not loaded
             # cfr. https://github.com/hpcugent/easybuild-framework/pull/1754
             "sanity_check_commands = [",
-            "   ('env | grep EBROOTFFTW', ''),",
-            "   ('env | grep EBROOTGCC', ''),",
+            "   'env | grep EBROOTFFTW',",
+            "   'env | grep EBROOTGCC',",
+            # tuple format (kinda weird but kept in place for backward compatibility)
             "   ('env | grep EBROOTGOOLF', ''),",
+            # True implies running 'toy -h', should work (although pretty senseless in this case)
+            "   True,",
+            # test command to make sure that '-h' is not passed to commands specified as string ('env -h' fails)
+            "   'env',"
             "]",
         ])
 
