@@ -34,7 +34,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils import fancylogger
-from easybuild.framework.easyconfig.style import style_conformance
+from easybuild.framework.easyconfig.style import check_easyconfigs_style
 
 try:
     import pep8
@@ -56,7 +56,7 @@ class StyleTest(EnhancedTestCase):
         specs = glob.glob('%s/*.eb' % test_easyconfigs_path)
         specs = sorted(specs)
 
-        result = style_conformance(specs)
+        result = check_easyconfigs_style(specs)
 
         self.assertEqual(result, 0, "No code style errors (and/or warnings) found.")
 

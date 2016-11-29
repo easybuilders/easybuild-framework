@@ -88,12 +88,12 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines
 
 
 @only_if_module_is_available('pep8')
-def style_conformance(easyconfigs, verbose=False):
+def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
-    :param easyconfigs list of file paths to easyconfigs
-    :param verbose print our statistics and be verbose about the errors and warning
-    :return the number of warnings and errors
+    :param: easyconfigs list of file paths to easyconfigs
+    :param: verbose print our statistics and be verbose about the errors and warning
+    :return: the number of warnings and errors
     """
     # importing autopep8 changes some pep8 functions.
     # We reload it to be sure to get the real pep8 functions.
@@ -114,9 +114,7 @@ def style_conformance(easyconfigs, verbose=False):
     # we ignore some tests
     # note that W291 has be replaced by our custom W299
     options.ignore = (
-        'E402',  # import not on top
         'W291',  # replaced by W299
-        'E501',  # line too long
     )
     options.verbose = int(verbose)
 
