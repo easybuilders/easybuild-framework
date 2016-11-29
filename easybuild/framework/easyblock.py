@@ -1943,22 +1943,23 @@ class EasyBlock(object):
             # non-tuple commands
             if isinstance(command, basestring):
                 self.log.debug("Using %s as sanity check command" % command)
-                command = (command, None)
-            elif not isinstance(command, tuple):
-                self.log.debug("Setting sanity check command to default")
-                command = (None, None)
+                commands[i] = command
+            else:
+                if not isinstance(command, tuple):
+                    self.log.debug("Setting sanity check command to default")
+                    command = (None, None)
 
-            # Build substition dictionary
-            check_cmd = {
-                'name': self.name.lower(),
-                'options': '-h',
-            }
-            if command[0] is not None:
-                check_cmd['name'] = command[0]
-            if command[1] is not None:
-                check_cmd['options'] = command[1]
+                # Build substition dictionary
+                check_cmd = {
+                    'name': self.name.lower(),
+                    'options': '-h',
+                }
+                if command[0] is not None:
+                    check_cmd['name'] = command[0]
+                if command[1] is not None:
+                    check_cmd['options'] = command[1]
 
-            commands[i] = "%(name)s %(options)s" % check_cmd
+                commands[i] = "%(name)s %(options)s" % check_cmd
 
         return paths, path_keys_and_check, commands
 
