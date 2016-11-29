@@ -32,7 +32,7 @@ import glob
 import os
 import sys
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TestLoaderFiltered, TextTestRunner
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.style import style_conformance
@@ -51,14 +51,9 @@ class StyleTest(EnhancedTestCase):
         if 'pep8' not in sys.modules:
             print "Skipping style checks (no pep8 available)"
             return
-            # if self.jenkins():
-            #    self.assertTrue(False, "pep8 not available")
-            # else:
-            #    print "Skipping style checks (no pep8 available)"
-            #    return
 
         # all available easyconfig files
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         specs = glob.glob('%s/*.eb' % test_easyconfigs_path)
         specs = sorted(specs)
 
@@ -69,8 +64,8 @@ class StyleTest(EnhancedTestCase):
 
 def suite():
     """Return all style tests for easyconfigs."""
-    return TestLoader().loadTestsFromTestCase(StyleTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(StyleTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())
