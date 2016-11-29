@@ -8,20 +8,22 @@ v3.0.1 (November 30th 2016)
 
 bugfix release
 - important changes
- - always use Intel-specific MPI compiler wrappers (mpiicc, mpiicpc, mpiifort) for toolchains using both Intel compilers and Intel MPI (#2005)
+  - always use Intel-specific MPI compiler wrappers (mpiicc, mpiicpc, mpiifort) for toolchains using
+    both Intel compilers and Intel MPI (#2005)
 - various small enhancements, including:
- - use setvar in modules.py to define environment variables (#2011)
- - include output of sanity_check_commands in the build log (#2020)
+  - use setvar in modules.py to define environment variables (#2011)
+  - include output of sanity_check_commands in the build log (#2020)
 - various bug fixes, including:
- - fix testing of bootstrap script in Travis config (#2003)
- - use correct module syntax in bootstrap script if Lmod is not used (i.e. Tcl) (#2007)
- - fix packaging issue with non-Python scripts in easybuild/scripts (#2015)
-   - fixes issue where RPATH wrapper template script (rpath_wrapper_template.sh.in) was not included in the v3.0.0 release
- - make tests more robust against running headless (#2016)
- - avoid rewrapping already wrapped compiler/linker command with RPATH wrapper script (#2022)
- - fix log.error traceback due to 'raise EasyBuildError' involving a '%s' in error message (#2024)
- - make sure 'modules_tool' attribute is also defined for extensions (#2026)
- - only dump easyconfig with modified deps due to --minimal-toolchains to 'reprod' subdir of install dir (#2028)
+  - fix testing of bootstrap script in Travis config (#2003)
+  - use correct module syntax in bootstrap script if Lmod is not used (i.e. Tcl) (#2007)
+  - fix packaging issue with non-Python scripts in easybuild/scripts (#2015)
+     - fixes issue where RPATH wrapper template script (rpath_wrapper_template.sh.in) was not included in v3.0.0 release
+  - make tests more robust against running headless (#2016)
+  - avoid rewrapping already wrapped compiler/linker command with RPATH wrapper script (#2022)
+  - fix log.error traceback due to 'raise EasyBuildError' involving a '%s' in error message (#2024)
+  - make sure 'modules_tool' attribute is also defined for extensions (#2026)
+  - only dump easyconfig with modified deps due to --minimal-toolchains to 'reprod' subdir of install dir (#2028)
+  - avoid appending '-h' to sanity check commands specified as a string (#2030)
 
 
 v3.0.0 (November 16th 2016)
