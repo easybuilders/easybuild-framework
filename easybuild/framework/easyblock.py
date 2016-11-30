@@ -1943,22 +1943,23 @@ class EasyBlock(object):
             # non-tuple commands
             if isinstance(command, basestring):
                 self.log.debug("Using %s as sanity check command" % command)
-                command = (command, None)
-            elif not isinstance(command, tuple):
-                self.log.debug("Setting sanity check command to default")
-                command = (None, None)
+                commands[i] = command
+            else:
+                if not isinstance(command, tuple):
+                    self.log.debug("Setting sanity check command to default")
+                    command = (None, None)
 
-            # Build substition dictionary
-            check_cmd = {
-                'name': self.name.lower(),
-                'options': '-h',
-            }
-            if command[0] is not None:
-                check_cmd['name'] = command[0]
-            if command[1] is not None:
-                check_cmd['options'] = command[1]
+                # Build substition dictionary
+                check_cmd = {
+                    'name': self.name.lower(),
+                    'options': '-h',
+                }
+                if command[0] is not None:
+                    check_cmd['name'] = command[0]
+                if command[1] is not None:
+                    check_cmd['options'] = command[1]
 
-            commands[i] = "%(name)s %(options)s" % check_cmd
+                commands[i] = "%(name)s %(options)s" % check_cmd
 
         return paths, path_keys_and_check, commands
 
@@ -2037,7 +2038,7 @@ class EasyBlock(object):
                 self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
-                self.log.debug("sanity check command %s ran successfully! (output: %s)" % (command, out))
+                self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
@@ -2532,16 +2533,10 @@ def build_and_install_one(ecdict, init_env):
             if build_option("minimal_toolchains"):
                 # for reproducability we dump out the parsed easyconfig since the contents are affected when
                 # --minimal-toolchains (and --use-existing-modules) is used
-                _log.debug("Dumping parsed easyconfig rather than original easyconfig to install dir")
-
-                # add the parsed file to the reproducability directory
                 # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
-                repo_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-                app.cfg.dump(repo_spec)
-
-            else:
-                _log.debug("Dumping original easyconfig to install dir")
-                repo_spec = spec
+                reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+                app.cfg.dump(reprod_spec)
+                _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
 
             try:
                 # upload spec to central repository
@@ -2550,7 +2545,7 @@ def build_and_install_one(ecdict, init_env):
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(repo_spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:

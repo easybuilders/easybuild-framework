@@ -150,13 +150,29 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(path is None)
 
         os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
-        foo, bar = os.path.join(self.test_prefix, 'foo'), os.path.join(self.test_prefix, 'bar')
+        # put a directory 'foo' in place (should be ignored by 'which')
+        foo = os.path.join(self.test_prefix, 'foo')
         ft.mkdir(foo)
         ft.adjust_permissions(foo, stat.S_IRUSR|stat.S_IXUSR)
+        # put executable file 'bar' in place
+        bar = os.path.join(self.test_prefix, 'bar')
         ft.write_file(bar, '#!/bin/bash')
         ft.adjust_permissions(bar, stat.S_IRUSR|stat.S_IXUSR)
         self.assertEqual(ft.which('foo'), None)
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        # add another location to 'bar', which should only return the first location by default
+        barbis = os.path.join(self.test_prefix, 'more', 'bar')
+        ft.write_file(barbis, '#!/bin/bash')
+        ft.adjust_permissions(barbis, stat.S_IRUSR|stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.environ['PATH'], os.path.dirname(barbis))
+        self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        # test getting *all* locations to specified command
+        res = ft.which('bar', retain_all=True)
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], bar))
+        self.assertTrue(os.path.samefile(res[1], barbis))
 
     def test_checksums(self):
         """Test checksum functionality."""
@@ -433,8 +449,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertEqual(lines[2], "3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-gompi-1.3.12-test.eb" % (red, endcol))
-        self.assertEqual(lines[3], "3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-deps.eb" % (red, endcol))
+        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
         expected = "7 %(endcol)s-%(endcol)s toolchain = {"
@@ -450,7 +466,8 @@ class FileToolsTest(EnhancedTestCase):
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "28 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        expected = "29 %s+%s (1/2) toy-0.0" % (green, endcol)
+        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
         lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
@@ -458,24 +475,25 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertEqual(lines[2], "3 - versionsuffix = '-test' (1/2) toy-0.0-gompi-1.3.12-test.eb")
-        self.assertEqual(lines[3], "3 - versionsuffix = '-deps' (1/2) toy-0.0-deps.eb")
+        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
+        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
         expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy"
         self.assertTrue(lines[7].startswith(expected))
-        expected = "  ?                       ^^ ^^               ^^^^^^"
-        self.assertEqual(lines[8], expected)
+        expected = "  ?                       ^^ ^^ "
+        self.assertTrue(lines[8].startswith(expected))
         # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
         expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
         self.assertTrue(lines[9].startswith(expected))
-        expected = "  ?                       ^^ ^^               ^^^^^"
-        self.assertEqual(lines[10], expected)
+        expected = "  ?                       ^^ ^^ "
+        self.assertTrue(lines[10].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "28 + postinstallcmds = "
-        self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("29 + (1/2) toy-0.0-deps.eb" in lines)
+        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        expected = "29 + (1/2) toy-0.0-"
+        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
 

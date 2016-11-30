@@ -78,6 +78,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['version'] = self.ext.get('version', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
+            self.modules_tool = self.master.modules_tool
             self.is_extension = True
             self.unpack_options = None
 
