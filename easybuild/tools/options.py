@@ -533,6 +533,7 @@ class EasyBuildOptions(GeneralOption):
                                        None, 'regex', None),
             'update-pr': ("Update an existing pull request", int, 'store', None, {'metavar': 'PR#'}),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False, 'u'),
+            'check-easyconfigs-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
         })
 
         self.log.debug("github_options: descr %s opts %s" % (descr, opts))
