@@ -328,9 +328,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if options.check_easyconfigs_style:
         _log.debug("Running style check")
         if check_easyconfigs_style([path[0] for path in paths]) != 0:
-            print_error("Style check failed")
+            print_error("Style check failed", log=_log)
         else:
             print_msg("Style check passed")
+            cleanup(logfile, eb_tmpdir, testing)
             sys.exit(0)
 
     # read easyconfig files
