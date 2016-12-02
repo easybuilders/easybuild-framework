@@ -709,12 +709,23 @@ class RobotTest(EnhancedTestCase):
             'add_dummy_to_minimal_toolchains': True,
             'external_modules_metadata': ConfigObj(),
             'robot_path': test_easyconfigs,
+            'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
         craycce_hierarchy = get_toolchain_hierarchy({'name': 'CrayCCE', 'version': '5.1.29'})
         self.assertEqual(craycce_hierarchy, [
             {'name': 'dummy', 'version': ''},
             {'name': 'CrayCCE', 'version': '5.1.29'},
+        ])
+
+        # special case of gmvapich2, where MVAPICH2 has a single dependency that is an external module
+        # test case from https://github.com/eth-cscs/production/blob/master/easybuild/easyconfigs
+        gmvapich2_hierarchy = get_toolchain_hierarchy({'name': 'gmvapich2', 'version': '15.11'})
+        self.assertEqual(gmvapich2_hierarchy, [
+            {'name': 'dummy', 'version': ''},
+            {'name': 'GCCcore', 'version': '4.9.3'},
+            {'name': 'GCC', 'version': '4.9.3-2.25'},
+            {'name': 'gmvapich2', 'version': '15.11'},
         ])
 
     def test_find_resolved_modules(self):

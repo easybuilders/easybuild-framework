@@ -188,8 +188,11 @@ def get_toolchain_hierarchy(parent_toolchain):
                                      dep['name'], det_full_ec_version(dep))
             easyconfig = process_easyconfig(ecfile, validate=False)[0]['ec']
 
-            # include deps and toolchains of deps of this dep
+            # include deps and toolchains of deps of this dep, but skip dependencies marked as external modules
             for depdep in easyconfig.dependencies():
+                if depdep['external_module']:
+                    continue
+
                 cands.append({'name': depdep['name'], 'version': depdep['version'] + depdep['versionsuffix']})
                 cands.append(depdep['toolchain'])
 
