@@ -576,7 +576,7 @@ class ModulesTool(object):
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
-        setvar(key, os.pathsep.join(paths))
+        setvar(key, os.pathsep.join(paths), verbose=False)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -879,7 +879,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """Set environment variable with given name to the given list of paths."""
         super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
-        setvar('%s_modshare' % key, ':1:'.join(paths))
+        setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
     def run_module(self, *args, **kwargs):
         """
@@ -948,11 +948,11 @@ class Lmod(ModulesTool):
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
-        setvar('LMOD_QUIET', '1')
+        setvar('LMOD_QUIET', '1', verbose=False)
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
-        setvar('LMOD_IGNORE_CACHE', '1')
+        setvar('LMOD_IGNORE_CACHE', '1', verbose=False)
         # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
-        setvar('LMOD_REDIRECT', 'no')
+        setvar('LMOD_REDIRECT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
 
