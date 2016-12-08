@@ -1483,7 +1483,7 @@ def copy_easyconfigs(paths, target_dir):
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
-            copy_file(path, target_path)
+            copy_file(path, target_path, force_in_dry_run=True)
             file_info['paths_in_repo'].append(target_path)
             file_info['new'].append(os.path.exists(target_path))
 
