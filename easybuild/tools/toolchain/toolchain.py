@@ -679,7 +679,10 @@ class Toolchain(object):
                 self.prepare_compiler_cache(cache_tool)
 
         if build_option('rpath'):
-            self.prepare_rpath_wrappers()
+            if self.options.get('rpath', True):
+                self.prepare_rpath_wrappers()
+            else:
+                self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
 
     def comp_cache_compilers(self, cache_tool):
         """

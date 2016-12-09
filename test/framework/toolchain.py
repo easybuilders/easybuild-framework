@@ -1164,6 +1164,21 @@ class ToolchainTest(EnhancedTestCase):
         # preparing RPATH wrappers requires --experimental, need to bypass that here
         tc.log.experimental = lambda x: x
 
+        # 'rpath' toolchain option gives control to disable use of RPATH wrappers
+        tc.set_options({})
+        self.assertTrue(tc.options['rpath'])  # enabled by default
+
+        # setting 'rpath' toolchain option to false implies no RPATH wrappers being used
+        tc.set_options({'rpath': False})
+        tc.prepare()
+        res = which('gcc', retain_all=True)
+        self.assertTrue(len(res) >= 1)
+        self.assertFalse(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[0], fake_gcc))
+
+        # enable 'rpath' toolchain option again (equivalent to the default setting)
+        tc.set_options({'rpath': True})
         tc.prepare()
 
         # check that wrapper is indeed in place
