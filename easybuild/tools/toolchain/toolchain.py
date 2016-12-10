@@ -134,6 +134,8 @@ class Toolchain(object):
 
         self.modules_tool = modtool
 
+        self.use_rpath = False
+
         self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
@@ -681,6 +683,7 @@ class Toolchain(object):
         if build_option('rpath'):
             if self.options.get('rpath', True):
                 self.prepare_rpath_wrappers()
+                self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
 
