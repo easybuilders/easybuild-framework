@@ -134,6 +134,8 @@ class Toolchain(object):
 
         self.modules_tool = modtool
 
+        self.use_rpath = False
+
         self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
@@ -679,7 +681,11 @@ class Toolchain(object):
                 self.prepare_compiler_cache(cache_tool)
 
         if build_option('rpath'):
-            self.prepare_rpath_wrappers()
+            if self.options.get('rpath', True):
+                self.prepare_rpath_wrappers()
+                self.use_rpath = True
+            else:
+                self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
 
     def comp_cache_compilers(self, cache_tool):
         """

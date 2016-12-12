@@ -85,6 +85,7 @@ class Compiler(Toolchain):
         '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
+        'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None

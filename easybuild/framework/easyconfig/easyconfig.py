@@ -1378,6 +1378,42 @@ def robot_find_easyconfig(name, version):
     return res
 
 
+def verify_easyconfig_filename(path, specs, parsed_ec=None):
+    """
+    Check whether parsed easyconfig at specified path matches expected specs;
+    this basically verifies whether the easyconfig filename corresponds to its contents
+
+    :param path: path to easyconfig file
+    :param specs: expected specs (dict with easyconfig parameter values)
+    :param parsed_ec: (list of) EasyConfig instance(s) corresponding to easyconfig file
+    """
+    if isinstance(parsed_ec, EasyConfig):
+        ecs = [parsed_ec]
+    elif isinstance(parsed_ec, (list, tuple)):
+        ecs = parsed_ec
+    elif parsed_ec is None:
+        ecs = process_easyconfig(path)
+    else:
+        raise EasyBuildError("Unexpected value type for parsed_ec: %s (%s)", type(parsed_ec), parsed_ec)
+
+    fullver = det_full_ec_version(specs)
+
+    expected_filename = '%s-%s.eb' % (specs['name'], fullver)
+    if os.path.basename(path) != expected_filename:
+        raise EasyBuildError("Easyconfig filename %s does not match provided specs %s", os.path.basename(path), specs)
+
+    for ec in ecs:
+        found_fullver = det_full_ec_version(ec['ec'])
+        if ec['ec']['name'] != specs['name'] or found_fullver != fullver:
+            subspec = dict((key, specs[key]) for key in ['name', 'toolchain', 'version', 'versionsuffix'])
+            error_msg = "Contents of %s does not match with filename" % path
+            error_msg += "; expected filename based on contents: %s-%s.eb" % (ec['ec']['name'], found_fullver)
+            error_msg += "; expected (relevant) parameters based on filename %s: %s" % (os.path.basename(path), subspec)
+            raise EasyBuildError(error_msg)
+
+    _log.info("Contents of %s verified against easyconfig filename, matches %s", path, specs)
+
+
 def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, parent_first=False):
     """
     Find the minimal toolchain of a dependency
