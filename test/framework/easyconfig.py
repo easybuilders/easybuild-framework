@@ -45,8 +45,9 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, letter_dir_for
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, get_easyblock_class, resolve_template
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import letter_dir_for, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import resolve_template, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -1967,6 +1968,44 @@ class EasyConfigTest(EnhancedTestCase):
 
         # '%(name)' is not a correct template spec (missing trailing 's')
         self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
+
+    def test_verify_easyconfig_filename(self):
+        """Test verify_easyconfig_filename function"""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        specs = {
+            'name': 'toy',
+            'toolchain': {'name': 'gompi', 'version': '1.3.12'},
+            'version': '0.0',
+            'versionsuffix': '-test'
+        }
+
+        # all is well
+        verify_easyconfig_filename(toy_ec, specs)
+
+        # pass parsed easyconfig
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=process_easyconfig(toy_ec))
+
+        # incorrect spec
+        specs['versionsuffix'] = ''
+        error_pattern = "filename %s does not match provided specs" % os.path.basename(toy_ec)
+        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+        specs['versionsuffix'] = '-test'
+
+        # incorrect file name
+        toy_txt = read_file(toy_ec)
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        write_file(toy_ec, toy_txt)
+        error_pattern = "filename toy.eb does not match provided specs"
+        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+
+        # incorrect file contents
+        error_pattern = r"Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
+        toy_txt = toy_txt.replace("versionsuffix = '-test'", "versionsuffix = ''")
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-gompi-1.3.12-test.eb')
+        write_file(toy_ec, toy_txt)
+        error_pattern = "Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
+        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
 
 def suite():
