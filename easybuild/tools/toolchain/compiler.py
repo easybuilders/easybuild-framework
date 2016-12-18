@@ -135,7 +135,7 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         """Compiler constructor."""
         Toolchain.base_init(self)
-        self.arch = None
+        self.arch = systemtools.get_cpu_architecture()
         # list of compiler prefixes
         self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
@@ -148,9 +148,6 @@ class Compiler(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
-        if self.arch is None:
-            self.arch = systemtools.get_cpu_architecture()
-
         self._set_compiler_vars()
         self._set_optimal_architecture()
         self._set_compiler_flags()
