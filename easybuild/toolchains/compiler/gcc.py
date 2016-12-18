@@ -69,17 +69,19 @@ class Gcc(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.AARCH32: 'mcpu=native', # implies -march=native and -mtune=native
-        systemtools.AARCH64: 'mcpu=native', # since GCC 6; implies -march=native and -mtune=native
-        systemtools.POWER: 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
-        systemtools.X86_64: 'march=native', # implies -mtune=native
+        (systemtools.AARCH32, systemtools.ARM): 'mcpu=native', # implies -march=native and -mtune=native
+        (systemtools.AARCH64, systemtools.ARM): 'mcpu=native', # since GCC 6; implies -march=native and -mtune=native
+        (systemtools.POWER, systemtools.POWER): 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
+        (systemtools.X86_64, systemtools.AMD): 'march=native', # implies -mtune=native
+        (systemtools.X86_64, systemtools.INTEL): 'march=native', # implies -mtune=native
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.AARCH32: 'mcpu=generic-armv7', # implies -march=armv7 and -mtune=generic-armv7
-        systemtools.AARCH64: 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
-        systemtools.POWER: 'mcpu=generic-arch',    # no support for -march on POWER
-        systemtools.X86_64: 'march=x86-64 -mtune=generic',
+        (systemtools.AARCH32, systemtools.ARM): 'mcpu=generic-armv7', # implies -march=armv7 and -mtune=generic-armv7
+        (systemtools.AARCH64, systemtools.ARM): 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
+        (systemtools.POWER, systemtools.POWER): 'mcpu=generic-arch',    # no support for -march on POWER
+        (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'gcc'

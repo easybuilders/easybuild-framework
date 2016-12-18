@@ -84,12 +84,14 @@ class Clang(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
-        systemtools.X86_64: 'march=native',
+        (systemtools.POWER, systemtools.POWER): 'mcpu=native',  # no support for march=native on POWER
+        (systemtools.X86_64, systemtools.AMD): 'march=native',
+        (systemtools.X86_64, systemtools.INTEL): 'march=native',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.X86_64: 'march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'clang'

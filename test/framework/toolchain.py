@@ -293,7 +293,7 @@ class ToolchainTest(EnhancedTestCase):
                 tc.set_options({opt: enable})
                 tc.prepare()
                 if opt == 'optarch':
-                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
                 else:
                     flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
@@ -319,7 +319,7 @@ class ToolchainTest(EnhancedTestCase):
                     flag = '-%s' % optarch_var
                 else:
                     # default optarch flag
-                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
@@ -366,7 +366,7 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("GCCcore", version="6.2.0")
         tc.set_options({})
         tc.prepare()
-        self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch], 'mcpu=native')
+        self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)], 'mcpu=native')
         self.assertTrue('-mcpu=native' in os.environ['CFLAGS'])
 
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
@@ -505,7 +505,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),

@@ -136,6 +136,7 @@ class Compiler(Toolchain):
         """Compiler constructor."""
         Toolchain.base_init(self)
         self.arch = systemtools.get_cpu_architecture()
+        self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
@@ -281,14 +282,14 @@ class Compiler(Toolchain):
             optarch = build_option('optarch')
         # --optarch=GENERIC
         elif build_option('optarch') == OPTARCH_GENERIC:
-            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+            if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
         # specified optarch default value
         elif default_optarch:
             optarch = default_optarch
         # no --optarch specified, no default value specified
-        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+        elif (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
             self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
