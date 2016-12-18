@@ -116,15 +116,19 @@ class Gcc(Compiler):
 
         self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64", "lib"])
 
-    def _set_optimal_architecture(self):
-        """GCC-specific adjustments for optimal architecture flags."""
-        if self.arch == systemtools.AARCH64:
+    def _set_optimal_architecture(self, default_optarch=None):
+        """
+        GCC-specific adjustments for optimal architecture flags.
+
+        :param default_optarch: default value to use for optarch, rather than using default value based on architecture
+                                (--optarch and --optarch=GENERIC still override this value)
+        """
+        if default_optarch is None and self.arch == systemtools.AARCH64:
             # On AArch64, -mcpu=native is not supported prior to GCC 6.  In this case, try to optimize for the detected
             # CPU model (vanilla ARM cores only).  Note that this heuristic may fail if the CPU model is not supported
             # by the GCC version being used.
             gcc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
             if LooseVersion(gcc_version) < LooseVersion('6'):
-                option = ''
                 if systemtools.get_cpu_vendor() == systemtools.ARM:
                     # Get CPU model and strip off 'ARM ' prefix
                     cpu_model = systemtools.get_cpu_model()[4:]
@@ -133,8 +137,6 @@ class Gcc(Compiler):
                     sorted_core_types = sorted([(int(re.search('\d+', i).group(0)), i) for i in core_types],
                                                reverse=True)
                     # Construct -mcpu option
-                    option = 'mcpu=%s' % '.'.join([i[1] for i in sorted_core_types])
+                    default_optarch = 'mcpu=%s' % '.'.join([i[1] for i in sorted_core_types])
 
-                self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[systemtools.AARCH64] = option
-
-        super(Gcc, self)._set_optimal_architecture()
+        super(Gcc, self)._set_optimal_architecture(default_optarch=default_optarch)

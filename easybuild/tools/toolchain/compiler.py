@@ -271,8 +271,13 @@ class Compiler(Toolchain):
             self.variables.nextend(var, flags)
             self.variables.nextend(var, fflags)
 
-    def _set_optimal_architecture(self):
-        """ Get options for the current architecture """
+    def _set_optimal_architecture(self, default_optarch=None):
+        """
+        Get options for the current architecture
+
+        :param default_optarch: default value to use for optarch, rather than using default value based on architecture
+                                (--optarch and --optarch=GENERIC still override this value)
+        """
         optarch = None
         # --optarch is specified with flags to use
         if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
@@ -281,7 +286,10 @@ class Compiler(Toolchain):
         elif build_option('optarch') == OPTARCH_GENERIC:
             if self.arch in (self.COMPILER_GENERIC_OPTION or []):
                 optarch = self.COMPILER_GENERIC_OPTION[self.arch]
-        # no --optarch specified
+        # specified optarch default value
+        elif default_optarch:
+            optarch = default_optarch
+        # no --optarch specified, no default value specified
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 
