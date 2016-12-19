@@ -59,12 +59,14 @@ class ToolchainTest(EnhancedTestCase):
         """Set up toolchain test."""
         super(ToolchainTest, self).setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
+        self.orig_get_cpu_family = st.get_cpu_family
         self.orig_get_cpu_model = st.get_cpu_model
         self.orig_get_cpu_vendor = st.get_cpu_vendor
 
     def tearDown(self):
         """Cleanup after toolchain test."""
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+        st.get_cpu_family = self.orig_get_cpu_family
         st.get_cpu_model = self.orig_get_cpu_model
         st.get_cpu_vendor = self.orig_get_cpu_vendor
         super(ToolchainTest, self).tearDown()
@@ -355,6 +357,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_optarch_aarch64_heuristic(self):
         """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
         st.get_cpu_architecture = lambda: st.AARCH64
+        st.get_cpu_family = lambda: st.ARM
         st.get_cpu_model = lambda: 'ARM Cortex-A53'
         st.get_cpu_vendor = lambda: st.ARM
         tc = self.get_toolchain("GCC", version="4.7.2")
