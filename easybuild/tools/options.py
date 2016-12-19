@@ -215,12 +215,16 @@ class EasyBuildOptions(GeneralOption):
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
-                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], "Default easyconfigs repository path"),
+                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], 
+                                           "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
+                'USER': (os.environ['USER'], "Current username, derived from the os environment"),
+                'HOME': (os.environ['HOME'], 
+                         "Current user's home directory, derived from the os environment")
             }
         }
-
+        
         # update or define go_configfiles_initenv in named arguments to pass to parent constructor
         go_cfg_initenv = kwargs.setdefault('go_configfiles_initenv', {})
         for section, constants in self.go_cfg_constants.items():
