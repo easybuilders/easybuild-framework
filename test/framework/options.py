@@ -2508,6 +2508,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+        # also check behaviour under --extended-dry-run/-x
+        args.remove('-D')
+        args.append('-x')
+
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        print txt
+        regexs.extend([
+            r"Full patch:",
+            r"^\+\+\+\s*.*toy-0.0-gompi-1.3.12-test.eb",
+            r"^\+name = 'toy'",
+        ])
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
     def test_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""
 
