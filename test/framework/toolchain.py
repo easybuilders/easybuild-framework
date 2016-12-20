@@ -369,7 +369,7 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("GCCcore", version="6.2.0")
         tc.set_options({})
         tc.prepare()
-        self.assertEqual(tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)], 'mcpu=native')
+        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=native')
         self.assertTrue('-mcpu=native' in os.environ['CFLAGS'])
 
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
