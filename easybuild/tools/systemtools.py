@@ -42,7 +42,7 @@ from vsc.utils import fancylogger
 from vsc.utils.affinity import sched_getaffinity
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file, which
+from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_cmd
 
 
@@ -159,7 +159,7 @@ def get_total_memory():
     memtotal = None
     os_type = get_os_type()
 
-    if os_type == LINUX and os.path.exists(PROC_MEMINFO_FP):
+    if os_type == LINUX and is_readable(PROC_MEMINFO_FP):
         _log.debug("Trying to determine total memory size on Linux via %s", PROC_MEMINFO_FP)
         meminfo = read_file(PROC_MEMINFO_FP)
         mem_mo = re.match(r'^MemTotal:\s*(\d+)\s*kB', meminfo, re.M)
@@ -230,7 +230,7 @@ def get_cpu_vendor():
         elif arch in [AARCH32, AARCH64]:
             vendor_regex = re.compile(r"CPU implementer\s+:\s*(\S+)")
 
-        if vendor_regex and os.path.exists(PROC_CPUINFO_FP):
+        if vendor_regex and is_readable(PROC_CPUINFO_FP):
             vendor_id = None
 
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
@@ -276,7 +276,7 @@ def get_cpu_family():
             family = ARM
 
         # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
-        elif os.path.exists(PROC_CPUINFO_FP):
+        elif is_readable(PROC_CPUINFO_FP):
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
             if power_regex.search(proc_cpuinfo):
@@ -298,7 +298,7 @@ def get_cpu_model():
     model = None
     os_type = get_os_type()
 
-    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
+    if os_type == LINUX and is_readable(PROC_CPUINFO_FP):
         proc_cpuinfo = read_file(PROC_CPUINFO_FP)
 
         arch = get_cpu_architecture()
@@ -351,13 +351,13 @@ def get_cpu_speed():
 
     if os_type == LINUX:
         # Linux with cpu scaling
-        if os.path.exists(MAX_FREQ_FP):
+        if is_readable(MAX_FREQ_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
             txt = read_file(MAX_FREQ_FP)
             cpu_freq = float(txt) / 1000
 
         # Linux without cpu scaling
-        elif os.path.exists(PROC_CPUINFO_FP):
+        elif is_readable(PROC_CPUINFO_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER

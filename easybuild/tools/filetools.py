@@ -132,6 +132,14 @@ class ZlibChecksum(object):
         return '0x%s' % (self.checksum & 0xffffffff)
 
 
+def is_readable(path):
+    """Return whether file at specified location exists and is readable."""
+    try:
+        return os.path.exists(path) and os.access(path, os.R_OK)
+    except OSError as err:
+        raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
+
+
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
     txt = None
