@@ -369,7 +369,7 @@ def get_cpu_speed():
             else:
                 _log.debug("Failed to determine CPU frequency from %s", PROC_CPUINFO_FP)
         else:
-            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling: %s" % PROC_CPUINFO_FP)
+            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling", PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
