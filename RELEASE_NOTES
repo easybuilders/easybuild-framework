@@ -13,6 +13,7 @@ bugfix release
   - force copying of easyconfigs in --new-pr/--update-pr, even when combined with -x (#2045)
   - fix verification of filename for easyconfigs used to resolve deps (#2051)
   - skip RPATH sanity check when toolchain did not use RPATH wrappers (#2052)
+  - check whether file-like paths are readable before reading them in systemtools module (#2065)
 - various small enhancements, including:
   - add 'rpath' toolchain option to selectively disable use of RPATH wrappers (#2047)
 
