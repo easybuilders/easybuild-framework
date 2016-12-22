@@ -343,6 +343,18 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.path_matches(path2, [missing, symlink]))
         self.assertTrue(ft.path_matches(path1, [missing, symlink]))
 
+    def test_is_readable(self):
+        """Test is_readable"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+
+        self.assertFalse(ft.is_readable(test_file))
+
+        ft.write_file(test_file, 'test')
+        self.assertTrue(ft.is_readable(test_file))
+
+        os.chmod(test_file, 0)
+        self.assertFalse(ft.is_readable(test_file))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 
@@ -794,7 +806,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
 
-        # also test behaviour of extract_file under --dry-run
+        # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
             'silent': False,
@@ -811,6 +823,16 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertFalse(os.path.exists(target_path))
         self.assertTrue(re.search("^copied file .*/toy-0.0.eb to .*/toy.eb", txt))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy_file(to_copy, target_path, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.exists(target_path))
+        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertEqual(txt, '')
 
     def test_extract_file(self):
         """Test extract_file"""

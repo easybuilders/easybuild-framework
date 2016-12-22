@@ -132,6 +132,14 @@ class ZlibChecksum(object):
         return '0x%s' % (self.checksum & 0xffffffff)
 
 
+def is_readable(path):
+    """Return whether file at specified location exists and is readable."""
+    try:
+        return os.path.exists(path) and os.access(path, os.R_OK)
+    except OSError as err:
+        raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
+
+
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
     txt = None
@@ -1387,13 +1395,14 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     return (valid_lic_specs, lic_env_var)
 
 
-def copy_file(path, target_path):
+def copy_file(path, target_path, force_in_dry_run=False):
     """
     Copy a file from path to target_path
     :param path: the original filepath
     :param target_path: path to copy the file to
+    :param force_in_dry_run: force running the command during dry run
     """
-    if build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
