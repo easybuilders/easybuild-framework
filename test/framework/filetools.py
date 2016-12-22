@@ -343,6 +343,18 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.path_matches(path2, [missing, symlink]))
         self.assertTrue(ft.path_matches(path1, [missing, symlink]))
 
+    def test_is_readable(self):
+        """Test is_readable"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+
+        self.assertFalse(ft.is_readable(test_file))
+
+        ft.write_file(test_file, 'test')
+        self.assertTrue(ft.is_readable(test_file))
+
+        os.chmod(test_file, 0)
+        self.assertFalse(ft.is_readable(test_file))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 

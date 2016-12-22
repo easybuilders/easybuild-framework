@@ -1982,8 +1982,10 @@ class EasyBlock(object):
         else:
             self.dry_run_msg("  (none)")
 
-        if build_option('rpath'):
+        if self.toolchain.use_rpath:
             self.sanity_check_rpath()
+        else:
+            self.log.debug("Skiping RPATH sanity check")
 
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
@@ -2051,11 +2053,13 @@ class EasyBlock(object):
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
 
-        if build_option('rpath'):
+        if self.toolchain.use_rpath:
             rpath_fails = self.sanity_check_rpath()
             if rpath_fails:
                 self.log.warning("RPATH sanity check failed!")
                 self.sanity_check_fail_msgs.extend(rpath_fails)
+        else:
+            self.log.debug("Skiping RPATH sanity check")
 
         # pass or fail
         if self.sanity_check_fail_msgs:
