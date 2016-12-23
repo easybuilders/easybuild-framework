@@ -45,8 +45,9 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import Lmod, curr_module_paths, get_software_root, get_software_version
-from easybuild.tools.modules import get_software_libdir, invalidate_module_caches_for, modules_tool
+from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
+from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
 from easybuild.tools.run import run_cmd
 
 
@@ -96,7 +97,11 @@ class ModulesTest(EnhancedTestCase):
 
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
-        self.assertEqual(ms, ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2', 'GCCcore/6.2.0'])
+        expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2']
+        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C does prefix matching
+        if not isinstance(self.modtool, EnvironmentModulesTcl):
+            expected.append('GCCcore/6.2.0')
+        self.assertEqual(ms, expected)
 
         # test modules include one GCC/4.6.3 module
         ms = self.modtool.available(mod_name='GCC/4.6.3')
