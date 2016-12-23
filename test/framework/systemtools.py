@@ -288,8 +288,8 @@ def mocked_read_file(fp):
         return read_file(fp)
 
 
-def mocked_os_path_exists(mocked_fp, fp):
-    """Mocked version of os.path.exists, returns True for a particular specified filepath."""
+def mocked_is_readable(mocked_fp, fp):
+    """Mocked version of is_readable, returns True for a particular specified filepath."""
     return fp == mocked_fp
 
 
@@ -324,14 +324,14 @@ class SystemToolsTest(EnhancedTestCase):
         """Set up systemtools test."""
         super(SystemToolsTest, self).setUp()
         self.orig_get_os_type = st.get_os_type
-        self.orig_os_path_exists = st.os.path.exists
+        self.orig_is_readable = st.is_readable
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
         self.orig_platform_uname = st.platform.uname
 
     def tearDown(self):
         """Cleanup after systemtools test."""
-        st.os.path.exists = self.orig_os_path_exists
+        st.is_readable = self.orig_is_readable
         st.read_file = self.orig_read_file
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
@@ -369,7 +369,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU model (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
         st.platform.uname = mocked_uname
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
@@ -409,7 +409,7 @@ class SystemToolsTest(EnhancedTestCase):
         # test for particular type of system by mocking used functions
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
 
         # tweak global constant used by mocked_read_file
         global PROC_CPUINFO_TXT
@@ -423,7 +423,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cpu_speed(), 3550.0)
 
         # Linux (x86) with cpufreq
-        st.os.path.exists = lambda fp: mocked_os_path_exists(MAX_FREQ_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(MAX_FREQ_FP, fp)
         self.assertEqual(get_cpu_speed(), 2850.0)
 
     def test_cpu_speed_darwin(self):
@@ -464,7 +464,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU vendor (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
         st.platform.uname = mocked_uname
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
@@ -507,7 +507,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test get_cpu_family function (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
         st.platform.uname = mocked_uname
         global MACHINE_NAME
         global PROC_CPUINFO_TXT
@@ -636,7 +636,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test the function that gets the total memory."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
-        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_MEMINFO_FP, fp)
+        st.is_readable = lambda fp: mocked_is_readable(PROC_MEMINFO_FP, fp)
         self.assertEqual(get_total_memory(), 64510)
 
     def test_get_total_memory_darwin(self):
@@ -684,8 +684,8 @@ class SystemToolsTest(EnhancedTestCase):
     def test_det_terminal_size(self):
         """Test det_terminal_size function."""
         (height, width) = st.det_terminal_size()
-        self.assertTrue(isinstance(height, int) and height > 0)
-        self.assertTrue(isinstance(width, int) and width > 0)
+        self.assertTrue(isinstance(height, int) and height >= 0)
+        self.assertTrue(isinstance(width, int) and width >= 0)
 
 
 def suite():

@@ -143,10 +143,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        ebmsg = "EasyBuild crashed with an error %s: " + msg
-        args = (self.caller_info(),) + args
-
-        fancylogger.FancyLogger.error(self, ebmsg, *args, **kwargs)
+        ebmsg = "EasyBuild crashed with an error %s: " % self.caller_info()
+        fancylogger.FancyLogger.error(self, ebmsg + msg, *args, **kwargs)
 
     def devel(self, msg, *args, **kwargs):
         """Print development log message"""
@@ -155,10 +153,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
         # don't raise the exception from within error
-        ebmsg = "EasyBuild encountered an exception %s: " + msg
-        args = (self.caller_info(),) + args
-
-        fancylogger.FancyLogger.exception(self, ebmsg, *args)
+        ebmsg = "EasyBuild encountered an exception %s: " % self.caller_info()
+        fancylogger.FancyLogger.exception(self, ebmsg + msg, *args)
 
 
 # set format for logger

@@ -132,6 +132,14 @@ class ZlibChecksum(object):
         return '0x%s' % (self.checksum & 0xffffffff)
 
 
+def is_readable(path):
+    """Return whether file at specified location exists and is readable."""
+    try:
+        return os.path.exists(path) and os.access(path, os.R_OK)
+    except OSError as err:
+        raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
+
+
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
     txt = None
@@ -219,17 +227,31 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return find_base_dir()
 
 
-def which(cmd):
-    """Return (first) path in $PATH for specified command, or None if command is not found."""
+def which(cmd, retain_all=False):
+    """
+    Return (first) path in $PATH for specified command, or None if command is not found
+
+    :param retain_all: returns *all* locations to the specified command in $PATH, not just the first one"""
+    if retain_all:
+        res = []
+    else:
+        res = None
+
     paths = os.environ.get('PATH', '').split(os.pathsep)
     for path in paths:
         cmd_path = os.path.join(path, cmd)
         # only accept path is command is there, and both readable and executable
         if os.access(cmd_path, os.R_OK | os.X_OK) and os.path.isfile(cmd_path):
             _log.info("Command %s found at %s" % (cmd, cmd_path))
-            return cmd_path
-    _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
-    return None
+            if retain_all:
+                res.append(cmd_path)
+            else:
+                res = cmd_path
+                break
+
+    if not res:
+        _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
+    return res
 
 
 def det_common_path_prefix(paths):
@@ -1373,13 +1395,14 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     return (valid_lic_specs, lic_env_var)
 
 
-def copy_file(path, target_path):
+def copy_file(path, target_path, force_in_dry_run=False):
     """
     Copy a file from path to target_path
     :param path: the original filepath
     :param target_path: path to copy the file to
+    :param force_in_dry_run: force running the command during dry run
     """
-    if build_option('extended_dry_run'):
+    if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:

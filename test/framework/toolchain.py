@@ -575,16 +575,16 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
-        self.assertEqual(tc.get_variable('CC'), 'mpicc')
-        self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
-        self.assertEqual(tc.get_variable('F77'), 'mpif77')
-        self.assertEqual(tc.get_variable('F90'), 'mpif90')
-        self.assertEqual(tc.get_variable('FC'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
-        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
-        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        self.assertEqual(tc.get_variable('CC'), 'mpiicc')
+        self.assertEqual(tc.get_variable('CXX'), 'mpiicpc')
+        self.assertEqual(tc.get_variable('F77'), 'mpiifort')
+        self.assertEqual(tc.get_variable('F90'), 'mpiifort')
+        self.assertEqual(tc.get_variable('FC'), 'mpiifort')
+        self.assertEqual(tc.get_variable('MPICC'), 'mpiicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpiicpc')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpiifort')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpiifort')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpiifort')
         self.modtool.purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
@@ -601,15 +601,16 @@ class ToolchainTest(EnhancedTestCase):
         self.assertFalse('-openmp' in tc.get_variable('CXXFLAGS'))
         self.assertFalse('-openmp' in tc.get_variable('FFLAGS'))
 
-        self.assertEqual(tc.get_variable('CC'), 'mpicc')
-        self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
-        self.assertEqual(tc.get_variable('F77'), 'mpif77')
-        self.assertEqual(tc.get_variable('F90'), 'mpif90')
-        self.assertEqual(tc.get_variable('FC'), 'mpif90')
-        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
-        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
-        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
-        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        self.assertEqual(tc.get_variable('CC'), 'mpiicc')
+        self.assertEqual(tc.get_variable('CXX'), 'mpiicpc')
+        self.assertEqual(tc.get_variable('F77'), 'mpiifort')
+        self.assertEqual(tc.get_variable('F90'), 'mpiifort')
+        self.assertEqual(tc.get_variable('FC'), 'mpiifort')
+        self.assertEqual(tc.get_variable('MPICC'), 'mpiicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpiicpc')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpiifort')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpiifort')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpiifort')
 
         # different flag for OpenMP with old Intel compilers (11.x)
         modules.modules_tool().purge()
@@ -619,7 +620,7 @@ class ToolchainTest(EnhancedTestCase):
         opts = {'openmp': True}
         tc.set_options(opts)
         tc.prepare()
-        self.assertEqual(tc.get_variable('MPIFC'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPIFC'), 'mpiifort')
         for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
             self.assertTrue('-openmp' in tc.get_variable(var))
 
@@ -1204,7 +1205,32 @@ class ToolchainTest(EnhancedTestCase):
         # preparing RPATH wrappers requires --experimental, need to bypass that here
         tc.log.experimental = lambda x: x
 
+        # 'rpath' toolchain option gives control to disable use of RPATH wrappers
+        tc.set_options({})
+        self.assertTrue(tc.options['rpath'])  # enabled by default
+
+        # setting 'rpath' toolchain option to false implies no RPATH wrappers being used
+        tc.set_options({'rpath': False})
         tc.prepare()
+        res = which('gcc', retain_all=True)
+        self.assertTrue(len(res) >= 1)
+        self.assertFalse(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[0], fake_gcc))
+
+        # enable 'rpath' toolchain option again (equivalent to the default setting)
+        tc.set_options({'rpath': True})
+        tc.prepare()
+
+        # check that wrapper is indeed in place
+        res = which('gcc', retain_all=True)
+        # there should be at least 2 hits: the RPATH wrapper, and our fake 'gcc' command (there may be real ones too)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gcc))
+        # any other available 'gcc' commands should not be a wrapper or our fake gcc
+        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
 
         # check whether fake gcc was wrapped and that arguments are what they should be
         # no -rpath for /bar because of rpath filter
@@ -1221,6 +1247,16 @@ class ToolchainTest(EnhancedTestCase):
             '-DX=""',
         ])
         self.assertEqual(out.strip(), expected % {'user': os.getenv('USER')})
+
+        # calling prepare() again should *not* result in wrapping the existing RPATH wrappers
+        # this can happen when building extensions
+        tc.prepare()
+        res = which('gcc', retain_all=True)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gcc))
+        self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
 
 
 def suite():

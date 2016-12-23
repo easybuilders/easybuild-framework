@@ -43,6 +43,7 @@ class Toy_Extension(ExtensionEasyBlock):
 
     def sanity_check_step(self, *args, **kwargs):
         """Custom sanity check for toy extensions."""
+        self.log.info("Loaded modules: %s", self.modules_tool.list())
         custom_paths = {
             'files': ['bin/%s' % self.name, 'lib/lib%s.a' % self.name],
             'dirs': [],

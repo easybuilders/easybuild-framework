@@ -1140,9 +1140,14 @@ class ToyBuildTest(EnhancedTestCase):
             # that will fail if the corresponding modules are not loaded
             # cfr. https://github.com/hpcugent/easybuild-framework/pull/1754
             "sanity_check_commands = [",
-            "   ('env | grep EBROOTFFTW', ''),",
-            "   ('env | grep EBROOTGCC', ''),",
+            "   'env | grep EBROOTFFTW',",
+            "   'env | grep EBROOTGCC',",
+            # tuple format (kinda weird but kept in place for backward compatibility)
             "   ('env | grep EBROOTGOOLF', ''),",
+            # True implies running 'toy -h', should work (although pretty senseless in this case)
+            "   True,",
+            # test command to make sure that '-h' is not passed to commands specified as string ('env -h' fails)
+            "   'env',"
             "]",
         ])
 
@@ -1236,10 +1241,18 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
-        self.test_toy_build(extra_args=['--rpath', '--experimental'])
+        self.test_toy_build(extra_args=['--rpath', '--experimental'], raise_error=True)
 
         # also test use of --rpath-filter
-        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/test.*,/foo.*', '--experimental'])
+        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/test.*,/foo.*', '--experimental'], raise_error=True)
+
+        # test use of rpath toolchain option
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
+        toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        write_file(toy_ec, toy_ec_txt)
+        self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath', '--experimental'], raise_error=True)
 
 
 def suite():

@@ -39,8 +39,8 @@ import sys
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -318,11 +318,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
-                        mods = [spec['ec'].full_mod_name for spec in processed_ecs]
-                        dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
-                        if not dep_mod_name in mods:
-                            raise EasyBuildError("easyconfig file %s does not contain module %s (mods: %s)",
-                                                 path, dep_mod_name, mods)
+                        verify_easyconfig_filename(path, cand_dep, parsed_ec=processed_ecs)
 
                         for ec in processed_ecs:
                             if not ec in easyconfigs + additional:

@@ -74,6 +74,14 @@ class BuildLogTest(EnhancedTestCase):
         # test formatting of message
         self.assertErrorRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
 
+        # a '%s' in a value used to template the error message should not print a traceback!
+        self.mock_stderr(True)
+        self.assertErrorRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        # stderr should be *empty* (there should definitely not be a traceback)
+        self.assertEqual(stderr, '')
+
         os.remove(tmplog)
 
     def test_easybuildlog(self):
@@ -92,6 +100,7 @@ class BuildLogTest(EnhancedTestCase):
         # test basic log methods
         logToFile(tmplog, enable=True)
         log = getLogger('test_easybuildlog')
+        self.mock_stderr(True)
         log.setLevelName('DEBUG')
         log.debug("123 debug")
         log.info("foobar info")
@@ -100,6 +109,11 @@ class BuildLogTest(EnhancedTestCase):
         log.deprecated("onemorewarning", '1.0', '2.0')
         log.deprecated("lastwarning", '1.0', max_ver='2.0')
         log.error("kaput")
+        log.error("err: %s", 'msg: %s')
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        # no output to stderr (should all go to log file)
+        self.assertEqual(stderr, '')
         try:
             log.exception("oops")
         except EasyBuildError:
@@ -117,6 +131,7 @@ class BuildLogTest(EnhancedTestCase):
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*" % root,
             r"%s.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*" % root,
             r"%s.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % root,
+            root + r".test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
             r"%s.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops" % root,
             '',
         ])

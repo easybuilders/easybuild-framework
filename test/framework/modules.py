@@ -519,7 +519,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             # GCC/4.6.3 is nowhere to be found (in $MODULEPATH)
-            load_err_msg = r"The following module\(s\) are unknown"
+            load_err_msg = r"The[\s\n]*following[\s\n]*module\(s\)[\s\n]*are[\s\n]*unknown"
         else:
             load_err_msg = "Unable to locate a modulefile"
 
@@ -552,7 +552,10 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             # OpenMPI/1.6.4 exists, but is not available for load;
             # exact error message depends on Lmod version
-            load_err_msg = r"These module\(s\) exist but cannot be|The following module\(s\) are unknown"
+            load_err_msg = '|'.join([
+                r'These[\s\sn]*module\(s\)[\s\sn]*exist[\s\sn]*but[\s\sn]*cannot[\s\sn]*be',
+                'The[\s\sn]*following[\s\sn]*module\(s\)[\s\sn]*are[\s\sn]*unknown',
+            ])
         else:
             load_err_msg = "Unable to locate a modulefile"
 
