@@ -39,7 +39,7 @@ import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
-from easybuild.tools.systemtools import CPU_FAMILIES, DARWIN, LINUX, UNKNOWN
+from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_architecture, get_cpu_family
@@ -536,6 +536,10 @@ class SystemToolsTest(EnhancedTestCase):
         MACHINE_NAME = 'ppc64'
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
+
+        MACHINE_NAME = 'ppc64le'
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
+        self.assertEqual(get_cpu_family(), POWER_LE)
 
     def test_cpu_family_darwin(self):
         """Test get_cpu_family function (mocked for Darwin)."""

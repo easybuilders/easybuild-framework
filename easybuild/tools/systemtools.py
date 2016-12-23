@@ -69,6 +69,9 @@ MOTOROLA = 'Motorola/Freescale'
 NVIDIA = 'NVIDIA'
 QUALCOMM = 'Qualcomm'
 
+# Family constants
+POWER_LE = 'POWER little-endian'
+
 # OS constants
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -80,7 +83,7 @@ PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [AMD, ARM, INTEL, POWER]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
 CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
@@ -275,14 +278,14 @@ def get_cpu_family():
             # Custom ARM-based designs from other vendors
             family = ARM
 
-        # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
-        elif is_readable(PROC_CPUINFO_FP):
-            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
-            power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
-            if power_regex.search(proc_cpuinfo):
-                family = POWER
-                _log.debug("Determined CPU family using regex '%s' in %s: %s",
-                           power_regex.pattern, PROC_CPUINFO_FP, family)
+        elif arch == POWER:
+            family = POWER
+
+            # Distinguish POWER running in little-endian mode
+            system, node, release, version, machine, processor = platform.uname()
+            powerle_regex = re.compile("^ppc(\d*)le")
+            if powerle_regex.search(machine):
+                family = POWER_LE
 
     if family is None:
         family = UNKNOWN
