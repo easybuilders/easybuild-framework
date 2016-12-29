@@ -286,9 +286,9 @@ class Compiler(Toolchain):
                 current_compiler = getattr(self, 'COMPILER_FAMILY', None)
                 for optarch_option in build_option('optarch').split(","):
                     comp = optarch_option.split(":")[0]
-                    comp_optarch = optarch_option.split(":")[1] if len(optarch_option.split(":")) > 1 else ''
+                    comp_optarch = optarch_option.split(":")[1] if len(optarch_option.split(":")) > 1 else None 
                     if comp == current_compiler:
-                        if comp_optarch != '' and comp_optarch != OPTARCH_GENERIC:
+                        if comp_optarch is not None and comp_optarch != OPTARCH_GENERIC:
                             optarch = comp_optarch
                         elif comp_optarch == OPTARCH_GENERIC:
                             use_generic = True
