@@ -298,8 +298,9 @@ class Compiler(Toolchain):
         # --optarch=GENERIC
         elif build_option('optarch') == OPTARCH_GENERIC:
             use_generic = True
-        # no --optarch specified
-        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+
+        # no --optarch specified or no option found for the current compiler
+        if use_generic == False and optarch is None and self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
 
         if use_generic == True:
