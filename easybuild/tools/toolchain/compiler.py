@@ -277,16 +277,34 @@ class Compiler(Toolchain):
             self.arch = systemtools.get_cpu_family()
 
         optarch = None
+        use_generic = False
         # --optarch is specified with flags to use
         if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
-            optarch = build_option('optarch')
+            if "," not in build_option('optarch') and ":" not in build_option('optarch'):
+                optarch = build_option('optarch')
+            else:
+                current_compiler = getattr(self, 'COMPILER_FAMILY', None)
+                for optarch_option in build_option('optarch').split(","):
+                    comp = optarch_option.split(":")[0]
+                    comp_optarch = optarch_option.split(":")[1] if len(optarch_option.split(":")) > 1 else ''
+                    if comp == current_compiler:
+                        if comp_optarch != '' and comp_optarch != OPTARCH_GENERIC:
+                            optarch = comp_optarch
+                        elif comp_optarch == OPTARCH_GENERIC:
+                            use_generic = True
+                        break
+                if optarch is None:
+                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option." % current_compiler)
         # --optarch=GENERIC
         elif build_option('optarch') == OPTARCH_GENERIC:
-            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+            use_generic = True
         # no --optarch specified
         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+
+        if use_generic == True:
+            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
 
         if optarch is not None:
             self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
