@@ -1172,8 +1172,8 @@ def fetch_github_token(user):
     else:
         try:
             token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
-        except RuntimeError as err:
-            _log.warning("Runtime error occurred when fetching GitHub token: %s", err)
+        except Exception as err:
+            _log.warning("Exception occurred when fetching GitHub token: %s", err)
 
         if token is None:
             python_cmd = '; '.join([
