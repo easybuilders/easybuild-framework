@@ -126,34 +126,42 @@ class Gcc(Compiler):
                                 (--optarch and --optarch=GENERIC still override this value)
         """
         if default_optarch is None and self.arch == systemtools.AARCH64:
-            # On AArch64, -mcpu=native is not supported prior to GCC 6.  In this case, try to optimize for the detected
-            # CPU model (vanilla ARM cores only).  Note that this heuristic may fail if the CPU model is not supported
-            # by the GCC version being used.
             gcc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
             if LooseVersion(gcc_version) < LooseVersion('6'):
-                cpu_vendor = systemtools.get_cpu_vendor()
-                cpu_model = systemtools.get_cpu_model()
-                if cpu_vendor == systemtools.ARM and cpu_model.startswith('ARM '):
-                    self.log.debug("Determining architecture-specific compiler optimization flag for ARM (model: %s)",
-                                   cpu_model)
-                    core_types = []
-                    for core_type in [ct.strip().lower() for ct in cpu_model[4:].split('+')]:
-                        # Determine numeric ID for each core type, since we need to sort them later numerically
-                        res = re.search('\d+$', core_type)  # note: numeric ID is expected at the end
-                        if res:
-                            core_id = int(res.group(0))
-                            core_types.append((core_id, core_type))
-                            self.log.debug("Extracted numeric ID for ARM core type '%s': %s", core_type, core_id)
-                        else:
-                            # Bail out if we can't determine numeric ID
-                            core_types = None
-                            self.log.debug("Failed to extract numeric ID for ARM core type '%s', bailing out",
-                                           core_type)
-                            break
-                    if core_types:
-                        # On big.LITTLE setups, sort core types to have big core (higher model number) first.
-                        # Example: 'mcpu=cortex-a72.cortex-a53' for "ARM Cortex-A53 + Cortex-A72"
-                        default_optarch = 'mcpu=%s' % '.'.join([ct[1] for ct in sorted(core_types, reverse=True)])
-                        self.log.debug("Using architecture-specific compiler optimization flag '%s'", default_optarch)
+                # on AArch64, -mcpu=native is not supported prior to GCC 6,
+                # so try to guess a proper default optarch is none was specified
+                default_optarch = self._guess_arm_aarch64_default_optarch()
 
         super(Gcc, self)._set_optimal_architecture(default_optarch=default_optarch)
+
+    def _guess_arm_aarch64_default_optarch(self):
+        """
+        Guess default optarch for AARCH64 (vanilla ARM cores only)
+        This heuristic may fail if the CPU module is not supported by the GCC version being used.
+        """
+        default_optarch = None
+        cpu_vendor = systemtools.get_cpu_vendor()
+        cpu_model = systemtools.get_cpu_model()
+
+        if cpu_vendor == systemtools.ARM and cpu_model.startswith('ARM '):
+            self.log.debug("Determining architecture-specific optimization flag for ARM (model: %s)", cpu_model)
+            core_types = []
+            for core_type in [ct.strip().lower() for ct in cpu_model[4:].split('+')]:
+                # Determine numeric ID for each core type, since we need to sort them later numerically
+                res = re.search('\d+$', core_type)  # note: numeric ID is expected at the end
+                if res:
+                    core_id = int(res.group(0))
+                    core_types.append((core_id, core_type))
+                    self.log.debug("Extracted numeric ID for ARM core type '%s': %s", core_type, core_id)
+                else:
+                    # Bail out if we can't determine numeric ID
+                    core_types = None
+                    self.log.debug("Failed to extract numeric ID for ARM core type '%s', bailing out", core_type)
+                    break
+            if core_types:
+                # On big.LITTLE setups, sort core types to have big core (higher model number) first.
+                # Example: 'mcpu=cortex-a72.cortex-a53' for "ARM Cortex-A53 + Cortex-A72"
+                default_optarch = 'mcpu=%s' % '.'.join([ct[1] for ct in sorted(core_types, reverse=True)])
+                self.log.debug("Using architecture-specific compiler optimization flag '%s'", default_optarch)
+
+        return default_optarch
