@@ -418,7 +418,6 @@ def get_cpu_features():
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
             out, ec = run_cmd(cmd, force_in_dry_run=True)
             if ec == 0:
-                # returns clock frequency in cycles/sec, but we want MHz
                 cpu_feat.extend(out.strip().lower().split())
 
         cpu_feat.sort()
