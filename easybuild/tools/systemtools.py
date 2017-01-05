@@ -394,14 +394,14 @@ def get_cpu_features():
 
     if os_type == LINUX:
         if is_readable(PROC_CPUINFO_FP):
-            _log.debug("Trying to determine CPU features on Linux via %s" % PROC_CPUINFO_FP)
+            _log.debug("Trying to determine CPU features on Linux via %s", PROC_CPUINFO_FP)
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
             # 'flags' on Linux/x86, 'Features' on Linux/ARM
             flags_regex = re.compile(r"^(?:flags|[fF]eatures)\s*:\s*(?P<flags>.*)", re.M)
             res = flags_regex.search(proc_cpuinfo)
             if res:
                 cpu_feat = sorted(res.group('flags').lower().split())
-                _log.debug("Found CPU features using regex '%s': %s" % (flags_regex.pattern, cpu_feat))
+                _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
             elif get_cpu_architecture() == POWER:
                 # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
                 cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
@@ -415,7 +415,7 @@ def get_cpu_features():
     elif os_type == DARWIN:
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
-            _log.debug("Trying to determine CPU features on Darwin via cmd '%s'" % cmd)
+            _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
             out, ec = run_cmd(cmd, force_in_dry_run=True)
             if ec == 0:
                 # returns clock frequency in cycles/sec, but we want MHz
@@ -424,7 +424,7 @@ def get_cpu_features():
         cpu_feat.sort()
 
     else:
-        raise SystemToolsException("Could not determine CPU features (OS: %s)." % os_type)
+        raise SystemToolsException("Could not determine CPU features (OS: %s)" % os_type)
 
     return cpu_feat
 
