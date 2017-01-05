@@ -134,12 +134,12 @@ class Gcc(Compiler):
 
             if LooseVersion(gcc_version) < LooseVersion('6'):
                 # on AArch64, -mcpu=native is not supported prior to GCC 6,
-                # so try to guess a proper default optarch is none was specified
-                default_optarch = self._guess_arm_aarch64_default_optarch()
+                # so try to guess a proper default optarch if none was specified
+                default_optarch = self._guess_aarch64_default_optarch()
 
         super(Gcc, self)._set_optimal_architecture(default_optarch=default_optarch)
 
-    def _guess_arm_aarch64_default_optarch(self):
+    def _guess_aarch64_default_optarch(self):
         """
         Guess default optarch for AARCH64 (vanilla ARM cores only)
         This heuristic may fail if the CPU module is not supported by the GCC version being used.
