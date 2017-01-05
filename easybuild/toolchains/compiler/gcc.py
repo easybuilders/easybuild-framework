@@ -34,7 +34,7 @@ from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import get_software_root
+from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -126,7 +126,12 @@ class Gcc(Compiler):
                                 (--optarch and --optarch=GENERIC still override this value)
         """
         if default_optarch is None and self.arch == systemtools.AARCH64:
-            gcc_version = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
+            gcc_version = get_software_version('GCCcore')
+            if gcc_version is None:
+                gcc_version = get_software_version('GCC')
+                if gcc_version is None:
+                    raise EasyBuildError("Failed to determine software version for GCC")
+
             if LooseVersion(gcc_version) < LooseVersion('6'):
                 # on AArch64, -mcpu=native is not supported prior to GCC 6,
                 # so try to guess a proper default optarch is none was specified
