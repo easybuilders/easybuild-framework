@@ -69,13 +69,13 @@ class Pgi(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.AMD : '',
-        systemtools.INTEL : '',
+        (systemtools.X86_64, systemtools.AMD): '',
+        (systemtools.X86_64, systemtools.INTEL): '',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.AMD : 'tp=x64',
-        systemtools.INTEL : 'tp=x64',
+        (systemtools.X86_64, systemtools.AMD): 'tp=x64',
+        (systemtools.X86_64, systemtools.INTEL): 'tp=x64',
     }
 
     COMPILER_CC = 'pgcc'
