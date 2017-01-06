@@ -365,12 +365,14 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
         self.assertTrue('-mcpu=cortex-a53' in os.environ['CFLAGS'])
+        self.modtool.purge()
 
         tc = self.get_toolchain("GCCcore", version="6.2.0")
         tc.set_options({})
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=native')
         self.assertTrue('-mcpu=native' in os.environ['CFLAGS'])
+        self.modtool.purge()
 
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
         tc = self.get_toolchain("GCC", version="4.7.2")
@@ -378,6 +380,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
         self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
+        self.modtool.purge()
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
