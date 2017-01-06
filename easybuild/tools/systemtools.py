@@ -385,6 +385,49 @@ def get_cpu_speed():
     return cpu_freq
 
 
+def get_cpu_features():
+    """
+    Get list of CPU features
+    """
+    cpu_feat = []
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        if is_readable(PROC_CPUINFO_FP):
+            _log.debug("Trying to determine CPU features on Linux via %s", PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+            # 'flags' on Linux/x86, 'Features' on Linux/ARM
+            flags_regex = re.compile(r"^(?:flags|[fF]eatures)\s*:\s*(?P<flags>.*)", re.M)
+            res = flags_regex.search(proc_cpuinfo)
+            if res:
+                cpu_feat = sorted(res.group('flags').lower().split())
+                _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
+            elif get_cpu_architecture() == POWER:
+                # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
+                cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
+                if cpu_altivec_regex.search(proc_cpuinfo):
+                    cpu_feat = ['altivec']
+            else:
+                _log.debug("Failed to determine CPU features from %s", PROC_CPUINFO_FP)
+        else:
+            _log.debug("%s not found to determine CPU features", PROC_CPUINFO_FP)
+
+    elif os_type == DARWIN:
+        for feature_set in ['extfeatures', 'features', 'leaf7_features']:
+            cmd = "sysctl -n machdep.cpu.%s" % feature_set
+            _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True)
+            if ec == 0:
+                cpu_feat.extend(out.strip().lower().split())
+
+        cpu_feat.sort()
+
+    else:
+        raise SystemToolsException("Could not determine CPU features (OS: %s)" % os_type)
+
+    return cpu_feat
+
+
 def get_kernel_name():
     """NO LONGER SUPPORTED: use get_os_type() instead"""
     _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
