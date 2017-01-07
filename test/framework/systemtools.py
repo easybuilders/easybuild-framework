@@ -484,7 +484,7 @@ class SystemToolsTest(EnhancedTestCase):
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         st.get_cpu_architecture = lambda: POWER
-        self.assertEqual(get_cpu_features(), ['altivec'])
+        self.assertEqual(get_cpu_features(), ['altivec', 'vsx'])
 
     def test_cpu_features_darwin(self):
         """Test getting CPU features (mocked for Darwin)."""
