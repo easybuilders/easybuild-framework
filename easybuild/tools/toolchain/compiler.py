@@ -27,6 +27,7 @@ Toolchain compiler module, provides abstract class for compilers.
 
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError
@@ -279,12 +280,19 @@ class Compiler(Toolchain):
         optarch = None
         use_generic = False
         # --optarch is specified with flags to use
-        if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
-            if "," not in build_option('optarch') and ":" not in build_option('optarch'):
-                optarch = build_option('optarch')
-            else:
-                current_compiler = getattr(self, 'COMPILER_FAMILY', None)
-                for optarch_option in build_option('optarch').split(","):
+        if build_option('optarch') is not None:
+            for optarch_option in build_option('optarch'):
+                # No compilers specified, and option is not generic, so simply take what is there
+                if ":" not in optarch_option and optarch_option != OPTARCH_GENERIC:
+                    optarch = optarch_option
+                    break
+                # Option is generic, so mark it as to be set later and stop iterating
+                elif optarch_option == OPTARCH_GENERIC:
+                    use_generic = True
+                    break
+                # Compilers specified, check if it is the one we need
+                else:
+                    current_compiler = getattr(self, 'COMPILER_FAMILY', None)
                     comp = optarch_option.split(":")[0]
                     comp_optarch = optarch_option.split(":")[1] if len(optarch_option.split(":")) > 1 else None 
                     if comp == current_compiler:
@@ -293,17 +301,13 @@ class Compiler(Toolchain):
                         elif comp_optarch == OPTARCH_GENERIC:
                             use_generic = True
                         break
-                if optarch is None:
-                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option." % current_compiler)
-        # --optarch=GENERIC
-        elif build_option('optarch') == OPTARCH_GENERIC:
-            use_generic = True
+            if optarch is None and use_generic == False:
+                self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option." % current_compiler)
 
         # no --optarch specified or no option found for the current compiler
         if use_generic == False and optarch is None and self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
-
-        if use_generic == True:
+        elif use_generic == True:
             if self.arch in (self.COMPILER_GENERIC_OPTION or []):
                 optarch = self.COMPILER_GENERIC_OPTION[self.arch]
 

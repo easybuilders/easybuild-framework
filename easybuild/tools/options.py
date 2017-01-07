@@ -351,7 +351,7 @@ class EasyBuildOptions(GeneralOption):
                                  None, 'store', None),
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
-                        None, 'store', None),
+                        'strlist', 'extend', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),
