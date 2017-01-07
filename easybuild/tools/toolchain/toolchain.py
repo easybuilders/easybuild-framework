@@ -280,7 +280,7 @@ class Toolchain(object):
         return root
 
     def _get_software_version(self, name):
-        """Try to get the software root for name"""
+        """Try to get the software version for name"""
         version = get_software_version(name)
         if version is None:
             raise EasyBuildError("get_software_version software version for %s was not found in environment", name)

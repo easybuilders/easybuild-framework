@@ -137,7 +137,8 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         """Compiler constructor."""
         Toolchain.base_init(self)
-        self.arch = None
+        self.arch = systemtools.get_cpu_architecture()
+        self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
@@ -150,8 +151,8 @@ class Compiler(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
-
         self._set_compiler_vars()
+        self._set_optimal_architecture()
         self._set_compiler_flags()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
@@ -168,8 +169,6 @@ class Compiler(Toolchain):
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
             )
-
-        self._set_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -272,11 +271,13 @@ class Compiler(Toolchain):
             self.variables.nextend(var, flags)
             self.variables.nextend(var, fflags)
 
-    def _set_optimal_architecture(self):
-        """ Get options for the current architecture """
-        if self.arch is None:
-            self.arch = systemtools.get_cpu_family()
+    def _set_optimal_architecture(self, default_optarch=None):
+        """
+        Get options for the current architecture
 
+        :param default_optarch: default value to use for optarch, rather than using default value based on architecture
+                                (--optarch and --optarch=GENERIC still override this value)
+        """
         optarch = None
         use_generic = False
         # --optarch is specified with flags to use
@@ -304,12 +305,15 @@ class Compiler(Toolchain):
             if optarch is None and use_generic == False:
                 self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option." % current_compiler)
 
-        # no --optarch specified or no option found for the current compiler
-        if use_generic == False and optarch is None and self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
-        elif use_generic == True:
-            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
+        if use_generic == True:
+            if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+        # Specified optarch default value
+        elif default_optarch and optarch is None:
+            optarch = default_optarch
+        # no --optarch specified, no option found for the current compiler, and no default optarch
+        elif use_generic == False and optarch is None and (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
             self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
