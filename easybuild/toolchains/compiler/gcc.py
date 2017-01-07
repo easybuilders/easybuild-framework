@@ -72,6 +72,7 @@ class Gcc(Compiler):
         (systemtools.AARCH32, systemtools.ARM): 'mcpu=native', # implies -march=native and -mtune=native
         (systemtools.AARCH64, systemtools.ARM): 'mcpu=native', # since GCC 6; implies -march=native and -mtune=native
         (systemtools.POWER, systemtools.POWER): 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
+        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',   # no support for -march on POWER; implies -mtune=native
         (systemtools.X86_64, systemtools.AMD): 'march=native', # implies -mtune=native
         (systemtools.X86_64, systemtools.INTEL): 'march=native', # implies -mtune=native
     }
@@ -79,7 +80,8 @@ class Gcc(Compiler):
     COMPILER_GENERIC_OPTION = {
         (systemtools.AARCH32, systemtools.ARM): 'mcpu=generic-armv7', # implies -march=armv7 and -mtune=generic-armv7
         (systemtools.AARCH64, systemtools.ARM): 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
-        (systemtools.POWER, systemtools.POWER): 'mcpu=generic-arch',    # no support for -march on POWER
+        (systemtools.POWER, systemtools.POWER): 'mcpu=powerpc64',    # no support for -march on POWER
+        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=powerpc64le',    # no support for -march on POWER
         (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }
