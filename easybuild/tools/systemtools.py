@@ -409,7 +409,11 @@ def get_cpu_features():
                 # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
                 cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
                 if cpu_altivec_regex.search(proc_cpuinfo):
-                    cpu_feat = ['altivec']
+                    cpu_feat.append('altivec')
+                # VSX is supported since POWER7
+                cpu_power7_regex = re.compile("^cpu\s*:.*POWER(7|8|9)", re.M)
+                if cpu_power7_regex.search(proc_cpuinfo):
+                    cpu_feat.append('vsx')
             else:
                 _log.debug("Failed to determine CPU features from %s", PROC_CPUINFO_FP)
         else:
