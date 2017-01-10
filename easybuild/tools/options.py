@@ -350,8 +350,9 @@ class EasyBuildOptions(GeneralOption):
             'mpi-cmd-template': ("Template for MPI commands (template keys: %(nr_ranks)s, %(cmd)s)",
                                  None, 'store', None),
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
+            # optarch is in most cases equivalent to strlist, but changing the type breaks compatibility
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
-                        'strlist', 'extend', None),
+                        None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
             'parallel': ("Specify (maximum) level of parallellism used during build procedure",
                          'int', 'store', None),

@@ -282,7 +282,7 @@ class Compiler(Toolchain):
         use_generic = False
         # --optarch is specified with flags to use
         if build_option('optarch') is not None:
-            for optarch_option in build_option('optarch'):
+            for optarch_option in build_option('optarch').split(','):
                 # No compilers specified, and option is not generic, so simply take what is there
                 if ":" not in optarch_option and optarch_option != OPTARCH_GENERIC:
                     optarch = optarch_option
