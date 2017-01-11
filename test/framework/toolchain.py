@@ -381,6 +381,31 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
         self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
         self.modtool.purge()
+  
+    def test_compiler_dependent_optarch(self):
+        """Test whether specifying optarch on a per compiler basis works."""
+        for intelflags,intel_expanded_flags in [('intelflag','intelflag'),('GENERIC','xSSE2'),('','')]:
+            for gccflags,gcc_expanded_flags in  [('gccflag','gccflag'),('GENERIC','march=x86-64 -mtune=generic'),('','')]:
+                optarch_var = 'Intel:%s,GCC:%s' % (intelflags,gccflags)
+                build_options = {'optarch': optarch_var}
+                init_config(build_options=build_options)
+                for toolchain, toolchain_version in [('iccifort','2011.13.367'),('GCC','4.7.2'),('PGI','16.7-GCC-5.4.0-2.26')]:
+               	    tc = self.get_toolchain(toolchain, version=toolchain_version)
+                    tc.prepare()
+                    flag = None
+                    if toolchain == 'iccifort':
+                        flag = intel_expanded_flags
+                    elif toolchain == 'GCC':
+                        flag = gcc_expanded_flags 
+                    else: # PGI as an example of compiler not set
+                        # default optarch flag
+                        flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
+                    
+                    flags = tc.options.options_map['optarch']
+
+                    self.assertTrue(flag == flags, "optarch: True means '%s' == '%s'" % (flag, flags))
+
+                    self.modtool.purge()
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
