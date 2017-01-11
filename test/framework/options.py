@@ -2489,7 +2489,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg when using --update-pr"
+        self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
 
         args.append('--pr-commit-msg="just a test"')
         self.mock_stdout(True)
@@ -2517,7 +2519,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        print txt
         regexs.extend([
             r"Full patch:",
             r"^\+\+\+\s*.*toy-0.0-gompi-1.3.12-test.eb",
