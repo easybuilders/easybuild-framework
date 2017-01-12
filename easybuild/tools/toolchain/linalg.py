@@ -90,8 +90,9 @@ class LinAlg(Toolchain):
         ## TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()
-        self._set_blacs_variables()
-        self._set_scalapack_variables()
+        if self.options.get('usempi', False):
+            self._set_blacs_variables()
+            self._set_scalapack_variables()
 
         self.log.debug('set_variables: LinAlg variables %s' % self.variables)
 
