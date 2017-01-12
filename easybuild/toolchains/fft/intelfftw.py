@@ -67,7 +67,7 @@ class IntelFFTW(Fftw):
                 raise EasyBuildError("Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries.")
 
         fftw_libs = ["fftw3xc%s%s" % (compsuff, picsuff)]
-        if self.options['usempi']:
+        if self.options.get('usempi', False):
             # add cluster interface for recent imkl versions
             if LooseVersion(imklver) >= LooseVersion("11.0.2"):
                 fftw_libs.append("fftw3x_cdft%s%s" % (bitsuff, picsuff))
@@ -90,6 +90,13 @@ class IntelFFTW(Fftw):
         # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
         check_fftw_libs = [lib for lib in fftw_libs if lib not in ['dl', 'gfortran']]
         fftw_lib_exists = lambda x: any([os.path.exists(os.path.join(d, "lib%s.a" % x)) for d in fft_lib_dirs])
+        if not fftw_lib_exists(check_fftw_libs[0]) and LooseVersion(imklver) >= LooseVersion("10.2"):
+            # MKL >= 10.2 include fftw3xc and fftw3xf interfaces in LIBBLAS=libmkl_gf/libmkl_intel
+            # See https://software.intel.com/en-us/articles/intel-mkl-main-libraries-contain-fftw3-interfaces
+            check_fftw_libs.pop(0)
+            # and reduce functionality with MPI if wrappers are not built
+            if check_fftw_libs[0].startswith("fftw3x_cdft"):
+                check_fftw_libs.pop(0)
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
