@@ -90,7 +90,7 @@ class LinAlg(Toolchain):
         ## TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()
-        if self.options.get('usempi', False):
+        if getattr(self, 'MPI_MODULE_NAME', None):
             self._set_blacs_variables()
             self._set_scalapack_variables()
 
