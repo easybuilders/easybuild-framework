@@ -68,9 +68,9 @@ class IntelFFTW(Fftw):
 
         interface_lib = "fftw3xc%s%s" % (compsuff, picsuff)
         fftw_libs = [interface_lib]
+        cluster_interface_lib = None
         if self.options.get('usempi', False):
             # add cluster interface for recent imkl versions
-            cluster_interface_lib = None
             if LooseVersion(imklver) >= LooseVersion("11.0.2"):
                 cluster_interface_lib = "fftw3x_cdft%s%s" % (bitsuff, picsuff)
                 fftw_libs.append(cluster_interface_lib)
