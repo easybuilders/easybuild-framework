@@ -346,7 +346,7 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use blank HTTP header
-    header={'User-Agent':''}
+    header={'User-Agent':'EasyBuild'}
     
     while not downloaded and attempt_cnt < max_attempts:
         try:
