@@ -34,6 +34,7 @@ Set of file tools.
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Sotiris Fragkiskos (NTUA, CERN)
+:author: Davide Vanzo (ACCRE, Vanderbilt University)
 """
 import fileinput
 import glob
@@ -343,10 +344,15 @@ def download_file(filename, url, path, forced=False):
     downloaded = False
     max_attempts = 3
     attempt_cnt = 0
+
+    # use blank HTTP header
+    header={'User-Agent':''}
+    
     while not downloaded and attempt_cnt < max_attempts:
         try:
+            url_req = urllib2.Request(url, headers=header)
             # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url, timeout=timeout)
+            url_fd = urllib2.urlopen(url_req)
             _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
             write_file(path, url_fd.read(), forced=forced)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
