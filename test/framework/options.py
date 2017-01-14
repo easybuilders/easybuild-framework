@@ -1714,6 +1714,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
+    def test_robot_path_check(self):
+        """Test path check for --robot"""
+        empty_file = os.path.join(self.test_prefix, 'empty')
+        write_file(empty_file, '')
+
+        error_pattern = "Argument passed to --robot is not an existing directory"
+        for robot in ['-rf', '--robot=foo', '--robot=%s' % empty_file]:
+            args = ['toy-0.0.eb', '--dry-run', robot]
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        regex = re.compile('module: toy/0.0')
+        for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
+            args = ['toy-0.0.eb', '--dry-run', robot]
+            outtxt = self.eb_main(args, raise_error=True)
+            self.assertTrue(regex.search(outtxt), "Pattern '%s' not found in: %s" % (regex.pattern, outtxt))
+
     def test_missing_cfgfile(self):
         """Test behaviour when non-existing config file is specified."""
         args = ['--configfiles=/no/such/cfgfile.foo']

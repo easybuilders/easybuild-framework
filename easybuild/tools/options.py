@@ -757,6 +757,16 @@ class EasyBuildOptions(GeneralOption):
             self.options.installpath = get_pretend_installpath()
 
         if self.options.robot is not None:
+            # if a single path is specified to --robot/-r, it *must* exist;
+            # this is required since an argument to --robot is optional,
+            # which makes it susceptible to 'eating' the following argument/option;
+            # for example: with 'eb -rf', 'f' *must* be an existing directory (or 'eb -fr' should be used);
+            # when multiple directories are specified, we deliberately do not enforce that all of them exist
+            if len(self.options.robot) == 1:
+                robot_arg = self.options.robot[0]
+                if not os.path.isdir(robot_arg):
+                    raise EasyBuildError("Argument passed to --robot is not an existing directory: %s", robot_arg)
+
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
             self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
