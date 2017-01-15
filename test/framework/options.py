@@ -314,8 +314,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'],
                    passed_args=['--debug', "--robot-paths='/tmp/foo:/tmp/bar'"])
         # --robot has preference over --robot-paths, --robot is not passed down
-        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'],
-                   passed_args=['--debug', "--robot-paths='/tmp/bar:/tmp/foo'"])
+        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=%s' % self.test_prefix],
+                   passed_args=['--debug', "--robot-paths='%s:/tmp/foo'" % self.test_prefix])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -750,16 +750,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
+        robot_decoy = os.path.join(self.test_prefix, 'robot_decoy')
+        mkdir(robot_decoy)
         for dry_run_arg in ['-D', '--dry-run-short']:
             open(self.logfile, 'w').write('')
             args = [
                 os.path.join(tmpdir, 'easybuild', 'easyconfigs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb'),
                 dry_run_arg,
                 # purposely specifying senseless dir, to test auto-inclusion of easyconfigs pkg path in robot path
-                '--robot=%s' % os.path.join(tmpdir, 'robot_decoy'),
+                '--robot=%s' % robot_decoy,
                 '--unittest-file=%s' % self.logfile,
             ]
-            outtxt = self.eb_main(args, logfile=dummylogfn)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
             info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
             self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
