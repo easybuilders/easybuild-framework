@@ -554,7 +554,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         first = os.path.join(self.test_prefix, 'first')
         mkdir(first)
         eb_go = eboptions.parse_options(args=['--robot-paths=/foo/bar::/baz', '--robot=%s' % first])
-        self.assertEqual(eb_go.options.robot_paths, [first +'/', '/foo/bar', tmp_ecs_dir, '/baz'])
+        self.assertEqual(eb_go.options.robot_paths, [first, '/foo/bar', tmp_ecs_dir, '/baz'])
 
         sys.path[:] = orig_sys_path
 
