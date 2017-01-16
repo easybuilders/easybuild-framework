@@ -666,8 +666,9 @@ def is_patch_file(path):
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
-    It searches for "+++ path/to/patched/file" lines to determine
-    the patched files.
+    It searches for "+++ path/to/patched/file" lines to determine the patched files.
+    Note: does not correctly handle filepaths with spaces.
+
     :param path: the path to the diff
     :param txt: the contents of the diff (either path or txt should be give)
     :param omit_ab_prefix: ignore the a/ or b/ prefix of the files
@@ -675,7 +676,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     :param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
-        patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+        patched_regex = r"^diff --git (?:a/)?\S+\s*(?P<ab_prefix>b/)?(?P<file>\S+)"
     else:
         patched_regex = r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
     patched_regex = re.compile(patched_regex, re.M)
