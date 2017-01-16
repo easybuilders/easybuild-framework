@@ -66,13 +66,17 @@ class IntelFFTW(Fftw):
             else:
                 raise EasyBuildError("Not using Intel compilers, PGI nor GCC, don't know compiler suffix for FFTW libraries.")
 
-        fftw_libs = ["fftw3xc%s%s" % (compsuff, picsuff)]
-        if self.options['usempi']:
+        interface_lib = "fftw3xc%s%s" % (compsuff, picsuff)
+        fftw_libs = [interface_lib]
+        cluster_interface_lib = None
+        if self.options.get('usempi', False):
             # add cluster interface for recent imkl versions
-            if LooseVersion(imklver) >= LooseVersion("11.0.2"):
-                fftw_libs.append("fftw3x_cdft%s%s" % (bitsuff, picsuff))
-            elif LooseVersion(imklver) >= LooseVersion("10.3"):
-                fftw_libs.append("fftw3x_cdft%s" % picsuff)
+            if LooseVersion(imklver) >= LooseVersion('10.3'):
+                suff = picsuff
+                if LooseVersion(imklver) >= LooseVersion('11.0.2'):
+                    suff = bitsuff + suff
+                cluster_interface_lib = 'fftw3x_cdft%s' % suff
+                fftw_libs.append(cluster_interface_lib)
             fftw_libs.append("mkl_cdft_core")  # add cluster dft
             fftw_libs.extend(self.variables['LIBBLACS'].flatten()) # add BLACS; use flatten because ListOfList
 
@@ -90,6 +94,13 @@ class IntelFFTW(Fftw):
         # filter out libraries from list of FFTW libraries to check for if they are not provided by Intel MKL
         check_fftw_libs = [lib for lib in fftw_libs if lib not in ['dl', 'gfortran']]
         fftw_lib_exists = lambda x: any([os.path.exists(os.path.join(d, "lib%s.a" % x)) for d in fft_lib_dirs])
+        if not fftw_lib_exists(interface_lib) and LooseVersion(imklver) >= LooseVersion("10.2"):
+            # interface libs can be optional:
+            # MKL >= 10.2 include fftw3xc and fftw3xf interfaces in LIBBLAS=libmkl_gf/libmkl_intel
+            # See https://software.intel.com/en-us/articles/intel-mkl-main-libraries-contain-fftw3-interfaces
+            # The cluster interface libs (libfftw3x_cdft*) can be omitted if the toolchain does not provide MPI-FFTW
+            # interfaces.
+            check_fftw_libs = [l for l in check_fftw_libs if l not in [interface_lib, cluster_interface_lib]]
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
