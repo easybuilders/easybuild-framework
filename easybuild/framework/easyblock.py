@@ -71,7 +71,7 @@ from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_fi
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
@@ -947,6 +947,10 @@ class EasyBlock(object):
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
         deps = [d for d in deps if d not in excluded_deps]
+        for dep in excluded_deps:
+            excluded_dep_deps = dependencies_for(dep, self.modules_tool)
+            self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
+            deps = [d for d in deps if d not in excluded_dep_deps]
         self.log.debug("List of retained deps to load in generated module: %s" % deps)
         recursive_unload = self.cfg['recursive_module_unload']
 
