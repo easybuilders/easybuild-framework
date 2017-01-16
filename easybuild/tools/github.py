@@ -1093,11 +1093,14 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        gp_ver, req_gp_ver = git.__version__, '1.0'
-        if LooseVersion(gp_ver) < LooseVersion(req_gp_ver):
-            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (gp_ver, req_gp_ver)
+        if 'git' in sys.modules:
+            ver, req_ver = git.__version__, '1.0'
+            if LooseVersion(ver) < LooseVersion(req_ver):
+                check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
+            else:
+                check_res = "FAIL (unexpected exception: %s)" % push_err
         else:
-            check_res = "FAIL (unexpected exception: %s)" % push_err
+            check_res = "FAIL (GitPython is not available)"
     else:
         check_res = "FAIL (no GitHub user specified)"
 
