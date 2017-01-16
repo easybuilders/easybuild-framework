@@ -670,7 +670,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     :param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
-        patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+        patched_regex = r"^diff --git (?:[ab]/)?\S+\s*(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
     else:
         patched_regex = r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
     patched_regex = re.compile(patched_regex, re.M)
