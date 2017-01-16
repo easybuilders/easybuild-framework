@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, download_file, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -2947,6 +2947,49 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\* GCC', txt, re.M))
         self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
         self.assertFalse(re.search('gzip', txt, re.M))
+
+    def test_check_style(self):
+        """Test --check-style."""
+        args = [
+            '--check-style',
+            'GCC-4.9.2.eb',
+            'toy-0.0.eb',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # copy toy-0.0.eb test easyconfig, fiddle with it to make style check fail
+        toy = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'), toy)
+
+        toytxt = read_file(toy)
+        # introduce whitespace issues
+        toytxt = toytxt.replace("name = 'toy'", "name\t='toy'    ")
+        # introduce long line
+        toytxt = toytxt.replace('description = "Toy C program."', 'description = "%s"' % ('toy ' * 30))
+        write_file(toy, toytxt)
+
+        args = [
+            '--check-style',
+            toy,
+        ]
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, "One or more style checks FAILED!", self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        patterns = [
+            "toy.eb:1:5: E223 tab before operator",
+            "toy.eb:1:7: E225 missing whitespace around operator",
+            "toy.eb:1:12: W299 trailing whitespace",
+            r"toy.eb:5:121: E501 line too long \(136 > 120 characters\)",
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
 
 def suite():
