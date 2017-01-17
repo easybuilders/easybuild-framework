@@ -1093,11 +1093,14 @@ def check_github():
         else:
             check_res = "OK"
     elif github_user:
-        gp_ver, req_gp_ver = git.__version__, '1.0'
-        if LooseVersion(gp_ver) < LooseVersion(req_gp_ver):
-            check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (gp_ver, req_gp_ver)
+        if 'git' in sys.modules:
+            ver, req_ver = git.__version__, '1.0'
+            if LooseVersion(ver) < LooseVersion(req_ver):
+                check_res = "FAIL (GitPython version %s is too old, should be version %s or newer)" % (ver, req_ver)
+            else:
+                check_res = "FAIL (unexpected exception: %s)" % push_err
         else:
-            check_res = "FAIL (unexpected exception: %s)" % push_err
+            check_res = "FAIL (GitPython is not available)"
     else:
         check_res = "FAIL (no GitHub user specified)"
 
@@ -1159,39 +1162,40 @@ def check_github():
     print_msg('', prefix=False)
 
 
-class GithubToken(object):
-    """Representation of a GitHub token."""
-
-    def __init__(self, user):
-        """Initialize: obtain GitHub token for specified user from keyring."""
-        self.token = None
-        if user is None:
-            msg = "No GitHub user name provided, required for fetching GitHub token."
-        elif not HAVE_KEYRING:
-            msg = "Failed to obtain GitHub token from keyring, "
-            msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
-        else:
-            self.token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
-            if self.token is None:
-                tup = (KEYRING_GITHUB_TOKEN, user)
-                python_cmd = "import getpass, keyring; keyring.set_password(\"%s\", \"%s\", getpass.getpass())" % tup
-                msg = '\n'.join([
-                    "Failed to obtain GitHub token for %s" % user,
-                    "Use the following procedure to install a GitHub token in your keyring:",
-                    "$ python -c '%s'" % python_cmd,
-                ])
-
-        if self.token is None:
-            # failure, for some reason
-            _log.warning(msg)
-        else:
-            # success
-            _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
-
-
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
-    return GithubToken(user).token
+
+    token, msg = None, None
+
+    if user is None:
+        msg = "No GitHub user name provided, required for fetching GitHub token."
+    elif not HAVE_KEYRING:
+        msg = "Failed to obtain GitHub token from keyring, "
+        msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
+    else:
+        try:
+            token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
+        except Exception as err:
+            _log.warning("Exception occurred when fetching GitHub token: %s", err)
+
+        if token is None:
+            python_cmd = '; '.join([
+                "import getpass, keyring",
+                "keyring.set_password(\"%s\", \"%s\", getpass.getpass())" % (KEYRING_GITHUB_TOKEN, user),
+            ])
+            msg = '\n'.join([
+                "Failed to obtain GitHub token for %s" % user,
+                "Use the following procedure to install a GitHub token in your keyring:",
+                "$ python -c '%s'" % python_cmd,
+            ])
+
+    if token is None:
+        # failed to obtain token, log message explaining why
+        _log.warning(msg)
+    else:
+        _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
+
+    return token
 
 
 @only_if_module_is_available('keyring')

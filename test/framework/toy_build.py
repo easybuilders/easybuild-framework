@@ -1184,6 +1184,11 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         for path in paths:
+
+            if path.endswith('.yeb') and 'yaml' not in sys.modules:
+                print "Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)"
+                continue
+
             args = [
                 path,
                 '--experimental',

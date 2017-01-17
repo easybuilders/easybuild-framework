@@ -55,6 +55,22 @@ easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
 
+    def setUp(self):
+        """Set up toolchain test."""
+        super(ToolchainTest, self).setUp()
+        self.orig_get_cpu_architecture = st.get_cpu_architecture
+        self.orig_get_cpu_family = st.get_cpu_family
+        self.orig_get_cpu_model = st.get_cpu_model
+        self.orig_get_cpu_vendor = st.get_cpu_vendor
+
+    def tearDown(self):
+        """Cleanup after toolchain test."""
+        st.get_cpu_architecture = self.orig_get_cpu_architecture
+        st.get_cpu_family = self.orig_get_cpu_family
+        st.get_cpu_model = self.orig_get_cpu_model
+        st.get_cpu_vendor = self.orig_get_cpu_vendor
+        super(ToolchainTest, self).tearDown()
+
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
         tc_class, _ = search_toolchain(name)
@@ -279,7 +295,7 @@ class ToolchainTest(EnhancedTestCase):
                 tc.set_options({opt: enable})
                 tc.prepare()
                 if opt == 'optarch':
-                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
                 else:
                     flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
@@ -305,7 +321,7 @@ class ToolchainTest(EnhancedTestCase):
                     flag = '-%s' % optarch_var
                 else:
                     # default optarch flag
-                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
@@ -337,6 +353,34 @@ class ToolchainTest(EnhancedTestCase):
                             self.assertTrue(generic_flags in tc.get_variable(var))
                         else:
                             self.assertFalse(generic_flags in tc.get_variable(var))
+
+    def test_optarch_aarch64_heuristic(self):
+        """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
+        st.get_cpu_architecture = lambda: st.AARCH64
+        st.get_cpu_family = lambda: st.ARM
+        st.get_cpu_model = lambda: 'ARM Cortex-A53'
+        st.get_cpu_vendor = lambda: st.ARM
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.set_options({})
+        tc.prepare()
+        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
+        self.assertTrue('-mcpu=cortex-a53' in os.environ['CFLAGS'])
+        self.modtool.purge()
+
+        tc = self.get_toolchain("GCCcore", version="6.2.0")
+        tc.set_options({})
+        tc.prepare()
+        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=native')
+        self.assertTrue('-mcpu=native' in os.environ['CFLAGS'])
+        self.modtool.purge()
+
+        st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.set_options({})
+        tc.prepare()
+        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
+        self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
+        self.modtool.purge()
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
@@ -467,7 +511,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),

@@ -13,7 +13,7 @@
 easyblock = 'ConfigureMake'
 
 name = 'gzip'
-version = '1.6'  # FIXME bug: quotes are required here to make sure this is parsed a a string, not a floating point value
+version = '1.6'
 
 homepage = 'http://www.gnu.org/software/gzip/'
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"

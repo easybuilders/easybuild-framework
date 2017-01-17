@@ -19,14 +19,14 @@ sources = [SOURCE_TGZ]
 # python needs bzip2 to build the bz2 package
 # commented out for testing to avoid having to add them all - dependencies are tested in other files
 dependencies = [
-#    ('bzip2', '1.0.6'),
-#    ('zlib', '1.2.8'),
-#    ('libreadline', '6.3'),
-#    ('ncurses', '5.9'),
-#    ('SQLite', '3.8.10.2'),
-#    ('Tk', '8.6.4', '-no-X11'),
-#    ('OpenSSL', '1.0.1m'),  # OS dependency should be preferred if the os version is more recent then this version, it's
-#    nice to have an up to date openssl for security reasons
+    # ('bzip2', '1.0.6'),
+    # ('zlib', '1.2.8'),
+    # ('libreadline', '6.3'),
+    # ('ncurses', '5.9'),
+    # ('SQLite', '3.8.10.2'),
+    # ('Tk', '8.6.4', '-no-X11'),
+    # ('OpenSSL', '1.0.1m'),  # OS dependency should be preferred if the os version is more recent then this version,
+    # it's nice to have an up to date openssl for security reasons
 ]
 
 # zlib is only included here for the sake of testing parsing of .yeb easyconfigs!
@@ -47,7 +47,7 @@ exts_list = [
     ['numpy', numpyversion, {
         'source_urls': [['http://sourceforge.net/projects/numpy/files/NumPy/%s' % numpyversion, 'download']],
         'patches': [
-            'numpy-1.8.0-mkl.patch', # % numpyversion,
+            'numpy-1.8.0-mkl.patch',  # % numpyversion,
         ],
     }],
     ['scipy', scipyversion, {
@@ -123,4 +123,3 @@ exts_list = [
 ]
 
 moduleclass = 'lang'
-

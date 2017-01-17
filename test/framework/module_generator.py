@@ -542,7 +542,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
-            'GCC-4.6.3.eb': 'GCC/9e9ab5a1e978f0843b5aedb63ac4f14c51efb859',
+            'GCC-4.6.3.eb': 'GCC/5e4c8db5c005867c2aa9c1019500ed2cb1b4cf29',
             'gzip-1.4.eb': 'gzip/53d5c13e85cb6945bd43a58d1c8d4a4c02f3462d',
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/585eba598f33c64ef01c6fa47af0fc37f3751311',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/fceb41e04c26b540b7276c4246d1ecdd1e8251c9',
