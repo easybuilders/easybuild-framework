@@ -109,13 +109,13 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     for orig_ec in orig_ecs:
         # Place all tweaked dependency easyconfigs in the appended directory
         if orig_ec['spec'] not in listed_ec_paths:
-            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdirs[1])
+            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdirs['tweaked_ecs_deps_path'])
         # only return tweaked easyconfigs for easyconfigs which were listed originally and only in the prepended path
         # (so that they are found first)
         # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot in the
         # appended path
         if orig_ec['spec'] in listed_ec_paths:
-            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdirs[0])
+            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdirs['tweaked_ecs_path'])
             new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
             tweaked_easyconfigs.extend(new_ecs)
 

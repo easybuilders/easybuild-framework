@@ -279,7 +279,8 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
     # path where tweaked easyconfigs will be placed
     tweaked_ecs_paths = None
     if tweaked_ecs:
-        tweaked_ecs_paths = [os.path.join(tmpdir, 'tweaked_easyconfigs'), os.path.join(tmpdir, 'tweaked_dep_easyconfigs')]
+        tweaked_ecs_paths = {'tweaked_ecs_path': os.path.join(tmpdir, 'tweaked_easyconfigs'),
+                             'tweaked_ecs_deps_path': os.path.join(tmpdir, 'tweaked_dep_easyconfigs')}
 
     # path where files touched in PR will be downloaded to
     pr_path = None
