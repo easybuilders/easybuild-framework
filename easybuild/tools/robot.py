@@ -59,9 +59,8 @@ def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=Fa
     if tweaked_ecs_paths is not None:
         robot_path.insert(0, tweaked_ecs_paths['tweaked_ecs_path'])
         robot_path.append(tweaked_ecs_paths['tweaked_ecs_deps_path'])
-        _log.info("Prepended list of robot search paths with %s and appended with %s: %s" % (tweaked_ecs_paths[0],
-                                                                                             tweaked_ecs_paths[1],
-                                                                                             robot_path))
+        _log.info("Prepended list of robot search paths with %s and appended with %s: %s"
+                  % (tweaked_ecs_paths['tweaked_ecs_path'], tweaked_ecs_paths['tweaked_ecs_deps_path'], robot_path))
     if pr_path is not None:
         robot_path.append(pr_path)
         _log.info("Appended list of robot search paths with %s: %s" % (pr_path, robot_path))
