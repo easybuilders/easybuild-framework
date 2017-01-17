@@ -50,15 +50,18 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
-def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
     _log.info("Using robot path(s): %s" % robot_path)
 
     # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
-    if tweaked_ecs_path is not None:
-        robot_path.insert(0, tweaked_ecs_path)
-        _log.info("Prepended list of robot search paths with %s: %s" % (tweaked_ecs_path, robot_path))
+    if tweaked_ecs_paths is not None:
+        robot_path.insert(0, tweaked_ecs_paths[0])
+        robot_path.append(tweaked_ecs_paths[1])
+        _log.info("Prepended list of robot search paths with %s and appended with %s: %s" % (tweaked_ecs_paths[0],
+                                                                                             tweaked_ecs_paths[1],
+                                                                                             robot_path))
     if pr_path is not None:
         robot_path.append(pr_path)
         _log.info("Appended list of robot search paths with %s: %s" % (pr_path, robot_path))

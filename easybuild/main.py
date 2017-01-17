@@ -205,9 +205,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # determine robot path
     # --try-X, --dep-graph, --search use robot path for searching, so enable it with path of installed easyconfigs
     tweaked_ecs = try_to_generate and build_specs
-    tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
+    tweaked_ecs_paths, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
     auto_robot = try_to_generate or options.check_conflicts or options.dep_graph or search_query
-    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
+    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_paths, pr_path, auto_robot=auto_robot)
     _log.debug("Full robot path: %s" % robot_path)
 
     # configure & initialize build options
@@ -341,7 +341,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdir=tweaked_ecs_path)
+        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
     dry_run_mode = options.dry_run or options.dry_run_short
     new_update_pr = options.new_pr or options.update_pr

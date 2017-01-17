@@ -70,7 +70,7 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs, modtool, targetdir=None):
+def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
 
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
@@ -107,10 +107,15 @@ def tweak(easyconfigs, build_specs, modtool, targetdir=None):
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
     for orig_ec in orig_ecs:
-        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdir)
-        # only return tweaked easyconfigs for easyconfigs which were listed originally
-        # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot
+        # Place all tweaked dependency easyconfigs in the appended directory
+        if orig_ec['spec'] not in listed_ec_paths:
+            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdirs[1])
+        # only return tweaked easyconfigs for easyconfigs which were listed originally and only in the prepended path
+        # (so that they are found first)
+        # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot in the
+        # appended path
         if orig_ec['spec'] in listed_ec_paths:
+            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdirs[0])
             new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
             tweaked_easyconfigs.extend(new_ecs)
 
