@@ -53,11 +53,11 @@ _log = fancylogger.getLogger('tools.robot', fname=False)
 def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
-    tweaked_ecs_path, tweaked_ecs_deps_path = tweaked_ecs_paths
     _log.info("Using robot path(s): %s" % robot_path)
 
     # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
     if tweaked_ecs_paths is not None:
+        tweaked_ecs_path, tweaked_ecs_deps_path = tweaked_ecs_paths
         # easyconfigs listed on the command line (and tweaked) should be found first
         robot_path.insert(0, tweaked_ecs_path)
         # dependencies are always tweaked but we should only use them if there is no other option (so they come last)
