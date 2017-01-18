@@ -277,13 +277,13 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
 def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
     """Obtain alternative paths for easyconfig files."""
 
-    # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority, tweaked
-    # dependencies are also created but these will only be appended to the robot path (and only used if strictly
-    # necessary)
+    # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
+    # prepended to the robot path, tweaked dependencies are also created but these will only be appended to the robot
+    # path (and therefore only used if strictly necessary)
     tweaked_ecs_paths = None
     if tweaked_ecs:
-        tweaked_ecs_paths = {'tweaked_ecs_path': os.path.join(tmpdir, 'tweaked_easyconfigs'),
-                             'tweaked_ecs_deps_path': os.path.join(tmpdir, 'tweaked_dep_easyconfigs')}
+        tweaked_ecs_paths = (os.path.join(tmpdir, 'tweaked_easyconfigs'),
+                             os.path.join(tmpdir, 'tweaked_dep_easyconfigs'))
 
     # path where files touched in PR will be downloaded to
     pr_path = None
