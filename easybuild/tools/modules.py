@@ -711,15 +711,6 @@ class ModulesTool(object):
 
         return loaded_modules
 
-    def read_module_file(self, mod_name):
-        """
-        Read module file with specified name.
-        """
-        modfilepath = self.modulefile_path(mod_name)
-        self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
-
-        return read_file(modfilepath)
-
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
@@ -747,7 +738,7 @@ class ModulesTool(object):
 
         modpath_exts = {}
         for mod_name in mod_names:
-            modtxt = self.read_module_file(mod_name)
+            modtxt = self.show(mod_name)
             exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
