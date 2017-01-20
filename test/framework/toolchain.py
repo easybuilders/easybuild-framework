@@ -387,12 +387,14 @@ class ToolchainTest(EnhancedTestCase):
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         for intelflags,intel_expanded_flags in [('intelflag','intelflag'),('GENERIC','xSSE2'),('','')]:
             for gccflags,gcc_expanded_flags in  [('gccflag','gccflag'),('GENERIC','march=x86-64 -mtune=generic'),('','')]:
-                optarch_var = 'Intel:%s,GCC:%s' % (intelflags,gccflags)
+                optarch_var = dict()
+                optarch_var['Intel'] = '%s' % intelflags
+                optarch_var['GCC'] = '%s' % gccflags
                 build_options = {'optarch': optarch_var}
                 init_config(build_options=build_options)
                 for toolchain, toolchain_version in [('iccifort','2011.13.367'),('GCC','4.7.2'),('PGI','16.7-GCC-5.4.0-2.26')]:
                     for enable in [True, False]:
-               	        tc = self.get_toolchain(toolchain, version=toolchain_version)
+                        tc = self.get_toolchain(toolchain, version=toolchain_version)
                         tc.set_options({'optarch': enable})
                         tc.prepare()
                         flag = None
@@ -401,8 +403,9 @@ class ToolchainTest(EnhancedTestCase):
                         elif toolchain == 'GCC':
                             flag = gcc_expanded_flags 
                         else: # PGI as an example of compiler not set
-                            # default optarch flag
-                            flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
+                            # default optarch flag, should be the same as the one in
+                            # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
+                            flag = ''
                         
                         flags = tc.options.options_map['optarch']
 
@@ -415,6 +418,10 @@ class ToolchainTest(EnhancedTestCase):
                                     self.assertTrue(flag in tc.get_variable(var), "optarch: True means '%s' in '%s'" % (flag, tc.get_variable(var)))
                                 else:
                                     self.assertFalse(flag in tc.get_variable(var), "optarch: False means no '%s' in '%s'" % (flag, tc.get_variable(var)))
+                        # if flag is '' there is not much to check. A more robust approach
+                        # would be to check against a blacklist, but that is probably not necessary
+                        else:
+                            pass
 
                     self.modtool.purge()
 

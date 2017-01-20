@@ -2967,6 +2967,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
         self.assertFalse(re.search('gzip', txt, re.M))
 
+    def test_optarch(self):
+        """Test correct parsing of optarch option."""
+        # Check for EasyBuildErrors
+        #
+        args = ['--optarch=Intel:something;GCC']
+        error_msg = "The optarch option has an incorrect syntax"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        args = ['--optarch=Intel:something;GCC:somethingelse;Intel:anothersomething']
+        error_msg = "The optarch option contains duplicated entries for compiler"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+
+        # TODO: Check for correct parsing and dictionary creation
 
 def suite():
     """ returns all the testcases in this module """

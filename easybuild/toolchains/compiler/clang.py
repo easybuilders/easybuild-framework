@@ -36,10 +36,15 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
+TC_CONSTANT_CLANG = "Clang"
+
+
 class Clang(Compiler):
     """Clang compiler class"""
 
     COMPILER_MODULE_NAME = ['Clang']
+    
+    COMPILER_FAMILY = TC_CONSTANT_CLANG
 
     # Don't set COMPILER_FAMILY in this class because Clang does not have
     # Fortran support, and thus it is not a complete compiler as far as

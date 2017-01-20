@@ -79,7 +79,7 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
-from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, Compiler
+from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_TOOLCHAIN_DELIMITER, OPTARCH_OPTION_DELIMITER, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -350,7 +350,6 @@ class EasyBuildOptions(GeneralOption):
             'mpi-cmd-template': ("Template for MPI commands (template keys: %(nr_ranks)s, %(cmd)s)",
                                  None, 'store', None),
             'mpi-tests': ("Run MPI tests (when relevant)", None, 'store_true', True),
-            # optarch is in most cases equivalent to strlist, but changing the type breaks compatibility
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
             'output-format': ("Set output format", 'choice', 'store', FORMAT_TXT, [FORMAT_TXT, FORMAT_RST]),
@@ -715,6 +714,28 @@ class EasyBuildOptions(GeneralOption):
         # imply --terse for --last-log to avoid extra output that gets in the way
         if self.options.last_log:
             self.options.terse = True
+
+        # make sure --optarch has a valid format
+        if self.options.optarch:
+            # optarch is in most cases equivalent to strlist, but changing the type breaks compatibility, so we hack it here
+            n_compilers = len(self.options.optarch.split(OPTARCH_TOOLCHAIN_DELIMITER))
+            
+            # if the format is not adequate we refuse continuing
+            if n_compilers != self.options.optarch.count(OPTARCH_OPTION_DELIMITER) and n_compilers > 1:
+                raise EasyBuildError("The optarch option has an incorrect syntax: %s" % self.options.optarch)
+            else:
+                # if there are options for different compilers, we set up a dict
+                if OPTARCH_OPTION_DELIMITER in self.options.optarch:
+                    optarch_dict = dict()
+                    for compiler, compiler_opt in [i.split(OPTARCH_OPTION_DELIMITER) for i in self.options.optarch.split(OPTARCH_TOOLCHAIN_DELIMITER)]:
+                        if compiler in optarch_dict:
+                            raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s" % (compiler, self.options.optarch))
+                        else:
+                            optarch_dict[compiler] = compiler_opt
+                    self.options.optarch = optarch_dict 
+                # we do nothing and keep the string
+                else:
+                    pass
 
         # handle configuration options that affect other configuration options
         self._postprocess_config()
