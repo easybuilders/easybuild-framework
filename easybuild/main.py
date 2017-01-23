@@ -50,6 +50,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
@@ -323,6 +324,15 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
+
+    if options.check_style:
+        _log.debug("Running style check...")
+        if cmdline_easyconfigs_style_check([path[0] for path in paths]):
+            print_msg("All style checks passed!", prefix=False)
+            cleanup(logfile, eb_tmpdir, testing)
+            sys.exit(0)
+        else:
+            raise EasyBuildError("One or more style checks FAILED!")
 
     # read easyconfig files
     easyconfigs, generated_ecs = parse_easyconfigs(paths)

@@ -28,10 +28,10 @@ Style tests for easyconfig files using pep8.
 
 :author: Ward Poelmans (Ghent University)
 """
-
 import re
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
@@ -124,3 +124,23 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
         result.print_statistics()
 
     return result.total_errors
+
+
+def cmdline_easyconfigs_style_check(paths):
+    """
+    Run easyconfigs style check of each of the specified paths, triggered from 'eb' command line
+
+    :param paths: list of paths to easyconfig files to check
+    :return: True when style check passed on all easyconfig files, False otherwise
+    """
+    print_msg("Running style check on %d easyconfig(s)..." % len(paths), prefix=False)
+    style_check_passed = True
+    for path in paths:
+        if check_easyconfigs_style([path]) == 0:
+            res = 'PASS'
+        else:
+            res = 'FAIL'
+            style_check_passed = False
+        print_msg('[%s] %s' % (res, path), prefix=False)
+
+    return style_check_passed
