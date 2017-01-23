@@ -36,6 +36,7 @@ import subprocess
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from itertools import product
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -385,45 +386,52 @@ class ToolchainTest(EnhancedTestCase):
     def test_compiler_dependent_optarch(self):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
-        for intelflags,intel_expanded_flags in [('intelflag','intelflag'),('GENERIC','xSSE2'),('','')]:
-            for gccflags,gcc_expanded_flags in  [('gccflag','gccflag'),('GENERIC','march=x86-64 -mtune=generic'),('','')]:
-                optarch_var = dict()
-                optarch_var['Intel'] = '%s' % intelflags
-                optarch_var['GCC'] = '%s' % gccflags
-                build_options = {'optarch': optarch_var}
-                init_config(build_options=build_options)
-                for toolchain, toolchain_version in [('iccifort','2011.13.367'),('GCC','4.7.2'),('PGI','16.7-GCC-5.4.0-2.26')]:
-                    for enable in [True, False]:
-                        tc = self.get_toolchain(toolchain, version=toolchain_version)
-                        tc.set_options({'optarch': enable})
-                        tc.prepare()
-                        flag = None
-                        if toolchain == 'iccifort':
-                            flag = intel_expanded_flags
-                        elif toolchain == 'GCC':
-                            flag = gcc_expanded_flags 
-                        else: # PGI as an example of compiler not set
-                            # default optarch flag, should be the same as the one in
-                            # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
-                            flag = ''
-                        
-                        flags = tc.options.options_map['optarch']
+        intel_options = [('intelflag','intelflag'),('GENERIC','xSSE2'),('','')]
+        gcc_options = [('gccflag','gccflag'),('GENERIC','march=x86-64 -mtune=generic'),('','')]
+        toolchains = [('iccifort','2011.13.367'),('GCC','4.7.2'),('PGI','16.7-GCC-5.4.0-2.26')]
+        enabled = [True, False]
 
-                        self.assertTrue(flag == flags, "optarch: True means '%s' == '%s'" % (flag, flags))
-                        
-                        # Also check that it is correctly passed to xFLAGS, honoring 'enable'
-                        if flag != '':
-                            for var in flag_vars:
-                                if enable:
-                                    self.assertTrue(flag in tc.get_variable(var), "optarch: True means '%s' in '%s'" % (flag, tc.get_variable(var)))
-                                else:
-                                    self.assertFalse(flag in tc.get_variable(var), "optarch: False means no '%s' in '%s'" % (flag, tc.get_variable(var)))
-                        # if flag is '' there is not much to check. A more robust approach
-                        # would be to check against a blacklist, but that is probably not necessary
-                        else:
-                            pass
+        i = product(intel_options, gcc_options, toolchains, enabled)
 
-                    self.modtool.purge()
+        for (intelflags, intel_expanded_flags), (gccflags, gcc_expanded_flags), (toolchain, toolchain_version), enable in i:
+            optarch_var = {} 
+            optarch_var['Intel'] = '%s' % intelflags
+            optarch_var['GCC'] = '%s' % gccflags
+            build_options = {'optarch': optarch_var}
+            init_config(build_options=build_options)
+            tc = self.get_toolchain(toolchain, version=toolchain_version)
+            tc.set_options({'optarch': enable})
+            tc.prepare()
+            flag = None
+            if toolchain == 'iccifort':
+                flag = intel_expanded_flags
+            elif toolchain == 'GCC':
+                flag = gcc_expanded_flags 
+            else: # PGI as an example of compiler not set
+                # default optarch flag, should be the same as the one in
+                # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
+                flag = ''
+            
+            flags = tc.options.options_map['optarch']
+
+            self.assertTrue(flag == flags, "optarch: True means '%s' == '%s'" % (flag, flags))
+            
+            # Also check that it is correctly passed to xFLAGS, honoring 'enable'
+            if flag != '':
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "optarch: True means '%s' in '%s'" \
+                                % (flag, flags))
+                    else:
+                        self.assertFalse(flag in flags, "optarch: False means no '%s' in '%s'" \
+                                % (flag, flags))
+            # if flag is '' there is not much to check. A more robust approach
+            # would be to check against a blacklist, but that is probably not necessary
+            else:
+                pass
+
+            self.modtool.purge()
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""

@@ -32,6 +32,7 @@ Command line options for eb
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import glob
@@ -79,7 +80,8 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
-from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_TOOLCHAIN_DELIMITER, OPTARCH_OPTION_DELIMITER, Compiler
+from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_SEP, \
+        OPTARCH_MAP_CHAR, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -717,25 +719,7 @@ class EasyBuildOptions(GeneralOption):
 
         # make sure --optarch has a valid format
         if self.options.optarch:
-            # optarch is in most cases equivalent to strlist, but changing the type breaks compatibility, so we hack it here
-            n_compilers = len(self.options.optarch.split(OPTARCH_TOOLCHAIN_DELIMITER))
-            
-            # if the format is not adequate we refuse continuing
-            if n_compilers != self.options.optarch.count(OPTARCH_OPTION_DELIMITER) and n_compilers > 1:
-                raise EasyBuildError("The optarch option has an incorrect syntax: %s" % self.options.optarch)
-            else:
-                # if there are options for different compilers, we set up a dict
-                if OPTARCH_OPTION_DELIMITER in self.options.optarch:
-                    optarch_dict = dict()
-                    for compiler, compiler_opt in [i.split(OPTARCH_OPTION_DELIMITER) for i in self.options.optarch.split(OPTARCH_TOOLCHAIN_DELIMITER)]:
-                        if compiler in optarch_dict:
-                            raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s" % (compiler, self.options.optarch))
-                        else:
-                            optarch_dict[compiler] = compiler_opt
-                    self.options.optarch = optarch_dict 
-                # we do nothing and keep the string
-                else:
-                    pass
+            self._postprocess_optarch()
 
         # handle configuration options that affect other configuration options
         self._postprocess_config()
@@ -744,6 +728,31 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_config or self.options.show_full_config:
             self.show_config()
             cleanup_and_exit(self.tmpdir)
+
+    def _postprocess_optarch(self):
+        """Postprocess --optarch option."""
+        optarch_parts = self.options.optarch.split(OPTARCH_SEP)
+        n_compilers = len(optarch_parts)
+        
+        # if the format is not adequate we refuse continuing
+        if n_compilers > 1 and n_compilers != self.options.optarch.count(OPTARCH_MAP_CHAR):
+            raise EasyBuildError("The optarch option has an incorrect syntax: %s" % self.options.optarch)
+        else:
+            logger = fancylogger.getLogger()
+            # if there are options for different compilers, we set up a dict
+            if OPTARCH_MAP_CHAR in optarch_parts[0]:
+                optarch_dict = {}
+                for compiler, compiler_opt in [x.split(OPTARCH_MAP_CHAR) for x in optarch_parts]:
+                    if compiler in optarch_dict:
+                        raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s" \
+                                % (compiler, self.options.optarch))
+                    else:
+                        optarch_dict[compiler] = compiler_opt
+                self.options.optarch = optarch_dict 
+                logger.info("Transforming optarch into a dict: %s" % self.options.optarch)
+            # we do nothing and keep the string
+            else:
+                logger.info("Keeping optarch raw: %s" % self.options.optarch)
 
     def _postprocess_include(self):
         """Postprocess --include options."""

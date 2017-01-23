@@ -2967,7 +2967,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
         self.assertFalse(re.search('gzip', txt, re.M))
 
-    def test_optarch(self):
+    def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
         # Check for EasyBuildErrors
         #

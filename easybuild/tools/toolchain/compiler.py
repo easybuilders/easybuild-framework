@@ -43,8 +43,8 @@ DEFAULT_OPT_LEVEL = 'defaultopt'
 OPTARCH_GENERIC = 'GENERIC'
 
 # Characters that separate toolchains and options in --optarch
-OPTARCH_TOOLCHAIN_DELIMITER = ';'
-OPTARCH_OPTION_DELIMITER = ':'
+OPTARCH_SEP = ';'
+OPTARCH_MAP_CHAR = ':'
 
 def mk_infix(prefix):
     """Create an infix based on the given prefix."""
@@ -281,35 +281,31 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        optarch = None
         use_generic = False
+        optarch= build_option('optarch') 
         # --optarch is specified with flags to use
-        if build_option('optarch') is not None:
+        if optarch is not None:
             # optarch has been validated as a simple string
-            if type(build_option('optarch')) is str:
+            if isinstance(optarch, basestring):
                 # Option is generic, so mark it as to be set later
-                if build_option('optarch') == OPTARCH_GENERIC:
+                if optarch == OPTARCH_GENERIC:
                     use_generic = True
-                # No compilers specified, and option is not generic, so simply take what is there
-                else:
-                    optarch = build_option('optarch')
 
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
-            elif type(build_option('optarch')) is dict:
+            elif isinstance(optarch, dict):
                 current_compiler = getattr(self, 'COMPILER_FAMILY', None)
-                if current_compiler in build_option('optarch'):
-                    if build_option('optarch')[current_compiler] == OPTARCH_GENERIC:
+                if current_compiler in optarch:
+                    if optarch[current_compiler] == OPTARCH_GENERIC:
                         use_generic = True
                     else:
-                        optarch = build_option('optarch')[current_compiler]
+                        optarch = optarch[current_compiler]
                 # no option for this compiler
                 else:
-                    pass
+                    optarch = None
+                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", \
+                            current_compiler)
             else:
                 raise EasyBuildError("optarch is neither an string or a dict. This should never ever happen")
-
-            if optarch is None and use_generic == False:
-                self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option." % current_compiler)
 
         if use_generic == True:
             if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
@@ -318,7 +314,7 @@ class Compiler(Toolchain):
         elif default_optarch and optarch is None:
             optarch = default_optarch
         # no --optarch specified, no option found for the current compiler, and no default optarch
-        elif use_generic == False and optarch is None and (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+        elif optarch is None and (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
