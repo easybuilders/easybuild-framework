@@ -297,13 +297,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
         self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
-        robot_paths = [
-            '/tmp/foo',
-            os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
-            os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
-            os.getenv('HOME'),
-            os.path.join('/tmp',os.getenv('USER')),
-        ]
 
         # hardcoded first entry
         self.assertEqual(options.robot_paths[0], '/tmp/foo')
