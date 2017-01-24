@@ -2981,20 +2981,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         # Check that it doesn't raise an exception when the input is correct
-        args = ['--optarch=','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
-        args = ['--optarch=something','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
-        args = ['--optarch=GENERIC','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
-        args = ['--optarch=Intel:something','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
-        args = ['--optarch=Intel:something;GCC:somethingelse','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
-        args = ['--optarch=Intel:GENERIC;GCC:somethingelse','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
-        args = ['--optarch=Intel:;GCC:somethingelse','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
-        self.eb_main(args, raise_error=True)
+        test_easyconfig = 'easyconfigs/test_ecs/t/toy/toy-0.0.eb'
+        test_cases = [
+                ['--optarch=',test_easyconfig],
+                ['--optarch=something',test_easyconfig],
+                ['--optarch=GENERIC',test_easyconfig],
+                ['--optarch=Intel:something',test_easyconfig],
+                ['--optarch=Intel:something;GCC:somethingelse',test_easyconfig],
+                ['--optarch=Intel:GENERIC;GCC:somethingelse',test_easyconfig],
+                ['--optarch=Intel:;GCC:somethingelse;',test_easyconfig]
+                ]
+        for args in test_cases:
+            self.eb_main(args, raise_error=True)
 
         # Check the parsing itself
         test_cases = [
