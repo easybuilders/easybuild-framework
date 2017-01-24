@@ -40,6 +40,7 @@ import re
 import shutil
 import sys
 import tempfile
+import pwd
 import vsc.utils.generaloption
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
@@ -219,12 +220,13 @@ class EasyBuildOptions(GeneralOption):
                                            "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
-                'USER': (os.environ['USER'], "Current username, derived from the os environment"),
-                'HOME': (os.environ['HOME'], 
-                         "Current user's home directory, derived from the os environment")
+                'USER': (pwd.getpwuid(os.geteuid()).pw_name,
+                         "Current username, translated uid from password file"),
+                'HOME': (os.path.expanduser('~'), 
+                         "Current user's home directory, expanded '~'")
             }
         }
-        
+
         # update or define go_configfiles_initenv in named arguments to pass to parent constructor
         go_cfg_initenv = kwargs.setdefault('go_configfiles_initenv', {})
         for section, constants in self.go_cfg_constants.items():

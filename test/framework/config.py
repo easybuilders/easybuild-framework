@@ -272,13 +272,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         # test with config file passed via environment variable
+        # also test for existence of HOME and USER by adding paths to robot-paths
         installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
             'sourcepath = %(DEFAULT_REPOSITORYPATH)s',
             'repositorypath = %(DEFAULT_REPOSITORYPATH)s,somesubdir',
-            'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s',
+            'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s:%(HOME)s:/tmp/%(USER)s',
             'installpath-modules=%s' % installpath_modules,
         ])
         write_file(config_file, cfgtxt)
@@ -300,6 +301,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
             '/tmp/foo',
             os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
             os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
+            os.getenv('HOME'),
+            os.path.join('tmp',os.getenv('USER'))
         ]
         self.assertEqual(options.robot_paths[:3], robot_paths)
 
