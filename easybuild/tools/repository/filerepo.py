@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.tools import stats_to_str
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.repository.repository import Repository
 from easybuild.tools.version import VERBOSE_VERSION
-
+from easybuild.tools.build_log import EasyBuildError
 
 class FileRepository(Repository):
     """Class for file repositories."""
@@ -109,7 +109,11 @@ class FileRepository(Repository):
         else:
             statstxt = statscomment + statsprefix + stats_to_str(stats, isyeb=yeb_format) + statssuffix
 
-        txt += statstxt
+        try:
+            txt += statstxt
+        except UnicodeDecodeError as e:
+            raise EasyBuildError("Got a unicode error here: type(txt) %s type(statstxt) %s", type(txt).__name__, type(statstxt).__name__)
+        
         write_file(dest, txt)
 
         return dest

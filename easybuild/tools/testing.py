@@ -228,7 +228,20 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
 
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
-    return '\n'.join(test_report)
+    normalized_test_report = [] 
+    for line in test_report:
+        if isinstance(line, str):
+            line=str(line)
+        elif isinstance(line, unicode):
+            line=str(line.decode('utf8'))
+        else:
+            raise EasyBuildError("Can't decode line: %s type: %s", line, type(line).__name__)
+        
+        normalized_test_report.append(line)
+    
+    normalized_test_report_string = "\n".join(normalized_test_report)
+    
+    return normalized_test_report_string
 
 
 def upload_test_report_as_gist(test_report, descr=None, fn=None):
