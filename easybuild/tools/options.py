@@ -745,7 +745,7 @@ class EasyBuildOptions(GeneralOption):
                 optarch_dict = {}
                 for compiler, compiler_opt in [x.split(OPTARCH_MAP_CHAR) for x in optarch_parts]:
                     if compiler in optarch_dict:
-                        raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s" \
+                        raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s" 
                                 % (compiler, self.options.optarch))
                     else:
                         optarch_dict[compiler] = compiler_opt

@@ -302,7 +302,7 @@ class Compiler(Toolchain):
                 # no option for this compiler
                 else:
                     optarch = None
-                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", \
+                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", 
                             current_compiler)
             else:
                 raise EasyBuildError("optarch is neither an string or a dict. This should never ever happen")

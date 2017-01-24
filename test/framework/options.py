@@ -2980,7 +2980,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = "The optarch option contains duplicated entries for compiler"
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
-        # TODO: Check for correct parsing and dictionary creation
+        test_cases = [
+                ('',''),
+                ('xHost','xHost'),
+                ('GENERIC','GENERIC'),
+                ('Intel:xHost', {'Intel': 'xHost'}),
+                ('Intel:GENERIC', {'Intel': 'GENERIC'}),
+                ('Intel:xHost;GCC:march=x86-64 -mtune=generic', {'Intel': 'xHost', 'GCC': 'march=x86-64 -mtune=generic'}),
+                ]
+
+        options = EasyBuildOptions()
+
+        for optarch_string, optarch_parsed in test_cases:
+            options.options.optarch = optarch_string
+            options.postprocess()
+            self.assertTrue(options.options.optarch == optarch_parsed, "Parsing of optarch: True means %s == %s" % 
+                    (options.options.optarch, optarch_parsed))
     
     def test_check_style(self):
         """Test --check-style."""

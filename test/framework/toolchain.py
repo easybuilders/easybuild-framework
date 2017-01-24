@@ -421,10 +421,10 @@ class ToolchainTest(EnhancedTestCase):
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
-                        self.assertTrue(flag in flags, "optarch: True means '%s' in '%s'" \
+                        self.assertTrue(flag in flags, "optarch: True means '%s' in '%s'" 
                                 % (flag, flags))
                     else:
-                        self.assertFalse(flag in flags, "optarch: False means no '%s' in '%s'" \
+                        self.assertFalse(flag in flags, "optarch: False means no '%s' in '%s'" 
                                 % (flag, flags))
             # if flag is '' there is not much to check. A more robust approach
             # would be to check against a blacklist, but that is probably not necessary
