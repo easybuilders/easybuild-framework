@@ -2970,8 +2970,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
+        
         # Check for EasyBuildErrors
-        #
         args = ['--optarch=Intel:something;GCC']
         error_msg = "The optarch option has an incorrect syntax"
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
@@ -2980,6 +2980,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = "The optarch option contains duplicated entries for compiler"
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
+        # Check that it doesn't raise an exception when the input is correct
+        args = ['--optarch=','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+        args = ['--optarch=something','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+        args = ['--optarch=GENERIC','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+        args = ['--optarch=Intel:something','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+        args = ['--optarch=Intel:something;GCC:somethingelse','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+        args = ['--optarch=Intel:GENERIC;GCC:somethingelse','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+        args = ['--optarch=Intel:;GCC:somethingelse','easyconfigs/test_ecs/t/toy/toy-0.0.eb']
+        self.eb_main(args, raise_error=True)
+
+        # Check the parsing itself
         test_cases = [
                 ('',''),
                 ('xHost','xHost'),
@@ -2987,6 +3004,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 ('Intel:xHost', {'Intel': 'xHost'}),
                 ('Intel:GENERIC', {'Intel': 'GENERIC'}),
                 ('Intel:xHost;GCC:march=x86-64 -mtune=generic', {'Intel': 'xHost', 'GCC': 'march=x86-64 -mtune=generic'}),
+                ('Intel:;GCC:march=x86-64 -mtune=generic', {'Intel': '', 'GCC': 'march=x86-64 -mtune=generic'}),
                 ]
 
         options = EasyBuildOptions()
