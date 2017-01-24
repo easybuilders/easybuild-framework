@@ -302,7 +302,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
             os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
             os.getenv('HOME'),
-            os.path.join('tmp',os.getenv('USER')),
+            os.path.join('/tmp',os.getenv('USER')),
         ]
         self.assertEqual(options.robot_paths[:5], robot_paths)
 
