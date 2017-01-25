@@ -40,6 +40,7 @@ import re
 import shutil
 import sys
 import tempfile
+import pwd
 import vsc.utils.generaloption
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
@@ -215,9 +216,14 @@ class EasyBuildOptions(GeneralOption):
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
-                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], "Default easyconfigs repository path"),
+                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], 
+                                           "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
+                'USER': (pwd.getpwuid(os.geteuid()).pw_name,
+                         "Current username, translated uid from password file"),
+                'HOME': (os.path.expanduser('~'), 
+                         "Current user's home directory, expanded '~'")
             }
         }
 
