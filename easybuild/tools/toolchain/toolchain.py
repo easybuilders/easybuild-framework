@@ -417,6 +417,12 @@ class Toolchain(object):
         _log.debug("Toolchain definition for %s: %s" % (self.as_dict(), tc_elems))
         return tc_elems
 
+    def alt_definitions(self):
+        """
+        List of alternate definitions for this toolchain.
+        """
+        return []
+
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
         return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
@@ -578,27 +584,39 @@ class Toolchain(object):
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
         self.toolchain_dep_mods = dependencies_for(mod_name, self.modules_tool, depth=0)
-        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
+        self.log.debug("List of direct toolchain dependencies: %s", self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name
-        toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
+        tc_defs = [set([e for es in self.definition().values() for e in es if e != self.name])]
+        for alt_def in self.alt_definitions():
+            tc_defs.append(set([e for es in alt_def.values() for e in es if e != self.name]))
+        self.log.debug("List of toolchain definitions (incl. alternatives, if any): %s", tc_defs)
 
-        # filter out optional toolchain elements if they're not used in the module
-        for elem_name in toolchain_definition.copy():
-            if self.is_required(elem_name) or self.is_dep_in_toolchain_module(elem_name):
-                continue
-            # not required and missing: remove from toolchain definition
-            self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
-            toolchain_definition.remove(elem_name)
+        tc_verified = False
+        for tc_def in tc_defs:
+            # filter out optional toolchain elements if they're not used in the toolchain module
+            for elem_name in tc_def.copy():
+                if self.is_required(elem_name) or self.is_dep_in_toolchain_module(elem_name):
+                    self.log.debug("Retaining toolchain element '%s' in toolchain definition", elem_name)
+                else:
+                    # not required and missing: remove from toolchain definition
+                    self.log.debug("Removing %s from list of optional toolchain elements", elem_name)
+                    tc_def.remove(elem_name)
 
-        self.log.debug("List of toolchain dependencies from toolchain module: %s" % self.toolchain_dep_mods)
-        self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
+            self.log.debug("List of toolchain dependencies from toolchain module: %s", self.toolchain_dep_mods)
+            self.log.debug("List of toolchain elements from toolchain definition: %s", tc_def)
 
-        if all(map(self.is_dep_in_toolchain_module, toolchain_definition)):
-            self.log.info("List of toolchain dependency modules and toolchain definition match!")
-        else:
-            raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
-                                 "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
+            # check whether toolchain module matches this toolchain definition
+            if all(map(self.is_dep_in_toolchain_module, tc_def)):
+                self.log.info("List of toolchain dependency modules and toolchain definition %s match!", tc_def)
+                tc_verified = True
+                break
+
+        # a toolchain module that does not match with any toolchain definition is a problem
+        if not tc_verified:
+            expected = ' or '.join(['+'.join(sorted(d)) for d in tc_defs])
+            raise EasyBuildError("List of toolchain dependency modules does not match with any toolchain definition "
+                                 "(found '%s' vs expected %s)", ', '.join(self.toolchain_dep_mods), expected)
 
     def symlink_commands(self, paths):
         """

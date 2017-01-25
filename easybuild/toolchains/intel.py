@@ -42,3 +42,20 @@ class Intel(Iimpi, IntelMKL, IntelFFTW):
     """
     NAME = 'intel'
     SUBTOOLCHAIN = Iimpi.NAME
+
+    def alt_definitions(self):
+        """
+        Return list of alternate definitions for the 'intel' toolchain.
+        """
+        # Intel compilers, MPI and MKL can also be installed as a whole as Intel Parallel Studio XE (PSXE)
+        intel_psxe_modname = 'intel-psxe'
+        intel_psxe = {
+            'COMPILER': [intel_psxe_modname],
+            'MPI': [intel_psxe_modname],
+            'BLAS': [intel_psxe_modname],
+            'LAPACK': [intel_psxe_modname],
+            'SCALAPACK': [intel_psxe_modname],
+            'FFT': [intel_psxe_modname],
+        }
+
+        return [intel_psxe]

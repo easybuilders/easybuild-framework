@@ -630,24 +630,51 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
-        tc.prepare()
+        tc._load_modules()
+        tc._verify_toolchain()
         self.modtool.purge()
 
         # toolchain modules missing a toolchain element should fail verification
-        error_msg = "List of toolchain dependency modules and toolchain definition do not match"
+        error_msg = "List of toolchain dependency modules does not match with any toolchain definition"
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenFFTW")
-        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+        tc._load_modules()
+        self.assertErrorRegex(EasyBuildError, error_msg, tc._verify_toolchain)
         self.modtool.purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenBLACS")
-        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+        tc._load_modules()
+        self.assertErrorRegex(EasyBuildError, error_msg, tc._verify_toolchain)
         self.modtool.purge()
 
         # missing optional toolchain elements are fine
         tc = self.get_toolchain('goolfc', version='1.3.12')
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
-        tc.prepare()
+        tc._load_modules()
+        tc._verify_toolchain()
+
+    def test_toolchain_verification_intel(self):
+        """Test toolchain verification for 'intel' toolchain."""
+        # create dummy test modules
+        intel_mods = ['icc/2016.3.210', 'ifort/2016.3.210', 'impi/5.1.3.181', 'imkl/11.3.3.210', 'intel-psxe/2016b']
+        for mod in intel_mods:
+            write_file(os.path.join(self.test_prefix, mod), '#%Module')
+
+        intel_2016b = '#%Module\n' + '\n'.join("module load " + m for m in intel_mods)
+        write_file(os.path.join(self.test_prefix, 'intel', '2016b'), intel_2016b)
+
+        self.modtool.use(self.test_prefix)
+
+        tc = self.get_toolchain('intel', version='2016b')
+        tc._load_modules()
+        tc._verify_toolchain()
+
+        intel_2016b_psxe = '#Module\nmodule load intel-psxe/2016b'
+        write_file(os.path.join(self.test_prefix, 'intel', '2016b-psxe'), intel_2016b_psxe)
+
+        tc = self.get_toolchain('intel', version='2016b-psxe')
+        tc._load_modules()
+        tc._verify_toolchain()
 
     def test_nosuchtoolchain(self):
         """Test preparing for a toolchain for which no module is available."""
