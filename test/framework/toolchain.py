@@ -417,19 +417,31 @@ class ToolchainTest(EnhancedTestCase):
             self.assertTrue(flag == flags, "optarch: True means '%s' == '%s'" % (flag, flags))
             
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
-            if flag != '':
-                for var in flag_vars:
-                    flags = tc.get_variable(var)
-                    if enable:
-                        self.assertTrue(flag in flags, "optarch: True means '%s' in '%s'" 
-                                % (flag, flags))
-                    else:
-                        self.assertFalse(flag in flags, "optarch: False means no '%s' in '%s'" 
-                                % (flag, flags))
-            # if flag is '' there is not much to check. A more robust approach
-            # would be to check against a blacklist, but that is probably not necessary
+            if flag == '':
+                blacklist = [
+                       intel_options[0][1],
+                       intel_options[1][1],
+                       gcc_options[0][1],
+                       gcc_options[1][1],
+                       'xHost', # default optimal for Intel
+                       'march=native', # default optimal for GCC
+                       ]
             else:
-                pass
+                blacklist = [flag]
+
+            for var in flag_vars:
+                 flags = tc.get_variable(var)
+                
+                 # Check that the correct flags are there
+                 if enable and flag != '':
+                     self.assertTrue(flag in flags, "optarch: True means '%s' in '%s'" 
+                             % (flag, flags))
+
+                 # Check that there aren't unexpected flags
+                 else:
+                     for blacklisted_flag in blacklist:
+                         self.assertFalse(blacklisted_flag in flags, "optarch: False means no '%s' in '%s'" 
+                                 % (blacklisted_flag, flags))
 
             self.modtool.purge()
 

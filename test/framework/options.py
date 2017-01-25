@@ -2981,15 +2981,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         # Check that it doesn't raise an exception when the input is correct
-        test_easyconfig = 'easyconfigs/test_ecs/t/toy/toy-0.0.eb'
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        test_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
         test_cases = [
-                ['--optarch=',test_easyconfig],
-                ['--optarch=something',test_easyconfig],
-                ['--optarch=GENERIC',test_easyconfig],
-                ['--optarch=Intel:something',test_easyconfig],
-                ['--optarch=Intel:something;GCC:somethingelse',test_easyconfig],
-                ['--optarch=Intel:GENERIC;GCC:somethingelse',test_easyconfig],
-                ['--optarch=Intel:;GCC:somethingelse;',test_easyconfig]
+                ['--optarch=',test_ec],
+                ['--optarch=something',test_ec],
+                ['--optarch=GENERIC',test_ec],
+                ['--optarch=Intel:something',test_ec],
+                ['--optarch=Intel:something;GCC:somethingelse',test_ec],
+                ['--optarch=Intel:GENERIC;GCC:somethingelse',test_ec],
+                ['--optarch=Intel:;GCC:somethingelse',test_ec]
                 ]
         for args in test_cases:
             self.eb_main(args, raise_error=True)
