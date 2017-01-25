@@ -235,7 +235,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
         elif isinstance(line, unicode):
             line=str(line.decode('utf8'))
         else:
-            raise EasyBuildError("Can't decode line: %s type: %s", line, type(line).__name__)
+            raise EasyBuildError("Can't decode line: %s type: %s", line, type(line))
         
         normalized_test_report.append(line)
     

@@ -112,7 +112,7 @@ class FileRepository(Repository):
         try:
             txt += statstxt
         except UnicodeDecodeError as e:
-            raise EasyBuildError("Got a unicode error here: type(txt) %s type(statstxt) %s", type(txt).__name__, type(statstxt).__name__)
+            raise EasyBuildError("Got a unicode error here: type(txt) %s type(statstxt) %s", type(txt), type(statstxt))
         
         write_file(dest, txt)
 
