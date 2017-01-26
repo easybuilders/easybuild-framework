@@ -817,8 +817,7 @@ class RobotTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         # Create directories to store the tweaked easyconfigs
-        eb_tmpdir = tempfile.gettempdir()
-        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=True)
+        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
         robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
 
         init_config(build_options={
@@ -829,15 +828,14 @@ class RobotTest(EnhancedTestCase):
 
         # Parse the easyconfig that we want to tweak
         untweaked_openmpi = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb')
-        self.assertTrue(os.path.isfile(untweaked_openmpi))
         easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi, False)])
 
         # Tweak the version of the easyconfig
         easyconfigs = tweak(easyconfigs, {'toolchain_version': '4.7.2'}, self.modtool, targetdirs=tweaked_ecs_paths)
 
         # Check that all expected tweaked easyconfigs exists
-        tweaked_openmpi = os.path.join(tweaked_ecs_paths[0],'OpenMPI-1.6.4-GCC-4.7.2.eb')
-        tweaked_hwloc = os.path.join(tweaked_ecs_paths[1],'hwloc-1.6.2-GCC-4.7.2.eb')
+        tweaked_openmpi = os.path.join(tweaked_ecs_paths[0], 'OpenMPI-1.6.4-GCC-4.7.2.eb')
+        tweaked_hwloc = os.path.join(tweaked_ecs_paths[1], 'hwloc-1.6.2-GCC-4.7.2.eb')
         self.assertTrue(os.path.isfile(tweaked_openmpi))
         self.assertTrue(os.path.isfile(tweaked_hwloc))
 
@@ -847,7 +845,7 @@ class RobotTest(EnhancedTestCase):
         # Check it picks up the tweaked OpenMPI
         self.assertTrue(tweaked_openmpi in specs)
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
-        untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc','hwloc-1.6.2-GCC-4.7.2.eb')
+        untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb')
         self.assertTrue(untweaked_hwloc in specs)
 
     def test_robot_find_minimal_toolchain_of_dependency(self):
