@@ -734,16 +734,17 @@ class EasyBuildOptions(GeneralOption):
         optarch_parts = self.options.optarch.split(OPTARCH_SEP)
         
         # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
-        if len(optarch_parts) > 1 and not all(OPTARCH_MAP_CHAR in p for p in optarch_parts):
+        if (len(optarch_parts) > 1 and not all(p.count(OPTARCH_MAP_CHAR) == 1 for p in optarch_parts)) or \
+                (len(optarch_parts) == 1 and optarch_parts[0].count(OPTARCH_MAP_CHAR) > 1):
             raise EasyBuildError("The optarch option has an incorrect syntax: %s", self.options.optarch)
         else:
             # if there are options for different compilers, we set up a dict
             if OPTARCH_MAP_CHAR in optarch_parts[0]:
                 optarch_dict = {}
-                for compiler, compiler_opt in [x.split(OPTARCH_MAP_CHAR) for x in optarch_parts]:
+                for compiler, compiler_opt in [p.split(OPTARCH_MAP_CHAR) for p in optarch_parts]:
                     if compiler in optarch_dict:
                         raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s",
-                                compiler, self.options.optarch)
+                                             compiler, self.options.optarch)
                     else:
                         optarch_dict[compiler] = compiler_opt
                 self.options.optarch = optarch_dict 

@@ -2978,6 +2978,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         options.options.optarch = 'Intel:something;GCC'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
+        options.options.optarch = 'Intel:something;'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        
+        options.options.optarch = 'Intel:something:somethingelse'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
         error_msg = "The optarch option contains duplicated entries for compiler"
         options.options.optarch = 'Intel:something;GCC:somethingelse;Intel:anothersomething'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
