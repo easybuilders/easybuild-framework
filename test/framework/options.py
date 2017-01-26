@@ -2983,21 +2983,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
         # Check the parsing itself
+        gcc_generic_flags = "march=x86-64 -mtune=generic"
         test_cases = [
-                ('',''),
-                ('xHost','xHost'),
-                ('GENERIC','GENERIC'),
-                ('Intel:xHost', {'Intel': 'xHost'}),
-                ('Intel:GENERIC', {'Intel': 'GENERIC'}),
-                ('Intel:xHost;GCC:march=x86-64 -mtune=generic', {'Intel': 'xHost', 'GCC': 'march=x86-64 -mtune=generic'}),
-                ('Intel:;GCC:march=x86-64 -mtune=generic', {'Intel': '', 'GCC': 'march=x86-64 -mtune=generic'}),
-                ]
+            ('',''),
+            ('xHost','xHost'),
+            ('GENERIC','GENERIC'),
+            ('Intel:xHost', {'Intel': 'xHost'}),
+            ('Intel:GENERIC', {'Intel': 'GENERIC'}),
+            ('Intel:xHost;GCC:%s' % gcc_generic_flags, {'Intel': 'xHost', 'GCC': gcc_generic_flags}),
+            ('Intel:;GCC:%s' % gcc_generic_flags, {'Intel': '', 'GCC': gcc_generic_flags}),
+        ]
 
         for optarch_string, optarch_parsed in test_cases:
             options.options.optarch = optarch_string
             options.postprocess()
-            self.assertTrue(options.options.optarch == optarch_parsed, "Parsing of optarch: True means %s == %s" % 
-                    (options.options.optarch, optarch_parsed))
+            self.assertEqual(options.options.optarch, optarch_parsed)
     
     def test_check_style(self):
         """Test --check-style."""
@@ -3041,6 +3041,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
+
 
 def suite():
     """ returns all the testcases in this module """

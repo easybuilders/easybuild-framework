@@ -80,8 +80,7 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
-from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_SEP, \
-        OPTARCH_MAP_CHAR, Compiler
+from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -733,27 +732,25 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_optarch(self):
         """Postprocess --optarch option."""
         optarch_parts = self.options.optarch.split(OPTARCH_SEP)
-        n_compilers = len(optarch_parts)
         
-        # if the format is not adequate we refuse continuing
-        if n_compilers > 1 and n_compilers != self.options.optarch.count(OPTARCH_MAP_CHAR):
-            raise EasyBuildError("The optarch option has an incorrect syntax: %s" % self.options.optarch)
+        # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
+        if len(optarch_parts) > 1 and not all(OPTARCH_MAP_CHAR in p for p in optarch_parts):
+            raise EasyBuildError("The optarch option has an incorrect syntax: %s", self.options.optarch)
         else:
-            logger = fancylogger.getLogger()
             # if there are options for different compilers, we set up a dict
             if OPTARCH_MAP_CHAR in optarch_parts[0]:
                 optarch_dict = {}
                 for compiler, compiler_opt in [x.split(OPTARCH_MAP_CHAR) for x in optarch_parts]:
                     if compiler in optarch_dict:
-                        raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s" 
-                                % (compiler, self.options.optarch))
+                        raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s",
+                                compiler, self.options.optarch)
                     else:
                         optarch_dict[compiler] = compiler_opt
                 self.options.optarch = optarch_dict 
-                logger.info("Transforming optarch into a dict: %s" % self.options.optarch)
-            # we do nothing and keep the string
+                self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
+            # if optarch is not in mapping format, we do nothing and just keep the string
             else:
-                logger.info("Keeping optarch raw: %s" % self.options.optarch)
+                self.log.info("Keeping optarch raw: %s", self.options.optarch)
 
     def _postprocess_include(self):
         """Postprocess --include options."""

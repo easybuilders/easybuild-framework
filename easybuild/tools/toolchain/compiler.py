@@ -42,7 +42,7 @@ DEFAULT_OPT_LEVEL = 'defaultopt'
 # by doing eb --optarch=GENERIC
 OPTARCH_GENERIC = 'GENERIC'
 
-# Characters that separate toolchains and options in --optarch
+# Characters that separate compilers and flags in --optarch
 OPTARCH_SEP = ';'
 OPTARCH_MAP_CHAR = ':'
 
@@ -282,12 +282,11 @@ class Compiler(Toolchain):
                                 (--optarch and --optarch=GENERIC still override this value)
         """
         use_generic = False
-        optarch= build_option('optarch') 
+        optarch = build_option('optarch') 
         # --optarch is specified with flags to use
         if optarch is not None:
-            # optarch has been validated as a simple string
+            # optarch has been parsed as a simple string
             if isinstance(optarch, basestring):
-                # Option is generic, so mark it as to be set later
                 if optarch == OPTARCH_GENERIC:
                     use_generic = True
 

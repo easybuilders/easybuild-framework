@@ -386,62 +386,62 @@ class ToolchainTest(EnhancedTestCase):
     def test_compiler_dependent_optarch(self):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
-        intel_options = [('intelflag','intelflag'),('GENERIC','xSSE2'),('','')]
-        gcc_options = [('gccflag','gccflag'),('GENERIC','march=x86-64 -mtune=generic'),('','')]
-        toolchains = [('iccifort','2011.13.367'),('GCC','4.7.2'),('PGI','16.7-GCC-5.4.0-2.26')]
+        intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
+        gcc_options = [('gccflag', 'gccflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
+        toolchains = [('iccifort', '2011.13.367'), ('GCC', '4.7.2'), ('PGI', '16.7-GCC-5.4.0-2.26')]
         enabled = [True, False]
 
-        i = product(intel_options, gcc_options, toolchains, enabled)
+        test_cases = product(intel_options, gcc_options, toolchains, enabled)
 
-        for (intelflags, intel_expanded_flags), (gccflags, gcc_expanded_flags), (toolchain, toolchain_version), enable in i:
+        for (intel_flags, intel_flags_exp), (gcc_flags, gcc_flags_exp), (toolchain, toolchain_ver), enable in test_cases:
             optarch_var = {} 
-            optarch_var['Intel'] = '%s' % intelflags
-            optarch_var['GCC'] = '%s' % gccflags
+            optarch_var['Intel'] = intel_flags
+            optarch_var['GCC'] = gcc_flags
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
-            tc = self.get_toolchain(toolchain, version=toolchain_version)
+            tc = self.get_toolchain(toolchain, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             tc.prepare()
-            flag = None
+            flags = None
             if toolchain == 'iccifort':
-                flag = intel_expanded_flags
+                flags = intel_flags_exp
             elif toolchain == 'GCC':
-                flag = gcc_expanded_flags 
+                flags = gcc_flags_exp 
             else: # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
                 # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
-                flag = ''
+                flags = ''
             
-            flags = tc.options.options_map['optarch']
+            optarch_flags = tc.options.options_map['optarch']
 
-            self.assertTrue(flag == flags, "optarch: True means '%s' == '%s'" % (flag, flags))
+            self.assertEquals(flags, optarch_flags)
             
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
-            if flag == '':
+            if flags == '':
                 blacklist = [
-                       intel_options[0][1],
-                       intel_options[1][1],
-                       gcc_options[0][1],
-                       gcc_options[1][1],
-                       'xHost', # default optimal for Intel
-                       'march=native', # default optimal for GCC
-                       ]
+                    intel_options[0][1],
+                    intel_options[1][1],
+                    gcc_options[0][1],
+                    gcc_options[1][1],
+                    'xHost', # default optimal for Intel
+                    'march=native', # default optimal for GCC
+                ]
             else:
-                blacklist = [flag]
+                blacklist = [flags]
 
             for var in flag_vars:
-                 flags = tc.get_variable(var)
+                 set_flags = tc.get_variable(var)
                 
                  # Check that the correct flags are there
-                 if enable and flag != '':
-                     self.assertTrue(flag in flags, "optarch: True means '%s' in '%s'" 
-                             % (flag, flags))
+                 if enable and flags != '':
+                     error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
+                     self.assertTrue(flags in set_flags, "optarch: True means '%s' in '%s'")
 
-                 # Check that there aren't unexpected flags
+                 # Check that there aren't any unexpected flags
                  else:
                      for blacklisted_flag in blacklist:
-                         self.assertFalse(blacklisted_flag in flags, "optarch: False means no '%s' in '%s'" 
-                                 % (blacklisted_flag, flags))
+                         error_msg = "optarch: False means no '%s' in '%s'" % (blacklisted_flag, set_flags)
+                         self.assertFalse(blacklisted_flag in set_flags, error_msg)
 
             self.modtool.purge()
 
