@@ -42,7 +42,8 @@ import easybuild.framework.easyconfig.tools as ectools
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
 from easybuild.framework.easyconfig.easyconfig import _easyconfig_files_cache, process_easyconfig, EasyConfig
-from easybuild.framework.easyconfig.tools import find_resolved_modules, parse_easyconfigs
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
+from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.easyconfig import robot_find_minimal_toolchain_of_dependency
 from easybuild.framework.easyconfig.tools import skip_available
@@ -54,7 +55,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
-from easybuild.tools.robot import check_conflicts, resolve_dependencies
+from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies
 from test.framework.utilities import find_full_path
 
 
@@ -808,6 +809,44 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual([dep['name'] for dep in new_easyconfigs[0]['dependencies']], ['foo', 'bar'])
 
         self.assertTrue(new_avail_modules, ['nodeps/1.2.3', 'onedep/3.14-goolf-1.4.10'])
+
+    def test_tweak_robotpath(self):
+        """Test that the robot correctly resolves the dependencies of tweaked easyconfigs. Tweaked
+        easyconfigs take priority, but tweaked dependencies are only used on an as-needed basis"""
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # Create directories to store the tweaked easyconfigs
+        tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
+
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': robot_path,
+            'check_osdeps': False,
+        })
+
+        # Parse the easyconfig that we want to tweak
+        untweaked_openmpi = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb')
+        easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi, False)])
+
+        # Tweak the version of the easyconfig
+        easyconfigs = tweak(easyconfigs, {'toolchain_version': '4.7.2'}, self.modtool, targetdirs=tweaked_ecs_paths)
+
+        # Check that all expected tweaked easyconfigs exists
+        tweaked_openmpi = os.path.join(tweaked_ecs_paths[0], 'OpenMPI-1.6.4-GCC-4.7.2.eb')
+        tweaked_hwloc = os.path.join(tweaked_ecs_paths[1], 'hwloc-1.6.2-GCC-4.7.2.eb')
+        self.assertTrue(os.path.isfile(tweaked_openmpi))
+        self.assertTrue(os.path.isfile(tweaked_hwloc))
+
+        # Check that the robotpath is correctly configured to pick up the right versions of the easyconfigs
+        res = resolve_dependencies(easyconfigs, self.modtool, retain_all_deps=True)
+        specs = [ec['spec'] for ec in res]
+        # Check it picks up the tweaked OpenMPI
+        self.assertTrue(tweaked_openmpi in specs)
+        # Check it picks up the untweaked dependency of the tweaked OpenMPI
+        untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb')
+        self.assertTrue(untweaked_hwloc in specs)
 
     def test_robot_find_minimal_toolchain_of_dependency(self):
         """Test robot_find_minimal_toolchain_of_dependency."""
