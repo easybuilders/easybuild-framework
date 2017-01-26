@@ -824,6 +824,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'valid_module_classes': module_classes(),
             'robot_path': robot_path,
+            'check_osdeps': False,
         })
 
         # Parse the easyconfig that we want to tweak
