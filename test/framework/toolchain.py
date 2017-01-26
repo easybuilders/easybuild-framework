@@ -674,6 +674,8 @@ class ToolchainTest(EnhancedTestCase):
         tc._load_modules()
         tc._verify_toolchain()
 
+        self.modtool.purge()
+
         # check toolchain verification for intel toolchain with only intel-psxe component
         tc = self.get_toolchain('intel', version='2016b-psxe')
         tc._load_modules()
