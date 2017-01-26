@@ -72,6 +72,7 @@ def ec_filename_for(path):
 
 def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
+    tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     if targetdirs is not None:
         tweaked_ecs_path, tweaked_ecs_deps_path = targetdirs
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
