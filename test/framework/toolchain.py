@@ -660,18 +660,21 @@ class ToolchainTest(EnhancedTestCase):
         for mod in intel_mods:
             write_file(os.path.join(self.test_prefix, mod), '#%Module')
 
-        intel_2016b = '#%Module\n' + '\n'.join("module load " + m for m in intel_mods)
+        intel_2016b = '#%Module\n' + '\n'.join("module load " + m for m in intel_mods[:-1])
         write_file(os.path.join(self.test_prefix, 'intel', '2016b'), intel_2016b)
-
-        self.modtool.use(self.test_prefix)
-
-        tc = self.get_toolchain('intel', version='2016b')
-        tc._load_modules()
-        tc._verify_toolchain()
 
         intel_2016b_psxe = '#Module\nmodule load intel-psxe/2016b'
         write_file(os.path.join(self.test_prefix, 'intel', '2016b-psxe'), intel_2016b_psxe)
 
+        # extend $MODULEPATH to make dummy test module available
+        self.modtool.use(self.test_prefix)
+
+        # check toolchain verification for intel toolchain with icc/ifort/impi/imkl components
+        tc = self.get_toolchain('intel', version='2016b')
+        tc._load_modules()
+        tc._verify_toolchain()
+
+        # check toolchain verification for intel toolchain with only intel-psxe component
         tc = self.get_toolchain('intel', version='2016b-psxe')
         tc._load_modules()
         tc._verify_toolchain()
