@@ -2968,6 +2968,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
         self.assertFalse(re.search('gzip', txt, re.M))
 
+    def test_parse_optarch(self):
+        """Test correct parsing of optarch option."""
+        
+        options = EasyBuildOptions()
+
+        # Check for EasyBuildErrors
+        error_msg = "The optarch option has an incorrect syntax"
+        options.options.optarch = 'Intel:something;GCC'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        options.options.optarch = 'Intel:something;'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        
+        options.options.optarch = 'Intel:something:somethingelse'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        error_msg = "The optarch option contains duplicated entries for compiler"
+        options.options.optarch = 'Intel:something;GCC:somethingelse;Intel:anothersomething'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        # Check the parsing itself
+        gcc_generic_flags = "march=x86-64 -mtune=generic"
+        test_cases = [
+            ('',''),
+            ('xHost','xHost'),
+            ('GENERIC','GENERIC'),
+            ('Intel:xHost', {'Intel': 'xHost'}),
+            ('Intel:GENERIC', {'Intel': 'GENERIC'}),
+            ('Intel:xHost;GCC:%s' % gcc_generic_flags, {'Intel': 'xHost', 'GCC': gcc_generic_flags}),
+            ('Intel:;GCC:%s' % gcc_generic_flags, {'Intel': '', 'GCC': gcc_generic_flags}),
+        ]
+
+        for optarch_string, optarch_parsed in test_cases:
+            options.options.optarch = optarch_string
+            options.postprocess()
+            self.assertEqual(options.options.optarch, optarch_parsed)
+    
     def test_check_style(self):
         """Test --check-style."""
         args = [
