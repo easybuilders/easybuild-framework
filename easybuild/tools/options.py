@@ -734,8 +734,9 @@ class EasyBuildOptions(GeneralOption):
         optarch_parts = self.options.optarch.split(OPTARCH_SEP)
         
         # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
-        if (len(optarch_parts) > 1 and not all(p.count(OPTARCH_MAP_CHAR) == 1 for p in optarch_parts)) or \
-                (len(optarch_parts) == 1 and optarch_parts[0].count(OPTARCH_MAP_CHAR) > 1):
+        n_parts = len(optarch_parts)
+        map_char_cnts = [p.count(OPTARCH_MAP_CHAR) for p in optarch_parts]
+        if (n_parts > 1 and any(c != 1 for c in map_char_cnts)) or (n_parts == 1 and map_char_cnts[0] > 1):
             raise EasyBuildError("The optarch option has an incorrect syntax: %s", self.options.optarch)
         else:
             # if there are options for different compilers, we set up a dict
