@@ -51,7 +51,7 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import copy_file, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for
@@ -728,6 +728,20 @@ class RobotTest(EnhancedTestCase):
             {'name': 'GCC', 'version': '4.9.3-2.25'},
             {'name': 'gmvapich2', 'version': '15.11'},
         ])
+
+        # put faulty goolf easyconfig in place to test error reporting
+        broken_gompi = os.path.join(self.test_prefix, 'gompi-1.4.10.eb')
+        copy_file(os.path.join(test_easyconfigs, 'g', 'gompi', 'gompi-1.4.10.eb'), broken_gompi)
+        ectxt = read_file(broken_gompi)
+        ectxt += "\ndependencies += [('GCC', '4.6.4')]"
+        write_file(broken_gompi, ectxt)
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': [self.test_prefix, test_easyconfigs],
+        })
+        tc = {'name': 'gompi', 'version': '1.4.10'}
+        error_msg = "Multiple versions of GCC found in dependencies of toolchain gompi: 4.6.4, 4.7.2"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_toolchain_hierarchy, tc)
 
     def test_find_resolved_modules(self):
         """Test find_resolved_modules function."""
