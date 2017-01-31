@@ -421,6 +421,43 @@ class EasyBlockTest(EnhancedTestCase):
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
         self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
 
+    def test_make_module_dep_hmns(self):
+        """Test for make_module_dep under HMNS"""
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_path],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+
+        print self.modtool.available()
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            'dependencies = [',
+            #"   ('GCC', '4.7.2', '', True),",
+            #"   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),",
+            "   ('FFTW', '3.3.3', '', ('gompi', '1.4.10')),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
+
+        print eb.make_module_dep()
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
