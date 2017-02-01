@@ -946,11 +946,15 @@ class EasyBlock(object):
                                                                      full_mod_subdir, deps)
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
+        # load modules that open up the module tree before checking deps of deps (in reverse order)
+        self.modules_tool.load(excluded_deps[::-1])
+
         deps = [d for d in deps if d not in excluded_deps]
         for dep in excluded_deps:
             excluded_dep_deps = dependencies_for(dep, self.modules_tool)
             self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
             deps = [d for d in deps if d not in excluded_dep_deps]
+
         self.log.debug("List of retained deps to load in generated module: %s" % deps)
         recursive_unload = self.cfg['recursive_module_unload']
 
