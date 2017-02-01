@@ -181,3 +181,12 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 paths.append(os.path.join(MPI, tc_comp_name.lower()+tc_comp_ver, ec['name'].lower()+fullver))
 
         return paths
+
+    def expand_toolchain_load(self, ec):
+        """
+        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
+        This is useful when toolchains are not exposed to users.
+        """
+        tc_elems = ec.toolchain.definition()
+        # do not expand for compiler-only toolchains
+        return not( len(tc_elems) == 1 and tc_elems.keys()[0] == 'COMPILER' )
