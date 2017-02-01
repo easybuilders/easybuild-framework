@@ -945,12 +945,13 @@ class EasyBlock(object):
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, deps)
         self.log.debug("List of excluded deps: %s", excluded_deps)
-        print 'excluded_deps', excluded_deps
+
+        # load modules that open up the module tree before checking deps of deps (in reverse order)
+        self.modules_tool.load(excluded_deps[::-1])
 
         deps = [d for d in deps if d not in excluded_deps]
         for dep in excluded_deps:
             excluded_dep_deps = dependencies_for(dep, self.modules_tool)
-            print 'dep', dep, 'excluded_dep_deps', excluded_dep_deps
             self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
             deps = [d for d in deps if d not in excluded_dep_deps]
 

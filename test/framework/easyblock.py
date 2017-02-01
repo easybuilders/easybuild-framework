@@ -435,8 +435,6 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options=build_options)
         self.setup_hierarchical_modules()
 
-        print self.modtool.available()
-
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -445,9 +443,9 @@ class EasyBlockTest(EnhancedTestCase):
             'description = "test easyconfig"',
             "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
             'dependencies = [',
-            #"   ('GCC', '4.7.2', '', True),",
-            #"   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),",
-            "   ('FFTW', '3.3.3', '', ('gompi', '1.4.10')),",
+            "   ('GCC', '4.7.2', '', True),"
+            "   ('hwloc', '1.6.2', '', ('GCC', '4.7.2')),",
+            "   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),"
             ']',
         ])
         self.writeEC()
@@ -456,7 +454,11 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
 
-        print eb.make_module_dep()
+        # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
+        mod_dep_txt = eb.make_module_dep()
+        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4', 'hwloc/1.6.2']:
+            regex = re.compile('load.*%s' % mod)
+            self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_extensions_step(self):
         """Test the extensions_step"""
