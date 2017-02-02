@@ -136,7 +136,7 @@ def det_toolchain_mpi(ec):
 
     :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
-    return det_toolchain_library(ec, TOOLCHAIN_MPI)
+    return det_toolchain_component(ec, TOOLCHAIN_MPI)
 
 def det_toolchain_cuda(ec):
     """
@@ -144,4 +144,4 @@ def det_toolchain_cuda(ec):
 
     :param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
-    return det_toolchain_library(ec, TOOLCHAIN_COMPILER_CUDA)
+    return det_toolchain_component(ec, TOOLCHAIN_COMPILER_CUDA)
