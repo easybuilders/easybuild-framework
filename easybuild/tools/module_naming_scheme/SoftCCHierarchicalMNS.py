@@ -36,11 +36,12 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.hierarchical_mns import HierarchicalMNS
-from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
+from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi, det_toolchain_cuda
 
 CORE = 'Core'
 COMPILER = 'Compiler'
 MPI = 'MPI'
+CUDA = 'CUDA'
 
 MODULECLASS_COMPILER = 'compiler'
 MODULECLASS_MPI = 'mpi'
@@ -102,7 +103,13 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
             tc_comp_name = tc_comp_name.lower()
             tc_comp_ver = self.det_twodigit_version({'version': tc_comp_ver})
             tc_mpi = det_toolchain_mpi(ec)
-            if tc_mpi is None:
+            tc_cuda = det_toolchain_cuda(ec)
+            if tc_cuda is not None:
+                # compiler-CUDA toolchain => CUDA/<comp_name>/<comp_version>/<CUDA_name>/<CUDA_version> namespace
+                tc_cuda_name = tc_mpi['name'].lower()
+                tc_cuda_fullver = self.det_twodigit_version(tc_cuda)
+                subdir = os.path.join(CUDA, tc_comp_name+tc_comp_ver, tc_cuda_name+tc_cuda_fullver)
+            elif tc_mpi is None:
                 # compiler-only toolchain => Compiler/<compiler_name>/<compiler_version> namespace
                 # but we want the mpi module class to stand alone
                 if ec['moduleclass'] == MODULECLASS_MPI:
@@ -169,16 +176,20 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 # Always extend to capture the MPI implementations too (which are in a separate directory)
                 if ec['name'] not in [GCCCORE]:
                     paths.append(os.path.join(COMPILER, MODULECLASS_MPI, *comp_name_ver))
-        elif modclass == MODULECLASS_MPI:
+        elif modclass == MODULECLASS_MPI or ec['name'] == CUDA:
+            if modclass == MODULECLASS_MPI:
+                prefix = MPI
+            else:
+                prefix = CUDA
             if tc_comp_info is None:
-                raise EasyBuildError("No compiler available in toolchain %s used to install MPI library %s v%s, "
+                raise EasyBuildError("No compiler available in toolchain %s used to install %s library %s v%s, "
                                      "which is required by the active module naming scheme.",
-                                     ec['toolchain'], ec['name'].lower(), ec['version'])
+                                     ec['toolchain'], prefix, ec['name'].lower(), ec['version'])
             else:
                 tc_comp_name, tc_comp_ver = tc_comp_info
                 tc_comp_ver = self.det_twodigit_version({'version': tc_comp_ver})
                 fullver = self.det_twodigit_version(ec)
-                paths.append(os.path.join(MPI, tc_comp_name.lower()+tc_comp_ver, ec['name'].lower()+fullver))
+                paths.append(os.path.join(prefix, tc_comp_name.lower()+tc_comp_ver, ec['name'].lower()+fullver))
 
         return paths
 
