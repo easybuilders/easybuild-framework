@@ -106,7 +106,7 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
             tc_cuda = det_toolchain_cuda(ec)
             if tc_cuda is not None:
                 # compiler-CUDA toolchain => CUDA/<comp_name>/<comp_version>/<CUDA_name>/<CUDA_version> namespace
-                tc_cuda_name = tc_mpi['name'].lower()
+                tc_cuda_name = tc_cuda['name'].lower()
                 tc_cuda_fullver = self.det_twodigit_version(tc_cuda)
                 subdir = os.path.join(CUDA, tc_comp_name+tc_comp_ver, tc_cuda_name+tc_cuda_fullver)
             elif tc_mpi is None:
