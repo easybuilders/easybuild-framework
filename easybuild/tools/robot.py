@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,15 +50,21 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
-def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
     _log.info("Using robot path(s): %s" % robot_path)
 
+    tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
-    if tweaked_ecs_path is not None:
+    if tweaked_ecs_paths is not None:
+        tweaked_ecs_path, tweaked_ecs_deps_path = tweaked_ecs_paths
+        # easyconfigs listed on the command line (and tweaked) should be found first
         robot_path.insert(0, tweaked_ecs_path)
-        _log.info("Prepended list of robot search paths with %s: %s" % (tweaked_ecs_path, robot_path))
+        # dependencies are always tweaked but we should only use them if there is no other option (so they come last)
+        robot_path.append(tweaked_ecs_deps_path)
+        _log.info("Prepended list of robot search paths with %s and appended with %s: %s", tweaked_ecs_path,
+                  tweaked_ecs_deps_path, robot_path)
     if pr_path is not None:
         robot_path.append(pr_path)
         _log.info("Appended list of robot search paths with %s: %s" % (pr_path, robot_path))

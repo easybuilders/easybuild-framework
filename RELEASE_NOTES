@@ -3,6 +3,31 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.1.0 (February 3rd 2017)
+--------------------------
+
+feature release
+- various enhancements, including:
+  - ARM: GCC optimal/generic architecture compiler flags (#1974)
+  - add support for --check-style to check style in easyconfig files (#1618, #2038)
+  - add HOME and USER from envto available cfg file constants (#2063)
+  - --optarch can now be specified on a toolchain basis (#2071)
+  - implement get_cpu_features function in systemtools (#2074, #2078)
+  - support use of linalg without MPI, add iimkl toolchain definition (#2082)
+  - spoof HTTP request header with empty agent (#2083)
+  - exclude dependencies of dependencies that extend $MODULEPATH in make_module_dep (#2091)
+- various bug fixes, including:
+  - make fetch_github_token more robust against RuntimeError from keyring (#2070)
+  - POWER: Fix `--optarch=GENERIC` for GCC (#2073)
+  - fix docstring in toolchain class (#2075)
+  - skip test cases involving .yeb if PyYAML is not installed, silence test in options subsuite (#2081)
+  - fix traceback with 'eb --check-github' if GitPython is not installed (#2085)
+  - fix regex for determining list of patched files in GitHub diff (#2088)
+  - modify robot so that it only appends dependencies of tweaked easyconfigs (#2090)
+  - escape metacharacters in paths passed to re.compile in dry_run_set_dirs (#2098)
+  - fix broken error message in get_toolchain_hierarchy + dedicated test case (#2099)
+
+
 v3.0.2 (December 22nd 2016)
 ---------------------------
 

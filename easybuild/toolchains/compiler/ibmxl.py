@@ -41,7 +41,8 @@ class IBMXL(Compiler):
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.IBM: ['qtune=auto', 'qmaxmem=-1'],
+        (systemtools.POWER, systemtools.POWER): ['qtune=auto', 'qmaxmem=-1'],
+        (systemtools.POWER, systemtools.POWER_LE): ['qtune=auto', 'qmaxmem=-1'],
     }
 
     COMPILER_CC = 'xlc'

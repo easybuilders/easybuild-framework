@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -420,6 +420,45 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
         self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
+
+    def test_make_module_dep_hmns(self):
+        """Test for make_module_dep under HMNS"""
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_path],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            'dependencies = [',
+            "   ('GCC', '4.7.2', '', True),"
+            "   ('hwloc', '1.6.2', '', ('GCC', '4.7.2')),",
+            "   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),"
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
+
+        # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
+        mod_dep_txt = eb.make_module_dep()
+        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4', 'hwloc/1.6.2']:
+            regex = re.compile('load.*%s' % mod)
+            self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_extensions_step(self):
         """Test the extensions_step"""

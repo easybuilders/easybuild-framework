@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import download_file, mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, download_file, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -2489,7 +2489,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg when using --update-pr"
+        self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
 
         args.append('--pr-commit-msg="just a test"')
         self.mock_stdout(True)
@@ -2517,7 +2519,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        print txt
         regexs.extend([
             r"Full patch:",
             r"^\+\+\+\s*.*toy-0.0-gompi-1.3.12-test.eb",
@@ -2966,6 +2967,86 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search('^\* GCC', txt, re.M))
         self.assertTrue(re.search('^\s+\* GCC v4.6.3: dummy', txt, re.M))
         self.assertFalse(re.search('gzip', txt, re.M))
+
+    def test_parse_optarch(self):
+        """Test correct parsing of optarch option."""
+        
+        options = EasyBuildOptions()
+
+        # Check for EasyBuildErrors
+        error_msg = "The optarch option has an incorrect syntax"
+        options.options.optarch = 'Intel:something;GCC'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        options.options.optarch = 'Intel:something;'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        
+        options.options.optarch = 'Intel:something:somethingelse'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        error_msg = "The optarch option contains duplicated entries for compiler"
+        options.options.optarch = 'Intel:something;GCC:somethingelse;Intel:anothersomething'
+        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+
+        # Check the parsing itself
+        gcc_generic_flags = "march=x86-64 -mtune=generic"
+        test_cases = [
+            ('',''),
+            ('xHost','xHost'),
+            ('GENERIC','GENERIC'),
+            ('Intel:xHost', {'Intel': 'xHost'}),
+            ('Intel:GENERIC', {'Intel': 'GENERIC'}),
+            ('Intel:xHost;GCC:%s' % gcc_generic_flags, {'Intel': 'xHost', 'GCC': gcc_generic_flags}),
+            ('Intel:;GCC:%s' % gcc_generic_flags, {'Intel': '', 'GCC': gcc_generic_flags}),
+        ]
+
+        for optarch_string, optarch_parsed in test_cases:
+            options.options.optarch = optarch_string
+            options.postprocess()
+            self.assertEqual(options.options.optarch, optarch_parsed)
+    
+    def test_check_style(self):
+        """Test --check-style."""
+        args = [
+            '--check-style',
+            'GCC-4.9.2.eb',
+            'toy-0.0.eb',
+        ]
+        self.mock_stdout(True)
+        self.eb_main(args, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # copy toy-0.0.eb test easyconfig, fiddle with it to make style check fail
+        toy = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'), toy)
+
+        toytxt = read_file(toy)
+        # introduce whitespace issues
+        toytxt = toytxt.replace("name = 'toy'", "name\t='toy'    ")
+        # introduce long line
+        toytxt = toytxt.replace('description = "Toy C program."', 'description = "%s"' % ('toy ' * 30))
+        write_file(toy, toytxt)
+
+        args = [
+            '--check-style',
+            toy,
+        ]
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, "One or more style checks FAILED!", self.eb_main, args, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        patterns = [
+            "toy.eb:1:5: E223 tab before operator",
+            "toy.eb:1:7: E225 missing whitespace around operator",
+            "toy.eb:1:12: W299 trailing whitespace",
+            r"toy.eb:5:121: E501 line too long \(136 > 120 characters\)",
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
 
 def suite():

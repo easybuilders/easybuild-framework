@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -224,7 +224,7 @@ def get_toolchain_hierarchy(parent_toolchain):
                 subtoolchain_version = ''
             else:
                 raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
-                                     subtoolchain_name, current_tc_name, unique_dep_tc_versions)
+                                     subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
 
         if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
             # we're done

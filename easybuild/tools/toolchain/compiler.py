@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,6 +27,7 @@ Toolchain compiler module, provides abstract class for compilers.
 
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError
@@ -41,6 +42,9 @@ DEFAULT_OPT_LEVEL = 'defaultopt'
 # by doing eb --optarch=GENERIC
 OPTARCH_GENERIC = 'GENERIC'
 
+# Characters that separate compilers and flags in --optarch
+OPTARCH_SEP = ';'
+OPTARCH_MAP_CHAR = ':'
 
 def mk_infix(prefix):
     """Create an infix based on the given prefix."""
@@ -136,7 +140,8 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         """Compiler constructor."""
         Toolchain.base_init(self)
-        self.arch = None
+        self.arch = systemtools.get_cpu_architecture()
+        self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
@@ -149,8 +154,8 @@ class Compiler(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
-
         self._set_compiler_vars()
+        self._set_optimal_architecture()
         self._set_compiler_flags()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
@@ -167,8 +172,6 @@ class Compiler(Toolchain):
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
             )
-
-        self._set_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -271,22 +274,47 @@ class Compiler(Toolchain):
             self.variables.nextend(var, flags)
             self.variables.nextend(var, fflags)
 
-    def _set_optimal_architecture(self):
-        """ Get options for the current architecture """
-        if self.arch is None:
-            self.arch = systemtools.get_cpu_family()
+    def _set_optimal_architecture(self, default_optarch=None):
+        """
+        Get options for the current architecture
 
-        optarch = None
+        :param default_optarch: default value to use for optarch, rather than using default value based on architecture
+                                (--optarch and --optarch=GENERIC still override this value)
+        """
+        use_generic = False
+        optarch = build_option('optarch') 
         # --optarch is specified with flags to use
-        if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
-            optarch = build_option('optarch')
-        # --optarch=GENERIC
-        elif build_option('optarch') == OPTARCH_GENERIC:
-            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
-        # no --optarch specified
-        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+        if optarch is not None:
+            # optarch has been parsed as a simple string
+            if isinstance(optarch, basestring):
+                if optarch == OPTARCH_GENERIC:
+                    use_generic = True
+
+            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
+            elif isinstance(optarch, dict):
+                current_compiler = getattr(self, 'COMPILER_FAMILY', None)
+                if current_compiler in optarch:
+                    if optarch[current_compiler] == OPTARCH_GENERIC:
+                        use_generic = True
+                    else:
+                        optarch = optarch[current_compiler]
+                # no option for this compiler
+                else:
+                    optarch = None
+                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", 
+                            current_compiler)
+            else:
+                raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
+
+        if use_generic == True:
+            if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+        # Specified optarch default value
+        elif default_optarch and optarch is None:
+            optarch = default_optarch
+        # no --optarch specified, no option found for the current compiler, and no default optarch
+        elif optarch is None and (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
             self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))

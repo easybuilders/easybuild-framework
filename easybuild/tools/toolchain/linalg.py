@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,8 +90,9 @@ class LinAlg(Toolchain):
         ## TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()
-        self._set_blacs_variables()
-        self._set_scalapack_variables()
+        if getattr(self, 'MPI_MODULE_NAME', None):
+            self._set_blacs_variables()
+            self._set_scalapack_variables()
 
         self.log.debug('set_variables: LinAlg variables %s' % self.variables)
 
