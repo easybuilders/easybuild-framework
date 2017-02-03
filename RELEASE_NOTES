@@ -7,7 +7,7 @@ v3.1.0 (February 3rd 2017)
 --------------------------
 
 feature release
-- various small enhancements, including:
+- various enhancements, including:
   - ARM: GCC optimal/generic architecture compiler flags (#1974)
   - add support for --check-style to check style in easyconfig files (#1618, #2038)
   - add HOME and USER from envto available cfg file constants (#2063)
