@@ -108,7 +108,13 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 # compiler-CUDA toolchain => CUDA/<comp_name>/<comp_version>/<CUDA_name>/<CUDA_version> namespace
                 tc_cuda_name = tc_cuda['name'].lower()
                 tc_cuda_fullver = self.det_twodigit_version(tc_cuda)
-                subdir = os.path.join(CUDA, tc_comp_name+tc_comp_ver, tc_cuda_name+tc_cuda_fullver)
+                subdir = os.path.join(tc_comp_name+tc_comp_ver, tc_cuda_name+tc_cuda_fullver)
+                if tc_mpi is None:
+                    subdir = os.path.join(CUDA, subdir)
+                else:
+                    tc_mpi_name = tc_mpi['name'].lower()
+                    tc_mpi_fullver = self.det_twodigit_version(tc_mpi)
+                    subdir = os.path.join(MPI, subdir, tc_mpi_name+tc_mpi_fullver)
             elif tc_mpi is None:
                 # compiler-only toolchain => Compiler/<compiler_name>/<compiler_version> namespace
                 # but we want the mpi module class to stand alone
@@ -190,7 +196,13 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 tc_comp_name = tc_comp_name.lower().split('-')[0]
                 tc_comp_ver = self.det_twodigit_version({'version': tc_comp_ver})
                 fullver = self.det_twodigit_version(ec)
-                paths.append(os.path.join(prefix, tc_comp_name+tc_comp_ver, ec['name'].lower()+fullver))
+                tc_cuda = det_toolchain_cuda(ec)
+                subdir = os.path.join(tc_comp_name+tc_comp_ver, ec['name'].lower()+fullver)
+                if prefix == MPI and tc_cuda is not None:
+                    tc_cuda_name = tc_cuda['name'].lower()
+                    tc_cuda_fullver = self.det_twodigit_version(tc_cuda)
+                    subdir = os.path.join(prefix, tc_cuda_name+tc_cuda_fullver, subdir)
+                paths.append(os.path.join(prefix, subdir))
 
         return paths
 
