@@ -201,7 +201,7 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 if prefix == MPI and tc_cuda is not None:
                     tc_cuda_name = tc_cuda['name'].lower()
                     tc_cuda_fullver = self.det_twodigit_version(tc_cuda)
-                    subdir = os.path.join(prefix, tc_cuda_name+tc_cuda_fullver, subdir)
+                    subdir = os.path.join(tc_cuda_name+tc_cuda_fullver, subdir)
                 paths.append(os.path.join(prefix, subdir))
 
         return paths
