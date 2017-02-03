@@ -197,12 +197,12 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 tc_comp_ver = self.det_twodigit_version({'version': tc_comp_ver})
                 fullver = self.det_twodigit_version(ec)
                 tc_cuda = det_toolchain_cuda(ec)
-                subdir = os.path.join(tc_comp_name+tc_comp_ver, ec['name'].lower()+fullver)
+                subdir = tc_comp_name+tc_comp_ver
                 if prefix == MPI and tc_cuda is not None:
                     tc_cuda_name = tc_cuda['name'].lower()
                     tc_cuda_fullver = self.det_twodigit_version(tc_cuda)
-                    subdir = os.path.join(tc_cuda_name+tc_cuda_fullver, subdir)
-                paths.append(os.path.join(prefix, subdir))
+                    subdir = os.path.join(subdir, tc_cuda_name+tc_cuda_fullver)
+                paths.append(os.path.join(prefix, subdir, ec['name'].lower()+fullver))
 
         return paths
 
