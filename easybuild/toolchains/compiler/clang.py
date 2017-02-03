@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2017 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -36,10 +36,15 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
+TC_CONSTANT_CLANG = "Clang"
+
+
 class Clang(Compiler):
     """Clang compiler class"""
 
     COMPILER_MODULE_NAME = ['Clang']
+    
+    COMPILER_FAMILY = TC_CONSTANT_CLANG
 
     # Don't set COMPILER_FAMILY in this class because Clang does not have
     # Fortran support, and thus it is not a complete compiler as far as
@@ -84,14 +89,15 @@ class Clang(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'march=native',
-        systemtools.AMD : 'march=native',
-        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+        (systemtools.POWER, systemtools.POWER): 'mcpu=native',  # no support for march=native on POWER
+        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',  # no support for march=native on POWER
+        (systemtools.X86_64, systemtools.AMD): 'march=native',
+        (systemtools.X86_64, systemtools.INTEL): 'march=native',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.AMD : 'march=x86-64 -mtune=generic',
-        systemtools.INTEL : 'march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'clang'

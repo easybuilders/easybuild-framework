@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2016 Ghent University
+# Copyright 2011-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -69,6 +69,9 @@ MOTOROLA = 'Motorola/Freescale'
 NVIDIA = 'NVIDIA'
 QUALCOMM = 'Qualcomm'
 
+# Family constants
+POWER_LE = 'POWER little-endian'
+
 # OS constants
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -80,7 +83,7 @@ PROC_CPUINFO_FP = '/proc/cpuinfo'
 PROC_MEMINFO_FP = '/proc/meminfo'
 
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, X86_64]
-CPU_FAMILIES = [AMD, ARM, INTEL, POWER]
+CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE]
 CPU_VENDORS = [AMD, APM, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
@@ -275,14 +278,14 @@ def get_cpu_family():
             # Custom ARM-based designs from other vendors
             family = ARM
 
-        # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
-        elif is_readable(PROC_CPUINFO_FP):
-            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
-            power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
-            if power_regex.search(proc_cpuinfo):
-                family = POWER
-                _log.debug("Determined CPU family using regex '%s' in %s: %s",
-                           power_regex.pattern, PROC_CPUINFO_FP, family)
+        elif arch == POWER:
+            family = POWER
+
+            # Distinguish POWER running in little-endian mode
+            system, node, release, version, machine, processor = platform.uname()
+            powerle_regex = re.compile("^ppc(\d*)le")
+            if powerle_regex.search(machine):
+                family = POWER_LE
 
     if family is None:
         family = UNKNOWN
@@ -383,6 +386,53 @@ def get_cpu_speed():
         raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
 
     return cpu_freq
+
+
+def get_cpu_features():
+    """
+    Get list of CPU features
+    """
+    cpu_feat = []
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        if is_readable(PROC_CPUINFO_FP):
+            _log.debug("Trying to determine CPU features on Linux via %s", PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+            # 'flags' on Linux/x86, 'Features' on Linux/ARM
+            flags_regex = re.compile(r"^(?:flags|[fF]eatures)\s*:\s*(?P<flags>.*)", re.M)
+            res = flags_regex.search(proc_cpuinfo)
+            if res:
+                cpu_feat = sorted(res.group('flags').lower().split())
+                _log.debug("Found CPU features using regex '%s': %s", flags_regex.pattern, cpu_feat)
+            elif get_cpu_architecture() == POWER:
+                # for Linux@POWER systems, no flags/features are listed, but we can check for Altivec
+                cpu_altivec_regex = re.compile("^cpu\s*:.*altivec supported", re.M)
+                if cpu_altivec_regex.search(proc_cpuinfo):
+                    cpu_feat.append('altivec')
+                # VSX is supported since POWER7
+                cpu_power7_regex = re.compile("^cpu\s*:.*POWER(7|8|9)", re.M)
+                if cpu_power7_regex.search(proc_cpuinfo):
+                    cpu_feat.append('vsx')
+            else:
+                _log.debug("Failed to determine CPU features from %s", PROC_CPUINFO_FP)
+        else:
+            _log.debug("%s not found to determine CPU features", PROC_CPUINFO_FP)
+
+    elif os_type == DARWIN:
+        for feature_set in ['extfeatures', 'features', 'leaf7_features']:
+            cmd = "sysctl -n machdep.cpu.%s" % feature_set
+            _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
+            out, ec = run_cmd(cmd, force_in_dry_run=True)
+            if ec == 0:
+                cpu_feat.extend(out.strip().lower().split())
+
+        cpu_feat.sort()
+
+    else:
+        raise SystemToolsException("Could not determine CPU features (OS: %s)" % os_type)
+
+    return cpu_feat
 
 
 def get_kernel_name():

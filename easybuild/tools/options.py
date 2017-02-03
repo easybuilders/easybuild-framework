@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,7 @@ Command line options for eb
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import glob
@@ -40,6 +41,7 @@ import re
 import shutil
 import sys
 import tempfile
+import pwd
 import vsc.utils.generaloption
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
@@ -79,7 +81,7 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
-from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, Compiler
+from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
@@ -215,9 +217,14 @@ class EasyBuildOptions(GeneralOption):
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
-                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], "Default easyconfigs repository path"),
+                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], 
+                                           "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
+                'USER': (pwd.getpwuid(os.geteuid()).pw_name,
+                         "Current username, translated uid from password file"),
+                'HOME': (os.path.expanduser('~'), 
+                         "Current user's home directory, expanded '~'")
             }
         }
 
@@ -513,6 +520,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
+            'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
@@ -715,6 +723,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
+        # make sure --optarch has a valid format
+        if self.options.optarch:
+            self._postprocess_optarch()
+
         # handle configuration options that affect other configuration options
         self._postprocess_config()
 
@@ -722,6 +734,31 @@ class EasyBuildOptions(GeneralOption):
         if self.options.show_config or self.options.show_full_config:
             self.show_config()
             cleanup_and_exit(self.tmpdir)
+
+    def _postprocess_optarch(self):
+        """Postprocess --optarch option."""
+        optarch_parts = self.options.optarch.split(OPTARCH_SEP)
+        
+        # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
+        n_parts = len(optarch_parts)
+        map_char_cnts = [p.count(OPTARCH_MAP_CHAR) for p in optarch_parts]
+        if (n_parts > 1 and any(c != 1 for c in map_char_cnts)) or (n_parts == 1 and map_char_cnts[0] > 1):
+            raise EasyBuildError("The optarch option has an incorrect syntax: %s", self.options.optarch)
+        else:
+            # if there are options for different compilers, we set up a dict
+            if OPTARCH_MAP_CHAR in optarch_parts[0]:
+                optarch_dict = {}
+                for compiler, compiler_opt in [p.split(OPTARCH_MAP_CHAR) for p in optarch_parts]:
+                    if compiler in optarch_dict:
+                        raise EasyBuildError("The optarch option contains duplicated entries for compiler %s: %s",
+                                             compiler, self.options.optarch)
+                    else:
+                        optarch_dict[compiler] = compiler_opt
+                self.options.optarch = optarch_dict 
+                self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
+            # if optarch is not in mapping format, we do nothing and just keep the string
+            else:
+                self.log.info("Keeping optarch raw: %s", self.options.optarch)
 
     def _postprocess_include(self):
         """Postprocess --include options."""

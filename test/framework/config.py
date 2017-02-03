@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -272,13 +272,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         # test with config file passed via environment variable
+        # also test for existence of HOME and USER by adding paths to robot-paths
         installpath_modules = tempfile.mkdtemp(prefix='installpath-modules')
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
             'sourcepath = %(DEFAULT_REPOSITORYPATH)s',
             'repositorypath = %(DEFAULT_REPOSITORYPATH)s,somesubdir',
-            'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s',
+            'robot-paths=/tmp/foo:%(sourcepath)s:%(HOME)s:/tmp/%(USER)s:%(DEFAULT_ROBOT_PATHS)s',
             'installpath-modules=%s' % installpath_modules,
         ])
         write_file(config_file, cfgtxt)
@@ -296,12 +297,17 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
         self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
-        robot_paths = [
-            '/tmp/foo',
-            os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
-            os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
-        ]
-        self.assertEqual(options.robot_paths[:3], robot_paths)
+
+        # hardcoded first entry
+        self.assertEqual(options.robot_paths[0], '/tmp/foo')
+        # resolved value for %(sourcepath)s template
+        self.assertEqual(options.robot_paths[1], os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'))
+        # resolved value for HOME constant
+        self.assertEqual(options.robot_paths[2], os.getenv('HOME'))
+        # resolved value that uses USER constant
+        self.assertEqual(options.robot_paths[3], os.path.join('/tmp', os.getenv('USER')))
+        # first path in DEFAULT_ROBOT_PATHS
+        self.assertEqual(options.robot_paths[4], os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         testpath3 = os.path.join(self.tmpdir, 'testTHREE')
         os.environ['EASYBUILD_SOURCEPATH'] = testpath2

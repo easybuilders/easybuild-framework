@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -236,13 +236,13 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
     :param module_installdir: fake module install directory
     """
     global DRY_RUN_BUILD_DIR
-    DRY_RUN_BUILD_DIR = (re.compile(builddir), builddir[len(prefix):])
+    DRY_RUN_BUILD_DIR = (re.compile(re.escape(builddir)), builddir[len(prefix):])
 
     global DRY_RUN_MODULES_INSTALL_DIR
-    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(module_installdir), module_installdir[len(prefix):])
+    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(re.escape(module_installdir)), module_installdir[len(prefix):])
 
     global DRY_RUN_SOFTWARE_INSTALL_DIR
-    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(software_installdir), software_installdir[len(prefix):])
+    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
 
 
 def dry_run_msg(msg, silent=False):

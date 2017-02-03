@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ Set of file tools.
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Sotiris Fragkiskos (NTUA, CERN)
+:author: Davide Vanzo (ACCRE, Vanderbilt University)
 """
 import fileinput
 import glob
@@ -343,10 +344,14 @@ def download_file(filename, url, path, forced=False):
     downloaded = False
     max_attempts = 3
     attempt_cnt = 0
+
+    # use custom HTTP header
+    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild'})
+    
     while not downloaded and attempt_cnt < max_attempts:
         try:
             # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url, timeout=timeout)
+            url_fd = urllib2.urlopen(url_req, timeout=timeout)
             _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
             write_file(path, url_fd.read(), forced=forced)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
@@ -661,8 +666,9 @@ def is_patch_file(path):
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, filter_deleted=False):
     """
     Determine list of patched files from a patch.
-    It searches for "+++ path/to/patched/file" lines to determine
-    the patched files.
+    It searches for "+++ path/to/patched/file" lines to determine the patched files.
+    Note: does not correctly handle filepaths with spaces.
+
     :param path: the path to the diff
     :param txt: the contents of the diff (either path or txt should be give)
     :param omit_ab_prefix: ignore the a/ or b/ prefix of the files
@@ -670,7 +676,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False, github=False, f
     :param filter_deleted: filter out all files that were deleted by the patch
     """
     if github:
-        patched_regex = r"^diff --git (?P<ab_prefix>[ab]/)?(?P<file>\S+)"
+        patched_regex = r"^diff --git (?:a/)?\S+\s*(?P<ab_prefix>b/)?(?P<file>\S+)"
     else:
         patched_regex = r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)"
     patched_regex = re.compile(patched_regex, re.M)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1184,6 +1184,11 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         for path in paths:
+
+            if path.endswith('.yeb') and 'yaml' not in sys.modules:
+                print "Skipping .yeb part of test_toy_dumped_easyconfig (no PyYAML available)"
+                continue
+
             args = [
                 path,
                 '--experimental',
