@@ -1,4 +1,4 @@
-12;rgb:0000/0000/0000##
+##
 # Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
