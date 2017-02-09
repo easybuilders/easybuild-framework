@@ -2075,45 +2075,17 @@ class EasyBlock(object):
         else:
             self.log.debug("Sanity check passed!")
 
-    def _set_module_as_default(self, fake=False):
+    def _set_module_as_default(self):
+        """
+        Defining default module Version
 
-        if build_option('set_as_default'):
-            # version_module_generator = module_generator(self, fake=True)
-            # modpath = version_module_generator.prepare(fake=fake)
+        sets the default module version except if we are in dry run.
+        """
+        mod_filepath = self.module_generator.get_module_filepath()
+        mod_folderpath = os.path.dirname(mod_filepath)
 
-            mod_filepath = self.module_generator.get_module_filepath(fake=fake)
-            mod_folderpath = os.path.dirname(mod_filepath)
-            mod_filepath = os.path.join(mod_folderpath, '.version')
-
-            if isinstance(self.module_generator, ModuleGeneratorLua):
-                mod_filepath = os.path.join(mod_folderpath, 'default')
-            elif isinstance(self.module_generator, ModuleGeneratorTcl):
-                mod_filepath = os.path.join(mod_folderpath, '.version')
-
-            if self.dry_run:
-                # only report generating actual module file during dry run, don't mention temporary module files
-                if not fake:
-                    self.dry_run_msg("Generating default module file %s\n", mod_filepath)
-            else:
-                self.module_generator.set_as_default(mod_folderpath, self.version)
-                self.log.info("Module default version file %s written", mod_filepath)
-
-                # invalidate relevant 'module avail'/'module show' cache entries
-                modpath = self.module_generator.get_modules_path(fake=fake)
-                # consider both paths: for short module name, and subdir indicated by long module name
-                paths = [modpath]
-                if self.mod_subdir:
-                    paths.append(os.path.join(modpath, self.mod_subdir))
-
-                for path in paths:
-                    invalidate_module_caches_for(path)
-
-                # only update after generating final module file
-                if not fake:
-                    self.modules_tool.update()
-
-                if not fake:
-                    self.make_devel_module()
+        if not self.dry_run:
+            self.module_generator.set_as_default(mod_folderpath, self.version)
 
     def cleanup_step(self):
         """
@@ -2172,8 +2144,6 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
-
-
         if self.dry_run:
             # only report generating actual module file during dry run, don't mention temporary module files
             if not fake:
@@ -2181,6 +2151,7 @@ class EasyBlock(object):
                 for line in txt.split('\n'):
                     self.dry_run_msg(' ' * 4 + line)
 
+            self.dry_run_msg("Generating file to set default module version to %s\n", self.version)
         else:
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
@@ -2205,7 +2176,8 @@ class EasyBlock(object):
             if not fake:
                 self.make_devel_module()
 
-        self._set_module_as_default(fake=fake)
+        if build_option('set_as_default'):
+            self._set_module_as_default()
 
         return modpath
 

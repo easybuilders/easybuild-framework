@@ -355,6 +355,23 @@ class FileToolsTest(EnhancedTestCase):
         os.chmod(test_file, 0)
         self.assertFalse(ft.is_readable(test_file))
 
+    def test_symlink_readlink_file(self):
+        """Test read link target file"""
+
+        # write_file and read_file tests are elsewhere. so not getting their states
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        txt = "test_my_link_file"
+        ft.write_file(fp, txt)
+
+        link = os.path.join(self.test_prefix, 'test.link')
+        # creating the link file
+        ft.symlink(fp, link)
+
+        # reading file contents and comparing to link
+        self.assertEqual(ft.read_file(fp), ft.read_file(link))
+        # reading link target and comparing to file name
+        self.assertEqual(fp, ft.readlink(link))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 

@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import mkdir, readlink, read_file, remove_file, symlink, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
 
@@ -457,11 +457,17 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
 
     def set_as_default(self, module_folder_path, module_version):
-
-        txt = self.module_generator.MODULE_SHEBANG + '\n'
-        txt += 'set   ModulesVersion %s\n' % module_version
+        """
+        Create .version file inside the package module folder in order to set the default version
+        for TMod
+        :param module_folder_path: module folder path, e.g.  /easybuild/modules/all/Bison
+        :param module_version: 3.0.4
+        """
+        txt = self.MODULE_SHEBANG + '\n'
+        txt += 'set ModulesVersion %s\n' % module_version
         mod_filepath = os.path.join(module_folder_path, '.version')
 
+        # write the file no matter what
         write_file(mod_filepath, txt)
 
 
@@ -704,13 +710,26 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return 'os.getenv("%s")' % envvar
 
-    def set_as_default(self, module_folder_path, module_version):
 
-        module_file = module_version + '.lua'
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create file called "default" inside the package's module folder in order
+        to set the default module version
+        :param module_folder_path: module folder path, e.g.  $HOME/easybuild/modules/all/Bison
+        :param module_version: 3.0.4
+        """
+        module_file = module_version + self.MODULE_FILE_EXTENSION
         mod_filepath = os.path.join(module_folder_path, module_file)
 
         default_filepath = os.path.join(module_folder_path, 'default')
-        os.symlink(mod_filepath, default_filepath)
+
+        if os.path.exists(default_filepath):
+            points_to = readlink(default_filepath)
+            remove_file(default_filepath)
+            self.log.info("Removed default version marking from %s.", points_to)
+
+        symlink(mod_filepath, default_filepath)
+        self.log.info("Module default version file written to point to %s", default_filepath)
 
 
 def avail_module_generators():

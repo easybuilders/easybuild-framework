@@ -40,6 +40,7 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
+from easybuild.tools.filetools import mkdir, write_file
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
@@ -47,6 +48,8 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
+from vsc.utils.missing import nub
+from easybuild.tools.modules import curr_module_paths, reset_module_caches
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -138,6 +141,62 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
+
+    def test_set_default(self):
+        """
+        Test load part in generated module file.
+        """
+        # if not self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+        #     return
+
+        # creating base path
+        base_path = os.path.join(self.test_prefix, 'all')
+        mkdir(base_path)
+
+        # creating package module
+        module_name = 'dummy'
+        modules_base_path = os.path.join(base_path, module_name)
+        mkdir(modules_base_path)
+
+        # creating two empty modules
+        txt = self.modgen.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+
+        foo_version = 'foo_version'
+        foo_version_path = os.path.join(modules_base_path, foo_version)
+        write_file(foo_version_path, txt)
+
+        bar_version = 'bar_version'
+        bar_version_path = os.path.join(modules_base_path, bar_version)
+        write_file(bar_version_path, txt)
+
+        # removing all available modules from the environment
+        mod_paths = [p for p in nub(curr_module_paths()) if os.path.exists(p)]
+        for mod_path in nub(mod_paths):
+            self.modtool.unuse(mod_path)
+
+        # using base_path to possible module load
+        reset_module_caches()
+        self.modtool.use(base_path)
+        reset_module_caches()
+
+        # setting foo version as default
+        self.modgen.set_as_default(modules_base_path, foo_version)
+        self.modtool.load([module_name])
+        composed_module_name = module_name + '/' + foo_version
+
+        self.assertTrue(composed_module_name in self.modtool.loaded_modules())
+        self.modtool.purge()
+
+        # setting bar version as default
+        self.modgen.set_as_default(modules_base_path, bar_version)
+        self.modtool.load([module_name])
+        composed_module_name = module_name + '/' + bar_version
+
+        self.assertTrue(composed_module_name in self.modtool.loaded_modules())
+        self.modtool.purge()
+
 
     def test_load(self):
         """Test load part in generated module file."""
