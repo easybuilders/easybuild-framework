@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
 
@@ -211,6 +211,9 @@ class ModuleGenerator(object):
         :param mod_name_in: name of module to load (swap in)
         :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
+        raise NotImplementedError
+
+    def set_as_default(self, module_folder_path, module_version):
         raise NotImplementedError
 
 
@@ -453,6 +456,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         return '$env(%s)' % envvar
 
 
+    def set_as_default(self, module_folder_path, module_version):
+
+        txt = self.module_generator.MODULE_SHEBANG + '\n'
+        txt += 'set   ModulesVersion %s\n' % module_version
+        mod_filepath = os.path.join(module_folder_path, '.version')
+
+        write_file(mod_filepath, txt)
+
+
 class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
@@ -691,6 +703,14 @@ class ModuleGeneratorLua(ModuleGenerator):
         Return module-syntax specific code to get value of specific environment variable.
         """
         return 'os.getenv("%s")' % envvar
+
+    def set_as_default(self, module_folder_path, module_version):
+
+        module_file = module_version + '.lua'
+        mod_filepath = os.path.join(module_folder_path, module_file)
+
+        default_filepath = os.path.join(module_folder_path, 'default')
+        os.symlink(mod_filepath, default_filepath)
 
 
 def avail_module_generators():

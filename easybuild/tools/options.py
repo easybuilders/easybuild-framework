@@ -383,6 +383,9 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
+
+                'set-as-default': ("Set the generated module as default", None, 'store_true', False),
+
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
