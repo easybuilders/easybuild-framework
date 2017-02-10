@@ -232,6 +232,7 @@ class ModuleGenerator(object):
         if usage:
             lines.extend([
                 '',
+                '',
                 'Usage',
                 '=====',
                 "%s" % usage.strip(),
@@ -240,6 +241,7 @@ class ModuleGenerator(object):
         # Additional information
         homepage = self.app.cfg['homepage']
         lines.extend([
+            '',
             '',
             'More information',
             '================',
@@ -252,14 +254,14 @@ class ModuleGenerator(object):
             env_name = convert_name(self.app.name, upper=True)
             root_envvar = ROOT_ENV_VAR_NAME_PREFIX + env_name
             lines.extend([" - Documentation:"])
-            lines.extend(["     - $%s/%s" % (root_envvar,path) for path in docpaths])
-            lines.extend(["     - %s" % url for url in docurls])
+            lines.extend(["    - $%s/%s" % (root_envvar,path) for path in docpaths])
+            lines.extend(["    - %s" % url for url in docurls])
 
         support = self.app.cfg['support']
         if support:
             if isinstance(support, list):
                 lines.extend([" - Support/bug reports:"])
-                lines.extend(["     - %s" % address for address in support])
+                lines.extend(["    - %s" % address for address in support])
             else:
                 lines.extend([" - Support/bug reports: %s" % support])
 
@@ -267,7 +269,7 @@ class ModuleGenerator(object):
         if contact:
             if isinstance(contact, list):
                 lines.extend([" - Site contacts:"])
-                lines.extend(["     - %s" % address for address in contact])
+                lines.extend(["    - %s" % address for address in contact])
             else:
                 lines.extend([" - Site contact: %s" % contact])
 
@@ -276,6 +278,7 @@ class ModuleGenerator(object):
         if exts_list:
             extensions = ', '.join(['%s-%s' % (ext[0], ext[1]) for ext in sorted(exts_list)])
             lines.extend([
+                '',
                 '',
                 "Included extensions",
                 '===================',
