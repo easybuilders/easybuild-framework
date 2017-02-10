@@ -309,6 +309,8 @@ class Compiler(Toolchain):
         if use_generic == True:
             if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
                 optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+            else:
+                optarch = None
         # Specified optarch default value
         elif default_optarch and optarch is None:
             optarch = default_optarch
@@ -320,8 +322,13 @@ class Compiler(Toolchain):
             self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 
-        if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
-            raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s", self.arch)
+        if self.options.options_map.get('optarch', None) is None:
+            if use_generic:
+                raise EasyBuildError("_set_optimal_architecture: don't know how to set generic optarch for %s/%s",
+                                     self.arch, self.cpu_family)
+            else:
+                raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s/%s",
+                                     self.arch, self.cpu_family)
 
     def comp_family(self, prefix=None):
         """
