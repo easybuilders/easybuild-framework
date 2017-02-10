@@ -180,13 +180,18 @@ def readlink(symlink_path):
     try:
         target_symlink_path = os.readlink(symlink_path)
     except OSError as err:
-        raise EasyBuildError("Failed to get target of symlink: %s", symlink_path)
+        raise EasyBuildError("Get target of symlink %s failed: %s", symlink_path, err)
 
     return target_symlink_path
 
 
 def symlink(source_path, symlink_path):
-    """Create a symlink at the specified path to the given path."""
+    """
+    Create a symlink at the specified path to the given path.
+
+    :param source_path: source file path
+    :param symlink_path: symlink file path
+    """
 
     try:
         os.symlink(os.path.abspath(source_path), symlink_path)

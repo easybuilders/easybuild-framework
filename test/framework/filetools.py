@@ -372,6 +372,32 @@ class FileToolsTest(EnhancedTestCase):
         # reading link target and comparing to file name
         self.assertEqual(fp, ft.readlink(link))
 
+    def test_remove_symlinks(self):
+        """Test remove valid and invalid symlinks"""
+
+        # creating test file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        txt = "test_my_link_file"
+        ft.write_file(fp, txt)
+
+        # creating the symlink
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(fp, link) # test if is symlink is valid is done elsewhere
+
+        # Attempting to remove a valid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+        # Testing the removal of invalid symlinks
+        # Restoring the symlink and removing the file, this way the symlink is invalid
+        ft.symlink(fp, link)
+        ft.remove_file(fp)
+        # attempting to remove the invalid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 
@@ -404,6 +430,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
+
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
