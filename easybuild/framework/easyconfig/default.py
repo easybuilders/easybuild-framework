@@ -158,6 +158,9 @@ DEFAULT_CONFIG = {
 
     # MODULES easyconfig parameters
     'whatis': [None, "List of brief (one line) package description entries", MODULES],
+    'usage': [None, "Usage instructions for the software", MODULES],
+    'support': [None, "Package-specific support/bug report address", MODULES],
+    'contact': [None, "Site contact for the package", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],

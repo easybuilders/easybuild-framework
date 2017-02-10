@@ -213,6 +213,54 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def _generate_help_text(self):
+        """
+        Generate syntax-independent help text used for `module help`.
+        """
+        # General package description (mandatory)
+        description = self.app.cfg['description']
+        lines = [
+            '',
+            'Description',
+            '===========',
+            "%s" % description.strip(),
+        ]
+
+        # Package usage instructions (optional)
+        usage = self.app.cfg['usage']
+        if usage:
+            lines.extend([
+                '',
+                'Usage',
+                '=====',
+                "%s" % usage.strip(),
+            ])
+
+        # Additional information
+        homepage = self.app.cfg['homepage']
+        lines.extend([
+            '',
+            'More information',
+            '================',
+            " - Homepage: %s" % homepage,
+        ])
+        support = self.app.cfg['support']
+        if support:
+            if isinstance(support, list):
+                lines.extend([" - Support/ bug reports:"])
+                lines.extend(["     - %s" % address for address in support])
+            else:
+                lines.extend([" - Support/ bug reports: %s" % support])
+        contact = self.app.cfg['contact']
+        if contact:
+            if isinstance(contact, list):
+                lines.extend([" - Site contacts:"])
+                lines.extend(["     - %s" % address for address in contact])
+            else:
+                lines.extend([" - Site contact: %s" % contact])
+
+        return '\n'.join(lines)
+        
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -270,7 +318,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         lines = [
             "proc ModulesHelp { } {",
-            "    puts stderr { %(description)s",
+            "    puts stderr {"
+            "%s" % self._generate_help_text(),
             "    }",
             '}',
             '',
@@ -516,7 +565,9 @@ class ModuleGeneratorLua(ModuleGenerator):
             whatis = ["Description: %s" % description]
 
         lines = [
-            "help([[%(description)s]])",
+            'help([[',
+            "%s" % self._generate_help_text(),
+            ']])',
             '',
             "%(whatis_lines)s",
             '',
