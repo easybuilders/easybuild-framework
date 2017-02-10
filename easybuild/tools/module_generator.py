@@ -44,7 +44,7 @@ from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
-
+from textwrap import wrap
 
 _log = fancylogger.getLogger('module_generator', fname=False)
 
@@ -259,8 +259,18 @@ class ModuleGenerator(object):
             else:
                 lines.extend([" - Site contact: %s" % contact])
 
+        exts_list = self.app.cfg['exts_list']
+        if exts_list:
+            extensions = ', '.join(['%s-%s' % (ext[0], ext[1]) for ext in sorted(exts_list)])
+            lines.extend([
+                '',
+                "Included extensions",
+                '===================',
+                "%s" % '\n'.join(wrap(extensions, 78)),
+            ])
+
         return '\n'.join(lines)
-        
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
