@@ -158,6 +158,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         txt = self.modgen.MODULE_SHEBANG
         if txt:
             txt += '\n'
+        txt += self.modgen.set_environment('foo', 'bar')
 
         version_one = '1.0'
         version_one_path = os.path.join(modules_base_path, version_one + self.modgen.MODULE_FILE_EXTENSION)
