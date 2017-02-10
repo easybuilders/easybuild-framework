@@ -460,15 +460,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Create .version file inside the package module folder in order to set the default version
         for TMod
-        :param module_folder_path: module folder path, e.g.  /easybuild/modules/all/Bison
-        :param module_version: 3.0.4
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
         """
         txt = self.MODULE_SHEBANG + '\n'
         txt += 'set ModulesVersion %s\n' % module_version
-        mod_filepath = os.path.join(module_folder_path, '.version')
 
         # write the file no matter what
-        write_file(mod_filepath, txt)
+        write_file(os.path.join(module_folder_path, '.version'), txt)
 
 
 class ModuleGeneratorLua(ModuleGenerator):
@@ -715,12 +714,10 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Create file called "default" inside the package's module folder in order
         to set the default module version
-        :param module_folder_path: module folder path, e.g.  $HOME/easybuild/modules/all/Bison
-        :param module_version: 3.0.4
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
         """
-        module_file = module_version + self.MODULE_FILE_EXTENSION
-        mod_filepath = os.path.join(module_folder_path, module_file)
-
+        mod_filepath = os.path.join(module_folder_path, module_version + self.MODULE_FILE_EXTENSION)
         default_filepath = os.path.join(module_folder_path, 'default')
 
         if os.path.exists(default_filepath):

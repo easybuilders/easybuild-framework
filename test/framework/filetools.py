@@ -367,8 +367,8 @@ class FileToolsTest(EnhancedTestCase):
         # creating the link file
         ft.symlink(fp, link)
 
-        # reading file contents and comparing to link
-        self.assertEqual(ft.read_file(fp), ft.read_file(link))
+        # checking if file is symlink
+        self.assertEqual(os.path.islink(link))
         # reading link target and comparing to file name
         self.assertEqual(fp, ft.readlink(link))
 

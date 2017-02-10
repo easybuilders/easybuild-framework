@@ -177,21 +177,21 @@ def readlink(symlink_path):
 
     :param symlink_path: symlink file path
     """
-
-    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         target_symlink_path = os.readlink(symlink_path)
-    except IOError, err:
+    except OSError as err:
         raise EasyBuildError("Failed to get target of symlink: %s", symlink_path)
-
-    if build_option('extended_dry_run'):
-        dry_run_msg("symlink file %s points to: %s", symlink_path, target_symlink_path)
 
     return target_symlink_path
 
 
 def symlink(source_path, symlink_path):
     """Create a symlink at the specified path to the given path."""
+
+    if build_option('extended_dry_run'):
+        dry_run_msg("Symlinked file %s to %s" % (source_path, symlink_path), silent=build_option('silent'))
+        return
+
     try:
         os.symlink(os.path.abspath(source_path), symlink_path)
         _log.info("Symlinked %s to %s", source_path, symlink_path)
@@ -1072,15 +1072,6 @@ def weld_paths(path1, path2):
             path2_head = None
 
     return os.path.join(path1, path2_tail)
-
-
-def symlink(source_path, symlink_path):
-    """Create a symlink at the specified path to the given path."""
-    try:
-        os.symlink(os.path.abspath(source_path), symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def path_matches(path, paths):
