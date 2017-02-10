@@ -188,10 +188,6 @@ def readlink(symlink_path):
 def symlink(source_path, symlink_path):
     """Create a symlink at the specified path to the given path."""
 
-    if build_option('extended_dry_run', default=False):
-        dry_run_msg("Symlinked file %s to %s" % (source_path, symlink_path), silent=build_option('silent'))
-        return
-
     try:
         os.symlink(os.path.abspath(source_path), symlink_path)
         _log.info("Symlinked %s to %s", source_path, symlink_path)
@@ -208,7 +204,8 @@ def remove_file(path):
         return
 
     try:
-        if os.path.exists(path):
+        # note: file may also be a broken symlink...
+        if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
         raise EasyBuildError("Failed to remove %s: %s", path, err)

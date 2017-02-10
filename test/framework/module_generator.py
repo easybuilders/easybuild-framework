@@ -39,7 +39,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.modules import curr_module_paths, reset_module_caches
+from easybuild.tools.modules import curr_module_paths
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
