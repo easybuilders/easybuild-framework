@@ -1046,7 +1046,7 @@ class EasyBlock(object):
 
         return txt
 
-    def make_module_extra_extensions(self):
+    def make_module_extra_extensions(self, extensions):
         """
         Sets optional variables for extensions.
         """
@@ -1054,10 +1054,9 @@ class EasyBlock(object):
         lines = [self.module_extra_extensions]
 
         # set environment variable that specifies list of extensions
-        if self.exts_all:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            env_var_name = convert_name(self.name, upper=True)
-            lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
+        exts_list = ','.join(['%s-%s' % (ext[0], ext[1]) for ext in extensions])
+        env_var_name = convert_name(self.name, upper=True)
+        lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
         return ''.join(lines)
 
@@ -1068,8 +1067,9 @@ class EasyBlock(object):
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
         # add extra stuff for extensions (if any)
-        if self.cfg['exts_list']:
-            footer.append(self.make_module_extra_extensions())
+        extensions = self.cfg['exts_list']
+        if extensions:
+            footer.append(self.make_module_extra_extensions(extensions))
 
         # include modules footer if one is specified
         if self.modules_footer is not None:
