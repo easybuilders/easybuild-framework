@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,13 +45,14 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.modules import Lmod, curr_module_paths, get_software_root, get_software_version
-from easybuild.tools.modules import get_software_libdir, invalidate_module_caches_for, modules_tool
+from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
+from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
 from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 76
+TEST_MODULES_COUNT = 78
 
 
 class ModulesTest(EnhancedTestCase):
@@ -94,9 +95,13 @@ class ModulesTest(EnhancedTestCase):
         """Test if getting a (restricted) list of available modules works."""
         self.init_testmods()
 
-        # test modules include 3 GCC modules
+        # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
-        self.assertEqual(ms, ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2'])
+        expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2']
+        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C does prefix matching
+        if not isinstance(self.modtool, EnvironmentModulesTcl):
+            expected.append('GCCcore/6.2.0')
+        self.assertEqual(ms, expected)
 
         # test modules include one GCC/4.6.3 module
         ms = self.modtool.available(mod_name='GCC/4.6.3')
@@ -107,9 +112,10 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
             # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
-            self.assertEqual(len(ms), TEST_MODULES_COUNT + 2)
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
             self.assertTrue('bzip2/.1.0.6' in ms)
             self.assertTrue('toy/.0.0-deps' in ms)
+            self.assertTrue('OpenMPI/.1.6.4-GCC-4.6.4' in ms)
         else:
             self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
@@ -337,8 +343,11 @@ class ModulesTest(EnhancedTestCase):
     def test_path_to_top_of_module_tree_lua(self):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
         if isinstance(self.modtool, Lmod):
+            orig_modulepath = os.environ.get('MODULEPATH')
             self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
-            self.assertEqual(os.environ.get('MODULEPATH'), None)
+            curr_modulepath = os.environ.get('MODULEPATH')
+            error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
+            self.assertEqual(curr_modulepath, None, error_msg)
 
             top_moddir = os.path.join(self.test_prefix, 'test_modules')
             core_dir = os.path.join(top_moddir, 'Core')
@@ -510,7 +519,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             # GCC/4.6.3 is nowhere to be found (in $MODULEPATH)
-            load_err_msg = r"The following module\(s\) are unknown"
+            load_err_msg = r"The[\s\n]*following[\s\n]*module\(s\)[\s\n]*are[\s\n]*unknown"
         else:
             load_err_msg = "Unable to locate a modulefile"
 
@@ -543,7 +552,10 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             # OpenMPI/1.6.4 exists, but is not available for load;
             # exact error message depends on Lmod version
-            load_err_msg = r"These module\(s\) exist but cannot be|The following module\(s\) are unknown"
+            load_err_msg = '|'.join([
+                r'These[\s\sn]*module\(s\)[\s\sn]*exist[\s\sn]*but[\s\sn]*cannot[\s\sn]*be',
+                'The[\s\sn]*following[\s\sn]*module\(s\)[\s\sn]*are[\s\sn]*unknown',
+            ])
         else:
             load_err_msg = "Unable to locate a modulefile"
 

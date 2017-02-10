@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Support for Intel MPI as toolchain MPI library.
 :author: Kenneth Hoste (Ghent University)
 """
 
+import easybuild.tools.toolchain as toolchain
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS, COMPILER_VARIABLES
 from easybuild.tools.toolchain.variables import CommandFlagList
@@ -52,6 +53,13 @@ class IntelMPI(Mpich2):
 
     def _set_mpi_compiler_variables(self):
         """Add I_MPI_XXX variables to set."""
+
+        if self.comp_family() == toolchain.INTELCOMP:
+            self.MPI_COMPILER_MPICC = 'mpiicc'
+            self.MPI_COMPILER_MPICXX = 'mpiicpc'
+            self.MPI_COMPILER_MPIF77 = 'mpiifort'
+            self.MPI_COMPILER_MPIF90 = 'mpiifort'
+            self.MPI_COMPILER_MPIFC = 'mpiifort'
 
         # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var, _ in COMPILER_VARIABLES:

@@ -3,6 +3,118 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.1.0 (February 3rd 2017)
+--------------------------
+
+feature release
+- various enhancements, including:
+  - ARM: GCC optimal/generic architecture compiler flags (#1974)
+  - add support for --check-style to check style in easyconfig files (#1618, #2038)
+  - add HOME and USER from envto available cfg file constants (#2063)
+  - --optarch can now be specified on a toolchain basis (#2071)
+  - implement get_cpu_features function in systemtools (#2074, #2078)
+  - support use of linalg without MPI, add iimkl toolchain definition (#2082)
+  - spoof HTTP request header with empty agent (#2083)
+  - exclude dependencies of dependencies that extend $MODULEPATH in make_module_dep (#2091)
+- various bug fixes, including:
+  - make fetch_github_token more robust against RuntimeError from keyring (#2070)
+  - POWER: Fix `--optarch=GENERIC` for GCC (#2073)
+  - fix docstring in toolchain class (#2075)
+  - skip test cases involving .yeb if PyYAML is not installed, silence test in options subsuite (#2081)
+  - fix traceback with 'eb --check-github' if GitPython is not installed (#2085)
+  - fix regex for determining list of patched files in GitHub diff (#2088)
+  - modify robot so that it only appends dependencies of tweaked easyconfigs (#2090)
+  - escape metacharacters in paths passed to re.compile in dry_run_set_dirs (#2098)
+  - fix broken error message in get_toolchain_hierarchy + dedicated test case (#2099)
+
+
+v3.0.2 (December 22nd 2016)
+---------------------------
+
+bugfix release
+- various bug fixes, including:
+  - also skip dependencies of dependencies marked as external module in get_toolchain_hierarchy (#2042)
+  - disable verbose setvar in modules.py (#2044)
+  - force copying of easyconfigs in --new-pr/--update-pr, even when combined with -x (#2045)
+  - fix verification of filename for easyconfigs used to resolve deps (#2051)
+  - skip RPATH sanity check when toolchain did not use RPATH wrappers (#2052)
+  - check whether file-like paths are readable before reading them in systemtools module (#2065)
+- various small enhancements, including:
+  - add 'rpath' toolchain option to selectively disable use of RPATH wrappers (#2047)
+
+
+v3.0.1 (November 30th 2016)
+---------------------------
+
+bugfix release
+- important changes
+  - always use Intel-specific MPI compiler wrappers (mpiicc, mpiicpc, mpiifort) for toolchains using
+    both Intel compilers and Intel MPI (#2005)
+- various small enhancements, including:
+  - use setvar in modules.py to define environment variables (#2011)
+  - include output of sanity_check_commands in the build log (#2020)
+- various bug fixes, including:
+  - fix testing of bootstrap script in Travis config (#2003)
+  - use correct module syntax in bootstrap script if Lmod is not used (i.e. Tcl) (#2007)
+  - fix packaging issue with non-Python scripts in easybuild/scripts (#2015)
+     - fixes issue where RPATH wrapper template script (rpath_wrapper_template.sh.in) was not included in v3.0.0 release
+  - make tests more robust against running headless (#2016)
+  - avoid rewrapping already wrapped compiler/linker command with RPATH wrapper script (#2022)
+  - fix log.error traceback due to 'raise EasyBuildError' involving a '%s' in error message (#2024)
+  - make sure 'modules_tool' attribute is also defined for extensions (#2026)
+  - only dump easyconfig with modified deps due to --minimal-toolchains to 'reprod' subdir of install dir (#2028)
+  - avoid appending '-h' to sanity check commands specified as a string (#2030)
+  - fix bug in list_software_rst: always include versionsuffix regardless of value (#2032)
+
+
+v3.0.0 (November 16th 2016)
+---------------------------
+
+feature release
+- backward-incompatible changes:
+  - make robot always consider subtoolchains, even without --minimal-toolchains (but in reverse order) (#1973)
+  - clean up behaviour that was deprecated for EasyBuild v3.0 (#1978)
+  - change default config to use Lmod/Lua for modules tool/syntax, GC3Pie as job backend (#1985)
+  - the minimal required version of Lmod was bumped to 5.8 (#1985)
+- major new features:
+  - (experimental) support for RPATH linking via --rpath (#1942)
+    - see http://easybuild.readthedocs.org/en/latest/RPATH-support.html
+  - add support for --consider-archived-easyconfigs (#1972)
+    - see http://easybuild.readthedocs.org/en/latest/Archived-easyconfigs.html
+  - stabilize --new-pr and --update-pr (#1979)
+    - see http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html
+- various other small enhancements, including:
+  - add support for 'devel' log level (#1815)
+  - make remove_file aware of --extended-dry-run + add dedicated unit test (#1932)
+  - add support for filtering out setting/updating particular environment variables from generated modules (#1943)
+    - see --filter-env-vars
+  - clean up output of EasyBuild bootstrap script & add version (#1944)
+  - improved ARM platform/CPU detection (#1953)
+  - use '0' as letter dir for funky software names that don't start with a letter, e.g., 3to2 (#1954)
+  - make bootstrap script aware of vsc-install for offline installation (#1955)
+  - add support for blas_family() and lapack_family() methods in Toolchain instances (#1961)
+  - make copy_file dry-run aware (#1963)
+  - reorganise test easyconfigs to match structure in easyconfigs repo (#1970)
+  - add a toolchain compiler option for enforcing IEEE-754 conformance (#1975)
+  - support for intelcuda compiler toolchain (#1976)
+  - check that each glob pattern matches at least one file expand_glob_paths (important for --include-*) (#1980)
+  - enhance bootstrap to auto-skip stage 0 in case a suitable setuptools is already available (#1946, #1984)
+  - simplify GC3Pie version check (#1987)
+  - include suggestion on how to change configuration w.r.t. modules tool/syntax (#1989)
+- various bug fixes, including:
+  - fix test for find_easybuild_easyconfig (#1931)
+  - remove existing module file under --force/--rebuild (#1933)
+  - fix combining --search and --try-* (#1937)
+  - fix appending to existing buildstats in FileRepository.add_easyconfig (#1948)
+  - fix handling of iterate easyconfig parameters, restore them during cleanup (#1949)
+  - fix filtering loads for (hidden) build deps from generated module (#1959)
+  - handle multi-flag compiler options on all types of options (#1966)
+  - fix --list-software by making letter_dir_for function aware of '*' wildcard name (#1969)
+  - skip dependencies of toolchain marked as external modules when determining module hierarchy (#1977)
+  - bump page limit in fetch_latest_commit_sha, spit out more meaningful error if too many branches were encountered (#1981)
+  - fix CUDA-related issues in HierarchicalMNS (#1986)
+
+
 v2.9.0 (September 23rd 2016)
 ----------------------------
 
@@ -663,7 +775,7 @@ feature + bugfix release
         - made suffix used for module files install path configurable, using --suffix-modules-path (#973)
     - added support for additional easyconfig parameters:
         - define aliases in module files ('modaliases') (#952)
-        - add print message on module load ('modloadmsg') and Tcl footer ('modtclfooter') in module files (#954, #974) 
+        - add print message on module load ('modloadmsg') and Tcl footer ('modtclfooter') in module files (#954, #974)
 - various bug fixes, including:
     - don't try to tweak generated easyconfigs when using --try-X (#942)
     - currently create symlinks to module files modules/all under a custom module naming scheme (#953)
@@ -792,7 +904,7 @@ feature + bugfix release
     - add support for computing and verifying source/patch file checksums (#774, #777, #779, #801, #802)
         - cfr. 'checksums' easyconfig parameter
     - add support for `eb --confighelp`, which prints out an example configuration file (#775)
-    - add initial support for `eb` tab completion in bash shells (#775, #797, #798) 
+    - add initial support for `eb` tab completion in bash shells (#775, #797, #798)
         - see also https://github.com/hpcugent/easybuild/wiki/Setting-up-tab-completion-for-bash
         - note: may be quite slow for now
     - enhancements for using Lmod as modules tool (#780, #795, #796):
@@ -1132,7 +1244,7 @@ v0.8 (June 29th 2012)
 ---------------------
 
 - added support for building/installing 17 additional software packages:
-    - BEAGLE, Doxygen, g2clib, g2lib, HDF, HDF5, JasPer, libpng, Maple, 
+    - BEAGLE, Doxygen, g2clib, g2lib, HDF, HDF5, JasPer, libpng, Maple,
       MrBayes, NCL, netCDF, netCDF-Fortran, Szip, WPS, WRF, zlib
 - the build procedure for WRF and WPS includes running the tests available for these packages
 - various bug fixes and enhancements:

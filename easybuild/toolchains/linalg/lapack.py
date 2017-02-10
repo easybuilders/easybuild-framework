@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,7 +32,11 @@ Support for LAPACK as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_LAPACK = 'LAPACK'
+
+
 class Lapack(LinAlg):
     """Trivial class, provides LAPACK support."""
     LAPACK_MODULE_NAME = ['LAPACK']
     LAPACK_LIB = ['lapack']
+    LAPACK_FAMILY = TC_CONSTANT_LAPACK

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 """
+import logging
 import os
 import re
 import sys
@@ -58,6 +59,10 @@ DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
 
 
+DEVEL_LOG_LEVEL = logging.DEBUG - 1
+logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
+
+
 class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
@@ -66,10 +71,6 @@ class EasyBuildError(LoggedException):
     LOC_INFO_LEVEL = 1
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
-
-    # use custom error logging method, to make sure EasyBuildError isn't being raised again to avoid infinite recursion
-    # only required because 'error' log method raises (should no longer be needed in EB v3.x)
-    LOGGING_METHOD_NAME = '_error_no_raise'
 
     def __init__(self, msg, *args):
         """Constructor: initialise EasyBuildError instance."""
@@ -93,9 +94,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
     The EasyBuild logger, with its own error and exception functions.
     """
 
-    # self.raiseError can be set to False disable raising the exception which is
-    # necessary because logging.Logger.exception calls self.error
-    raiseError = True
+    RAISE_EXCEPTION_CLASS = EasyBuildError
 
     def caller_info(self):
         """Return string with caller info."""
@@ -129,9 +128,10 @@ class EasyBuildLog(fancylogger.FancyLogger):
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
         """
+        # always raise an EasyBuildError, nothing else
+        kwargs['exception'] = EasyBuildError
         if max_ver is None:
             msg += "; see %s for more information" % DEPRECATED_DOC_URL
-            kwargs['exception'] = EasyBuildError
             fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
         else:
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
@@ -143,40 +143,18 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        ebmsg = "EasyBuild crashed with an error %s: " + msg
-        args = (self.caller_info(),) + args
+        ebmsg = "EasyBuild crashed with an error %s: " % self.caller_info()
+        fancylogger.FancyLogger.error(self, ebmsg + msg, *args, **kwargs)
 
-        fancylogger.FancyLogger.error(self, ebmsg, *args, **kwargs)
-
-        if self.raiseError:
-            self.deprecated("Use 'raise EasyBuildError' rather than error() logging method that raises", '3.0')
-            raise EasyBuildError(ebmsg, *args)
-
-    # FIXME: remove this when error() no longer raises EasyBuildError
-    def _error_no_raise(self, msg):
-        """Utility function to log an error with raising an exception."""
-
-        # make sure raising of error is disabled
-        orig_raise_error = self.raiseError
-        self.raiseError = False
-
-        fancylogger.FancyLogger.error(self, msg)
-
-        # reinstate previous raiseError setting
-        self.raiseError = orig_raise_error
+    def devel(self, msg, *args, **kwargs):
+        """Print development log message"""
+        self.log(DEVEL_LOG_LEVEL, msg, *args, **kwargs)
 
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
         # don't raise the exception from within error
-        ebmsg = "EasyBuild encountered an exception %s: " + msg
-        args = (self.caller_info(),) + args
-
-        self.raiseError = False
-        fancylogger.FancyLogger.exception(self, ebmsg, *args)
-        self.raiseError = True
-
-        self.deprecated("Use 'raise EasyBuildError' rather than exception() logging method that raises", '3.0')
-        raise EasyBuildError(ebmsg, *args)
+        ebmsg = "EasyBuild encountered an exception %s: " % self.caller_info()
+        fancylogger.FancyLogger.exception(self, ebmsg + msg, *args)
 
 
 # set format for logger
@@ -258,13 +236,13 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
     :param module_installdir: fake module install directory
     """
     global DRY_RUN_BUILD_DIR
-    DRY_RUN_BUILD_DIR = (re.compile(builddir), builddir[len(prefix):])
+    DRY_RUN_BUILD_DIR = (re.compile(re.escape(builddir)), builddir[len(prefix):])
 
     global DRY_RUN_MODULES_INSTALL_DIR
-    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(module_installdir), module_installdir[len(prefix):])
+    DRY_RUN_MODULES_INSTALL_DIR = (re.compile(re.escape(module_installdir)), module_installdir[len(prefix):])
 
     global DRY_RUN_SOFTWARE_INSTALL_DIR
-    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(software_installdir), software_installdir[len(prefix):])
+    DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
 
 
 def dry_run_msg(msg, silent=False):

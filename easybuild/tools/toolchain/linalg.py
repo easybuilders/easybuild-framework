@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,6 +46,7 @@ class LinAlg(Toolchain):
     BLAS_LIB_STATIC = False
     BLAS_LIB_DIR = ['lib']
     BLAS_INCLUDE_DIR = ['include']
+    BLAS_FAMILY = None
 
     LAPACK_IS_BLAS = False
     LAPACK_REQUIRES = ['LIBBLAS']
@@ -56,6 +57,7 @@ class LinAlg(Toolchain):
     LAPACK_LIB_GROUP = False
     LAPACK_LIB_DIR = ['lib']
     LAPACK_INCLUDE_DIR = ['include']
+    LAPACK_FAMILY = None
 
     BLACS_MODULE_NAME = None
     BLACS_LIB_DIR = ['lib']
@@ -88,8 +90,9 @@ class LinAlg(Toolchain):
         ## TODO is link order fully preserved with this order ?
         self._set_blas_variables()
         self._set_lapack_variables()
-        self._set_blacs_variables()
-        self._set_scalapack_variables()
+        if getattr(self, 'MPI_MODULE_NAME', None):
+            self._set_blacs_variables()
+            self._set_scalapack_variables()
 
         self.log.debug('set_variables: LinAlg variables %s' % self.variables)
 
@@ -298,3 +301,17 @@ class LinAlg(Toolchain):
 
         self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
                                        ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
+
+    def blas_family(self):
+        """ Return type of BLAS library used in this toolchain."""
+        if self.BLAS_FAMILY:
+            return self.BLAS_FAMILY
+        else:
+            raise EasyBuildError("blas_family: BLAS_FAMILY is undefined.")
+
+    def lapack_family(self):
+        """ Return type of LAPACK library used in this toolchain."""
+        if self.LAPACK_FAMILY:
+            return self.LAPACK_FAMILY
+        else:
+            raise EasyBuildError("lapack_family: LAPACK_FAMILY is undefined.")

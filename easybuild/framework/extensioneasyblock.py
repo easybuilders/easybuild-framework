@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -78,6 +78,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['version'] = self.ext.get('version', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
+            self.modules_tool = self.master.modules_tool
             self.is_extension = True
             self.unpack_options = None
 

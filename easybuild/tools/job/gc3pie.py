@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2016 Ghent University
+# Copyright 2015-2017 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -79,12 +79,11 @@ class GC3Pie(JobBackend):
     """
 
     REQ_VERSION = '2.4.0'
-    DEVELOPMENT_VERSION = 'development'  # 'magic' version string indicated non-released version
-    REQ_SVN_REVISION = 4287  # use integer value, not a string!
+    VERSION_REGEX = re.compile(r'^(?P<version>\S*) version')
 
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def __init__(self, *args, **kwargs):
-        """GC3Pie constructor."""
+        """GC3Pie JobBackend constructor."""
         super(GC3Pie, self).__init__(*args, **kwargs)
 
     # _check_version is called by __init__, so guard it (too) with the decorator
@@ -94,25 +93,21 @@ class GC3Pie(JobBackend):
         # location of __version__ to use may change, depending on the minimal required SVN revision for development versions
         version_str = gc3libs.core.__version__
 
-        version_regex = re.compile(r'^(?P<version>\S*) version \(SVN \$Revision: (?P<svn_rev>\d+)\s*\$\)')
-        res = version_regex.search(version_str)
-        if res:
-            version = res.group('version')
-            svn_rev = int(res.group('svn_rev'))
-            self.log.debug("Parsed GC3Pie version info: '%s' (SVN rev: '%s')", version, svn_rev)
+        match = self.VERSION_REGEX.search(version_str)
+        if match:
+            version = match.group('version')
+            self.log.debug("Parsed GC3Pie version info: '%s'", version)
 
-            if version == self.DEVELOPMENT_VERSION:
-                # fall back to checking SVN revision for development versions
-                if svn_rev < self.REQ_SVN_REVISION:
-                    raise EasyBuildError("Found GC3Pie SVN revision %d, but revision %d or newer is required",
-                                         svn_rev, self.REQ_SVN_REVISION)
-            else:
-                if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
-                    raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
-                                         version, self.REQ_VERSION)
+            if version == 'development':
+                # presume it's OK -- there's no way to check since GC3Pie switched to git
+                return True
+
+            if LooseVersion(version) < LooseVersion(self.REQ_VERSION):
+                raise EasyBuildError("Found GC3Pie version %s, but version %s or more recent is required",
+                                     version, self.REQ_VERSION)
         else:
             raise EasyBuildError("Failed to parse GC3Pie version string '%s' using pattern %s",
-                                 version_str, version_regex.pattern)
+                                 version_str, self.VERSION_REGEX.pattern)
 
     def init(self):
         """

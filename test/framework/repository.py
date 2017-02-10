@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -101,7 +101,7 @@ class RepositoryTest(EnhancedTestCase):
         if ec == 0:
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
-            toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
             repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, None)
             repo.commit("toy/0.0")
 
@@ -173,7 +173,7 @@ class RepositoryTest(EnhancedTestCase):
             ecdict = EasyConfigParser(path).get_config_dict()
             self.assertEqual(ecdict['buildstats'], expected_buildstats)
 
-        toy_eb_file = os.path.join(test_easyconfigs, 'toy-0.0.eb')
+        toy_eb_file = os.path.join(test_easyconfigs, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
         path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23}, None)
         check_ec(path, [{'time': 1.23}])
@@ -184,14 +184,17 @@ class RepositoryTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
-        path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
-        check_ec(path, [{'time': 1.23}])
+        if 'yaml' in sys.modules:
+            toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
+            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
+            check_ec(path, [{'time': 1.23}])
 
-        path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
-        check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
+            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
+            check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
 
-        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+            easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+        else:
+            print "Skipping .yeb part of test_add_easyconfig (no PyYAML available)"
 
     def tearDown(self):
         """Clean up after test."""

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,8 @@ import sys
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
@@ -49,15 +50,21 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
-def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
     _log.info("Using robot path(s): %s" % robot_path)
 
+    tweaked_ecs_path, tweaked_ecs_deps_path = None, None
     # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
-    if tweaked_ecs_path is not None:
+    if tweaked_ecs_paths is not None:
+        tweaked_ecs_path, tweaked_ecs_deps_path = tweaked_ecs_paths
+        # easyconfigs listed on the command line (and tweaked) should be found first
         robot_path.insert(0, tweaked_ecs_path)
-        _log.info("Prepended list of robot search paths with %s: %s" % (tweaked_ecs_path, robot_path))
+        # dependencies are always tweaked but we should only use them if there is no other option (so they come last)
+        robot_path.append(tweaked_ecs_deps_path)
+        _log.info("Prepended list of robot search paths with %s and appended with %s: %s", tweaked_ecs_path,
+                  tweaked_ecs_deps_path, robot_path)
     if pr_path is not None:
         robot_path.append(pr_path)
         _log.info("Appended list of robot search paths with %s: %s" % (pr_path, robot_path))
@@ -317,11 +324,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
-                        mods = [spec['ec'].full_mod_name for spec in processed_ecs]
-                        dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
-                        if not dep_mod_name in mods:
-                            raise EasyBuildError("easyconfig file %s does not contain module %s (mods: %s)",
-                                                 path, dep_mod_name, mods)
+                        verify_easyconfig_filename(path, cand_dep, parsed_ec=processed_ecs)
 
                         for ec in processed_ecs:
                             if not ec in easyconfigs + additional:
@@ -353,12 +356,50 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
 
 def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     """Search for easyconfigs, if a query is provided."""
-    robot_path = build_option('robot_path')
-    if robot_path:
-        search_path = robot_path
-    else:
+    search_path = build_option('robot_path')
+    if not search_path:
         search_path = [os.getcwd()]
+
     ignore_dirs = build_option('ignore_dirs')
-    silent = build_option('silent')
-    search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent, filename_only=filename_only,
-                terse=terse)
+
+    # note: don't pass down 'filename_only' here, we need the full path to filter out archived easyconfigs
+    var_defs, _hits = search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, terse=terse,
+                                  silent=True, filename_only=False)
+
+     # filter out archived easyconfigs, these are handled separately
+    hits, archived_hits = [], []
+    for hit in _hits:
+        if EASYCONFIGS_ARCHIVE_DIR in hit.split(os.path.sep):
+            archived_hits.append(hit)
+        else:
+            hits.append(hit)
+
+    # check whether only filenames should be printed
+    if filename_only:
+        hits = [os.path.basename(hit) for hit in hits]
+        archived_hits = [os.path.basename(hit) for hit in archived_hits]
+
+    # prepare output format
+    if terse:
+        lines, tmpl = [], '%s'
+    else:
+        lines = ['%s=%s' % var_def for var_def in var_defs]
+        tmpl = ' * %s'
+
+    # non-archived hits are shown first
+    lines.extend(tmpl % hit for hit in hits)
+
+    # also take into account archived hits
+    if archived_hits:
+        if build_option('consider_archived_easyconfigs'):
+            if not terse:
+                lines.extend(['', "Matching archived easyconfigs:", ''])
+            lines.extend(tmpl % hit for hit in archived_hits)
+        elif not terse:
+            cnt = len(archived_hits)
+            lines.extend([
+                '',
+                "Note: %d matching archived easyconfig(s) found, use --consider-archived-easyconfigs to see them" % cnt,
+            ])
+
+    print '\n'.join(lines)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,7 +46,7 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -276,17 +276,21 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
 
 def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
     """Obtain alternative paths for easyconfig files."""
-    # path where tweaked easyconfigs will be placed
-    tweaked_ecs_path = None
+
+    # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
+    # prepended to the robot path, tweaked dependencies are also created but these will only be appended to the robot
+    # path (and therefore only used if strictly necessary)
+    tweaked_ecs_paths = None
     if tweaked_ecs:
-        tweaked_ecs_path = os.path.join(tmpdir, 'tweaked_easyconfigs')
+        tweaked_ecs_paths = (os.path.join(tmpdir, 'tweaked_easyconfigs'),
+                             os.path.join(tmpdir, 'tweaked_dep_easyconfigs'))
 
     # path where files touched in PR will be downloaded to
     pr_path = None
     if from_pr:
         pr_path = os.path.join(tmpdir, "files_pr%s" % from_pr)
 
-    return tweaked_ecs_path, pr_path
+    return tweaked_ecs_paths, pr_path
 
 
 def det_easyconfig_paths(orig_paths):
@@ -343,6 +347,10 @@ def det_easyconfig_paths(orig_paths):
 
                 # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
                 dirnames[:] = [d for d in dirnames if d not in build_option('ignore_dirs')]
+
+                # ignore archived easyconfigs, unless specified otherwise
+                if not build_option('consider_archived_easyconfigs'):
+                    dirnames[:] = [d for d in dirnames if d != EASYCONFIGS_ARCHIVE_DIR]
 
             # stop os.walk insanity as soon as we have all we need (outer loop)
             if not ecs_to_find:

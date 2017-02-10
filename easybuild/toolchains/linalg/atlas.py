@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,9 @@ Support for ATLAS as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_ATLAS = 'ATLAS'
+
+
 class Atlas(LinAlg):
     """
     Provides ATLAS BLAS/LAPACK support.
@@ -40,6 +43,8 @@ class Atlas(LinAlg):
     BLAS_MODULE_NAME = ['ATLAS']
     BLAS_LIB = ["cblas", "f77blas", "atlas"]
     BLAS_LIB_MT = ["ptcblas", "ptf77blas", "atlas"]
+    BLAS_FAMILY = TC_CONSTANT_ATLAS
 
     LAPACK_MODULE_NAME = ['ATLAS']
     LAPACK_LIB = ['lapack']
+    LAPACK_FAMILY = TC_CONSTANT_ATLAS

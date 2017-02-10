@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -221,6 +221,55 @@ class DocsTest(EnhancedTestCase):
         self.assertFalse(re.search('^\*gzip\*', txt, re.M))
         self.assertFalse(re.search('1\.4', txt, re.M))
         self.assertFalse(re.search('1\.5', txt, re.M))
+
+        # check for specific patterns in output for larger set of test easyconfigs
+        build_options = {
+            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')],
+            'silent': True,
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        expected = [
+            '* toy',
+            '',
+            'Toy C program.',
+            '',
+            'homepage: http://hpcugent.github.com/easybuild',
+            '',
+            "  * toy v0.0: dummy",
+            "  * toy v0.0 (versionsuffix: '-deps'): dummy",
+            "  * toy v0.0 (versionsuffix: '-iter'): dummy",
+            "  * toy v0.0 (versionsuffix: '-multiple'): dummy",
+            "  * toy v0.0 (versionsuffix: '-test'): gompi/1.3.12",
+        ]
+        txt = list_software(output_format='txt', detailed=True)
+        lines = txt.split('\n')
+        expected_found = any([lines[i:i+len(expected)] == expected for i in range(len(lines))])
+        self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
+
+        expected = [
+            '*toy*',
+            '+++++',
+            '',
+            'Toy C program.',
+            '',
+            '*homepage*: http://hpcugent.github.com/easybuild',
+            '',
+            '=======    =============    ================',
+            'version    versionsuffix    toolchain       ',
+            '=======    =============    ================',
+            '``0.0``    ````             ``dummy``       ',
+            '``0.0``    ``-deps``        ``dummy``       ',
+            '``0.0``    ``-iter``        ``dummy``       ',
+            '``0.0``    ``-multiple``    ``dummy``       ',
+            '``0.0``    ``-test``        ``gompi/1.3.12``',
+            '=======    =============    ================',
+        ]
+        txt = list_software(output_format='rst', detailed=True)
+        lines = txt.split('\n')
+        expected_found = any([lines[i:i+len(expected)] == expected for i in range(len(lines))])
+        self.assertTrue(expected_found, "%s found in: %s" % (expected, lines))
 
 
 def suite():

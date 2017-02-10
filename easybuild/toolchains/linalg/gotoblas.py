@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,9 +32,13 @@ Support for GotoBLAS as toolchain linear algebra library.
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
+TC_CONSTANT_GOTOBLAS = 'GotoBLAS'
+
+
 class GotoBLAS(LinAlg):
     """
     Trivial class, provides GotoBLAS support.
     """
     BLAS_MODULE_NAME = ['GotoBLAS']
     BLAS_LIB = ['goto']
+    BLAS_FAMILY = TC_CONSTANT_GOTOBLAS

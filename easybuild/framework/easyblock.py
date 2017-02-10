@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,6 +40,7 @@ import copy
 import glob
 import inspect
 import os
+import re
 import shutil
 import stat
 import tempfile
@@ -52,8 +53,8 @@ from vsc.utils.missing import get_class_for
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
+from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -70,7 +71,7 @@ from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_fi
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
@@ -185,6 +186,9 @@ class EasyBlock(object):
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
+
+        # list of locations to include in RPATH filter used by toolchain
+        self.rpath_filter_dirs = []
 
         # logging
         self.log = None
@@ -519,7 +523,7 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            filepath = os.path.join(srcpaths[0], self.name[0].lower(), self.name)
+            filepath = os.path.join(srcpaths[0], letter_dir_for(self.name), self.name)
             if extension:
                 filepath = os.path.join(filepath, "extensions")
             self.log.info("Creating path %s to download file to" % filepath)
@@ -557,7 +561,7 @@ class EasyBlock(object):
             for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(path, self.name)
-                letterpath = os.path.join(path, self.name.lower()[0], self.name)
+                letterpath = os.path.join(path, letter_dir_for(self.name), self.name)
 
                 # most likely paths
                 candidate_filepaths = [
@@ -923,17 +927,16 @@ class EasyBlock(object):
                 self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
-        builddeps = self.cfg.builddependencies()
-        # include 'module load' statements for dependencies in reverse order
+        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
-            if not dep in builddeps:
+            if dep['build_only']:
+                self.log.debug("Skipping build dependency %s", dep)
+            else:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-            else:
-                self.log.debug("Skipping build dependency %s" % str(dep))
 
-        self.log.debug("Full list of dependencies: %s" % deps)
+        self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
@@ -941,9 +944,18 @@ class EasyBlock(object):
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, deps)
+        self.log.debug("List of excluded deps: %s", excluded_deps)
+
+        # load modules that open up the module tree before checking deps of deps (in reverse order)
+        self.modules_tool.load(excluded_deps[::-1])
 
         deps = [d for d in deps if d not in excluded_deps]
-        self.log.debug("List of retained dependencies: %s" % deps)
+        for dep in excluded_deps:
+            excluded_dep_deps = dependencies_for(dep, self.modules_tool)
+            self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
+            deps = [d for d in deps if d not in excluded_dep_deps]
+
+        self.log.debug("List of retained deps to load in generated module: %s" % deps)
         recursive_unload = self.cfg['recursive_module_unload']
 
         loads = []
@@ -1584,8 +1596,14 @@ class EasyBlock(object):
         # clean environment, undefine any unwanted environment variables that may be harmful
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
 
+        # list of paths to include in RPATH filter;
+        # only include builddir if we're not building in installation directory
+        self.rpath_filter_dirs.append(tempfile.gettempdir())
+        if not self.build_in_installdir:
+            self.rpath_filter_dirs.append(self.builddir)
+
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent)
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs)
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:
@@ -1747,7 +1765,8 @@ class EasyBlock(object):
             else:
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
-                inst.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False)
+                inst.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
             # real work
             inst.prerun()
@@ -1813,6 +1832,77 @@ class EasyBlock(object):
         else:
             self._sanity_check_step(*args, **kwargs)
 
+    def sanity_check_rpath(self, rpath_dirs=None):
+        """Sanity check binaries/libraries w.r.t. RPATH linking."""
+
+        fails = []
+
+        # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
+        orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
+
+        self.log.debug("$LD_LIBRARY_PATH during RPATH sanity check: %s", os.getenv('LD_LIBRARY_PATH', '(empty)'))
+        self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+
+        not_found_regex = re.compile('not found', re.M)
+        readelf_rpath_regex = re.compile('(RPATH)', re.M)
+
+        if rpath_dirs is None:
+            rpath_dirs = ['bin', 'lib', 'lib64']
+            self.log.info("Using default subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+        else:
+            self.log.info("Using specified subdirs for binaries/libraries to verify RPATH linking: %s", rpath_dirs)
+
+        for dirpath in [os.path.join(self.installdir, d) for d in rpath_dirs]:
+            if os.path.exists(dirpath):
+                self.log.debug("Sanity checking RPATH for files in %s", dirpath)
+
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Sanity checking RPATH for %s", path)
+
+                    out, ec = run_cmd("file %s" % path, simple=False)
+                    if ec:
+                        fails.append("Failed to run 'file %s': %s" % (path, out))
+
+                    # only run ldd/readelf on dynamically linked executables/libraries
+                    # example output:
+                    # ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), ...
+                    # ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, not stripped
+                    if "dynamically linked" in out:
+                        # check whether all required libraries are found via 'ldd'
+                        out, ec = run_cmd("ldd %s" % path, simple=False)
+                        if ec:
+                            fail_msg = "Failed to run 'ldd %s': %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        elif not_found_regex.search(out):
+                            fail_msg = "One or more required libraries not found for %s: %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        else:
+                            self.log.debug("Output of 'ldd %s' checked, looks OK", path)
+
+                        # check whether RPATH section in 'readelf -d' output is there
+                        out, ec = run_cmd("readelf -d %s" % path, simple=False)
+                        if ec:
+                            fail_msg = "Failed to run 'readelf %s': %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        elif not readelf_rpath_regex.search(out):
+                            fail_msg = "No '(RPATH)' found in 'readelf -d' output for %s: %s" % (path, out)
+                            self.log.warning(fail_msg)
+                            fails.append(fail_msg)
+                        else:
+                            self.log.debug("Output of 'readelf -d %s' checked, looks OK", path)
+
+                    else:
+                        self.log.debug("%s is not dynamically linked, so skipping it in RPATH sanity check", path)
+            else:
+                self.log.debug("Not sanity checking files in non-existing directory %s", dirpath)
+
+        env.restore_env_vars(orig_env)
+
+        return fails
+
     def _sanity_check_step_common(self, custom_paths, custom_commands):
         """Determine sanity check paths and commands to use."""
 
@@ -1861,22 +1951,23 @@ class EasyBlock(object):
             # non-tuple commands
             if isinstance(command, basestring):
                 self.log.debug("Using %s as sanity check command" % command)
-                command = (command, None)
-            elif not isinstance(command, tuple):
-                self.log.debug("Setting sanity check command to default")
-                command = (None, None)
+                commands[i] = command
+            else:
+                if not isinstance(command, tuple):
+                    self.log.debug("Setting sanity check command to default")
+                    command = (None, None)
 
-            # Build substition dictionary
-            check_cmd = {
-                'name': self.name.lower(),
-                'options': '-h',
-            }
-            if command[0] is not None:
-                check_cmd['name'] = command[0]
-            if command[1] is not None:
-                check_cmd['options'] = command[1]
+                # Build substition dictionary
+                check_cmd = {
+                    'name': self.name.lower(),
+                    'options': '-h',
+                }
+                if command[0] is not None:
+                    check_cmd['name'] = command[0]
+                if command[1] is not None:
+                    check_cmd['options'] = command[1]
 
-            commands[i] = "%(name)s %(options)s" % check_cmd
+                commands[i] = "%(name)s %(options)s" % check_cmd
 
         return paths, path_keys_and_check, commands
 
@@ -1898,6 +1989,11 @@ class EasyBlock(object):
                 self.dry_run_msg("  * %s", str(command))
         else:
             self.dry_run_msg("  (none)")
+
+        if self.toolchain.use_rpath:
+            self.sanity_check_rpath()
+        else:
+            self.log.debug("Skiping RPATH sanity check")
 
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
@@ -1952,7 +2048,7 @@ class EasyBlock(object):
                 self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
-                self.log.debug("sanity check command %s ran successfully! (output: %s)" % (command, out))
+                self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
@@ -1964,6 +2060,14 @@ class EasyBlock(object):
         # cleanup
         if fake_mod_data:
             self.clean_up_fake_module(fake_mod_data)
+
+        if self.toolchain.use_rpath:
+            rpath_fails = self.sanity_check_rpath()
+            if rpath_fails:
+                self.log.warning("RPATH sanity check failed!")
+                self.sanity_check_fail_msgs.extend(rpath_fails)
+        else:
+            self.log.debug("Skiping RPATH sanity check")
 
         # pass or fail
         if self.sanity_check_fail_msgs:
@@ -2441,16 +2545,10 @@ def build_and_install_one(ecdict, init_env):
             if build_option("minimal_toolchains"):
                 # for reproducability we dump out the parsed easyconfig since the contents are affected when
                 # --minimal-toolchains (and --use-existing-modules) is used
-                _log.debug("Dumping parsed easyconfig rather than original easyconfig to install dir")
-
-                # add the parsed file to the reproducability directory
                 # TODO --try-toolchain needs to be fixed so this doesn't play havoc with it's usability
-                repo_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
-                app.cfg.dump(repo_spec)
-
-            else:
-                _log.debug("Dumping original easyconfig to install dir")
-                repo_spec = spec
+                reprod_spec = os.path.join(new_log_dir, 'reprod', ec_filename)
+                app.cfg.dump(reprod_spec)
+                _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
 
             try:
                 # upload spec to central repository
@@ -2459,7 +2557,7 @@ def build_and_install_one(ecdict, init_env):
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(repo_spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:

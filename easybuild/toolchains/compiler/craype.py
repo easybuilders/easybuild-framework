@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2016 Ghent University
+# Copyright 2014-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -137,7 +137,6 @@ class CrayPEGCC(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEGCC constructor."""
         super(CrayPEGCC, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'fopenmp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Gcc.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
@@ -150,7 +149,6 @@ class CrayPEIntel(CrayPECompiler):
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
         super(CrayPEIntel, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'fopenmp'
         for precflag in self.COMPILER_PREC_FLAGS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
