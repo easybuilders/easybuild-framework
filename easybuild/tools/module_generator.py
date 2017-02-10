@@ -276,7 +276,7 @@ class ModuleGenerator(object):
         # Extensions (if any)
         exts_list = self.app.cfg['exts_list']
         if exts_list:
-            extensions = ', '.join(['%s-%s' % (ext[0], ext[1]) for ext in sorted(exts_list)])
+            extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
             lines.extend([
                 '',
                 '',
