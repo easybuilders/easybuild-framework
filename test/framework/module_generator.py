@@ -72,17 +72,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
 
-        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
-        gzip_txt += "- Homepage: http://www.gzip.org/"
+        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+        homepage = " - Homepage: http://www.gzip.org/"
+        whatis = gzip_txt + homepage
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
-                "    puts stderr { %s" % gzip_txt,
+                "    puts stderr {",
+                'Description',
+                '===========',
+                "%s" % gzip_txt,
+                '',
+                '',
+                "More information",
+                "================",
+                "%s" % homepage,
                 "    }",
                 "}",
                 '',
-                "module-whatis {Description: %s}" % gzip_txt,
+                "module-whatis {Description: %s}" % whatis,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -92,9 +101,19 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help([[%s]])' % gzip_txt,
+                "help([[",
                 '',
-                "whatis([[Description: %s]])" % gzip_txt,
+                'Description',
+                '===========',
+                "%s" % gzip_txt,
+                '',
+                '',
+                "More information",
+                "================",
+                "%s" % homepage,
+                ']])',
+                '',
+                "whatis([[Description: %s]])" % whatis,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -110,7 +129,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
-                "    puts stderr { %s" % gzip_txt,
+                "    puts stderr {",
+                'Description',
+                '===========',
+                "%s" % gzip_txt,
+                '',
+                '',
+                "More information",
+                "================",
+                "%s" % homepage,
                 "    }",
                 "}",
                 '',
@@ -125,7 +152,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help([[%s]])' % gzip_txt,
+                "help([[",
+                '',
+                'Description',
+                '===========',
+                "%s" % gzip_txt,
+                '',
+                '',
+                "More information",
+                "================",
+                "%s" % homepage,
+                ']])',
                 '',
                 "whatis([[foo]])",
                 "whatis([[bar]])",
