@@ -188,7 +188,7 @@ def readlink(symlink_path):
 def symlink(source_path, symlink_path):
     """Create a symlink at the specified path to the given path."""
 
-    if build_option('extended_dry_run'):
+    if build_option('extended_dry_run', default=False):
         dry_run_msg("Symlinked file %s to %s" % (source_path, symlink_path), silent=build_option('silent'))
         return
 
