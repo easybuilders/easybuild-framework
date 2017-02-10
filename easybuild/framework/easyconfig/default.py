@@ -159,6 +159,8 @@ DEFAULT_CONFIG = {
     # MODULES easyconfig parameters
     'whatis': [None, "List of brief (one line) package description entries", MODULES],
     'usage': [None, "Usage instructions for the software", MODULES],
+    'docpaths': [None, "List of paths of installed documentation relative to package root dir", MODULES],
+    'docurls': [None, "List of URLs to package documentation", MODULES],
     'support': [None, "Package-specific support/bug report address", MODULES],
     'contact': [None, "Site contact for the package", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],

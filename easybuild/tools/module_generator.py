@@ -41,8 +41,8 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, read_file
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.filetools import convert_name, mkdir, read_file
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, modules_tool
 from easybuild.tools.utilities import quote_str
 from textwrap import wrap
 
@@ -245,6 +245,16 @@ class ModuleGenerator(object):
             '================',
             " - Homepage: %s" % homepage,
         ])
+
+        docpaths = self.app.cfg['docpaths'] or []
+        docurls = self.app.cfg['docurls'] or []
+        if docpaths or docurls:
+            env_name = convert_name(self.app.name, upper=True)
+            root_envvar = ROOT_ENV_VAR_NAME_PREFIX + env_name
+            lines.extend([" - Documentation:"])
+            lines.extend(["     - $%s/%s" % (root_envvar,path) for path in docpaths])
+            lines.extend(["     - %s" % url for url in docurls])
+
         support = self.app.cfg['support']
         if support:
             if isinstance(support, list):
@@ -252,6 +262,7 @@ class ModuleGenerator(object):
                 lines.extend(["     - %s" % address for address in support])
             else:
                 lines.extend([" - Support/bug reports: %s" % support])
+
         contact = self.app.cfg['contact']
         if contact:
             if isinstance(contact, list):
@@ -260,6 +271,7 @@ class ModuleGenerator(object):
             else:
                 lines.extend([" - Site contact: %s" % contact])
 
+        # Extensions (if any)
         exts_list = self.app.cfg['exts_list']
         if exts_list:
             extensions = ', '.join(['%s-%s' % (ext[0], ext[1]) for ext in sorted(exts_list)])
