@@ -1067,7 +1067,8 @@ class EasyBlock(object):
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
         # add extra stuff for extensions (if any)
-        footer.append(self.make_module_extra_extensions())
+        if self.cfg['exts_list']:
+            footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
         if self.modules_footer is not None:
