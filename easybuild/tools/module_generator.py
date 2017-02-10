@@ -46,6 +46,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
 from textwrap import wrap
 
+
 _log = fancylogger.getLogger('module_generator', fname=False)
 
 
@@ -247,10 +248,10 @@ class ModuleGenerator(object):
         support = self.app.cfg['support']
         if support:
             if isinstance(support, list):
-                lines.extend([" - Support/ bug reports:"])
+                lines.extend([" - Support/bug reports:"])
                 lines.extend(["     - %s" % address for address in support])
             else:
-                lines.extend([" - Support/ bug reports: %s" % support])
+                lines.extend([" - Support/bug reports: %s" % support])
         contact = self.app.cfg['contact']
         if contact:
             if isinstance(contact, list):
