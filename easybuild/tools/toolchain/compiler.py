@@ -30,7 +30,7 @@ Toolchain compiler module, provides abstract class for compilers.
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -323,12 +323,15 @@ class Compiler(Toolchain):
             self.options.options_map['optarch'] = optarch
 
         if self.options.options_map.get('optarch', None) is None:
-            if use_generic:
-                raise EasyBuildError("_set_optimal_architecture: don't know how to set generic optarch for %s/%s",
-                                     self.arch, self.cpu_family)
+            message = "_set_optimal_architecture: don't know how to set%s optarch flags for %s/%s!" % \
+                      (('', ' generic')[use_generic], self.arch, self.cpu_family)
+            ignore_optarch = build_option('ignore_unknown_optarch_flags')
+            if ignore_optarch:
+                self.options.options_map['optarch'] = ''
+                print_warning(message + " Forced to continue build with compiler defaults.")
             else:
-                raise EasyBuildError("_set_optimal_architecture: don't know how to set optarch for %s/%s",
-                                     self.arch, self.cpu_family)
+                raise EasyBuildError(message + (" Use '--ignore-unknown-optarch-flags' to override and build with"
+                                                " compiler defaults."))
 
     def comp_family(self, prefix=None):
         """
