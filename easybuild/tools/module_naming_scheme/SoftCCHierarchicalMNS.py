@@ -181,11 +181,12 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 if ec['name'] == 'iccifort':
                     comp_name_ver = ['intel' + self.det_twodigit_version(ec)]
             # Exclude extending the path for icc/ifort, the iccifort special case is handled above
-            if ec['name'] not in ['icc', 'ifort']:
-                paths.append(os.path.join(COMPILER, *comp_name_ver))
-                # Always extend to capture the MPI implementations too (which are in a separate directory)
-                if ec['name'] not in [GCCCORE]:
-                    paths.append(os.path.join(COMPILER, MODULECLASS_MPI, *comp_name_ver))
+            # XXX use custom code for MODULEPATH for compilers via modluafooter
+            #if ec['name'] not in ['icc', 'ifort']:
+            #    paths.append(os.path.join(COMPILER, *comp_name_ver))
+            #    # Always extend to capture the MPI implementations too (which are in a separate directory)
+            #    if ec['name'] not in [GCCCORE]:
+            #        paths.append(os.path.join(COMPILER, MODULECLASS_MPI, *comp_name_ver))
         elif modclass == MODULECLASS_MPI or ec['name'] == CUDA:
             if modclass == MODULECLASS_MPI:
                 prefix = MPI
