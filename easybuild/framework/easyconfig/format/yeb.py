@@ -71,10 +71,11 @@ class FormatYeb(EasyConfigFormat):
     """Support for easyconfig YAML format"""
     USABLE = True
 
-    def __init__(self):
+    def __init__(self, build_specs=None):
         """FormatYeb constructor"""
         super(FormatYeb, self).__init__()
         self.log.experimental("Parsing .yeb easyconfigs")
+        self._build_specs = build_specs
 
     def validate(self):
         """Format validation"""
@@ -93,7 +94,13 @@ class FormatYeb(EasyConfigFormat):
         Process YAML file
         """
         txt = self._inject_constants_dict(txt)
-        self.parsed_yeb = yaml.load(txt)
+        if self._build_specs:
+            self.log.experimental("We have found a yeb with build_specs, lets load_all")
+            self.parsed_yeb_list = yaml.load_all(txt)
+            self.parsed_yeb = self._handle_replacement()
+        else:
+            self.log.experimental("A yeb without build_specs, just load the first document and hope it works")
+            self.parsed_yeb = yaml.load(txt)
 
     def _inject_constants_dict(self, txt):
         """Inject constants so they are resolved when actually parsing the YAML text."""

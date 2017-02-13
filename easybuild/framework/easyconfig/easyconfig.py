@@ -1343,7 +1343,7 @@ def create_paths(path, name, version):
     return ['%s.eb' % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
-def robot_find_easyconfig(name, version):
+def robot_find_easyconfig(name, version, ec=None):
     """
     Find an easyconfig for module in path, returns (absolute) path to easyconfig file (or None, if none is found).
     """
@@ -1357,6 +1357,17 @@ def robot_find_easyconfig(name, version):
         paths = []
     elif not isinstance(paths, (list, tuple)):
         paths = [paths]
+
+    #TODO WRAP IN EXPERIMENTAL
+
+    #TODO create easyconfigs if name, version matches a yeb
+    # look in expected places based on paths
+    # reimplement create_paths given yeb
+    # software-version = ec['version']
+    # versionsuffix = ec['versionsuffix']
+    # name-version-versionsuffix.yeb
+
+    #TODO if yeb found, create temp directory and generate conventional ECs and add to paths
 
     # if we should also consider archived easyconfigs, duplicate paths list with archived equivalents
     if build_option('consider_archived_easyconfigs'):
@@ -1440,7 +1451,7 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
     # start with subtoolchains first, i.e. first (dummy or) compiler-only toolchain, etc.
     for tc in toolchain_hierarchy:
         newdep['toolchain'] = tc
-        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep))
+        eb_file = robot_find_easyconfig(newdep['name'], det_full_ec_version(newdep), ec=newdep)
         if eb_file is not None:
             module_exists = False
             # if necessary check if module exists

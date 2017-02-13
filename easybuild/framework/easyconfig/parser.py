@@ -80,7 +80,7 @@ class EasyConfigParser(object):
     """
 
     def __init__(self, filename=None, format_version=None, rawcontent=None,
-                 auto_convert_value_types=True):
+                 auto_convert_value_types=True, build_specs=None):
         """
         Initialise the EasyConfigParser class
         :param filename: path to easyconfig file to parse (superseded by rawcontent, if specified)
@@ -88,6 +88,7 @@ class EasyConfigParser(object):
         :param rawcontent: raw content of easyconfig file to parse (preferred over easyconfig file supplied via filename)
         :param auto_convert_value_types: indicates whether types of easyconfig values should be automatically converted
                                          in case they are wrong
+        :param build_specs: Some types of parsers need to know the build_specs context
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -100,6 +101,7 @@ class EasyConfigParser(object):
 
         self.format_version = format_version
         self._formatter = None
+        self._build_specs = build_specs
         if rawcontent is not None:
             self.rawcontent = rawcontent
             self._set_formatter(filename)
@@ -189,7 +191,7 @@ class EasyConfigParser(object):
         """Obtain instance of the formatter"""
         if self._formatter is None:
             if is_yeb_format(filename, self.rawcontent):
-                self._formatter = FormatYeb()
+                self._formatter = FormatYeb(self._build_specs)
             else:
                 klass = self._get_format_version_class()
                 self._formatter = klass()
