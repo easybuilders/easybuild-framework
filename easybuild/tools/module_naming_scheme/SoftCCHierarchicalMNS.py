@@ -90,7 +90,7 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
         """
         Determine module subdirectory, relative to the top of the module path.
         This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
-        Examples: Core, Compiler/GCC/4.8.3, MPI/GCC/4.8.3/OpenMPI/1.6.5
+        Examples: Core, avx2/Compiler/gcc4.8, avx/MPI/gcc4.8/openmpi1.6
         """
         tc_comps = det_toolchain_compilers(ec)
         tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
@@ -128,6 +128,10 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 tc_mpi_fullver = self.det_twodigit_version(tc_mpi)
                 subdir = os.path.join(MPI, tc_comp_name+tc_comp_ver, tc_mpi_name+tc_mpi_fullver)
 
+        if os.getenv('RSNT_ARCH') is None:
+            raise EasyBuildError("Need to set architecture to determine module path in $RSNT_ARCH")
+        if subdir != CORE:
+            subdir = os.path.join(os.getenv('RSNT_ARCH'), subdir)
         return subdir
 
     def det_twodigit_version(self, ec):
@@ -140,7 +144,7 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
     def det_modpath_extensions(self, ec):
         """
         Determine module path extensions, if any.
-        Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
+        Examples: avx2/Compiler/gcc4.8 (for GCC/4.8.5 module), avx/MPI/intel2016.4/openmpi2.0 (for OpenMPI/2.0.2 module)
         """
         modclass = ec['moduleclass']
         tc_comps = det_toolchain_compilers(ec)
@@ -204,6 +208,10 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                     subdir = os.path.join(subdir, tc_cuda_name+tc_cuda_fullver)
                 paths.append(os.path.join(prefix, subdir, ec['name'].lower()+fullver))
 
+        if os.getenv('RSNT_ARCH') is None:
+            raise EasyBuildError("Need to set architecture for MODULEPATH extension in $RSNT_ARCH")
+        for i, path in enumerate(paths):
+            paths[i] = os.path.join(os.getenv('RSNT_ARCH'), path)
         return paths
 
     def expand_toolchain_load(self, ec):
