@@ -116,14 +116,10 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                     tc_mpi_fullver = self.det_twodigit_version(tc_mpi)
                     subdir = os.path.join(MPI, subdir, tc_mpi_name+tc_mpi_fullver)
             elif tc_mpi is None:
-                # compiler-only toolchain => Compiler/<compiler_name>/<compiler_version> namespace
-                # but we want the mpi module class to stand alone
-                if ec['moduleclass'] == MODULECLASS_MPI:
-                    subdir = os.path.join(COMPILER, MODULECLASS_MPI, tc_comp_name+tc_comp_ver)
-                else:
-                    subdir = os.path.join(COMPILER, tc_comp_name+tc_comp_ver)
+                # compiler-only toolchain => Compiler/<compiler_name><compiler_version> namespace
+                subdir = os.path.join(COMPILER, tc_comp_name+tc_comp_ver)
             else:
-                # compiler-MPI toolchain => MPI/<comp_name>/<comp_version>/<MPI_name>/<MPI_version> namespace
+                # compiler-MPI toolchain => MPI/<comp_name><comp_version>/<MPI_name><MPI_version> namespace
                 tc_mpi_name = tc_mpi['name'].lower()
                 tc_mpi_fullver = self.det_twodigit_version(tc_mpi)
                 subdir = os.path.join(MPI, tc_comp_name+tc_comp_ver, tc_mpi_name+tc_mpi_fullver)
@@ -184,9 +180,6 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
             # XXX use custom code for MODULEPATH for compilers via modluafooter
             #if ec['name'] not in ['icc', 'ifort']:
             #    paths.append(os.path.join(COMPILER, *comp_name_ver))
-            #    # Always extend to capture the MPI implementations too (which are in a separate directory)
-            #    if ec['name'] not in [GCCCORE]:
-            #        paths.append(os.path.join(COMPILER, MODULECLASS_MPI, *comp_name_ver))
         elif modclass == MODULECLASS_MPI or ec['name'] == CUDA:
             if modclass == MODULECLASS_MPI:
                 prefix = MPI
