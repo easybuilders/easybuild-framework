@@ -86,6 +86,10 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
         """
         return os.path.join(ec['name'].lower(), self.det_full_version(ec))
 
+    def det_full_version(self, ec):
+        """Determine full version, NOT using version prefix/suffix."""
+        return ec['version']
+
     def det_module_subdir(self, ec):
         """
         Determine module subdirectory, relative to the top of the module path.
