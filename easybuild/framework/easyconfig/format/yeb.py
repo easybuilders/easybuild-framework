@@ -48,6 +48,7 @@ YAML_SEP = '---'
 YEB_FORMAT_EXTENSION = '.yeb'
 YAML_SPECIAL_CHARS = set(":{}[],&*#?|-<>=!%@\\")
 
+
 def yaml_join(loader, node):
     """
     defines custom YAML join function.
@@ -96,7 +97,7 @@ class FormatYeb(EasyConfigFormat):
         txt = self._inject_constants_dict(txt)
         if self._build_specs:
             self.log.experimental("We have found a yeb with build_specs, lets load_all")
-            self.parsed_yeb_list = yaml.load_all(txt)
+            self.parsed_yeb_list = list(yaml.load_all(txt))
             self.parsed_yeb = self._handle_replacement()
         else:
             self.log.experimental("A yeb without build_specs, just load the first document and hope it works")
@@ -112,18 +113,49 @@ class FormatYeb(EasyConfigFormat):
         # %YAML 1.2
         # ---
         yaml_header = []
+        start_doc_arr = []
         for i, line in enumerate(lines):
             if line.startswith(YAML_DIR):
                 if lines[i+1].startswith(YAML_SEP):
                     yaml_header.extend([lines.pop(i), lines.pop(i)])
+            if line.startswith(YAML_SEP):
+                start_doc_arr.append(i+1)
 
         injected_constants = ['__CONSTANTS__: ']
         for key, value in constants_dict.items():
             injected_constants.append('%s- &%s %s' % (INDENT_4SPACES, key, quote_str(value)))
+        add_len = 0
 
-        full_txt = '\n'.join(yaml_header + injected_constants + lines)
+        for inject_point in start_doc_arr:
+            fix_inject_point = inject_point + add_len
+            lines[fix_inject_point:fix_inject_point] = injected_constants
+            add_len = add_len + len(injected_constants)
 
+        full_txt = '\n'.join(yaml_header + lines)
+        self.log.experimental("Full text with constants injected: %s" % full_txt)
+        print full_txt
         return full_txt
+
+    def _handle_replacement(self):
+        meta_yeb = self.parsed_yeb_list[0]
+        root_yeb = self.parsed_yeb_list[1]
+        for parsed_yeb in self.parsed_yeb_list[1:]:
+            target_yeb = root_yeb
+            parsed_add = parsed_yeb.get('add')
+            parsed_replace = parsed_yeb.get('replace')
+            for key in parsed_yeb.keys():
+                target_yeb[key] = parsed_yeb[key]
+            if parsed_add:
+                for add_key in parsed_add.keys():
+                    target_yeb[add_key].append(parsed_yeb['add'][add_key])
+            if parsed_replace:
+                for rep_key in parsed_replace.keys():
+                    target_yeb[rep_key] = parsed_yeb['replace'][rep_key]
+
+            target_toolchain = target_yeb.get('toolchain')
+
+            if self._build_specs == target_toolchain:
+                return target_yeb
 
     def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump parsed easyconfig in .yeb format"""
@@ -148,6 +180,7 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
+
 
 def quote_yaml_special_chars(val):
     """

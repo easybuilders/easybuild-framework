@@ -320,7 +320,8 @@ class EasyConfig(object):
         # parse easyconfig file
         self.build_specs = build_specs
         self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
-                                       auto_convert_value_types=auto_convert_value_types)
+                                       auto_convert_value_types=auto_convert_value_types,
+                                       build_specs=build_specs)
         self.parse()
 
         # perform validations

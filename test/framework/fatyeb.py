@@ -48,21 +48,21 @@ except ImportError:
     pass
 
 
-class YebTest(EnhancedTestCase):
+class FatYebTest(EnhancedTestCase):
     """ Testcase for run module """
 
     def setUp(self):
         """Test setup."""
-        super(YebTest, self).setUp()
+        super(FatYebTest, self).setUp()
         self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
     def tearDown(self):
         """Test cleanup."""
-        super(YebTest, self).tearDown()
+        super(FatYebTest, self).tearDown()
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
 
-    def test_parse_yeb(self):
+    def test_parse_fatyeb(self):
         """Test parsing of .yeb easyconfigs."""
         if 'yaml' not in sys.modules:
             print "Skipping test_parse_yeb (no PyYAML available)"
@@ -72,7 +72,10 @@ class YebTest(EnhancedTestCase):
             'check_osdeps': False,
             'external_modules_metadata': {},
             'valid_module_classes': module_classes(),
+            'build_specs': {'toolchain': {'name': 'dummy', 'version': 'dummy'}}
         }
+        build_specs = {'toolchain': ['dummy', 'dummy']}
+
         init_config(build_options=build_options)
         easybuild.tools.build_log.EXPERIMENTAL = True
 
@@ -82,18 +85,15 @@ class YebTest(EnhancedTestCase):
 
         # test parsing
         test_files = [
-            'bzip2-1.0.6-GCC-4.9.2',
-            'gzip-1.6-GCC-4.9.2',
-            'goolf-1.4.10',
-            'ictce-4.1.13',
-            'SQLite-3.8.10.2-goolf-1.4.10',
-            'Python-2.7.10-ictce-4.1.13',
-            'CrayCCE-5.1.29',
-            'toy-0.0',
+            ['bzip2-1.0.6', ['dummy', 'dummy']],
+            ['toy-0.0', ['dummy', 'dummy']],
         ]
 
         for filename in test_files:
-            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
+            ec_yeb = EasyConfig(
+                os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename[0]),
+                build_specs=build_specs
+                )
             # compare with parsed result of .eb easyconfig
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)
@@ -186,7 +186,7 @@ class YebTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(YebTest, sys.argv[1:])
+    return TestLoaderFiltered().loadTestsFromTestCase(FatYebTest, sys.argv[1:])
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
