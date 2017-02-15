@@ -259,7 +259,7 @@ class DocsTest(EnhancedTestCase):
             '=======    =============    ================',
             'version    versionsuffix    toolchain       ',
             '=======    =============    ================',
-            '``0.0``    ````             ``dummy``       ',
+            '``0.0``                     ``dummy``       ',
             '``0.0``    ``-deps``        ``dummy``       ',
             '``0.0``    ``-iter``        ``dummy``       ',
             '``0.0``    ``-multiple``    ``dummy``       ',

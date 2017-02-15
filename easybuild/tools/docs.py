@@ -667,7 +667,10 @@ def list_software_rst(software, detailed=False):
             for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
                 table_values[0].append('``%s``' % ver)
                 if with_vsuff:
-                    table_values[1].append('``%s``' % vsuff)
+                    if vsuff:
+                        table_values[1].append('``%s``' % vsuff)
+                    else:
+                        table_values[1].append('')
                 tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
                 table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
 
