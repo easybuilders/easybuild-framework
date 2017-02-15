@@ -278,4 +278,5 @@ def print_warning(message, silent=False):
     """
     Print warning message.
     """
-    print_msg("WARNING: %s\n" % message, silent=silent)
+    if not silent:
+        sys.stderr.write("\nWARNING: %s\n\n" % message)
