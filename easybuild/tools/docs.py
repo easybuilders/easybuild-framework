@@ -183,7 +183,7 @@ def avail_easyconfig_licenses(output_format=FORMAT_TXT):
 def avail_easyconfig_licenses_txt():
     """Generate easyconfig license documentation in txt format"""
     doc = ["License constants that can be used in easyconfigs"]
-    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
+    for lic_name, lic in sorted(EASYCONFIG_LICENSES_DICT.items()):
         lic_inst = lic()
         strver = ''
         if lic_inst.version:
@@ -203,10 +203,11 @@ def avail_easyconfig_licenses_rst():
         "Version",
     ]
 
+    lics = sorted(EASYCONFIG_LICENSES_DICT.items())
     table_values = [
-        ["``%s``" % name for name in EASYCONFIG_LICENSES_DICT.keys()],
-        ["%s" % lic().description for lic in EASYCONFIG_LICENSES_DICT.values()],
-        ["``%s``" % lic().version for lic in EASYCONFIG_LICENSES_DICT.values()],
+        ["``%s``" % lic().name for _, lic in lics],
+        ["%s" % lic().description for _, lic in lics],
+        ["``%s``" % lic().version for _, lic in lics],
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)

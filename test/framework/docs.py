@@ -32,7 +32,7 @@ import sys
 from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
-from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst, list_software
+from easybuild.tools.docs import avail_easyconfig_licenses, gen_easyblocks_overview_rst, list_software
 from easybuild.tools.utilities import import_available_modules
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
@@ -93,9 +93,13 @@ class DocsTest(EnhancedTestCase):
 
     def test_license_docs(self):
         """Test license_documentation function."""
-        lic_docs = avail_easyconfig_licenses_txt()
+        lic_docs = avail_easyconfig_licenses(output_format='txt')
         gplv3 = "GPLv3: The GNU General Public License"
         self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
+
+        lic_docs = avail_easyconfig_licenses(output_format='rst')
+        regex = re.compile("^``GPLv3``\s*The GNU General Public License", re.M)
+        self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
 
     def test_list_software(self):
         """Test list_software* functions."""
