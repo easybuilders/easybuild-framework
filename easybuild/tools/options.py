@@ -217,13 +217,13 @@ class EasyBuildOptions(GeneralOption):
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
-                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], 
+                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0],
                                            "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
                 'USER': (pwd.getpwuid(os.geteuid()).pw_name,
                          "Current username, translated uid from password file"),
-                'HOME': (os.path.expanduser('~'), 
+                'HOME': (os.path.expanduser('~'),
                          "Current user's home directory, expanded '~'")
             }
         }
@@ -315,6 +315,7 @@ class EasyBuildOptions(GeneralOption):
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
+            'allow-use-as-root': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)", None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -738,7 +739,7 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_optarch(self):
         """Postprocess --optarch option."""
         optarch_parts = self.options.optarch.split(OPTARCH_SEP)
-        
+
         # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
         n_parts = len(optarch_parts)
         map_char_cnts = [p.count(OPTARCH_MAP_CHAR) for p in optarch_parts]
@@ -754,7 +755,7 @@ class EasyBuildOptions(GeneralOption):
                                              compiler, self.options.optarch)
                     else:
                         optarch_dict[compiler] = compiler_opt
-                self.options.optarch = optarch_dict 
+                self.options.optarch = optarch_dict
                 self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
