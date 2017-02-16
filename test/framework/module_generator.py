@@ -38,7 +38,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import curr_module_paths
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
@@ -158,6 +158,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         txt = self.modgen.MODULE_SHEBANG
         if txt:
             txt += '\n'
+        txt += self.modgen.get_description()
         txt += self.modgen.set_environment('foo', 'bar')
 
         version_one = '1.0'

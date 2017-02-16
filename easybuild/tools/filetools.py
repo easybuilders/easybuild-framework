@@ -185,17 +185,20 @@ def readlink(symlink_path):
     return target_symlink_path
 
 
-def symlink(source_path, symlink_path):
+def symlink(source_path, symlink_path, use_abspath_source=True):
     """
     Create a symlink at the specified path to the given path.
 
     :param source_path: source file path
     :param symlink_path: symlink file path
     """
-
     try:
-        os.symlink(os.path.abspath(source_path), symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
+        if use_abspath_source:
+            os.symlink(os.path.abspath(source_path), symlink_path)
+            _log.info("Symlinked %s to %s", os.path.abspath(source_path), symlink_path)
+        else:
+            os.symlink(source_path, symlink_path)
+            _log.info("Symlinked %s to %s", source_path, symlink_path)
     except OSError as err:
         raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 

@@ -727,10 +727,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif os.path.exists(default_filepath):
             raise EasyBuildError('Found an unexpected file called default in dir %s' % module_folder_path)
 
-        cwd = os.getcwd()
-        #os.chdir(module_folder_path)
-        symlink(module_version + self.MODULE_FILE_EXTENSION, default_filepath)
-        #os.chdir(cwd)
+        symlink(module_version + self.MODULE_FILE_EXTENSION, default_filepath, use_abspath_source=False)
         self.log.info("Module default version file written to point to %s", default_filepath)
 
 
