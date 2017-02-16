@@ -43,6 +43,7 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
+from easybuild.tools.options import eb_shell_quote
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -134,7 +135,7 @@ def package_with_fpm(easyblock):
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
-        '--description', quote_str(easyblock.cfg["description"]),
+        '--description', quote_str(eb_shell_quote(easyblock.cfg["description"])),
         '--url', quote_str(easyblock.cfg["homepage"]),
     ]
     cmdlist.extend(exclude_files_glob)
