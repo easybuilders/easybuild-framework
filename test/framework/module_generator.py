@@ -35,6 +35,7 @@ import tempfile
 from distutils.version import StrictVersion
 from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
@@ -48,7 +49,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
-from vsc.utils.missing import nub
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -168,11 +168,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         version_two = '2.0'
         version_two_path = os.path.join(modules_base_path, version_two + self.modgen.MODULE_FILE_EXTENSION)
         write_file(version_two_path, txt)
-
-        # removing all available modules from the environment
-        mod_paths = [p for p in nub(curr_module_paths()) if os.path.exists(p)]
-        for mod_path in nub(mod_paths):
-            self.modtool.unuse(mod_path)
 
         # using base_path to possible module load
         self.modtool.use(base_path)

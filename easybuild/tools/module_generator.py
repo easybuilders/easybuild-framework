@@ -456,7 +456,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '$env(%s)' % envvar
 
-    # noinspection PyPackageRequirements,PyPackageRequirements
     def set_as_default(self, module_folder_path, module_version):
         """
         Create .version file inside the package module folder in order to set the default version
@@ -713,7 +712,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def set_as_default(self, module_folder_path, module_version):
         """
-        Create file called "default" inside the package's module folder in order
+        Create a symlink called "default" inside the package's module folder in order
         to set the default module version
         :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
         :param module_version: module version, e.g. 3.0.4
@@ -721,9 +720,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         default_filepath = os.path.join(module_folder_path, 'default')
 
         if os.path.islink(default_filepath):
-            points_to = readlink(default_filepath)
+            link_target = readlink(default_filepath)
             remove_file(default_filepath)
-            self.log.info("Removed default version marking from %s.", points_to)
+            self.log.info("Removed default version marking from %s.", link_target)
         elif os.path.exists(default_filepath):
             raise EasyBuildError('Found an unexpected file called default in dir %s' % module_folder_path)
 
