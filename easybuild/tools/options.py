@@ -350,8 +350,6 @@ class EasyBuildOptions(GeneralOption):
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
-            'ignore-unknown-optarch-flags': ("Force building w/o optarch flags if not defined for the toolchain, "
-                                             "i.e., use compiler defaults", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),

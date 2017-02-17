@@ -143,7 +143,6 @@ BUILD_OPTIONS_CMDLINE = {
         'force',
         'group_writable_installdir',
         'hidden',
-        'ignore_unknown_optarch_flags',
         'install_latest_eb_release',
         'minimal_toolchains',
         'module_only',

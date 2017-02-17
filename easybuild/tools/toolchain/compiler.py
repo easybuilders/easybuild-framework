@@ -323,15 +323,11 @@ class Compiler(Toolchain):
             self.options.options_map['optarch'] = optarch
 
         if self.options.options_map.get('optarch', None) is None:
-            message = "_set_optimal_architecture: don't know how to set%s optarch flags for %s/%s!" % \
-                      (('', ' generic')[use_generic], self.arch, self.cpu_family)
-            ignore_optarch = build_option('ignore_unknown_optarch_flags')
-            if ignore_optarch:
-                self.options.options_map['optarch'] = ''
-                print_warning(message + " Forced to continue build with compiler defaults.")
-            else:
-                raise EasyBuildError(message + (" Use '--ignore-unknown-optarch-flags' to override and build with"
-                                                " compiler defaults."))
+            raise EasyBuildError("_set_optimal_architecture: don't know how to set%s optarch flags for %s/%s!  Use "
+                                 "'--optarch=<flags>' to override (see "
+                                 "http://easybuild.readthedocs.io/en/latest/Controlling_compiler_optimization_flags.html "
+                                 "for details) and consider contributing your settings back.",
+                                 ('', ' generic')[use_generic], self.arch, self.cpu_family)
 
     def comp_family(self, prefix=None):
         """
