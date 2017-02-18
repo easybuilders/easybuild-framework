@@ -161,7 +161,7 @@ DEFAULT_CONFIG = {
     'usage': [None, "Usage instructions for the software", MODULES],
     'docpaths': [None, "List of paths of installed documentation relative to package root dir", MODULES],
     'upstream_contact': [None, "Upstream contact addresses (e.g., support e-mail, mailing list, bugtracker)", MODULES],
-    'contact': [None, "Site contact for the package", MODULES],
+    'site_contact': [None, "Site contact for the package", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],

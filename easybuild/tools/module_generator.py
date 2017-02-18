@@ -265,13 +265,13 @@ class ModuleGenerator(object):
             else:
                 lines.extend([" - Upstream contact: %s" % upstream])
 
-        contact = self.app.cfg['contact']
-        if contact:
-            if isinstance(contact, list):
+        site_contact = self.app.cfg['site_contact']
+        if site_contact:
+            if isinstance(site_contact, list):
                 lines.extend([" - Site contacts:"])
-                lines.extend(["    - %s" % address for address in contact])
+                lines.extend(["    - %s" % address for address in site_contact])
             else:
-                lines.extend([" - Site contact: %s" % contact])
+                lines.extend([" - Site contact: %s" % site_contact])
 
         # Extensions (if any)
         exts_list = self.app.cfg['exts_list']
