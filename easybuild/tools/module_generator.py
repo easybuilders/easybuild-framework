@@ -36,6 +36,7 @@ import os
 import re
 import sys
 import tempfile
+from textwrap import wrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
@@ -44,7 +45,6 @@ from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, modules_tool
 from easybuild.tools.utilities import quote_str
-from textwrap import wrap
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -218,35 +218,35 @@ class ModuleGenerator(object):
         """
         Generate syntax-independent help text used for `module help`.
         """
+
+        def generate_section(sec_name, sec_txt, strip=False):
+            """
+            Generate section with given name and contents.
+            """
+            if sec_txt:
+                if strip:
+                    text = sec_txt.strip()
+                else:
+                    text = sec_txt
+
+                return [
+                    '',
+                    '',
+                    sec_name,
+                    '=' * len(sec_name),
+                    text,
+                ]
+            else:
+                return []
+
         # General package description (mandatory)
-        description = self.app.cfg['description']
-        lines = [
-            '',
-            'Description',
-            '===========',
-            "%s" % description.strip(),
-        ]
+        lines = generate_section('Description', self.app.cfg['description'], strip=True)
 
         # Package usage instructions (optional)
-        usage = self.app.cfg['usage']
-        if usage:
-            lines.extend([
-                '',
-                '',
-                'Usage',
-                '=====',
-                "%s" % usage.strip(),
-            ])
+        lines.extend(generate_section('Usage', self.app.cfg['usage'], strip=True))
 
-        # Additional information
-        homepage = self.app.cfg['homepage']
-        lines.extend([
-            '',
-            '',
-            'More information',
-            '================',
-            " - Homepage: %s" % homepage,
-        ])
+        # Additional information: homepage + (if available) doc paths/urls, upstream/site contact
+        lines.extend(generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
 
         docpaths = self.app.cfg['docpaths'] or []
         docurls = self.app.cfg['docurls'] or []
@@ -275,15 +275,8 @@ class ModuleGenerator(object):
 
         # Extensions (if any)
         exts_list = self.app.cfg['exts_list']
-        if exts_list:
-            extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
-            lines.extend([
-                '',
-                '',
-                "Included extensions",
-                '===================',
-                "%s" % '\n'.join(wrap(extensions, 78)),
-            ])
+        extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
+        lines.extend(generate_section("Included extensions", wrap(extensions, 78)))
 
         return '\n'.join(lines)
 
@@ -344,8 +337,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         lines = [
             "proc ModulesHelp { } {",
-            "    puts stderr {"
-            "%s" % self._generate_help_text(),
+            "    puts stderr {%s" % self._generate_help_text(),
             "    }",
             '}',
             '',
@@ -591,8 +583,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             whatis = ["Description: %s" % description]
 
         lines = [
-            'help([[',
-            "%s" % self._generate_help_text(),
+            'help([[%s' % self._generate_help_text(),
             ']])',
             '',
             "%(whatis_lines)s",

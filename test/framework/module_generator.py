@@ -80,6 +80,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
                 "    puts stderr {",
+                '',
                 'Description',
                 '===========',
                 "%s" % gzip_txt,
@@ -130,6 +131,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
                 "    puts stderr {",
+                '',
                 'Description',
                 '===========',
                 "%s" % gzip_txt,
