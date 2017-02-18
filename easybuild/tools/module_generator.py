@@ -276,7 +276,7 @@ class ModuleGenerator(object):
         # Extensions (if any)
         exts_list = self.app.cfg['exts_list']
         extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
-        lines.extend(generate_section("Included extensions", wrap(extensions, 78)))
+        lines.extend(generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
 
