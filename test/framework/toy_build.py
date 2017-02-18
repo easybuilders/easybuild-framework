@@ -898,6 +898,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'^#%Module',
                 r'proc ModulesHelp { } {',
                 r'    puts stderr {',
+                r'',
                 r'%s' % help_txt,
                 r'    }',
                 r'}',
