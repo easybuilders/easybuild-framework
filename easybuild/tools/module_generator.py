@@ -245,6 +245,9 @@ class ModuleGenerator(object):
         # Package usage instructions (optional)
         lines.extend(generate_section('Usage', self.app.cfg['usage'], strip=True))
 
+        # Examples (optional)
+        lines.extend(generate_section('Examples', self.app.cfg['examples'], strip=True))
+
         # Additional information: homepage + (if available) doc paths/urls, upstream/site contact
         lines.extend(generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
 

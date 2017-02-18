@@ -223,6 +223,7 @@ class ToyBuildTest(EnhancedTestCase):
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
             "modluafooter = 'io.stderr:write(\"oh hai!\")'",  # ignored when module syntax is Tcl
             "usage = 'This toy is easy to use'",
+            "examples = 'No example available'",
             "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
             "docurls = ['http://hpcugent.github.com/easybuild/toy/docs.html']",
             "upstream_contact = 'support@toy.org'",
@@ -848,6 +849,11 @@ class ToyBuildTest(EnhancedTestCase):
             r'Usage',
             r'=====',
             r'This toy is easy to use',
+            r'',
+            r'',
+            r'Examples',
+            r'========',
+            r'No example available',
             r'',
             r'',
             r'More information',
