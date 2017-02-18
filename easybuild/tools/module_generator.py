@@ -257,13 +257,13 @@ class ModuleGenerator(object):
             lines.extend(["    - $%s/%s" % (root_envvar,path) for path in docpaths])
             lines.extend(["    - %s" % url for url in docurls])
 
-        support = self.app.cfg['support']
-        if support:
-            if isinstance(support, list):
-                lines.extend([" - Support/bug reports:"])
-                lines.extend(["    - %s" % address for address in support])
+        upstream = self.app.cfg['upstream_contact']
+        if upstream:
+            if isinstance(upstream, list):
+                lines.extend([" - Upstream contacts:"])
+                lines.extend(["    - %s" % address for address in upstream])
             else:
-                lines.extend([" - Support/bug reports: %s" % support])
+                lines.extend([" - Upstream contact: %s" % upstream])
 
         contact = self.app.cfg['contact']
         if contact:

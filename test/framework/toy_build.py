@@ -225,7 +225,7 @@ class ToyBuildTest(EnhancedTestCase):
             "usage = 'This toy is easy to use'",
             "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
             "docurls = ['http://hpcugent.github.com/easybuild/toy/docs.html']",
-            "support = 'support@toy.org'",
+            "upstream_contact = 'support@toy.org'",
             "contact = ['Jim Admin', 'Jane Admin']",
         ])
         write_file(ec_file, ec_extra, append=True)
@@ -857,7 +857,7 @@ class ToyBuildTest(EnhancedTestCase):
             r'    - \$EBROOTTOY/share/doc/toy/readme.txt',
             r'    - \$EBROOTTOY/share/doc/toy/html/index.html',
             r'    - http://hpcugent.github.com/easybuild/toy/docs.html',
-            r' - Support/bug reports: support@toy.org',
+            r' - Upstream contact: support@toy.org',
             r' - Site contacts:',
             r'    - Jim Admin',
             r'    - Jane Admin',
