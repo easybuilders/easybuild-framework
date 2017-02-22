@@ -347,7 +347,7 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild'})
-    
+
     while not downloaded and attempt_cnt < max_attempts:
         try:
             # urllib2 does the right thing for http proxy setups, urllib does not!
@@ -764,11 +764,16 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     adest = os.path.abspath(dest)
 
     if apatch.endswith(".gz"):
-        _log.debug("Ungzipping the patch")
-        # gunzipping the patch. Force overwriting if a previous version was already gunzipped.
-        extract_file(apatch,os.path.dirname(apatch),overwrite=True)
+        workdir = tempfile.mkdtemp(prefix='eb-patch-')
+        _, patchfilename_gz = os.path.split(apatch)
+        patchfilename, _ = os.path.splitext(patchfilename_gz)
+        dest_tmp = os.path.join(workdir, patchfilename)
+        _log.debug("Ungzipping the patch to: %s", workdir)
+
+        # gunzipping the patch.
+        extract_file(apatch, workdir)
         # remove the '.gz' extension
-        apatch = apatch[:-3]
+        apatch = dest_tmp
 
     if level is None and build_option('extended_dry_run'):
         level = '<derived>'
@@ -797,7 +802,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
     out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
-    
+
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
 
