@@ -765,13 +765,13 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
     if apatch.endswith(".gz"):
         workdir = tempfile.mkdtemp(prefix='eb-patch-')
-        patchpath, patchfilename_gz = os.path.split(apatch)
-        patchfilename, _gz = os.path.splitext(patchfilename_gz)
+        _, patchfilename_gz = os.path.split(apatch)
+        patchfilename, _ = os.path.splitext(patchfilename_gz)
         dest_tmp = os.path.join(workdir, patchfilename)
         _log.debug("Ungzipping the patch to: %s", workdir)
 
-        # gunzipping the patch. Force overwriting if a previous version was already gunzipped.
-        run.run_cmd("gunzip --force -c %s > %s" % (apatch, dest_tmp))
+        # gunzipping the patch.
+        extract_file(apatch, workdir)
         # remove the '.gz' extension
         apatch = dest_tmp
 
