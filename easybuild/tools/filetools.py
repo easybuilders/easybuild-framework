@@ -766,7 +766,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     if apatch.endswith(".gz"):
         _log.debug("Ungzipping the patch")
         # gunzipping the patch. Force overwriting if a previous version was already gunzipped.
-        run.run_cmd("gunzip --force -keep %s" % apatch)
+        run.run_cmd("gunzip --force --keep %s" % apatch)
         # remove the '.gz' extension
         apatch = apatch[:-3]
 
