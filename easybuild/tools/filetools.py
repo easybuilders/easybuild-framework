@@ -763,12 +763,13 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
-    if apatch.endswith(".gz"):
+    # Attempt extracting the patch if it does not end in .patch (may end in .gz, .zip, etc.)
+    if not apatch.endswith(".patch"):
         workdir = tempfile.mkdtemp(prefix='eb-patch-')
         _, patchfilename_gz = os.path.split(apatch)
         patchfilename, _ = os.path.splitext(patchfilename_gz)
         dest_tmp = os.path.join(workdir, patchfilename)
-        _log.debug("Ungzipping the patch to: %s", workdir)
+        _log.debug("Extracting the patch to: %s", workdir)
 
         # gunzipping the patch.
         extract_file(apatch, workdir)
