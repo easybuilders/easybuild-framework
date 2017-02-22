@@ -101,6 +101,7 @@ class IntelFFTW(Fftw):
             # The cluster interface libs (libfftw3x_cdft*) can be omitted if the toolchain does not provide MPI-FFTW
             # interfaces.
             check_fftw_libs = [l for l in check_fftw_libs if l not in [interface_lib, cluster_interface_lib]]
+            fftw_libs = [l for l in fftw_libs if l not in [interface_lib, cluster_interface_lib]]
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
