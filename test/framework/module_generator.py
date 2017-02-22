@@ -146,7 +146,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         Test load part in generated module file.
         """
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua and not isinstance(self.modtool, Lmod):
-            pass
+            return
 
         # creating base path
         base_path = os.path.join(self.test_prefix, 'all')
