@@ -763,6 +763,13 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
+    if apatch.endswith(".gz"):
+        _log.debug("Ungzipping the patch")
+        # gunzipping the patch. Force overwriting if a previous version was already gunzipped.
+        run.run_cmd("gunzip --force %s" % apatch)
+        # remove the '.gz' extension
+        apatch = apatch[:-3]
+
     if level is None and build_option('extended_dry_run'):
         level = '<derived>'
 
