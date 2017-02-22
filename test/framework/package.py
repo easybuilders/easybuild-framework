@@ -35,7 +35,6 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
@@ -43,7 +42,7 @@ from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-DEBUG = False
+DEBUG = True
 DEBUG_FPM_FILE = "debug_fpm_mock"
 MOCKED_FPM = """#!/bin/bash
 
@@ -112,7 +111,7 @@ done
 
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
-echo $@ >> $pkgfile
+echo "$@" >> $pkgfile
 echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
 for exclude in ${excludes[*]}; do
     exclude_str+=" -not -path /${exclude} "
@@ -124,6 +123,7 @@ echo "ENDCONTENTS" >> $pkgfile
 echo "Contents of module file $modulefile:" >> $pkgfile
 cat $modulefile >> $pkgfile
 echo "I found excludes "${excludes[*]} >> $pkgfile
+echo "DESCRIPTION: $description" >> $pkgfile
 """
 
 
@@ -223,6 +223,13 @@ class PackageTest(EnhancedTestCase):
             print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
             print "The Package File"
             print read_file(pkgfile)
+
+        ec_desc = EasyConfig(
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test-description.eb'),
+            validate=False)
+        easyblock_desc = EB_toy(ec_desc)
+        easyblock_desc.run_all_steps(False)
+        pkgdir = package(easyblock_desc)
 
 
 def suite():

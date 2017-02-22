@@ -43,7 +43,6 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import which
-from easybuild.tools.options import eb_shell_quote
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -80,6 +79,9 @@ def package_with_fpm(easyblock):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
+    # avoid circular import, should move eb_shell_quote
+    from easybuild.tools.options import eb_shell_quote
+
     workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
     pkgtype = build_option('package_type')
     _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
@@ -106,14 +108,14 @@ def package_with_fpm(easyblock):
 
     _log.debug("The dependencies to be added to the package are: %s",
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
-    depstring = ''
+    deplist = []
     for dep in deps:
         if dep.get('external_module', False):
             _log.debug("Skipping dep marked as external module: %s", dep['name'])
         else:
             _log.debug("The dep added looks like %s ", dep)
             dep_pkgname = package_naming_scheme.name(dep)
-            depstring += " --depends %s" % quote_str(dep_pkgname)
+            deplist.extend(["--depends", dep_pkgname])
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_glob = [
@@ -121,36 +123,38 @@ def package_with_fpm(easyblock):
         os.path.join(log_path(), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
-    exclude_files_glob = [
-        '--exclude %s' % quote_str(os.path.join(easyblock.installdir.lstrip(os.sep), x))
-        for x in exclude_files_glob
-    ]
+    exclude_files_cmd = []
+    for x in exclude_files_glob:
+        exclude_files_cmd.extend(['--exclude',  os.path.join(easyblock.installdir.lstrip(os.sep), x)])
+
     _log.debug("The list of excluded files passed to fpm: %s", exclude_files_glob)
+    # use env to find FPM https://stackoverflow.com/questions/5658622/python-subprocess-popen-environment-path
     cmdlist = [
+        '/usr/bin/env',
         PKG_TOOL_FPM,
         '--workdir', workdir,
-        '--name', quote_str(pkgname),
-        '--provides', quote_str(pkgname),
+        '--name', pkgname,
+        '--provides', pkgname,
         '-t', pkgtype,  # target
         '-s', 'dir',  # source
         '--version', pkgver,
         '--iteration', pkgrel,
-        '--description', quote_str(eb_shell_quote(easyblock.cfg["description"])),
-        '--url', quote_str(easyblock.cfg["homepage"]),
+        '--description', easyblock.cfg["description"],
+        '--url', easyblock.cfg["homepage"],
     ]
-    cmdlist.extend(exclude_files_glob)
+    cmdlist.extend(exclude_files_cmd)
 
     if build_option('debug'):
         cmdlist.append('--debug')
-
+    cmdlist.extend(deplist)
     cmdlist.extend([
-        depstring,
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
     ])
     cmd = ' '.join(cmdlist)
+    print "cmd: %s" % cmdlist
     _log.debug("The flattened cmdlist looks like: %s", cmd)
-    run_cmd(cmd, log_all=True, simple=True)
+    run_cmd(cmdlist, log_all=True, simple=True, cache=False, shell=False)
 
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 

@@ -80,9 +80,9 @@ def run_cmd_cache(func):
     @functools.wraps(func)
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
-
+        cache_function = kwargs.get('cache', True)
         # fetch from cache if available, cache it if it's not
-        if cmd in cache:
+        if cache_function and cmd in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
             return cache[cmd]
         else:
@@ -99,7 +99,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True):
+            force_in_dry_run=False, verbose=True, cache=True, shell=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -148,9 +148,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         runLog = None
 
     readSize = 1024 * 8
-
+    _log.info('running cmd: %s ' % cmd)
     try:
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        p = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
@@ -496,5 +496,3 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
                   (regExp, '\n'.join([x[0] for x in res])))
 
     return res
-
-
