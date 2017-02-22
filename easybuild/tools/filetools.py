@@ -763,12 +763,10 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
-    gunzipped = False
     if apatch.endswith(".gz"):
-        gunzipped = True
         _log.debug("Ungzipping the patch")
         # gunzipping the patch. Force overwriting if a previous version was already gunzipped.
-        run.run_cmd("gunzip --force %s" % apatch)
+        run.run_cmd("gunzip --force -keep %s" % apatch)
         # remove the '.gz' extension
         apatch = apatch[:-3]
 
@@ -783,9 +781,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         patched_files = det_patched_files(path=apatch)
 
         if not patched_files:
-            if gunzipped:
-                _log.debug("Gzipping the patch back")
-                run.run_cmd("gzip %s" % apatch)
             raise EasyBuildError("Can't guess patchlevel from patch %s: no testfile line found in patch", apatch)
             return
 
@@ -803,10 +798,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
     out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
     
-    if gunzipped:
-        _log.debug("Gzipping the patch back")
-        run.run_cmd("gzip %s" % apatch)
-
     if ec:
         raise EasyBuildError("Couldn't apply patch file %s. Process exited with code %s: %s", patch_file, ec, out)
 
