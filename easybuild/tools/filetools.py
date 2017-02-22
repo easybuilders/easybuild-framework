@@ -766,15 +766,9 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     # Attempt extracting the patch if it does not end in .patch (may end in .gz, .zip, etc.)
     if not apatch.endswith(".patch"):
         workdir = tempfile.mkdtemp(prefix='eb-patch-')
-        _, patchfilename_gz = os.path.split(apatch)
-        patchfilename, _ = os.path.splitext(patchfilename_gz)
-        dest_tmp = os.path.join(workdir, patchfilename)
         _log.debug("Extracting the patch to: %s", workdir)
-
-        # gunzipping the patch.
-        extract_file(apatch, workdir)
-        # remove the '.gz' extension
-        apatch = dest_tmp
+        # extracting the patch
+        apatch = extract_file(apatch, workdir)
 
     if level is None and build_option('extended_dry_run'):
         level = '<derived>'
