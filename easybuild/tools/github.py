@@ -382,7 +382,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if not(pr_data['merged']):
         if not stable or closed:
-            state_msg = "unstable (failed tests or merge conflict)" if not stable else "closed (but not merged)"
+            state_msg = "unstable (pending/failed tests or merge conflict)" if not stable else "closed (but not merged)"
             print "\n*** WARNING: Using easyconfigs from %s PR #%s ***\n" % (state_msg, pr)
             # obtain most recent version of patched files
             for patched_file in patched_files:
