@@ -183,6 +183,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
         if logfile is None:
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
             fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            os.chmod(logfile, 0644)
             os.close(fd)
 
         fancylogger.logToFile(logfile)
