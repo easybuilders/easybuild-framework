@@ -93,6 +93,8 @@ while idx < len(args):
 
     # filter out --enable-new-dtags if it's used;
     # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
+    elif arg == '--enable-new-dtags':
+        cmd_args.append('--disable-new-dtags');
     elif arg != '--enable-new-dtags':
         cmd_args.append(arg)
 
