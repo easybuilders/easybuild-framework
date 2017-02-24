@@ -49,6 +49,65 @@ from easybuild.tools.utilities import quote_str
 _log = fancylogger.getLogger('module_generator', fname=False)
 
 
+def avail_module_generators():
+    """
+    Return all known module syntaxes.
+    """
+    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
+
+
+def module_generator(app, fake=False):
+    """
+    Return ModuleGenerator instance that matches the selected module file syntax to be used
+    """
+    module_syntax = get_module_syntax()
+    available_mod_gens = avail_module_generators()
+
+    if module_syntax not in available_mod_gens:
+        raise EasyBuildError("No module generator available for specified syntax '%s' (available: %s)",
+                             module_syntax, available_mod_gens)
+
+    module_generator_class = available_mod_gens[module_syntax]
+    return module_generator_class(app, fake=fake)
+
+
+def module_load_regex(modfilepath):
+    """
+    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
+    """
+    if modfilepath.endswith(ModuleGeneratorLua.MODULE_FILE_EXTENSION):
+        regex = ModuleGeneratorLua.LOAD_REGEX
+    else:
+        regex = ModuleGeneratorTcl.LOAD_REGEX
+    return re.compile(regex, re.M)
+
+
+def dependencies_for(mod_name, modtool, depth=sys.maxint):
+    """
+    Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+    :param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
+    """
+    mod_filepath = modtool.modulefile_path(mod_name)
+    modtxt = read_file(mod_filepath)
+    loadregex = module_load_regex(mod_filepath)
+    mods = loadregex.findall(modtxt)
+
+    if depth > 0:
+        # recursively determine dependencies for these dependency modules, until depth is non-positive
+        moddeps = [dependencies_for(mod, modtool, depth=depth - 1) for mod in mods]
+    else:
+        # ignore any deeper dependencies
+        moddeps = []
+
+    # add dependencies of dependency modules only if they're not there yet
+    for moddepdeps in moddeps:
+        for dep in moddepdeps:
+            if not dep in mods:
+                mods.append(dep)
+
+    return mods
+
+
 class ModuleGenerator(object):
     """
     Class for generating module files.
@@ -70,6 +129,37 @@ class ModuleGenerator(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.fake_mod_path = tempfile.mkdtemp()
 
+    def create_symlinks(self, mod_symlink_paths, fake=False):
+        """Create moduleclass symlink(s) to actual module file."""
+        mod_filepath = self.get_module_filepath(fake=fake)
+        class_mod_files = [self.get_module_filepath(fake=fake, mod_path_suffix=p) for p in mod_symlink_paths]
+        try:
+            for class_mod_file in class_mod_files:
+                # remove symlink if its there (even if it's broken)
+                if os.path.lexists(class_mod_file):
+                    self.log.debug("Removing existing symlink %s", class_mod_file)
+                    os.remove(class_mod_file)
+
+                mkdir(os.path.dirname(class_mod_file), parents=True)
+                os.symlink(mod_filepath, class_mod_file)
+
+        except OSError, err:
+            raise EasyBuildError("Failed to create symlinks from %s to %s: %s", class_mod_files, mod_filepath, err)
+
+    def define_env_var(self, env_var):
+        """
+        Determine whether environment variable with specified name should be defined or not.
+
+        :param env_var: name of environment variable to check
+        """
+        return env_var not in (build_option('filter_env_vars') or [])
+
+    def get_module_filepath(self, fake=False, mod_path_suffix=None):
+        """Return path to module file."""
+        mod_path = self.get_modules_path(fake=fake, mod_path_suffix=mod_path_suffix)
+        full_mod_name = self.app.full_mod_name + self.MODULE_FILE_EXTENSION
+        return os.path.join(mod_path, full_mod_name)
+
     def get_modules_path(self, fake=False, mod_path_suffix=None):
         """Return path to directory where module files should be generated in."""
         mod_path = install_path('mod')
@@ -81,12 +171,6 @@ class ModuleGenerator(object):
             mod_path_suffix = build_option('suffix_modules_path')
 
         return os.path.join(mod_path, mod_path_suffix)
-
-    def get_module_filepath(self, fake=False, mod_path_suffix=None):
-        """Return path to module file."""
-        mod_path = self.get_modules_path(fake=fake, mod_path_suffix=mod_path_suffix)
-        full_mod_name = self.app.full_mod_name + self.MODULE_FILE_EXTENSION
-        return os.path.join(mod_path, full_mod_name)
 
     def prepare(self, fake=False):
         """
@@ -106,22 +190,7 @@ class ModuleGenerator(object):
 
         return mod_path
 
-    def create_symlinks(self, mod_symlink_paths, fake=False):
-        """Create moduleclass symlink(s) to actual module file."""
-        mod_filepath = self.get_module_filepath(fake=fake)
-        class_mod_files = [self.get_module_filepath(fake=fake, mod_path_suffix=p) for p in mod_symlink_paths]
-        try:
-            for class_mod_file in class_mod_files:
-                # remove symlink if its there (even if it's broken)
-                if os.path.lexists(class_mod_file):
-                    self.log.debug("Removing existing symlink %s", class_mod_file)
-                    os.remove(class_mod_file)
-
-                mkdir(os.path.dirname(class_mod_file), parents=True)
-                os.symlink(mod_filepath, class_mod_file)
-
-        except OSError, err:
-            raise EasyBuildError("Failed to create symlinks from %s to %s: %s", class_mod_files, mod_filepath, err)
+    # From this point on just not implemented methods
 
     def comment(self, msg):
         """Return given string formatted as a comment."""
@@ -138,44 +207,9 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def define_env_var(self, env_var):
+    def get_description(self, conflict=True):
         """
-        Determine whether environment variable with specified name should be defined or not.
-
-        :param env_var: name of environment variable to check
-        """
-        return env_var not in (build_option('filter_env_vars') or [])
-
-    def set_environment(self, key, value, relpath=False):
-        """
-        Generate a quoted setenv statement for the given key/value pair.
-
-        :param key: name of environment variable to define
-        :param value: value to define environment variable with
-        :param relpath: value is path relative to installation prefix
-        """
-        raise NotImplementedError
-
-    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
-        """
-        Generate prepend-path statements for the given list of paths.
-
-        :param key: environment variable to prepend paths to
-        :param paths: list of paths to prepend
-        :param allow_abs: allow providing of absolute paths
-        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
-        """
-        raise NotImplementedError
-
-    def msg_on_load(self, msg):
-        """
-        Add a message that should be printed when loading the module.
-        """
-        raise NotImplementedError
-
-    def set_alias(self, key, value):
-        """
-        Generate set-alias statement in modulefile for the given key/value pair.
+        Generate a description.
         """
         raise NotImplementedError
 
@@ -195,11 +229,36 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def unload_module(self, mod_name):
+    def msg_on_load(self, msg):
         """
-        Generate unload statement for specified module.
+        Add a message that should be printed when loading the module.
+        """
+        raise NotImplementedError
 
-        :param mod_name: name of module to generate unload statement for
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+        """
+        Generate prepend-path statements for the given list of paths.
+
+        :param key: environment variable to prepend paths to
+        :param paths: list of paths to prepend
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        """
+        raise NotImplementedError
+
+    def set_alias(self, key, value):
+        """
+        Generate set-alias statement in modulefile for the given key/value pair.
+        """
+        raise NotImplementedError
+
+    def set_environment(self, key, value, relpath=False):
+        """
+        Generate a quoted setenv statement for the given key/value pair.
+
+        :param key: name of environment variable to define
+        :param value: value to define environment variable with
+        :param relpath: value is path relative to installation prefix
         """
         raise NotImplementedError
 
@@ -210,6 +269,23 @@ class ModuleGenerator(object):
         :param mod_name_out: name of module to unload (swap out)
         :param mod_name_in: name of module to load (swap in)
         :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
+        """
+        raise NotImplementedError
+
+    def unload_module(self, mod_name):
+        """
+        Generate unload statement for specified module.
+
+        :param mod_name: name of module to generate unload statement for
+        """
+        raise NotImplementedError
+
+    def use(self, paths, prefix=None, guarded=False):
+        """
+        Generate module use statements for given list of module paths.
+        :param paths: list of module path extensions to generate use statements for; paths will be quoted
+        :param prefix: optional path prefix; not quoted, i.e., can be a statement
+        :param guarded: use statements will be guarded to only apply if path exists
         """
         raise NotImplementedError
 
@@ -225,6 +301,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
+
+    def __init__(self, *args, **kwargs):
+        """ModuleGeneratorTcl constructor."""
+        super(ModuleGeneratorTcl, self).__init__(*args, **kwargs)
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -301,6 +381,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return txt
 
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        return '$env(%s)' % envvar
+
     def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
         """
         Generate load statement for specified module.
@@ -324,30 +410,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
-    def unload_module(self, mod_name):
+    def msg_on_load(self, msg):
         """
-        Generate unload statement for specified module.
-
-        :param mod_name: name of module to generate unload statement for
+        Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', "module unload %s" % mod_name])
-
-    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
-        """
-        Generate swap statement for specified module names.
-
-        :param mod_name_out: name of module to unload (swap out)
-        :param mod_name_in: name of module to load (swap in)
-        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
-        """
-        body = "module swap %s %s" % (mod_name_out, mod_name_in)
-        if guarded:
-            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
-            swap_statement = [self.conditional_statement("is-loaded %s" % mod_name_out, body, else_body=alt_body)]
-        else:
-            swap_statement = [body, '']
-
-        return '\n'.join([''] + swap_statement)
+        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
+        print_cmd = "puts stderr %s" % quote_str(msg)
+        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd)])
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -386,27 +456,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
         statements = ['prepend-path\t%s\t\t%s\n' % (key, p) for p in abspaths]
         return ''.join(statements)
 
-    def use(self, paths, prefix=None, guarded=False):
+    def set_alias(self, key, value):
         """
-        Generate module use statements for given list of module paths.
-        :param paths: list of module path extensions to generate use statements for; paths will be quoted
-        :param prefix: optional path prefix; not quoted, i.e., can be a statement
-        :param guarded: use statements will be guarded to only apply if path exists
+        Generate set-alias statement in modulefile for the given key/value pair.
         """
-        use_statements = []
-        for path in paths:
-            quoted_path = quote_str(path)
-            if prefix:
-                full_path = '[ file join %s %s ]' % (prefix, quoted_path)
-            else:
-                full_path = quoted_path
-            if guarded:
-                cond_statement = self.conditional_statement('file isdirectory %s' % full_path,
-                                                            'module use %s' % full_path)
-                use_statements.append(cond_statement)
-            else:
-                use_statements.append("module use %s\n" % full_path)
-        return ''.join(use_statements)
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -430,27 +485,52 @@ class ModuleGeneratorTcl(ModuleGenerator):
             val = quote_str(value)
         return 'setenv\t%s\t\t%s\n' % (key, val)
 
-    def msg_on_load(self, msg):
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
-        Add a message that should be printed when loading the module.
-        """
-        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
-        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
-        print_cmd = "puts stderr %s" % quote_str(msg)
-        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd)])
+        Generate swap statement for specified module names.
 
-    def set_alias(self, key, value):
+        :param mod_name_out: name of module to unload (swap out)
+        :param mod_name_in: name of module to load (swap in)
+        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
-        Generate set-alias statement in modulefile for the given key/value pair.
-        """
-        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
+        body = "module swap %s %s" % (mod_name_out, mod_name_in)
+        if guarded:
+            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
+            swap_statement = [self.conditional_statement("is-loaded %s" % mod_name_out, body, else_body=alt_body)]
+        else:
+            swap_statement = [body, '']
 
-    def getenv_cmd(self, envvar):
+        return '\n'.join([''] + swap_statement)
+
+    def unload_module(self, mod_name):
         """
-        Return module-syntax specific code to get value of specific environment variable.
+        Generate unload statement for specified module.
+
+        :param mod_name: name of module to generate unload statement for
         """
-        return '$env(%s)' % envvar
+        return '\n'.join(['', "module unload %s" % mod_name])
+
+    def use(self, paths, prefix=None, guarded=False):
+        """
+        Generate module use statements for given list of module paths.
+        :param paths: list of module path extensions to generate use statements for; paths will be quoted
+        :param prefix: optional path prefix; not quoted, i.e., can be a statement
+        :param guarded: use statements will be guarded to only apply if path exists
+        """
+        use_statements = []
+        for path in paths:
+            quoted_path = quote_str(path)
+            if prefix:
+                full_path = '[ file join %s %s ]' % (prefix, quoted_path)
+            else:
+                full_path = quoted_path
+            if guarded:
+                cond_statement = self.conditional_statement('file isdirectory %s' % full_path,
+                                                            'module use %s' % full_path)
+                use_statements.append(cond_statement)
+            else:
+                use_statements.append("module use %s\n" % full_path)
+        return ''.join(use_statements)
 
 
 class ModuleGeneratorLua(ModuleGenerator):
@@ -541,6 +621,12 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return txt
 
+    def getenv_cmd(self, envvar):
+        """
+        Return module-syntax specific code to get value of specific environment variable.
+        """
+        return 'os.getenv("%s")' % envvar
+
     def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
         """
         Generate load statement for specified module.
@@ -564,30 +650,13 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
-    def unload_module(self, mod_name):
+    def msg_on_load(self, msg):
         """
-        Generate unload statement for specified module.
-
-        :param mod_name: name of module to generate unload statement for
+        Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', 'unload("%s")' % mod_name])
-
-    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
-        """
-        Generate swap statement for specified module names.
-
-        :param mod_name_out: name of module to unload (swap out)
-        :param mod_name_in: name of module to load (swap in)
-        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
-        """
-        body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
-        if guarded:
-            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
-            swap_statement = [self.conditional_statement('isloaded("%s")' % mod_name_out, body, else_body=alt_body)]
-        else:
-            swap_statement = [body, '']
-
-        return '\n'.join([''] + swap_statement)
+        # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
+        stmt_tmpl = 'io.stderr:write([==[%s]==])'
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
 
     def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
         """
@@ -628,27 +697,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         statements.append('')
         return '\n'.join(statements)
 
-    def use(self, paths, prefix=None, guarded=False):
+    def set_alias(self, key, value):
         """
-        Generate module use statements for given list of module paths.
-        :param paths: list of module path extensions to generate use statements for; paths will be quoted
-        :param prefix: optional path prefix; not quoted, i.e., can be a statement
-        :param guarded: use statements will be guarded to only apply if path exists
+        Generate set-alias statement in modulefile for the given key/value pair.
         """
-        use_statements = []
-        for path in paths:
-            quoted_path = quote_str(path)
-            if prefix:
-                full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
-            else:
-                full_path = quoted_path
-            if guarded:
-                cond_statement = self.conditional_statement('isDir(%s)' % full_path,
-                                                            self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
-                use_statements.append(cond_statement)
-            else:
-                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
-        return ''.join(use_statements)
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        return 'set_alias("%s", %s)\n' % (key, quote_str(value))
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -671,82 +725,51 @@ class ModuleGeneratorLua(ModuleGenerator):
             val = quote_str(value)
         return 'setenv("%s", %s)\n' % (key, val)
 
-    def msg_on_load(self, msg):
+    def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
-        Add a message that should be printed when loading the module.
+        Generate swap statement for specified module names.
+
+        :param mod_name_out: name of module to unload (swap out)
+        :param mod_name_in: name of module to load (swap in)
+        :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
-        # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
-        stmt_tmpl = 'io.stderr:write([==[%s]==])'
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
+        body = 'swap("%s", "%s")' % (mod_name_out, mod_name_in)
+        if guarded:
+            alt_body = self.LOAD_TEMPLATE % {'mod_name': mod_name_in}
+            swap_statement = [self.conditional_statement('isloaded("%s")' % mod_name_out, body, else_body=alt_body)]
+        else:
+            swap_statement = [body, '']
 
-    def set_alias(self, key, value):
+        return '\n'.join([''] + swap_statement)
+
+    def unload_module(self, mod_name):
         """
-        Generate set-alias statement in modulefile for the given key/value pair.
+        Generate unload statement for specified module.
+
+        :param mod_name: name of module to generate unload statement for
         """
-        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'set_alias("%s", %s)\n' % (key, quote_str(value))
+        return '\n'.join(['', 'unload("%s")' % mod_name])
 
-    def getenv_cmd(self, envvar):
+    def use(self, paths, prefix=None, guarded=False):
         """
-        Return module-syntax specific code to get value of specific environment variable.
+        Generate module use statements for given list of module paths.
+        :param paths: list of module path extensions to generate use statements for; paths will be quoted
+        :param prefix: optional path prefix; not quoted, i.e., can be a statement
+        :param guarded: use statements will be guarded to only apply if path exists
         """
-        return 'os.getenv("%s")' % envvar
+        use_statements = []
+        for path in paths:
+            quoted_path = quote_str(path)
+            if prefix:
+                full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
+            else:
+                full_path = quoted_path
+            if guarded:
+                cond_statement = self.conditional_statement('isDir(%s)' % full_path,
+                                                            self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                use_statements.append(cond_statement)
+            else:
+                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
+        return ''.join(use_statements)
 
 
-def avail_module_generators():
-    """
-    Return all known module syntaxes.
-    """
-    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
-
-
-def module_generator(app, fake=False):
-    """
-    Return ModuleGenerator instance that matches the selected module file syntax to be used
-    """
-    module_syntax = get_module_syntax()
-    available_mod_gens = avail_module_generators()
-
-    if module_syntax not in available_mod_gens:
-        raise EasyBuildError("No module generator available for specified syntax '%s' (available: %s)",
-                             module_syntax, available_mod_gens)
-
-    module_generator_class = available_mod_gens[module_syntax]
-    return module_generator_class(app, fake=fake)
-
-
-def module_load_regex(modfilepath):
-    """
-    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
-    """
-    if modfilepath.endswith(ModuleGeneratorLua.MODULE_FILE_EXTENSION):
-        regex = ModuleGeneratorLua.LOAD_REGEX
-    else:
-        regex = ModuleGeneratorTcl.LOAD_REGEX
-    return re.compile(regex, re.M)
-
-
-def dependencies_for(mod_name, modtool, depth=sys.maxint):
-    """
-    Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
-    :param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
-    """
-    mod_filepath = modtool.modulefile_path(mod_name)
-    modtxt = read_file(mod_filepath)
-    loadregex = module_load_regex(mod_filepath)
-    mods = loadregex.findall(modtxt)
-
-    if depth > 0:
-        # recursively determine dependencies for these dependency modules, until depth is non-positive
-        moddeps = [dependencies_for(mod, modtool, depth=depth - 1) for mod in mods]
-    else:
-        # ignore any deeper dependencies
-        moddeps = []
-
-    # add dependencies of dependency modules only if they're not there yet
-    for moddepdeps in moddeps:
-        for dep in moddepdeps:
-            if not dep in mods:
-                mods.append(dep)
-
-    return mods
