@@ -216,7 +216,6 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         # cleanup test tmp dir
         try:
-            pass
             shutil.rmtree(self.test_prefix)
         except (OSError, IOError):
             pass
