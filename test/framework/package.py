@@ -42,7 +42,7 @@ from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-DEBUG = True
+DEBUG = False
 DEBUG_FPM_FILE = "debug_fpm_mock"
 MOCKED_FPM = """#!/bin/bash
 
