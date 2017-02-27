@@ -34,6 +34,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 
 import copy
@@ -2139,6 +2140,11 @@ class EasyBlock(object):
                     self.dry_run_msg(' ' * 4 + line)
 
         else:
+            module_only = build_option('module_only')
+            if module_only and os.path.exists(mod_filepath):
+               mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck")
+               self.log.info("Old module file found. Backing it up in %s", mod_bck_filepath)
+
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
 

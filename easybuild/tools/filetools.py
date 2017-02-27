@@ -35,6 +35,7 @@ Set of file tools.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Sotiris Fragkiskos (NTUA, CERN)
 :author: Davide Vanzo (ACCRE, Vanderbilt University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import fileinput
 import glob
@@ -1085,6 +1086,41 @@ def rmtree2(path, n=3):
     else:
         _log.info("Path %s successfully removed." % path)
 
+def find_backup_name_candidate(src_file):
+    """Returns a non-existing file to be used as destination for rotating backups"""
+    dst_file = src_file
+
+    if os.path.exists(src_file):
+        i = 0
+        dst_file = "%s_%d" % (src_file, i)
+        while os.path.exists(dst_file):
+            i += 1
+            dst_file = "%s_%d" % (src_file, i)
+
+    return dst_file
+
+
+def back_up_file(src_file, backup_extension=""):
+    """Backs up a file appending a backup extension and a number to it. Returns the name of the backup"""
+
+    backup_msg = "File %s backed up in %s"
+    backup_file = src_file
+    if backup_extension:
+        backup_file = "%s.%s" % (backup_file, backup_extension)
+
+    # find suitable name
+    if os.path.exists(backup_file):
+        candidate = find_backup_name_candidate(backup_file)
+        if backup_file == src_file:
+            backup_file = candidate
+        else:
+            move_file(backup_file, candidate)
+
+    copy_file(src_file, backup_file)
+    _log.info("File %s backed up in %s" % (src_file, backup_file))
+
+    return backup_file
+
 
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
@@ -1103,16 +1139,12 @@ def move_logs(src_logfile, target_logfile):
 
             # retain old logs
             if os.path.exists(new_log_path):
-                i = 0
-                oldlog_backup = "%s_%d" % (new_log_path, i)
-                while os.path.exists(oldlog_backup):
-                    i += 1
-                    oldlog_backup = "%s_%d" % (new_log_path, i)
-                shutil.move(new_log_path, oldlog_backup)
-                _log.info("Moved existing log file %s to %s" % (new_log_path, oldlog_backup))
+                back_up_file(new_log_path)
 
+            # remove first to ensure portability
+            remove_file(new_log_path)
             # move log to target path
-            shutil.move(app_log, new_log_path)
+            move_file(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
             if zip_log_cmd:
@@ -1417,3 +1449,21 @@ def copy_file(path, target_path, force_in_dry_run=False):
             _log.info("%s copied to %s", path, target_path)
         except OSError as err:
             raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+
+
+def move_file(path, target_path, force_in_dry_run=False):
+    """
+    Move a file from path to target_path
+    :param path: the original filepath
+    :param target_path: path to copy the file to
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("moved file %s to %s" % (path, target_path))
+    else:
+        try:
+            mkdir(os.path.dirname(target_path), parents=True)
+            shutil.move(path, target_path)
+            _log.info("%s moved to %s", path, target_path)
+        except OSError as err:
+            raise EasyBuildError("Failed to move %s to %s: %s", path, target_path, err)
