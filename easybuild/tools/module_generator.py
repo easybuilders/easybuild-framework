@@ -217,7 +217,6 @@ class ModuleGenerator(object):
         raise NotImplementedError
 
 
-# noinspection PyPackageRequirements
 class ModuleGeneratorTcl(ModuleGenerator):
     """
     Class for generating Tcl module files.
@@ -724,7 +723,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             remove_file(default_filepath)
             self.log.info("Removed default version marking from %s.", link_target)
         elif os.path.exists(default_filepath):
-            raise EasyBuildError('Found an unexpected file called default in dir %s' % module_folder_path)
+            raise EasyBuildError('Found an unexpected file named default in dir %s' % module_folder_path)
 
         symlink(module_version + self.MODULE_FILE_EXTENSION, default_filepath, use_abspath_source=False)
         self.log.info("Module default version file written to point to %s", default_filepath)
