@@ -160,7 +160,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_ccache',
         'use_f90cache',
         'use_existing_modules',
-        'set_as_default',
+        'set_default_module',
     ],
     True: [
         'cleanup_builddir',

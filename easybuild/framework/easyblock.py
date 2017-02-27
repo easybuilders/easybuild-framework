@@ -2175,7 +2175,7 @@ class EasyBlock(object):
             if not fake:
                 self.make_devel_module()
 
-        if build_option('set_as_default'):
+        if build_option('set_default_module'):
             self._set_module_as_default()
 
         return modpath

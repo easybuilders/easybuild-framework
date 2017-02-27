@@ -458,7 +458,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def set_as_default(self, module_folder_path, module_version):
         """
-        Create .version file inside the package module folder in order to set the default version
+        Create a .version file inside the package module folder in order to set the default version
         for TMod
         :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
         :param module_version: module version, e.g. 3.0.4
@@ -712,7 +712,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def set_as_default(self, module_folder_path, module_version):
         """
-        Create a symlink called "default" inside the package's module folder in order
+        Create a symlink named 'default' inside the package's module folder in order
         to set the default module version
         :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
         :param module_version: module version, e.g. 3.0.4

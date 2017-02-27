@@ -141,10 +141,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
 
-    def test_set_default(self):
+    def test_set_default_module(self):
         """
         Test load part in generated module file.
         """
+
+        # note: the lua modulefiles are only supported by Lmod. Therefore,
+        # skipping when it is not the case
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua and not isinstance(self.modtool, Lmod):
             return
 

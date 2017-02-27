@@ -191,14 +191,14 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
 
     :param source_path: source file path
     :param symlink_path: symlink file path
+    :param use_abspath_source: resolves the absolute path of source_path
     """
+    if use_abspath_source:
+        source_path = os.path.abspath(source_path)
+
     try:
-        if use_abspath_source:
-            os.symlink(os.path.abspath(source_path), symlink_path)
-            _log.info("Symlinked %s to %s", os.path.abspath(source_path), symlink_path)
-        else:
-            os.symlink(source_path, symlink_path)
-            _log.info("Symlinked %s to %s", source_path, symlink_path)
+        os.symlink(source_path, symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
     except OSError as err:
         raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 

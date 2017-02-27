@@ -369,8 +369,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # checking if file is symlink
         self.assertTrue(os.path.islink(link))
+
         # reading link target and comparing to file name
-        self.assertEqual(os.path.realpath(fp), ft.readlink(link))
+        self.assertEqual(os.path.realpath(fp), os.path.realpath(ft.readlink(link)))
 
     def test_remove_symlinks(self):
         """Test remove valid and invalid symlinks"""
