@@ -31,6 +31,7 @@ Generating module files.
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import os
 import re
@@ -123,6 +124,10 @@ class ModuleGenerator(object):
     # a single level of indentation
     INDENTATION = ' ' * 4
 
+    # message for users not belonging to the software group
+    NOT_IN_GROUP_MESSAGE = 'You are not part of the %s group. Please consult with user support how to become a member' \
+        ' of that group'
+
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
@@ -191,6 +196,15 @@ class ModuleGenerator(object):
         return mod_path
 
     # From this point on just not implemented methods
+
+    def check_group(self, group):
+        """
+        Generate a check of the software group and the current user, and refuse to load the module if the user don't
+        belong to the group
+
+        :param group: string with the group name
+        """
+        raise NotImplementedError
 
     def comment(self, msg):
         """Return given string formatted as a comment."""
@@ -301,6 +315,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
+
+    def check_group(self, group):
+        """
+        Generate a check of the software group and the current user, and refuse to load the module if the user don't
+        belong to the group
+
+        :param group: string with the group name
+        """
+        self.log.warning("Can't generate robust check in TCL modules for users belonging to group %s.", group)
+        return ""
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -543,6 +567,16 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
+
+    def check_group(self, group):
+        """
+        Generate a check of the software group and the current user, and refuse to load the module if the user don't
+        belong to the group
+
+        :param group: string with the group name
+        """
+        error_msg = 'LmodError("' + self.NOT_IN_GROUP_MESSAGE % group + '")'
+        return self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
