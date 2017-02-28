@@ -91,9 +91,14 @@ while idx < len(args):
             # it doesn't make much sense, and it can also break the build because it may result in reordering lib paths
             cmd_args.append('-L%s' % lib_path)
 
-    # filter out --enable-new-dtags if it's used;
-    # this would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
-    elif arg != '--enable-new-dtags':
+    # replace --enable-new-dtags with --disable-new-dtags if it's used;
+    # --enable-new-dtags would result in copying rpath to runpath, meaning that $LD_LIBRARY_PATH is taken into account again
+    # --enable-new-dtags is not removed but replaced to prevent issues when the linker flag is forwarded from the compiler 
+    # to the linker with an extra prefixed flag (either -Xlinker or -Wl,). In that case, the compiler would erroneously pass
+    # the next random argument to the linker.
+    elif arg == '--enable-new-dtags':
+        cmd_args.append('--disable-new-dtags');
+    else:
         cmd_args.append(arg)
 
     idx += 1
