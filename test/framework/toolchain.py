@@ -1055,7 +1055,7 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
-        # linker command, --enable-new-dtags should be filtered out
+        # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
         out, ec = run_cmd("%s ld '' --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
@@ -1066,6 +1066,7 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = [
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
             "'--disable-new-dtags'",
             "'foo.o'",
         ]
