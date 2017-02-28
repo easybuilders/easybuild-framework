@@ -302,10 +302,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
 
-    def __init__(self, *args, **kwargs):
-        """ModuleGeneratorTcl constructor."""
-        super(ModuleGeneratorTcl, self).__init__(*args, **kwargs)
-
     def comment(self, msg):
         """Return string containing given message as a comment."""
         return "# %s\n" % msg
@@ -547,10 +543,6 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
-
-    def __init__(self, *args, **kwargs):
-        """ModuleGeneratorLua constructor."""
-        super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
