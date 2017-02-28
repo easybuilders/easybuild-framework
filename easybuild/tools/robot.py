@@ -50,6 +50,9 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
+AVAILABLE_DEPENDENCIES_VERSION = "AVAILABLE"
+NEWER_DEPENDENCIES_VERSION = "NEWER"
+
 def det_robot_path(robot_paths_option, tweaked_ecs_paths, pr_path, auto_robot=False):
     """Determine robot path."""
     robot_path = robot_paths_option[:]
