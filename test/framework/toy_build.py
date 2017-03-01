@@ -860,6 +860,7 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_lua + [
                 r'end',
                 r'io.stderr:write\("oh hai\!"\)',
+                r'setenv\("TOY", "toy-0.0"\)',
                 r'-- Built with EasyBuild version .*$',
             ])
         elif get_module_syntax() == 'Tcl':
@@ -892,6 +893,7 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_tcl + [
                 r'}',
                 r'puts stderr "oh hai\!"',
+                r'setenv	TOY		"toy-0.0"',
                 r'# Built with EasyBuild version .*$',
             ])
         else:
