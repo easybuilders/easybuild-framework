@@ -164,7 +164,8 @@ def check_root_usage(allow_use_as_root=False):
     if os.getuid() == 0:
         if allow_use_as_root:
             msg = "Using EasyBuild as root is NOT recommended, please proceed with care!\n"
-            msg += "(this is only allowed because EasyBuild was configured with --allow-use-as-root)"
+            msg += "(this is only allowed because EasyBuild was configured with "
+            msg += "--allow-use-as-root-and-accept-consequences)"
             print_warning(msg)
         else:
             raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
@@ -203,7 +204,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
                                  silent=(testing or options.terse or search_query), colorize=options.color)
 
     # disallow running EasyBuild as root (by default)
-    check_root_usage(allow_use_as_root=options.allow_use_as_root)
+    check_root_usage(allow_use_as_root=options.allow_use_as_root_and_accept_consequences)
 
     # log startup info
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args

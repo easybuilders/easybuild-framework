@@ -3052,7 +3052,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
 
     def test_allow_use_as_root(self):
-        """Test --allow-use-as-root"""
+        """Test --allow-use-as-root-and-accept-consequences"""
 
         # pretend we're running as root by monkey patching os.getuid used in main
         easybuild.main.os.getuid = lambda: 0
@@ -3063,12 +3063,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # running as root is allowed under --allow-use-as-root, but does result in a warning being printed to stderr
         self.mock_stderr(True)
-        self.eb_main(['toy-0.0.eb', '--allow-use-as-root'], raise_error=True)
+        self.eb_main(['toy-0.0.eb', '--allow-use-as-root-and-accept-consequences'], raise_error=True)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
 
         expected = "WARNING: Using EasyBuild as root is NOT recommended, please proceed with care!\n"
-        expected += "(this is only allowed because EasyBuild was configured with --allow-use-as-root)"
+        expected += "(this is only allowed because EasyBuild was configured with "
+        expected += "--allow-use-as-root-and-accept-consequences)"
         self.assertEqual(stderr, expected)
 
 
