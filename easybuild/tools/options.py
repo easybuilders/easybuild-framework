@@ -108,7 +108,7 @@ def eb_shell_quote(token):
     so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
     """
     # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"'\''", str(token))
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", str(token))
 
 vsc.utils.generaloption.shell_quote = eb_shell_quote
 
