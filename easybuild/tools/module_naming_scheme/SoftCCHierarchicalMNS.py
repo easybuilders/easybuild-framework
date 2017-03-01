@@ -121,7 +121,10 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                     subdir = os.path.join(MPI, subdir, tc_mpi_name+tc_mpi_fullver)
             elif tc_mpi is None:
                 # compiler-only toolchain => Compiler/<compiler_name><compiler_version> namespace
-                subdir = os.path.join(COMPILER, tc_comp_name+tc_comp_ver)
+                if tc_comp_ver == 'system':
+                    subdir = CORE
+                else:
+                    subdir = os.path.join(COMPILER, tc_comp_name+tc_comp_ver)
             else:
                 # compiler-MPI toolchain => MPI/<comp_name><comp_version>/<MPI_name><MPI_version> namespace
                 tc_mpi_name = tc_mpi['name'].lower()
