@@ -224,12 +224,27 @@ class PackageTest(EnhancedTestCase):
             print "The Package File"
             print read_file(pkgfile)
 
+        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
+        replace_str = '''description = "Toy C program. Now with `backticks'"'''
+        toy_txt = re.sub('description = .*', replace_str, toy_txt)
+        toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
+        write_file(toy_file, toy_txt)
+
+        desc_backticks_regex = re.compile(r"""`backticks'""")
+        self.assertTrue(
+            desc_backticks_regex.search(toy_txt),
+            "Pattern '%s' found in: %s" % (desc_backticks_regex.pattern, toy_txt))
         ec_desc = EasyConfig(
-            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test-description.eb'),
+            toy_file,
             validate=False)
         easyblock_desc = EB_toy(ec_desc)
         easyblock_desc.run_all_steps(False)
         pkgdir = package(easyblock_desc)
+        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.isfile(pkgfile))
+        pkgtxt = read_file(pkgfile)
+        regex_pkg_regex = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
+        self.assertTrue(regex_pkg_regex.search(pkgtxt))
 
 
 def suite():
