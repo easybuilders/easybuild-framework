@@ -832,7 +832,7 @@ class ModulesTool(object):
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
-                self.load([dep])
+                self.load([dep], reload=False)
 
         # restore original environment (modules may have been loaded above)
         restore_env(env)
