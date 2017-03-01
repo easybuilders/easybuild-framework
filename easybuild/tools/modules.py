@@ -476,7 +476,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, reload=None):
         """
         Load all requested modules.
 
@@ -505,8 +505,13 @@ class ModulesTool(object):
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             self.prepend_module_path(full_mod_path)
 
+        loaded_modules = self.loaded_modules()
+
         for mod in modules:
-            self.run_module('load', mod)
+            if mod in loaded_modules and (not reload):
+                self.log.debug("Not reloading already loaded module '%s'", mod)
+            else:
+                self.run_module('load', mod)
 
     def unload(self, modules=None):
         """
