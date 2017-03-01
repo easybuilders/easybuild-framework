@@ -80,16 +80,18 @@ def run_cmd_cache(func):
     @functools.wraps(func)
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
-        cache_function = kwargs.get('cache', True)
-        # fetch from cache if available, cache it if it's not
-        if cache_function and cmd in cache:
-            _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
-            return cache[cmd]
+        # fetch from cache if available, cache it if it's not, but only on cmd strings
+        if isinstance(cmd, str):
+            if cmd in cache:
+                _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
+                return cache[cmd]
+            else:
+                res = func(cmd, *args, **kwargs)
+                if cmd in CACHED_COMMANDS:
+                    cache[cmd] = res
+                return res
         else:
-            res = func(cmd, *args, **kwargs)
-            if cmd in CACHED_COMMANDS:
-                cache[cmd] = res
-            return res
+            return func(cmd, *args, **kwargs)
 
     # expose clear method of cache to wrapped function
     cache_aware_func.clear_cache = cache.clear
@@ -99,7 +101,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, cache=True, shell=True):
+            force_in_dry_run=False, verbose=True, shell=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -112,6 +114,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
     :param verbose: include message on running the command in dry run output
+    :param shell: allow commands to not run in a shell (especially useful for cmd lists)
     """
     cwd = os.getcwd()
 

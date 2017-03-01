@@ -97,6 +97,23 @@ def package_with_fpm(easyblock):
     pkgrel = package_naming_scheme.release(easyblock.cfg)
 
     _log.debug("Got the PNS values name: %s version: %s release: %s", pkgname, pkgver, pkgrel)
+    cmdlist = [
+        '/usr/bin/env',
+        PKG_TOOL_FPM,
+        '--workdir', workdir,
+        '--name', pkgname,
+        '--provides', pkgname,
+        '-t', pkgtype,  # target
+        '-s', 'dir',  # source
+        '--version', pkgver,
+        '--iteration', pkgrel,
+        '--description', easyblock.cfg["description"],
+        '--url', easyblock.cfg["homepage"],
+    ]
+
+    if build_option('debug'):
+        cmdlist.append('--debug')
+
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -120,6 +137,7 @@ def package_with_fpm(easyblock):
         os.path.join(log_path(), "*.log"),
         os.path.join(log_path(), "*.md"),
     ]
+    cmdlist.extend(deplist)
     # stripping off leading / to match expected glob in fpm
     exclude_files_cmd = []
     for x in exclude_files_glob:
@@ -127,32 +145,15 @@ def package_with_fpm(easyblock):
 
     _log.debug("The list of excluded files passed to fpm: %s", exclude_files_glob)
     # use env to find FPM https://stackoverflow.com/questions/5658622/python-subprocess-popen-environment-path
-    cmdlist = [
-        '/usr/bin/env',
-        PKG_TOOL_FPM,
-        '--workdir', workdir,
-        '--name', pkgname,
-        '--provides', pkgname,
-        '-t', pkgtype,  # target
-        '-s', 'dir',  # source
-        '--version', pkgver,
-        '--iteration', pkgrel,
-        '--description', easyblock.cfg["description"],
-        '--url', easyblock.cfg["homepage"],
-    ]
     cmdlist.extend(exclude_files_cmd)
 
-    if build_option('debug'):
-        cmdlist.append('--debug')
-    cmdlist.extend(deplist)
     cmdlist.extend([
         easyblock.installdir,
         easyblock.module_generator.get_module_filepath(),
     ])
     cmd = ' '.join(cmdlist)
-    print "cmd: %s" % cmdlist
     _log.debug("The flattened cmdlist looks like: %s", cmd)
-    run_cmd(cmdlist, log_all=True, simple=True, cache=False, shell=False)
+    run_cmd(cmdlist, log_all=True, simple=True, shell=False)
 
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
