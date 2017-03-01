@@ -476,7 +476,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None, reload=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, reload=True):
         """
         Load all requested modules.
 
@@ -484,6 +484,7 @@ class ModulesTool(object):
         :param mod_paths: list of module paths to activate before loading
         :param purge: whether or not a 'module purge' should be run before loading
         :param init_env: original environment to restore after running 'module purge'
+        :param reload: reload already loaded modules
         """
         if mod_paths is None:
             mod_paths = []
