@@ -1707,12 +1707,12 @@ class ActiveMNS(object):
         self.log.debug("Obtained initial module paths: %s" % init_modpaths)
         return init_modpaths
 
-    def expand_toolchain_load(self):
+    def expand_toolchain_load(self, ec=None):
         """
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
         """
-        return self.mns.expand_toolchain_load()
+        return self.mns.expand_toolchain_load(ec=ec)
 
     def is_short_modname_for(self, short_modname, name):
         """
