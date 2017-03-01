@@ -79,8 +79,6 @@ def package_with_fpm(easyblock):
     """
     This function will build a package using fpm and return the directory where the packages are
     """
-    # avoid circular import, should move eb_shell_quote
-    from easybuild.tools.options import eb_shell_quote
 
     workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
     pkgtype = build_option('package_type')
