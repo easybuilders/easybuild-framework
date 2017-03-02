@@ -243,8 +243,8 @@ class PackageTest(EnhancedTestCase):
         pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.isfile(pkgfile))
         pkgtxt = read_file(pkgfile)
-        regex_pkg_regex = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
-        self.assertTrue(regex_pkg_regex.search(pkgtxt))
+        regex_pkg = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
+        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
 
 
 def suite():

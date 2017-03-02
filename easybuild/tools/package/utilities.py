@@ -47,7 +47,7 @@ from easybuild.tools.package.package_naming_scheme.pns import PackageNamingSchem
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules, quote_str
-
+from subprocess import list2cmdline
 
 _log = fancylogger.getLogger('tools.package')
 
@@ -98,7 +98,6 @@ def package_with_fpm(easyblock):
 
     _log.debug("Got the PNS values name: %s version: %s release: %s", pkgname, pkgver, pkgrel)
     cmdlist = [
-        '/usr/bin/env',
         PKG_TOOL_FPM,
         '--workdir', workdir,
         '--name', pkgname,
@@ -123,29 +122,22 @@ def package_with_fpm(easyblock):
 
     _log.debug("The dependencies to be added to the package are: %s",
                pprint.pformat([easyblock.toolchain.as_dict()] + easyblock.cfg.dependencies()))
-    deplist = []
     for dep in deps:
         if dep.get('external_module', False):
             _log.debug("Skipping dep marked as external module: %s", dep['name'])
         else:
             _log.debug("The dep added looks like %s ", dep)
             dep_pkgname = package_naming_scheme.name(dep)
-            deplist.extend(["--depends", dep_pkgname])
+            cmdlist.extend(["--depends", dep_pkgname])
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
     exclude_files_glob = [
         os.path.join(log_path(), "*.log"),
         os.path.join(log_path(), "*.md"),
     ]
-    cmdlist.extend(deplist)
     # stripping off leading / to match expected glob in fpm
-    exclude_files_cmd = []
     for x in exclude_files_glob:
-        exclude_files_cmd.extend(['--exclude',  os.path.join(easyblock.installdir.lstrip(os.sep), x)])
-
-    _log.debug("The list of excluded files passed to fpm: %s", exclude_files_glob)
-    # use env to find FPM https://stackoverflow.com/questions/5658622/python-subprocess-popen-environment-path
-    cmdlist.extend(exclude_files_cmd)
+        cmdlist.extend(['--exclude',  os.path.join(easyblock.installdir.lstrip(os.sep), x)])
 
     cmdlist.extend([
         easyblock.installdir,

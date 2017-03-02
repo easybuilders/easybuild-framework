@@ -150,6 +150,11 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         runLog = None
 
+    if not shell and isinstance(cmd, list):
+        cmd.insert(0, '/usr/bin/env')
+    elif not shell and isinstance(cmd, str):
+        cmd = '/usr/bin/env %s' % cmd
+
     readSize = 1024 * 8
     _log.info('running cmd: %s ' % cmd)
     try:
