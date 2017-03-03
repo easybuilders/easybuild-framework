@@ -1668,8 +1668,8 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        # XXX HACK only check if 'modaltsoftname' key is set in ec
-        if 'modaltsoftname' in ec and not self.is_short_modname_for(mod_name, ec['modaltsoftname'] or ec['name']):
+        ec = self.check_ec_type(ec)
+        if not self.is_short_modname_for(mod_name, ec['modaltsoftname'] or ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
         return mod_name
