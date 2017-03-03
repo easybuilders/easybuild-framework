@@ -133,8 +133,7 @@ def mock_fpm(tmpdir):
     fpm = os.path.join(tmpdir, 'fpm')
     write_file(fpm, MOCKED_FPM % {
         "debug": ('', 'on')[DEBUG],
-        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)}
-    )
+        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)})
     adjust_permissions(fpm, stat.S_IXUSR, add=True)
 
     # also put mocked rpmbuild in place
@@ -225,7 +224,7 @@ class PackageTest(EnhancedTestCase):
             print read_file(pkgfile)
 
         toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
-        replace_str = '''description = "Toy C program. Now with `backticks'"'''
+        replace_str = '''description = """Toy C program. Now with `backticks' ''' "\n" '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
         toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
         write_file(toy_file, toy_txt)
@@ -244,6 +243,8 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(pkgfile))
         pkgtxt = read_file(pkgfile)
         regex_pkg = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
+        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
+        regex_pkg = re.compile(r"""DESCRIPTION:.*\nand newlines""", re.MULTILINE)
         self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
 
 
