@@ -130,13 +130,13 @@ def package_with_fpm(easyblock):
             cmdlist.extend(["--depends", dep_pkgname])
 
     # Excluding the EasyBuild logs and test reports that might be in the installdir
-    exclude_files_glob = [
+    exclude_files_globs = [
         os.path.join(log_path(), "*.log"),
         os.path.join(log_path(), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
-    for glob in exclude_files_glob:
-        cmdlist.extend(['--exclude', os.path.join(easyblock.installdir.lstrip(os.sep), glob)])
+    for exclude_files_glob in exclude_files_globs:
+        cmdlist.extend(['--exclude', os.path.join(easyblock.installdir.lstrip(os.sep), exclude_files_glob)])
 
     cmdlist.extend([
         easyblock.installdir,
