@@ -347,7 +347,7 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild'})
-    
+
     while not downloaded and attempt_cnt < max_attempts:
         try:
             # urllib2 does the right thing for http proxy setups, urllib does not!
