@@ -46,10 +46,9 @@ from easybuild.tools.filetools import which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import import_available_modules, quote_str
-from subprocess import list2cmdline
+from easybuild.tools.utilities import import_available_modules
 
-_log = fancylogger.getLogger('tools.package')
+_log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
 
 
 def avail_package_naming_schemes():
@@ -136,8 +135,8 @@ def package_with_fpm(easyblock):
         os.path.join(log_path(), "*.md"),
     ]
     # stripping off leading / to match expected glob in fpm
-    for x in exclude_files_glob:
-        cmdlist.extend(['--exclude',  os.path.join(easyblock.installdir.lstrip(os.sep), x)])
+    for glob in exclude_files_glob:
+        cmdlist.extend(['--exclude', os.path.join(easyblock.installdir.lstrip(os.sep), glob)])
 
     cmdlist.extend([
         easyblock.installdir,

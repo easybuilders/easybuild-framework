@@ -81,17 +81,14 @@ def run_cmd_cache(func):
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
         # fetch from cache if available, cache it if it's not, but only on cmd strings
-        if isinstance(cmd, str):
-            if cmd in cache:
-                _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
-                return cache[cmd]
-            else:
-                res = func(cmd, *args, **kwargs)
-                if cmd in CACHED_COMMANDS:
-                    cache[cmd] = res
-                return res
+        if isinstance(cmd, basestring) and cmd in cache:
+            _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
+            return cache[cmd]
         else:
-            return func(cmd, *args, **kwargs)
+            res = func(cmd, *args, **kwargs)
+            if cmd in CACHED_COMMANDS:
+                cache[cmd] = res
+            return res
 
     # expose clear method of cache to wrapped function
     cache_aware_func.clear_cache = cache.clear
@@ -150,10 +147,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         runLog = None
 
-    if not shell and isinstance(cmd, list):
-        cmd.insert(0, '/usr/bin/env')
-    elif not shell and isinstance(cmd, str):
-        cmd = '/usr/bin/env %s' % cmd
+    if not shell:
+        if isinstance(cmd, list):
+            cmd.insert(0, '/usr/bin/env')
+        elif isinstance(cmd, basestring):
+            cmd = '/usr/bin/env %s' % cmd
+        else:
+            raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
 
     readSize = 1024 * 8
     _log.info('running cmd: %s ' % cmd)
