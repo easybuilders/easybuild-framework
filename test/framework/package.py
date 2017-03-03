@@ -133,7 +133,8 @@ def mock_fpm(tmpdir):
     fpm = os.path.join(tmpdir, 'fpm')
     write_file(fpm, MOCKED_FPM % {
         "debug": ('', 'on')[DEBUG],
-        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)})
+        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)}
+    )
     adjust_permissions(fpm, stat.S_IXUSR, add=True)
 
     # also put mocked rpmbuild in place
@@ -224,18 +225,15 @@ class PackageTest(EnhancedTestCase):
             print read_file(pkgfile)
 
         toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
-        replace_str = '''description = """Toy C program. Now with `backticks' ''' "\n" '''and newlines"""'''
+        replace_str = '''description = """Toy C program. Now with `backticks'\n'''
+        replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
         toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
         write_file(toy_file, toy_txt)
 
-        desc_backticks_regex = re.compile(r"""`backticks'""")
-        self.assertTrue(
-            desc_backticks_regex.search(toy_txt),
-            "Pattern '%s' found in: %s" % (desc_backticks_regex.pattern, toy_txt))
-        ec_desc = EasyConfig(
-            toy_file,
-            validate=False)
+        regex = re.compile(r"""`backticks'""")
+        self.assertTrue(regex.search(toy_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_txt))
+        ec_desc = EasyConfig(toy_file, validate=False)
         easyblock_desc = EB_toy(ec_desc)
         easyblock_desc.run_all_steps(False)
         pkgdir = package(easyblock_desc)
