@@ -918,7 +918,7 @@ class EasyBlock(object):
 
         # include load statements for toolchain, either directly or for toolchain dependencies
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if mns.expand_toolchain_load():
+            if mns.expand_toolchain_load(ec=self.cfg):
                 mod_names = self.toolchain.toolchain_dep_mods
                 deps.extend(mod_names)
                 self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
