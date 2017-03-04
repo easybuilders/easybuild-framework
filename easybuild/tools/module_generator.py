@@ -277,8 +277,7 @@ class ModuleGenerator(object):
                 lines.extend([" - Site contact: %s" % site_contact])
 
         # Extensions (if any)
-        exts_list = self.app.cfg['exts_list']
-        extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
+        extensions = self._generate_extension_list()
         lines.extend(generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
@@ -289,13 +288,25 @@ class ModuleGenerator(object):
         """
         whatis = self.app.cfg['whatis']
         if whatis is None:
-            # default: include 'whatis' statements with description and homepage
+            # default: include 'whatis' statements with description, homepage, and extensions (if any)
             whatis = [
                 "Description: %s" % self.app.cfg['description'],
                 "Homepage: %s" % self.app.cfg['homepage']
             ]
+            extensions = self._generate_extension_list()
+            if extensions:
+                whatis.append("Extensions: %s" % extensions)
 
         return whatis
+
+    def _generate_extension_list(self):
+        """
+        Generate a string with a comma-separated list of extensions.
+        """
+        exts_list = self.app.cfg['exts_list']
+        extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
+
+        return extensions
 
 
 class ModuleGeneratorTcl(ModuleGenerator):
