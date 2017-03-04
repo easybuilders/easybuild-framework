@@ -73,8 +73,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test generation of module description (which includes '#%Module' header)."""
 
         gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
-        homepage = " - Homepage: http://www.gzip.org/"
-        whatis = gzip_txt + homepage
+        homepage = "http://www.gzip.org/"
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
@@ -88,11 +87,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "More information",
                 "================",
-                "%s" % homepage,
+                " - Homepage: %s" % homepage,
                 "    }",
                 "}",
                 '',
-                "module-whatis {Description: %s}" % whatis,
+                "module-whatis {Description: %s}" % gzip_txt,
+                "module-whatis {Homepage: %s}" % homepage,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -111,10 +111,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "More information",
                 "================",
-                "%s" % homepage,
+                " - Homepage: %s" % homepage,
                 ']])',
                 '',
-                "whatis([[Description: %s]])" % whatis,
+                "whatis([[Description: %s]])" % gzip_txt,
+                "whatis([[Homepage: %s]])" % homepage,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -139,7 +140,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "More information",
                 "================",
-                "%s" % homepage,
+                " - Homepage: %s" % homepage,
                 "    }",
                 "}",
                 '',
@@ -163,7 +164,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 "More information",
                 "================",
-                "%s" % homepage,
+                " - Homepage: %s" % homepage,
                 ']])',
                 '',
                 "whatis([[foo]])",

@@ -283,6 +283,20 @@ class ModuleGenerator(object):
 
         return '\n'.join(lines)
 
+    def _generate_whatis_lines(self):
+        """
+        Generate a list of entries used for `module whatis`.
+        """
+        whatis = self.app.cfg['whatis']
+        if whatis is None:
+            # default: include 'whatis' statements with description and homepage
+            whatis = [
+                "Description: %s" % self.app.cfg['description'],
+                "Homepage: %s" % self.app.cfg['homepage']
+            ]
+
+        return whatis
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -331,13 +345,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
-
-        whatis = self.app.cfg['whatis']
-        if whatis is None:
-            # default: include single 'whatis' statement with description as contents
-            whatis = ["Description: %s" % description]
-
         lines = [
             "proc ModulesHelp { } {",
             "    puts stderr {%s" % self._generate_help_text(),
@@ -361,10 +368,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
+        whatis = self._generate_whatis_lines()
         txt = '\n'.join(lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'description': description,
+            'description': self.app.cfg['description'],
             'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in whatis]),
             'installdir': self.app.installdir,
         }
@@ -577,14 +585,6 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate a description.
         """
-
-        description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
-
-        whatis = self.app.cfg['whatis']
-        if whatis is None:
-            # default: include single 'whatis' statement with description as contents
-            whatis = ["Description: %s" % description]
-
         lines = [
             'help([[%s' % self._generate_help_text(),
             ']])',
@@ -601,10 +601,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
+        whatis = self._generate_whatis_lines()
         txt = '\n'.join(lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'description': description,
+            'description': self.app.cfg['description'],
             'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in whatis]),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
