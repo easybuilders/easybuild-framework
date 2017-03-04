@@ -3,17 +3,20 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
-v3.1.1 (March 3rd 2017)
+v3.1.1 (March 6th 2017)
 -----------------------
 
 bugfix release
-- various bug fixes, including:
-  - handle the case when no compiler-specific optarch flag is defined (#1950)
+- minor enhancements, including:
+  - print more useful error message when no compiler-specific optarch flag is defined (#1950)
   - add ec parameter to expand_toolchain_load() (#2103)
+  - clarify unstable/closed PR warning message (#2129)
+  - avoid reloading modules that open up a hierarchical module tree (#2135)
+- various bug fixes, including:
   - ensure that $EBEXTSLIST* is also included in generated module under --module-only (#2112)
   - fix formatting issues in generated documentation for --list-software and --avail-easyconfig-licenses (#2121)
-  - clarify unstable/closed PR warning message (#2129)
-  - replace --enable-new-dtags with --disable-new-dtags instead of remove from command line (#2131)
+  - fix problem with backticks in description breaking 'fpm' packaging command (#2124)
+  - replace --enable-new-dtags with --disable-new-dtags instead of removing it in RPATH wrapper script (#2131)
 
 
 v3.1.0 (February 3rd 2017)
