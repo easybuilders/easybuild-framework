@@ -944,9 +944,14 @@ class EasyBlock(object):
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
 
-        all_deps = [d for d in [tc_mod] + tc_dep_mods + deps[:] if d]
+        all_deps = [d for d in [tc_mod] + tc_dep_mods + deps[:] if d is not None]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, all_deps)
+
+        # if the toolchain is excluded, so should the toolchain components
+        if tc_mod in excluded_deps:
+            excluded_deps.extend(tc_dep_mods)
+
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
         # expand toolchain into toolchain components if desired
