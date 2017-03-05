@@ -912,21 +912,23 @@ class EasyBlock(object):
 
         :param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
-        deps = []
         mns = ActiveMNS()
         unload_info = unload_info or {}
 
-        # include load statements for toolchain, either directly or for toolchain dependencies
+        # include toolchain as first dependency to load
+        tc_mod = None
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if mns.expand_toolchain_load(ec=self.cfg):
-                mod_names = self.toolchain.toolchain_dep_mods
-                deps.extend(mod_names)
-                self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
-            else:
-                deps.append(self.toolchain.det_short_module_name())
-                self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
+            tc_mod = self.toolchain.det_short_module_name()
+            self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
+
+        # expand toolchain into toolchain components if desired (and if the toolchain was retained as a dep)
+        tc_dep_mods = None
+        if mns.expand_toolchain_load(ec=self.cfg):
+            tc_dep_mods = self.toolchain.toolchain_dep_mods
+            self.log.debug("Toolchain components to load in generated module (before excluding any): %s", tc_dep_mods)
 
         # include load/unload statements for dependencies
+        deps = []
         self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
             if dep['build_only']:
@@ -935,35 +937,33 @@ class EasyBlock(object):
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-
         self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
+
+        all_deps = [d for d in [tc_mod] + tc_dep_mods + deps[:] if d]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
-                                                                     full_mod_subdir, deps)
+                                                                     full_mod_subdir, all_deps)
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
-        # load modules that open up the module tree before checking deps of deps (in reverse order)
-        self.modules_tool.load(excluded_deps[::-1])
+        # expand toolchain into toolchain components if desired
+        if tc_dep_mods:
+            deps = tc_dep_mods + deps
+        elif tc_mod:
+            deps = [tc_mod] + deps
 
         deps = [d for d in deps if d not in excluded_deps]
-        for dep in excluded_deps:
-            excluded_dep_deps = dependencies_for(dep, self.modules_tool)
-            self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
-            deps = [d for d in deps if d not in excluded_dep_deps]
-
-        self.log.debug("List of retained deps to load in generated module: %s" % deps)
-        recursive_unload = self.cfg['recursive_module_unload']
+        self.log.debug("List of retained deps to load in generated module: %s", deps)
 
         loads = []
         for dep in deps:
             unload_modules = []
             if dep in unload_info:
                 unload_modules.append(unload_info[dep])
-            loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload,
+            loads.append(self.module_generator.load_module(dep, recursive_unload=self.cfg['recursive_module_unload'],
                                                            unload_modules=unload_modules))
 
         # Force unloading any other modules
