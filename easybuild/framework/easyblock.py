@@ -922,7 +922,7 @@ class EasyBlock(object):
             self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
 
         # expand toolchain into toolchain components if desired (and if the toolchain was retained as a dep)
-        tc_dep_mods = []
+        tc_dep_mods = None
         if mns.expand_toolchain_load(ec=self.cfg):
             tc_dep_mods = self.toolchain.toolchain_dep_mods
             self.log.debug("Toolchain components to load in generated module (before excluding any): %s", tc_dep_mods)
@@ -944,20 +944,20 @@ class EasyBlock(object):
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
 
-        all_deps = [d for d in [tc_mod] + tc_dep_mods + deps[:] if d is not None]
+        all_deps = [d for d in [tc_mod] + (tc_dep_mods or []) + deps if d is not None]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, all_deps)
 
         # if the toolchain is excluded, so should the toolchain components
-        if tc_mod in excluded_deps:
+        if tc_mod in excluded_deps and tc_dep_mods:
             excluded_deps.extend(tc_dep_mods)
 
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
         # expand toolchain into toolchain components if desired
-        if tc_dep_mods:
+        if tc_dep_mods is not None:
             deps = tc_dep_mods + deps
-        elif tc_mod:
+        elif tc_mod is not None:
             deps = [tc_mod] + deps
 
         deps = [d for d in deps if d not in excluded_deps]
