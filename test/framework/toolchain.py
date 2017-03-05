@@ -734,7 +734,8 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
+            # Contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.options.options_map['optarch'],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
