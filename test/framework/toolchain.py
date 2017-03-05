@@ -295,10 +295,8 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                if opt == 'optarch':
-                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-                else:
-                    flag = '-%s' % tc.options.options_map[opt]
+                # Contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+                flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
