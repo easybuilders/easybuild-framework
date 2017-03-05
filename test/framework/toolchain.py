@@ -632,8 +632,10 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
+        # Contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+        optarch_flags = tc.options.options_map['optarch']
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -march=native")
+            self.assertEqual(os.getenv(var), "-O2 -%s" % optarch_flags)
 
         # check other precision flags
         prec_flags = {
@@ -650,9 +652,9 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
+                        self.assertEqual(os.getenv(var), "-O2 -%s %s" % (optarch_flags, prec_flags[prec]))
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native")
+                        self.assertEqual(os.getenv(var), "-O2 -%s" % optarch_flags)
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
