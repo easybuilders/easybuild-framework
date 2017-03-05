@@ -922,7 +922,7 @@ class EasyBlock(object):
             self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
 
         # expand toolchain into toolchain components if desired (and if the toolchain was retained as a dep)
-        tc_dep_mods = None
+        tc_dep_mods = []
         if mns.expand_toolchain_load(ec=self.cfg):
             tc_dep_mods = self.toolchain.toolchain_dep_mods
             self.log.debug("Toolchain components to load in generated module (before excluding any): %s", tc_dep_mods)
