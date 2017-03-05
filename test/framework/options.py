@@ -2970,7 +2970,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
-        
+
         options = EasyBuildOptions()
 
         # Check for EasyBuildErrors
@@ -2980,7 +2980,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         options.options.optarch = 'Intel:something;'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
-        
+
         options.options.optarch = 'Intel:something:somethingelse'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
@@ -3004,9 +3004,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             options.options.optarch = optarch_string
             options.postprocess()
             self.assertEqual(options.options.optarch, optarch_parsed)
-    
+
     def test_check_style(self):
         """Test --check-style."""
+        try:
+            import pep8
+        except ImportError:
+            print "Skipping test_check_style, since pep8 is not available"
+            return
+
         args = [
             '--check-style',
             'GCC-4.9.2.eb',
