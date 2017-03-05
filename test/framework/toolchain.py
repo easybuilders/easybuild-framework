@@ -319,8 +319,8 @@ class ToolchainTest(EnhancedTestCase):
                 if optarch_var is not None:
                     flag = '-%s' % optarch_var
                 else:
-                    # default optarch flag
-                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+                    # default optarch flag, contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+                    flag = tc.options.options_map['optarch']
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
