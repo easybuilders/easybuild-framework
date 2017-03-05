@@ -422,6 +422,7 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_model = lambda: 'IBM,8205-E6C'
         st.get_cpu_vendor = lambda: st.IBM
 
+        # Expected flags identical to POWER big endian
         test_flags(test_tcs)
 
         # Mocked x86_64/Intel CPU
@@ -444,6 +445,102 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_model = lambda: 'Six-Core AMD Opteron(tm) Processor 2427'
         st.get_cpu_vendor = lambda: st.AMD
 
+        # Expected flags identical to x86_64/Intel
+        test_flags(test_tcs)
+
+    def test_generic_optarch_flags(self):
+        """Test whether generic optimal architecture flags end up in toolchain option map."""
+
+        def test_flags(tc_list):
+            for tc_name, tc_ver, expected in tc_list:
+                # Set up toolchain
+                tc = self.get_toolchain(tc_name, version=tc_ver)
+                tc.set_options({})
+                tc.prepare()
+
+                # Check whether expected flags have been set
+                self.assertEqual(tc.options.options_map['optarch'], expected)
+                for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                    self.assertTrue("-%s" % expected in os.environ[var])
+
+                # Tear down toolchain
+                self.modtool.purge()
+
+        init_config(build_options={'optarch': 'GENERIC'})
+
+        # Mocked ARMv7 (AArch32) CPU
+        st.get_cpu_architecture = lambda: st.AARCH32
+        st.get_cpu_family = lambda: st.ARM
+        st.get_cpu_model = lambda: 'ARM Cortex-A7'
+        st.get_cpu_vendor = lambda: st.ARM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=generic-armv7'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked ARMv8 (AArch64) CPU
+        st.get_cpu_architecture = lambda: st.AARCH64
+        st.get_cpu_model = lambda: 'ARM Cortex-A53'
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=generic'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked ARMv8 (AArch64) big.LITTLE CPU
+        st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
+
+        # Expected flags identical to AArch64
+        test_flags(test_tcs)
+
+        # Mocked POWER CPU (big endian)
+        st.get_cpu_architecture = lambda: st.POWER
+        st.get_cpu_family = lambda: st.POWER
+        st.get_cpu_model = lambda: 'IBM,8205-E6C'
+        st.get_cpu_vendor = lambda: st.IBM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=powerpc64'),
+            # Clang: Flags missing
+            # IBM XL: Flags missing
+        ]
+        test_flags(test_tcs)
+
+        # Mocked POWER CPU (little endian)
+        st.get_cpu_architecture = lambda: st.POWER
+        st.get_cpu_family = lambda: st.POWER_LE
+        st.get_cpu_model = lambda: 'IBM,8205-E6C'
+        st.get_cpu_vendor = lambda: st.IBM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=powerpc64le'),
+            # Clang: Flags missing
+            # IBM XL: Flags missing
+        ]
+        test_flags(test_tcs)
+
+        # Mocked x86_64/Intel CPU
+        st.get_cpu_architecture = lambda: st.X86_64
+        st.get_cpu_family = lambda: st.INTEL
+        st.get_cpu_model = lambda: 'Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz'
+        st.get_cpu_vendor = lambda: st.INTEL
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'march=x86-64 -mtune=generic'),
+            ('iccifort', '2011.13.367', 'xSSE2'),
+            ('ClangGCC', '1.1.2', 'march=x86-64 -mtune=generic'),
+            ('PGI', '16.7-GCC-5.4.0-2.26', 'tp=x64'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked x86_64/AMD CPU
+        st.get_cpu_architecture = lambda: st.X86_64
+        st.get_cpu_family = lambda: st.AMD
+        st.get_cpu_model = lambda: 'Six-Core AMD Opteron(tm) Processor 2427'
+        st.get_cpu_vendor = lambda: st.AMD
+
+        # Expected flags identical to x86_64/Intel
         test_flags(test_tcs)
 
     def test_compiler_dependent_optarch(self):
