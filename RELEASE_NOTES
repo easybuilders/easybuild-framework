@@ -16,6 +16,7 @@ bugfix release
   - fix formatting issues in generated documentation for --list-software and --avail-easyconfig-licenses (#2121)
   - fix problem with backticks in description breaking 'fpm' packaging command (#2124)
   - replace --enable-new-dtags with --disable-new-dtags instead of removing it in RPATH wrapper script (#2131)
+  - only perform is_short_modname_for sanity check in det_short_module_name if modaltsoftname is available (#2138)
   - fix logic in make_module_dep w.r.t. excluding loads for toolchain & toolchain components (#2140)
   - skip test_check_style if pep8 is not available (#2142)
 
