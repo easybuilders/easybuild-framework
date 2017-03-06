@@ -1265,6 +1265,8 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec_file)
 
+        self.assertFalse(re.search('^modaltsoftname', toy_ec_txt, re.M))
+
         ec1 = os.path.join(self.test_prefix, 'toy-0.0-one.eb')
         ec1_txt = '\n'.join([
             toy_ec_txt,
@@ -1281,9 +1283,11 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(ec2, ec2_txt)
 
-        self.test_toy_build(ec_file=self.test_prefix, verify=False,
-                            extra_args=['--module-naming-scheme=HierarchicalMNS', 
-                                        '--robot-paths=%s'%self.test_prefix])
+        extra_args = [
+            '--module-naming-scheme=HierarchicalMNS',
+            '--robot-paths=%s'%self.test_prefix,
+        ]
+        self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
 
 
 def suite():
