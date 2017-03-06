@@ -921,7 +921,7 @@ class EasyBlock(object):
             tc_mod = self.toolchain.det_short_module_name()
             self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
 
-        # expand toolchain into toolchain components if desired (and if the toolchain was retained as a dep)
+        # expand toolchain into toolchain components if desired
         tc_dep_mods = None
         if mns.expand_toolchain_load(ec=self.cfg):
             tc_dep_mods = self.toolchain.toolchain_dep_mods
@@ -960,9 +960,14 @@ class EasyBlock(object):
         elif tc_mod is not None:
             deps = [tc_mod] + deps
 
+        # filter dependencies to avoid including loads for toolchain or toolchain components that extend $MODULEPATH
+        # with location to where this module is being installed (full_mod_subdir);
+        # if the modules that extend $MODULEPATH are not loaded this module is not available, so there is not
+        # point in loading them again (in fact, it may cause problems when reloading this module due to a load storm)
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained deps to load in generated module: %s", deps)
 
+        # include load statements for retained dependencies
         loads = []
         for dep in deps:
             unload_modules = []
