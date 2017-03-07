@@ -860,6 +860,7 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_lua + [
                 r'end',
                 r'io.stderr:write\("oh hai\!"\)',
+                r'setenv\("TOY", "toy-0.0"\)',
                 r'-- Built with EasyBuild version .*$',
             ])
         elif get_module_syntax() == 'Tcl':
@@ -892,6 +893,7 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_tcl + [
                 r'}',
                 r'puts stderr "oh hai\!"',
+                r'setenv	TOY		"toy-0.0"',
                 r'# Built with EasyBuild version .*$',
             ])
         else:
@@ -1258,6 +1260,36 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
         self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath', '--experimental'], raise_error=True)
+
+    def test_toy_modaltsoftname(self):
+        """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        self.assertFalse(re.search('^modaltsoftname', toy_ec_txt, re.M))
+
+        ec1 = os.path.join(self.test_prefix, 'toy-0.0-one.eb')
+        ec1_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-one'",
+            "modaltsoftname = 'yot'"
+        ])
+        write_file(ec1, ec1_txt)
+
+        ec2 = os.path.join(self.test_prefix, 'toy-0.0-two.eb')
+        ec2_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-two'",
+            "dependencies = [('toy', '0.0', '-one')]",
+        ])
+        write_file(ec2, ec2_txt)
+
+        extra_args = [
+            '--module-naming-scheme=HierarchicalMNS',
+            '--robot-paths=%s'%self.test_prefix,
+        ]
+        self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
 
 
 def suite():

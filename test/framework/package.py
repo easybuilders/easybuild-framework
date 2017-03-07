@@ -35,7 +35,6 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
@@ -112,7 +111,7 @@ done
 
 pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
 echo "thisisan$target" > $pkgfile
-echo $@ >> $pkgfile
+echo "$@" >> $pkgfile
 echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
 for exclude in ${excludes[*]}; do
     exclude_str+=" -not -path /${exclude} "
@@ -124,6 +123,7 @@ echo "ENDCONTENTS" >> $pkgfile
 echo "Contents of module file $modulefile:" >> $pkgfile
 cat $modulefile >> $pkgfile
 echo "I found excludes "${excludes[*]} >> $pkgfile
+echo "DESCRIPTION: $description" >> $pkgfile
 """
 
 
@@ -223,6 +223,27 @@ class PackageTest(EnhancedTestCase):
             print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
             print "The Package File"
             print read_file(pkgfile)
+
+        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
+        replace_str = '''description = """Toy C program. Now with `backticks'\n'''
+        replace_str += '''and newlines"""'''
+        toy_txt = re.sub('description = .*', replace_str, toy_txt)
+        toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
+        write_file(toy_file, toy_txt)
+
+        regex = re.compile(r"""`backticks'""")
+        self.assertTrue(regex.search(toy_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_txt))
+        ec_desc = EasyConfig(toy_file, validate=False)
+        easyblock_desc = EB_toy(ec_desc)
+        easyblock_desc.run_all_steps(False)
+        pkgdir = package(easyblock_desc)
+        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.isfile(pkgfile))
+        pkgtxt = read_file(pkgfile)
+        regex_pkg = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
+        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
+        regex_pkg = re.compile(r"""DESCRIPTION:.*\nand newlines""", re.MULTILINE)
+        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
 
 
 def suite():
