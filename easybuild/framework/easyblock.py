@@ -966,6 +966,10 @@ class EasyBlock(object):
         # if the modules that extend $MODULEPATH are not loaded this module is not available, so there is not
         # point in loading them again (in fact, it may cause problems when reloading this module due to a load storm)
         deps = [d for d in deps if d not in excluded_deps]
+        for dep in excluded_deps:
+            excluded_dep_deps = dependencies_for(dep, self.modules_tool)
+            self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
+            deps = [d for d in deps if d not in excluded_dep_deps]
         self.log.debug("List of retained deps to load in generated module: %s", deps)
 
         # eliminate all dependencies that are hidden toolchain modules (not very thorough)
