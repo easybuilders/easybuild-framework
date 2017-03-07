@@ -34,6 +34,7 @@ import shutil
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.run import run_cmd
@@ -62,6 +63,8 @@ class EB_toy(EasyBlock):
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
 
+        setvar('TOY', '%s-%s' % (self.name, self.version))
+
     def build_step(self, name=None):
         """Build toy."""
         if name is None:
@@ -87,3 +90,9 @@ class EB_toy(EasyBlock):
         f = open(os.path.join(libdir, 'lib%s.a' % name), 'w')
         f.write(name.upper())
         f.close()
+
+    def make_module_extra(self):
+        """Extra stuff for toy module"""
+        txt = super(EB_toy, self).make_module_extra()
+        txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
+        return txt

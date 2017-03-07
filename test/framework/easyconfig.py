@@ -323,6 +323,11 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
 
+        modfile = os.path.join(eb.make_module_step(), 'pi', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
+        modtxt = read_file(modfile)
+        regex = re.compile('EBEXTSLISTPI.*ext1-ext_ver1,ext2-ext_ver2')
+        self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
+
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
         self.contents = '\n'.join([
