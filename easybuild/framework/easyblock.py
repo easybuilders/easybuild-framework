@@ -913,21 +913,23 @@ class EasyBlock(object):
 
         :param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
-        deps = []
         mns = ActiveMNS()
         unload_info = unload_info or {}
 
-        # include load statements for toolchain, either directly or for toolchain dependencies
+        # include toolchain as first dependency to load
+        tc_mod = None
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if mns.expand_toolchain_load(self.cfg):
-                mod_names = self.toolchain.toolchain_dep_mods
-                deps.extend(mod_names)
-                self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
-            else:
-                deps.append(self.toolchain.det_short_module_name())
-                self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
+            tc_mod = self.toolchain.det_short_module_name()
+            self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
+
+        # expand toolchain into toolchain components if desired
+        tc_dep_mods = None
+        if mns.expand_toolchain_load(ec=self.cfg):
+            tc_dep_mods = self.toolchain.toolchain_dep_mods
+            self.log.debug("Toolchain components to load in generated module (before excluding any): %s", tc_dep_mods)
 
         # include load/unload statements for dependencies
+        deps = []
         self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
             if dep['build_only']:
@@ -936,28 +938,35 @@ class EasyBlock(object):
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-
         self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
+
+        all_deps = [d for d in [tc_mod] + (tc_dep_mods or []) + deps if d is not None]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
-                                                                     full_mod_subdir, deps)
+                                                                     full_mod_subdir, all_deps)
+
+        # if the toolchain is excluded, so should the toolchain components
+        if tc_mod in excluded_deps and tc_dep_mods:
+            excluded_deps.extend(tc_dep_mods)
+
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
-        # load modules that open up the module tree before checking deps of deps (in reverse order)
-        self.modules_tool.load(excluded_deps[::-1])
+        # expand toolchain into toolchain components if desired
+        if tc_dep_mods is not None:
+            deps = tc_dep_mods + deps
+        elif tc_mod is not None:
+            deps = [tc_mod] + deps
 
+        # filter dependencies to avoid including loads for toolchain or toolchain components that extend $MODULEPATH
+        # with location to where this module is being installed (full_mod_subdir);
+        # if the modules that extend $MODULEPATH are not loaded this module is not available, so there is not
+        # point in loading them again (in fact, it may cause problems when reloading this module due to a load storm)
         deps = [d for d in deps if d not in excluded_deps]
-        for dep in excluded_deps:
-            excluded_dep_deps = dependencies_for(dep, self.modules_tool)
-            self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
-            deps = [d for d in deps if d not in excluded_dep_deps]
-
-        self.log.debug("List of retained deps to load in generated module: %s" % deps)
-        recursive_unload = self.cfg['recursive_module_unload']
+        self.log.debug("List of retained deps to load in generated module: %s", deps)
 
         # eliminate all dependencies that are hidden toolchain modules (not very thorough)
         for dep in deps:
@@ -971,12 +980,13 @@ class EasyBlock(object):
                         excluded_deps.append(dep)
         deps = [d for d in deps if d not in excluded_deps]
 
+        # include load statements for retained dependencies
         loads = []
         for dep in deps:
             unload_modules = []
             if dep in unload_info:
                 unload_modules.append(unload_info[dep])
-            loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload,
+            loads.append(self.module_generator.load_module(dep, recursive_unload=self.cfg['recursive_module_unload'],
                                                            unload_modules=unload_modules))
 
         # Force unloading any other modules
@@ -1067,10 +1077,9 @@ class EasyBlock(object):
         lines = [self.module_extra_extensions]
 
         # set environment variable that specifies list of extensions
-        if self.exts_all:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            env_var_name = convert_name(self.name, upper=True)
-            lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
+        exts_list = ','.join(['%s-%s' % (ext[0], ext[1]) for ext in self.cfg['exts_list']])
+        env_var_name = convert_name(self.name, upper=True)
+        lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
         return ''.join(lines)
 

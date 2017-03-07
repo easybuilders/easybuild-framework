@@ -3,6 +3,24 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.1.1 (March 7th 2017)
+-----------------------
+
+bugfix release
+- minor enhancements, including:
+  - print more useful error message when no compiler-specific optarch flag is defined (#1950)
+  - add ec parameter to expand_toolchain_load() (#2103)
+  - clarify unstable/closed PR warning message (#2129)
+- various bug fixes, including:
+  - ensure that $EBEXTSLIST* is also included in generated module under --module-only (#2112)
+  - fix formatting issues in generated documentation for --list-software and --avail-easyconfig-licenses (#2121)
+  - fix problem with backticks in description breaking 'fpm' packaging command (#2124)
+  - replace --enable-new-dtags with --disable-new-dtags instead of removing it in RPATH wrapper script (#2131)
+  - only perform is_short_modname_for sanity check in det_short_module_name if modaltsoftname is available (#2138)
+  - fix logic in make_module_dep w.r.t. excluding loads for toolchain & toolchain components (#2140)
+  - skip test_check_style if pep8 is not available (#2142)
+
+
 v3.1.0 (February 3rd 2017)
 --------------------------
 

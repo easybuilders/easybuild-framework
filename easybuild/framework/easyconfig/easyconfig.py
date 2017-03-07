@@ -1668,8 +1668,7 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        ec = self.check_ec_type(ec)
-        if not self.is_short_modname_for(mod_name, ec['modaltsoftname'] or ec['name']):
+        if 'modaltsoftname' in ec and not self.is_short_modname_for(mod_name, ec['modaltsoftname'] or ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
         return mod_name
@@ -1708,12 +1707,12 @@ class ActiveMNS(object):
         self.log.debug("Obtained initial module paths: %s" % init_modpaths)
         return init_modpaths
 
-    def expand_toolchain_load(self, ec):
+    def expand_toolchain_load(self, ec=None):
         """
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
         """
-        return self.mns.expand_toolchain_load(ec)
+        return self.mns.expand_toolchain_load(ec=ec)
 
     def is_short_modname_for(self, short_modname, name):
         """

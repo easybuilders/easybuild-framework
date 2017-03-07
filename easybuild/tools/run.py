@@ -80,9 +80,8 @@ def run_cmd_cache(func):
     @functools.wraps(func)
     def cache_aware_func(cmd, *args, **kwargs):
         """Retrieve cached result of selected commands, or run specified and collect & cache result."""
-
-        # fetch from cache if available, cache it if it's not
-        if cmd in cache:
+        # fetch from cache if available, cache it if it's not, but only on cmd strings
+        if isinstance(cmd, basestring) and cmd in cache:
             _log.debug("Using cached value for command '%s': %s", cmd, cache[cmd])
             return cache[cmd]
         else:
@@ -99,7 +98,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True):
+            force_in_dry_run=False, verbose=True, shell=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -112,6 +111,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param path: path to execute the command in; current working directory is used if unspecified
     :param force_in_dry_run: force running the command during dry run
     :param verbose: include message on running the command in dry run output
+    :param shell: allow commands to not run in a shell (especially useful for cmd lists)
     """
     cwd = os.getcwd()
 
@@ -147,10 +147,18 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         runLog = None
 
-    readSize = 1024 * 8
+    if not shell:
+        if isinstance(cmd, list):
+            cmd.insert(0, '/usr/bin/env')
+        elif isinstance(cmd, basestring):
+            cmd = '/usr/bin/env %s' % cmd
+        else:
+            raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
 
+    readSize = 1024 * 8
+    _log.info('running cmd: %s ' % cmd)
     try:
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        p = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
@@ -496,5 +504,3 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
                   (regExp, '\n'.join([x[0] for x in res])))
 
     return res
-
-

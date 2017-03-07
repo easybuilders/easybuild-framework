@@ -215,7 +215,7 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
             paths[i] = os.path.join(os.getenv('RSNT_ARCH'), path)
         return paths
 
-    def expand_toolchain_load(self, ec):
+    def expand_toolchain_load(self, ec=None):
         """
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
