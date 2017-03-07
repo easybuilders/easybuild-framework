@@ -1,0 +1,17 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {
+        IBM XL FORTRAN for Linux (SLES11/RHEL6) - Homepage: http://www.ibm.com/us/en/
+    }
+}
+
+module-whatis {IBM XL FORTRAN for Linux (SLES11/RHEL6) - Homepage: http://www.ibm.com/us/en/}
+
+set root    /tmp/xlf/15.1.0.1
+
+conflict    xlf
+
+setenv	EBROOTXLF		"$root"
+setenv	EBVERSIONXLF		"15.1.0.1"
+setenv	EBDEVELXLF		"$root/easybuild/xlf-15.1.0.1-easybuild-devel"

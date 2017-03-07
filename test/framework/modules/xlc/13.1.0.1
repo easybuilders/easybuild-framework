@@ -1,0 +1,17 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {
+        IBM XL C/C++ for Linux (SLES11/RHEL6) - Homepage: http://www.ibm.com/us/en/
+    }
+}
+
+module-whatis {IBM XL C/C++ for Linux (SLES11/RHEL6) - Homepage: http://www.ibm.com/us/en/}
+
+set root    /tmp/xlc/13.1.0.1
+
+conflict    xlc
+
+setenv	EBROOTXLC		"$root"
+setenv	EBVERSIONXLC		"13.1.0.1"
+setenv	EBDEVELXLC		"$root/easybuild/xlc-13.1.0.1-easybuild-devel"

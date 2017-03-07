@@ -410,7 +410,7 @@ class ToolchainTest(EnhancedTestCase):
         test_tcs = [
             ('GCC', '4.7.2', 'mcpu=native'),
             ('ClangGCC', '1.1.2', 'mcpu=native'),
-            # IBM XL: modulefile missing
+            ('xlcxlf', '2015b', 'qtune=auto -qmaxmem=-1'),
         ]
         test_flags(test_tcs)
 
