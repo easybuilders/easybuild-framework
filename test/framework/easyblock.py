@@ -441,11 +441,9 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
+            "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
             'dependencies = [',
-            "   ('GCC', '4.7.2', '', True),"
-            "   ('hwloc', '1.6.2', '', ('GCC', '4.7.2')),",
-            "   ('OpenMPI', '1.6.4', '', ('GCC', '4.7.2')),"
+            "   ('FFTW', '3.3.3'),",
             ']',
         ])
         self.writeEC()
@@ -453,12 +451,17 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
 
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
         mod_dep_txt = eb.make_module_dep()
-        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4', 'hwloc/1.6.2']:
+        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4']:
             regex = re.compile('load.*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
+
+        regex = re.compile('load.*FFTW/3.3.3')
+        self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_extensions_step(self):
         """Test the extensions_step"""

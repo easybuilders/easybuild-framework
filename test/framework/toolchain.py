@@ -554,7 +554,7 @@ class ToolchainTest(EnhancedTestCase):
         test_cases = product(intel_options, gcc_options, toolchains, enabled)
 
         for (intel_flags, intel_flags_exp), (gcc_flags, gcc_flags_exp), (toolchain, toolchain_ver), enable in test_cases:
-            optarch_var = {} 
+            optarch_var = {}
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             build_options = {'optarch': optarch_var}
@@ -566,16 +566,16 @@ class ToolchainTest(EnhancedTestCase):
             if toolchain == 'iccifort':
                 flags = intel_flags_exp
             elif toolchain == 'GCC':
-                flags = gcc_flags_exp 
+                flags = gcc_flags_exp
             else: # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
                 # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
                 flags = ''
-            
+
             optarch_flags = tc.options.options_map['optarch']
 
             self.assertEquals(flags, optarch_flags)
-            
+
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
             if flags == '':
                 blacklist = [
@@ -591,7 +591,7 @@ class ToolchainTest(EnhancedTestCase):
 
             for var in flag_vars:
                  set_flags = tc.get_variable(var)
-                
+
                  # Check that the correct flags are there
                  if enable and flags != '':
                      error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
@@ -1179,6 +1179,7 @@ class ToolchainTest(EnhancedTestCase):
             regex = re.compile(pattern)
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
+        # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
         for comp in ['gcc', 'g++', 'gfortran']:
             self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
