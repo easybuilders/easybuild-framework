@@ -365,8 +365,9 @@ class ToolchainTest(EnhancedTestCase):
 
                 # Check whether expected flags have been set
                 self.assertEqual(tc.options.options_map['optarch'], expected)
-                for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-                    self.assertTrue("-%s" % expected in os.environ[var])
+                if expected:
+                    for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                        self.assertTrue("-%s" % expected in os.environ[var])
 
                 # Tear down toolchain
                 self.modtool.purge()
@@ -433,7 +434,7 @@ class ToolchainTest(EnhancedTestCase):
             ('GCC', '4.7.2', 'march=native'),
             ('iccifort', '2011.13.367', 'xHost'),
             ('ClangGCC', '1.1.2', 'march=native'),
-            # PGI optimizes for the host architecture by default
+            ('PGI', '16.7-GCC-5.4.0-2.26', ''),
         ]
         test_flags(test_tcs)
 
@@ -458,8 +459,9 @@ class ToolchainTest(EnhancedTestCase):
 
                 # Check whether expected flags have been set
                 self.assertEqual(tc.options.options_map['optarch'], expected)
-                for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-                    self.assertTrue("-%s" % expected in os.environ[var])
+                if expected:
+                    for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                        self.assertTrue("-%s" % expected in os.environ[var])
 
                 # Tear down toolchain
                 self.modtool.purge()
