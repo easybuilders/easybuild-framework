@@ -836,11 +836,25 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_change_dir(self):
         """Test change_dir"""
+
+        prev_dir = ft.change_dir(self.test_prefix)
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertNotEqual(prev_dir, None)
+
+        # prepare another directory to play around with
         test_path = os.path.join(self.test_prefix, 'anotherdir')
         ft.mkdir(test_path)
 
-        ft.change_dir(test_path)
+        # check return value (previous location)
+        prev_dir = ft.change_dir(test_path)
         self.assertTrue(os.path.samefile(os.getcwd(), test_path))
+        self.assertTrue(os.path.samefile(prev_dir, self.test_prefix))
+
+        # check behaviour when current working directory does not exist anymore
+        shutil.rmtree(test_path)
+        prev_dir = ft.change_dir(self.test_prefix)
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertEqual(prev_dir, None)
 
         foo = os.path.join(self.test_prefix, 'foo')
         self.assertErrorRegex(EasyBuildError, "Failed to change from .* to %s" % foo, ft.change_dir, foo)

@@ -191,13 +191,21 @@ def change_dir(path):
     Change to directory at specified location.
 
     :param path: location to change to
+    :return: previous location we were in
     """
-    cwd = None
+    # determining the current working directory can fail if we're in a non-existing directory
     try:
         cwd = os.getcwd()
+    except OSError as err:
+        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
+        cwd = None
+
+    try:
         os.chdir(path)
     except OSError as err:
         raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+
+    return cwd
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
