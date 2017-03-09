@@ -834,6 +834,17 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
         self.assertEqual(txt, '')
 
+    def test_change_dir(self):
+        """Test change_dir"""
+        test_path = os.path.join(self.test_prefix, 'anotherdir')
+        ft.mkdir(test_path)
+
+        ft.change_dir(test_path)
+        self.assertTrue(os.path.samefile(os.getcwd(), test_path))
+
+        foo = os.path.join(self.test_prefix, 'foo')
+        self.assertErrorRegex(EasyBuildError, "Failed to change from .* to %s" % foo, ft.change_dir, foo)
+
     def test_extract_file(self):
         """Test extract_file"""
         testdir = os.path.dirname(os.path.abspath(__file__))
