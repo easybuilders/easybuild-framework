@@ -146,9 +146,12 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         runLog.write(cmd + "\n\n")
     else:
         runLog = None
+    
+    exec_cmd = "/bin/bash"
 
     if not shell:
         if isinstance(cmd, list):
+            exec_cmd = None
             cmd.insert(0, '/usr/bin/env')
         elif isinstance(cmd, basestring):
             cmd = '/usr/bin/env %s' % cmd
@@ -159,7 +162,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     _log.info('running cmd: %s ' % cmd)
     try:
         p = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
+                             stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
     except OSError, err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
     if inp:
