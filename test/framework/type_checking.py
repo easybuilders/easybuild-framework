@@ -572,7 +572,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(ensure_iterable_license_specs('foo'), ['foo'])
         self.assertEqual(ensure_iterable_license_specs(['foo']), ['foo'])
         self.assertEqual(ensure_iterable_license_specs(['foo', 'bar']), ['foo', 'bar'])
-        self.assertEqual(ensure_iterable_license_specs(('foo')), ['foo'])
+        self.assertEqual(ensure_iterable_license_specs(('foo',)), ['foo'])
         self.assertEqual(ensure_iterable_license_specs(('foo', 'bar')), ['foo', 'bar'])
 
         # Test unacceptable inputs
@@ -584,7 +584,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42, 'foo'])
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [['foo']])
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [(42, 'foo')])
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42))
+        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42,))
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
 
 def suite():
