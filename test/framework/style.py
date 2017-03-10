@@ -34,7 +34,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils import fancylogger
-from easybuild.framework.easyconfig.style import check_easyconfigs_style
+from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:
     import pep8
@@ -59,6 +59,33 @@ class StyleTest(EnhancedTestCase):
         result = check_easyconfigs_style(specs)
 
         self.assertEqual(result, 0, "No code style errors (and/or warnings) found.")
+
+    def test_check_trailing_whitespace(self):
+        """Test for trailing whitespace check."""
+        lines = [
+            "name = 'foo'",  # no trailing whitespace
+            "version = '1.2.3'  ",  # trailing whitespace
+            "   ",  # blank line with whitespace included
+            '''description = """start of long description, ''',  # trailing whitespace, but allowed in description
+            ''' continuation of long description ''',  # trailing whitespace, but allowed in continued description
+            ''' end of long description"""''',
+            "moduleclass = 'tools'   ",  # trailing whitespace
+            '',
+        ]
+        line_numbers = range(1, len(lines) + 1)
+        test_cases = [
+            ({}, None),
+            ({}, (17, "W299 trailing whitespace")),
+            ({}, (0, "W293 blank line contains whitespace")),
+            ({}, None),
+            ({'eb_last_key': 'description'}, None),
+            ({'eb_last_key': 'description'}, None),
+            ({'eb_last_key': 'description'}, (21, "W299 trailing whitespace")),
+        ]
+
+        for (line, line_number, (checker_state, expected_result)) in zip(lines, line_numbers, test_cases):
+            result = _eb_check_trailing_whitespace(line, lines, line_number, checker_state)
+            self.assertEqual(result, expected_result)
 
 
 def suite():
