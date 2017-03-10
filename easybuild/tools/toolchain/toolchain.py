@@ -777,7 +777,7 @@ class Toolchain(object):
         self.log.debug("Combined RPATH filter: '%s'" % rpath_filter)
 
         # create wrappers
-        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
             orig_cmd = which(cmd)
 
             if orig_cmd:

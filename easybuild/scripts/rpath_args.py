@@ -41,7 +41,7 @@ rpath_filter = sys.argv[2]
 args = sys.argv[3:]
 
 # wheter or not to use -Wl to pass options to the linker
-if cmd in ['ld', 'ld.gold']:
+if cmd in ['ld', 'ld.gold', 'ld.bfd']:
     flag_prefix = ''
 else:
     flag_prefix = '-Wl,'
