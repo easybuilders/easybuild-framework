@@ -32,13 +32,14 @@ Unit tests for filetools.py
 import os
 import re
 import signal
+import stat
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import read_file
+from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
 from easybuild.tools.run import _log as run_log
 
@@ -171,6 +172,31 @@ class RunTest(EnhancedTestCase):
             r"  \(in .*\)",
         ]))
         self.assertTrue(expected_regex.match(txt), "Pattern %s matches with: %s" % (expected_regex.pattern, txt))
+
+    def test_run_cmd_list(self):
+        """Test run_cmd with command specified as a list rather than a string"""
+        (out, ec) = run_cmd(['/bin/sh', '-c', "echo hello"], shell=False)
+        self.assertEqual(out, "hello\n")
+        # no reason echo hello could fail
+        self.assertEqual(ec, 0)
+
+    def test_run_cmd_script(self):
+        """Testing use of run_cmd with shell=False to call external scripts"""
+        py_test_script = os.path.join(self.test_prefix, 'test.py')
+        write_file(py_test_script, '\n'.join([
+            '#!/usr/bin/python',
+            'print("hello")',
+        ]))
+        adjust_permissions(py_test_script, stat.S_IXUSR)
+
+        (out, ec) = run_cmd(py_test_script)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "hello\n")
+
+        (out, ec) = run_cmd([py_test_script], shell=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "hello\n")
+
 
 
 def suite():
