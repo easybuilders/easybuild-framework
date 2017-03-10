@@ -433,6 +433,26 @@ def to_checksums(checksums):
 
     return res
 
+def ensure_iterable_license_specs(specs):
+    """
+    Ensures that the provided license file/server specifications are of correct type and converts
+    them to either a list or a tuple.  The input can either be None, a string, or a list/tuple of
+    strings.
+
+    :param specs: License file/server specifications as provided via `license_file` easyconfig parameter
+    """
+    if specs is None:
+        license_specs = [None]
+    elif isinstance(specs, basestring):
+        license_specs = [specs]
+    elif isinstance(specs, (list, tuple)) and all(isinstance(x, basestring) for x in specs):
+        license_specs = specs
+    else:
+        msg = "Unsupported type %s for easyconfig parameter 'license_file'! " % type(specs)
+        msg += "Can either be None, a string, or a tuple/list of strings."
+        raise EasyBuildError(msg)
+
+    return license_specs
 
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 # specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
