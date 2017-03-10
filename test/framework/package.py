@@ -45,7 +45,7 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 DEBUG = False
 DEBUG_FPM_FILE = "debug_fpm_mock"
 
-# purposely using non-bash script, to detect issues with shebang line being ignored (run_cmd with shell=None)
+# purposely using non-bash script, to detect issues with shebang line being ignored (run_cmd with shell=False)
 MOCKED_FPM = """#!/usr/bin/env python
 import os, sys
 
