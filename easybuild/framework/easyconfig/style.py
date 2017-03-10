@@ -32,6 +32,7 @@ import re
 import sys
 from vsc.utils import fancylogger
 
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.tools.build_log import print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -50,6 +51,7 @@ _log = fancylogger.getLogger('easyconfig.style', fname=False)
 
 EB_CHECK = '_eb_check_'
 
+BLANK_LINE_REGEX = re.compile(r'^\s*$')
 COMMENT_REGEX = re.compile(r'^\s*#')
 PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 
@@ -67,6 +69,91 @@ PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 # Read the pycodestyle docs to understand the arguments of these functions:
 # https://pycodestyle.readthedocs.io or more specifically:
 # https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
+
+
+def _check_param_group(params, state):
+    """
+    Check whether the specified group of parameters conforms to the style guide w.r.t. order & grouping of parameters
+    """
+    result = None
+    done_params, defined_params = state
+
+    if 'name' not in done_params:
+        result = _check_param_group_head(params, state)
+
+    return result
+
+
+def _check_param_group_head(params, state):
+    """
+    Check whether the specified group of parameters conforms to the style guide w.r.t. order & grouping of parameters;
+    assuming state at head of easyconfig file
+    """
+    result = None
+    done_params, defined_params = state
+
+    fail_msgs = []
+
+    if 'easyblock' in params:
+
+        # 'easyblock' definition is expected to be isolated
+        if params != ['easyblock']:
+            fail_msgs.append("easyblock parameter definition is not isolated")
+
+        done_params.append('easyblock')
+
+    if any(p in params for p in ['name', 'version']):
+        if sorted(params) != sorted(['name', 'version']):
+            fail_msgs.append("name/version parameter definitions are not isolated")
+        if params != ['name', 'version']:
+            fail_msgs.append("name/version parameter definitions are out of order")
+
+        done_params.extend(['name', 'version'])
+
+    if fail_msgs:
+        result = (0, "W001 %s" % ', '.join(fail_msgs))
+
+    return result
+
+
+def _eb_check_order_grouping_params(physical_line, lines, line_number, total_lines, checker_state):
+    """
+    W001
+    Check order and grouping easyconfig parameter definitions
+    The arguments are explained at
+    https://pep8.readthedocs.org/en/latest/developer.html#contribute
+    """
+    result = None
+
+    # apparently this is not the same as physical_line line?!
+    line = lines[line_number-1]
+
+    # list of parameters that should to be defined already at this point
+    done_params = checker_state.setdefault('eb_done_params', [])
+
+    # list of groups of already defined parameters
+    defined_params = checker_state.setdefault('eb_defined_params', [[]])
+
+    # keep track of order parameter definitions via checker state
+    param_def = PARAM_DEF_REGEX.search(line)
+    if param_def:
+        key = param_def.group('key')
+
+        # include key in last group of parameters;
+        # only if its a known easyconfig parameter, easyconfigs may include local variables
+        if key in DEFAULT_CONFIG:
+            defined_params[-1].append(key)
+
+    # if we're at the end of the file, or if the next line is blank, check this group of parameters
+    if line_number == total_lines or BLANK_LINE_REGEX.match(lines[line_number]):
+        # check whether last group of parameters is in the expected order
+        result = _check_param_group(defined_params[-1], (done_params, defined_params))
+
+        # blank line starts a new group of parameters
+        defined_params.append([])
+
+    return result
+
 
 def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_state):  # pylint:disable=unused-argument
     """
