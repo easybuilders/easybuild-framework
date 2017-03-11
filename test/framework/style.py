@@ -37,9 +37,12 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:
-    import pep8
+    import pycodestyle
 except ImportError:
-    pass
+    try:
+        import pep8
+    except ImportError:
+        pass
 
 
 class StyleTest(EnhancedTestCase):
@@ -47,8 +50,8 @@ class StyleTest(EnhancedTestCase):
 
     def test_style_conformance(self):
         """Check the easyconfigs for style"""
-        if 'pep8' not in sys.modules:
-            print "Skipping style checks (no pep8 available)"
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping style checks (no pycodestyle or pep8 available)"
             return
 
         # all available easyconfig files
