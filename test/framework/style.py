@@ -73,18 +73,19 @@ class StyleTest(EnhancedTestCase):
             '',
         ]
         line_numbers = range(1, len(lines) + 1)
+        state = {}
         test_cases = [
-            ({}, None),
-            ({}, (17, "W299 trailing whitespace")),
-            ({}, (0, "W293 blank line contains whitespace")),
-            ({}, None),
-            ({'eb_last_key': 'description'}, None),
-            ({'eb_last_key': 'description'}, None),
-            ({'eb_last_key': 'description'}, (21, "W299 trailing whitespace")),
+            None,
+            (17, "W299 trailing whitespace"),
+            (0, "W293 blank line contains whitespace"),
+            None,
+            None,
+            None,
+            (21, "W299 trailing whitespace"),
         ]
 
-        for (line, line_number, (checker_state, expected_result)) in zip(lines, line_numbers, test_cases):
-            result = _eb_check_trailing_whitespace(line, lines, line_number, checker_state)
+        for (line, line_number, expected_result) in zip(lines, line_numbers, test_cases):
+            result = _eb_check_trailing_whitespace(line, lines, line_number, state)
             self.assertEqual(result, expected_result)
 
 
