@@ -24,20 +24,27 @@
 # #
 
 """
-Style tests for easyconfig files using pep8.
+Style tests for easyconfig files using pycodestyle.
 
 :author: Ward Poelmans (Ghent University)
 """
 import re
+import sys
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
-    import pep8
+    import pycodestyle
+    from pycodestyle import StyleGuide, register_check, trailing_whitespace
 except ImportError:
-    pass
+    try:
+        # fallback to importing from 'pep8', which was renamed to pycodestyle in 2016
+        import pep8
+        from pep8 import StyleGuide, register_check, trailing_whitespace
+    except ImportError:
+        pass
 
 _log = fancylogger.getLogger('easyconfig.style', fname=False)
 
@@ -57,9 +64,9 @@ PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 # where XXX is a 3 digit number.
 #
 # It should be mentioned in the docstring as a single word.
-# Read the pep8 docs to understand the arguments of these functions:
-# https://pep8.readthedocs.org or more specifically:
-# https://pep8.readthedocs.org/en/latest/developer.html#contribute
+# Read the pycodestyle docs to understand the arguments of these functions:
+# https://pycodestyle.readthedocs.io or more specifically:
+# https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
 
 def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_state):  # pylint:disable=unused-argument
     """
@@ -68,7 +75,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
     This differs from the standard trailing whitespace check as that
     will warn for any trailing whitespace.
     The arguments are explained at
-    https://pep8.readthedocs.org/en/latest/developer.html#contribute
+    https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
     """
     # apparently this is not the same as physical_line line?!
     line = lines[line_number-1]
@@ -76,7 +83,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
     if COMMENT_REGEX.match(line):
         return None
 
-    result = pep8.trailing_whitespace(line)
+    result = trailing_whitespace(line)
     if result:
         result = (result[0], result[1].replace('W291', 'W299'))
 
@@ -93,7 +100,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
     return result
 
 
-@only_if_module_is_available('pep8')
+@only_if_module_is_available(('pycodestyle', 'pep8'))
 def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
@@ -103,17 +110,20 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     # importing autopep8 changes some pep8 functions.
     # We reload it to be sure to get the real pep8 functions.
-    reload(pep8)
+    if 'pycodestyle' in sys.modules:
+        reload(pycodestyle)
+    else:
+        reload(pep8)
 
     # register the extra checks before using pep8:
     # any function in this module starting with `_eb_check_` will be used.
     cands = globals()
     for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith(EB_CHECK)]):
         _log.debug("Adding custom style check %s", check_function)
-        pep8.register_check(check_function)
+        register_check(check_function)
 
-    pep8style = pep8.StyleGuide(quiet=False, config_file=None)
-    options = pep8style.options
+    styleguide = StyleGuide(quiet=False, config_file=None)
+    options = styleguide.options
     # we deviate from standard pep8 and allow 120 chars
     # on a line: the default of 79 is too narrow.
     options.max_line_length = 120
@@ -124,7 +134,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     )
     options.verbose = int(verbose)
 
-    result = pep8style.check_files(easyconfigs)
+    result = styleguide.check_files(easyconfigs)
 
     if verbose:
         result.print_statistics()

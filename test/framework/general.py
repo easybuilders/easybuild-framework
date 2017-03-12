@@ -82,12 +82,25 @@ class GeneralTest(EnhancedTestCase):
 
         foo()
 
+        @only_if_module_is_available(('nosuchmoduleoutthere', 'easybuild'))
+        def foo2():
+            pass
+
+        foo2()
+
         @only_if_module_is_available('nosuchmoduleoutthere', pkgname='nosuchpkg')
         def bar():
             pass
 
         err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
         self.assertErrorRegex(EasyBuildError, err_pat, bar)
+
+        @only_if_module_is_available(('nosuchmodule', 'anothernosuchmodule'))
+        def bar2():
+            pass
+
+        err_pat = "ImportError: None of the specified modules nosuchmodule, anothernosuchmodule is available"
+        self.assertErrorRegex(EasyBuildError, err_pat, bar2)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')

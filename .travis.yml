@@ -43,7 +43,7 @@ before_install:
     # pydot (dep for python-graph-dot) 1.2.0 and more recent doesn't work with Python 2.6
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install pydot==1.1.0; else pip install pydot; fi
     # optional Python packages for EasyBuild
-    - pip install autopep8 GC3Pie pep8 python-graph-dot python-hglib PyYAML
+    - pip install autopep8 GC3Pie pycodestyle python-graph-dot python-hglib PyYAML
     # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
     - git config --global user.email "travis@travis-ci.org"
