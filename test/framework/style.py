@@ -147,13 +147,13 @@ class StyleTest(EnhancedTestCase):
         ])
 
         # add unexpected parameter definition in head of easyconfig
-        lines.append("sources = [SOURCE_TAR_GZ]")
+        lines.append("moduleclass = '...'")
         total_lines = len(lines)
 
         expected_errors = [
             "homepage/description parameter definitions are not isolated",
             "homepage/description parameter definitions are out of order",
-            "found unexpected parameter definitions in head of easyconfig: sources",
+            "found unexpected parameter definitions in head of easyconfig: moduleclass",
         ]
         run_test(8)
 

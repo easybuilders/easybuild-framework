@@ -56,7 +56,13 @@ COMMENT_REGEX = re.compile(r'^\s*#')
 PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 
 
-PARAMS_HEAD = ('description', 'easyblock', 'homepage', 'name', 'version')
+PARAM_GROUPS_HEAD = [
+    ((), ('easyblock',)),
+    (('name', 'version'), ()),
+    (('homepage', 'description'), ()),
+    (('toolchain',), ('toolchainopts',)),
+    (('source_urls', 'sources'), ('patches', 'checksums')),
+]
 
 
 # Any function starting with _eb_check_ (see EB_CHECK variable) will be
@@ -74,60 +80,61 @@ PARAMS_HEAD = ('description', 'easyblock', 'homepage', 'name', 'version')
 # https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
 
 
-def _check_param_group(params, state):
+def _check_param_group(params, done_params):
     """
     Check whether the specified group of parameters conforms to the style guide w.r.t. order & grouping of parameters
     """
-    result = None
-    done_params, defined_params = state
+    result, fail_msgs = None, []
 
-    if any(x in params for x in PARAMS_HEAD):
-        result = _check_param_group_head(params, state)
-    else:
-        raise EasyBuildError("Don't know how to check parameter group: %s" % ', '.join(params))
-
-    return result
-
-
-def _check_param_group_head(params, state):
-    """
-    Check whether the specified group of parameters conforms to the style guide w.r.t. order & grouping of parameters;
-    assuming state at head of easyconfig file
-    """
-    result = None
-    done_params, defined_params = state
-
-    fail_msgs = []
-
-    if 'easyblock' in params:
-        # 'easyblock' definition is expected to be isolated
-        if params != ['easyblock']:
-            fail_msgs.append("easyblock parameter definition is not isolated")
-
-        done_params.append('easyblock')
-
-    param_groups = [
-        ['name', 'version'],
-        ['homepage', 'description'],
-    ]
-    for param_group in param_groups:
-        if any(p in params for p in param_group):
-            if sorted(params) != sorted(param_group):
-                fail_msgs.append("%s parameter definitions are not isolated" % '/'.join(param_group))
-            if [p for p in params if p in param_group] != param_group:
-                fail_msgs.append("%s parameter definitions are out of order" % '/'.join(param_group))
-
-            done_params.extend(param_group)
-
-    # check whether any unexpected parameter definitions are found in the head of the easyconfig file
-    unexpected = [p for p in params if p not in PARAMS_HEAD]
-    if unexpected:
-        fail_msgs.append("found unexpected parameter definitions in head of easyconfig: %s" % ', '.join(unexpected))
+    fail_msgs.extend(_check_param_group_head(params, done_params))
 
     if fail_msgs:
         result = (0, "W001 %s" % ', '.join(fail_msgs))
 
     return result
+
+
+def _check_param_group_head(params, done_params):
+    """
+    Check whether the specified group of parameters conforms to the style guide w.r.t. order & grouping of parameters,
+    for head of easyconfig file
+    """
+    fail_msgs = []
+
+    for param_group in PARAM_GROUPS_HEAD:
+        full_param_group = param_group[0] + param_group[1]
+        if any(p in params for p in full_param_group):
+            fail_msgs.extend(_check_specific_param_group_isolation_order(param_group[0], param_group[1], params))
+            done_params.extend(full_param_group)
+
+    # check whether any unexpected parameter definitions are found in the head of the easyconfig file
+    expected_params_head = [p for (pg1, pg2) in PARAM_GROUPS_HEAD for p in pg1 + pg2]
+    unexpected = [p for p in params if p not in expected_params_head]
+    if unexpected:
+        fail_msgs.append("found unexpected parameter definitions in head of easyconfig: %s" % ', '.join(unexpected))
+
+    return fail_msgs
+
+
+def _check_specific_param_group_isolation_order(required_params, optional_params, params):
+    """
+    Check whether provided parameters adher to style of specified parameter group w.r.t. isolation, order, ...
+    """
+    fail_msgs = []
+
+    expected_params = required_params + optional_params
+    is_are = (' is', 's are')[len(expected_params) > 1]
+
+    if any(p not in params for p in required_params):
+        fail_msgs.append("Not all required parameters found in group: %s" % '.'.join(required_params))
+
+    if sorted(params) != sorted(expected_params):
+        fail_msgs.append("%s parameter definition%s not isolated" % ('/'.join(expected_params), is_are))
+
+    if tuple(p for p in params if p in expected_params) != expected_params:
+        fail_msgs.append("%s parameter definition%s out of order" % ('/'.join(expected_params), is_are))
+
+    return fail_msgs
 
 
 def _eb_check_order_grouping_params(physical_line, lines, line_number, total_lines, checker_state):
@@ -162,7 +169,7 @@ def _eb_check_order_grouping_params(physical_line, lines, line_number, total_lin
     if line_number == total_lines or BLANK_LINE_REGEX.match(lines[line_number]):
         if defined_params[-1]:
             # check whether last group of parameters is in the expected order
-            result = _check_param_group(defined_params[-1], (done_params, defined_params))
+            result = _check_param_group(defined_params[-1], done_params)
 
             # blank line starts a new group of parameters
             defined_params.append([])
