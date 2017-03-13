@@ -774,7 +774,7 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
             _log.debug("Extracting the patch to: %s", workdir)
             # extracting the patch
             apatch_dir = extract_file(apatch, workdir)
-            apatch = os.join.path(apatch_dir,apatch_name)
+            apatch = os.path.join(apatch_dir,apatch_name)
 
 
     if level is None and build_option('extended_dry_run'):
