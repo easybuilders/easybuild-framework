@@ -33,7 +33,7 @@ import sys
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
-from easybuild.tools.build_log import print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
@@ -54,6 +54,9 @@ EB_CHECK = '_eb_check_'
 BLANK_LINE_REGEX = re.compile(r'^\s*$')
 COMMENT_REGEX = re.compile(r'^\s*#')
 PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
+
+
+PARAMS_HEAD = ('description', 'easyblock', 'homepage', 'name', 'version')
 
 
 # Any function starting with _eb_check_ (see EB_CHECK variable) will be
@@ -78,8 +81,10 @@ def _check_param_group(params, state):
     result = None
     done_params, defined_params = state
 
-    if 'name' not in done_params:
+    if any(x in params for x in PARAMS_HEAD):
         result = _check_param_group_head(params, state)
+    else:
+        raise EasyBuildError("Don't know how to check parameter group: %s" % ', '.join(params))
 
     return result
 
@@ -95,20 +100,29 @@ def _check_param_group_head(params, state):
     fail_msgs = []
 
     if 'easyblock' in params:
-
         # 'easyblock' definition is expected to be isolated
         if params != ['easyblock']:
             fail_msgs.append("easyblock parameter definition is not isolated")
 
         done_params.append('easyblock')
 
-    if any(p in params for p in ['name', 'version']):
-        if sorted(params) != sorted(['name', 'version']):
-            fail_msgs.append("name/version parameter definitions are not isolated")
-        if params != ['name', 'version']:
-            fail_msgs.append("name/version parameter definitions are out of order")
+    param_groups = [
+        ['name', 'version'],
+        ['homepage', 'description'],
+    ]
+    for param_group in param_groups:
+        if any(p in params for p in param_group):
+            if sorted(params) != sorted(param_group):
+                fail_msgs.append("%s parameter definitions are not isolated" % '/'.join(param_group))
+            if [p for p in params if p in param_group] != param_group:
+                fail_msgs.append("%s parameter definitions are out of order" % '/'.join(param_group))
 
-        done_params.extend(['name', 'version'])
+            done_params.extend(param_group)
+
+    # check whether any unexpected parameter definitions are found in the head of the easyconfig file
+    unexpected = [p for p in params if p not in PARAMS_HEAD]
+    if unexpected:
+        fail_msgs.append("found unexpected parameter definitions in head of easyconfig: %s" % ', '.join(unexpected))
 
     if fail_msgs:
         result = (0, "W001 %s" % ', '.join(fail_msgs))
@@ -146,11 +160,12 @@ def _eb_check_order_grouping_params(physical_line, lines, line_number, total_lin
 
     # if we're at the end of the file, or if the next line is blank, check this group of parameters
     if line_number == total_lines or BLANK_LINE_REGEX.match(lines[line_number]):
-        # check whether last group of parameters is in the expected order
-        result = _check_param_group(defined_params[-1], (done_params, defined_params))
+        if defined_params[-1]:
+            # check whether last group of parameters is in the expected order
+            result = _check_param_group(defined_params[-1], (done_params, defined_params))
 
-        # blank line starts a new group of parameters
-        defined_params.append([])
+            # blank line starts a new group of parameters
+            defined_params.append([])
 
     return result
 
