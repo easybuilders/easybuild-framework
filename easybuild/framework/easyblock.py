@@ -65,7 +65,7 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, derive_alt_pypi_url
+from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, derive_alt_pypi_url
 from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
@@ -1130,10 +1130,7 @@ class EasyBlock(object):
 
         lines = []
         if os.path.isdir(self.installdir):
-            try:
-                os.chdir(self.installdir)
-            except OSError, err:
-                raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
+            change_dir(self.installdir)
 
             lines.append('\n')
 
@@ -1162,10 +1159,7 @@ class EasyBlock(object):
                     lines.append(self.module_generator.prepend_paths(key, paths))
             if self.dry_run:
                 self.dry_run_msg('')
-            try:
-                os.chdir(self.orig_workdir)
-            except OSError, err:
-                raise EasyBuildError("Failed to change back to %s: %s", self.orig_workdir, err)
+            change_dir(self.orig_workdir)
 
         return ''.join(lines)
 
@@ -1351,11 +1345,8 @@ class EasyBlock(object):
 
         self.log.info("Using %s as start dir", self.cfg['start_dir'])
 
-        try:
-            os.chdir(self.cfg['start_dir'])
-            self.log.debug("Changed to real build directory %s (start_dir)" % self.cfg['start_dir'])
-        except OSError, err:
-            raise EasyBuildError("Can't change to real build directory %s: %s", self.cfg['start_dir'], err)
+        change_dir(self.cfg['start_dir'])
+        self.log.debug("Changed to real build directory %s (start_dir)", self.cfg['start_dir'])
 
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
@@ -1726,7 +1717,7 @@ class EasyBlock(object):
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
-            os.chdir(self.orig_workdir)
+            change_dir(self.orig_workdir)
 
             cls, inst = None, None
             class_name = encode_class_name(ext['name'])
@@ -2052,10 +2043,7 @@ class EasyBlock(object):
 
         # chdir to installdir (better environment for running tests)
         if os.path.isdir(self.installdir):
-            try:
-                os.chdir(self.installdir)
-            except OSError, err:
-                raise EasyBuildError("Failed to move to installdir %s: %s", self.installdir, err)
+            change_dir(self.installdir)
 
         # run sanity check commands
         for command in commands:
@@ -2101,11 +2089,12 @@ class EasyBlock(object):
         cleanup_builddir is False, otherwise we remove the installation
         """
         if not self.build_in_installdir and build_option('cleanup_builddir'):
+
+            # make sure we're out of the dir we're removing
+            change_dir(self.orig_workdir)
+            self.log.info("Cleaning up builddir %s (in %s)", self.builddir, os.getcwd())
+
             try:
-                os.chdir(self.orig_workdir)  # make sure we're out of the dir we're removing
-
-                self.log.info("Cleaning up builddir %s (in %s)" % (self.builddir, os.getcwd()))
-
                 rmtree2(self.builddir)
                 base = os.path.dirname(self.builddir)
 
@@ -2237,7 +2226,7 @@ class EasyBlock(object):
         Run provided test cases.
         """
         for test in self.cfg['tests']:
-            os.chdir(self.orig_workdir)
+            change_dir(self.orig_workdir)
             if os.path.isabs(test):
                 path = test
             else:
@@ -2533,7 +2522,7 @@ def build_and_install_one(ecdict, init_env):
     ended = 'ended'
 
     # make sure we're back in original directory before we finish up
-    os.chdir(cwd)
+    change_dir(cwd)
 
     application_log = None
 
@@ -2728,7 +2717,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
             start_time = time.time()
 
             # start with a clean slate
-            os.chdir(base_dir)
+            change_dir(base_dir)
             restore_env(base_env)
             sanitize_env()
 
