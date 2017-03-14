@@ -181,7 +181,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         if isinstance(val, list):
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
             # and a lookahead assertion (?=...) so next line is either another parameter definition or a blank line
-            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=\n^(\w+\s*=.*|\s*)$)" % key, re.M)
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=(\n^\w+\s*=.*|\s*)$)" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
