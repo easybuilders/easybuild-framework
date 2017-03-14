@@ -738,6 +738,8 @@ class ModulesTool(object):
 
         modpath_exts = {}
         for mod_name in mod_names:
+            if not self.exist([mod_name], skip_avail=True)[0]:
+                raise EasyBuildError("Can't get MODULEPATH from a non-existing module %s", mod_name)
             modtxt = self.show(mod_name)
             exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
