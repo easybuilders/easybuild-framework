@@ -766,7 +766,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     # Attempt extracting the patch if it ends in .patch.gz, .patch.bz2, .patch.xz
     # split in name + extension
     apatch_name, apatch_extension = os.path.splitext(apatch)
-    if apatch_extension in ['.gz','.bz2','.xz']:
+    # Supports only bz2, gz and xz. zip can be archives which are not supported.
+    if apatch_extension in ['.bz2','.gz','.xz']:
         # split again to get the second extension
         apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
         if apatch_subextension == ".patch":
@@ -775,7 +776,6 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
             # extracting the patch
             apatch_dir = extract_file(apatch, workdir)
             apatch = os.path.join(apatch_dir,apatch_name)
-
 
     if level is None and build_option('extended_dry_run'):
         level = '<derived>'
