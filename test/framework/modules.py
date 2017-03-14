@@ -401,7 +401,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(res, expected)
 
         # error for non-existing modules
-        error_pattern = "Can't get value from a non-existing module"
+        error_pattern = "Can't get MODULEPATH from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
         # test result in case conditional loads are used
