@@ -414,9 +414,11 @@ class ModulesTest(EnhancedTestCase):
             'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
             # using prepend-path & quoted
             ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
-            # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
-            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            # conditional 'use' on subdirectory in e.g. $HOME, e.g. when --subdir-user-modules is used
+            # we cannot use mod_dir = os.environ['HOME'] here since that may not exist in the test
+            # environment
+            "if { [ file isdirectory %s/Compiler/GCC/4.7.2 ] } {" % mod_dir,
+            "    module use %s/Compiler/GCC/4.7.2" % mod_dir,
             "}",
         ])
         write_file(test_modfile, test_modtxt)
@@ -426,7 +428,7 @@ class ModulesTest(EnhancedTestCase):
                 os.path.join(mod_dir, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3'),
                 os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
                 os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
-                os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+                os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
             ]
         }
         self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
@@ -443,8 +445,10 @@ class ModulesTest(EnhancedTestCase):
                 'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
                 'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
                 # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
-                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                # we cannot use mod_dir = os.environ['HOME'] here since that may not exist in the test
+                # environment
+                'if isDir("%s/Compiler/GCC/4.7.2") then' % mod_dir,
+                '    prepend_path("MODULEPATH", "%s/Compiler/GCC/4.7.2")' % mod_dir,
                 'end',
             ])
             write_file(test_modfile, test_modtxt)
