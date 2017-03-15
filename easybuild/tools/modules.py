@@ -751,12 +751,15 @@ class ModulesTool(object):
             exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             if exts:
+                # we must also included parsed MODULEPATH extensions where the module tool expands
+                # environment variables, concatenates strings, etc.
+                # The show output is actually sufficient except for modulecmd.tcl < 1.661
+                # which does not show "module use" statements in the "module show" output.
+                # The easiest is to simply merge "module show" output with the module file contents,
+                # removing common entries.
                 modtxt = self.show(mod_name)
                 parsed_exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
-                # modulecmd.tcl show does not include $MODULEPATH extensions; therefore the parsed output
-                # is only valid if there is at least one match
-                if parsed_exts:
-                    exts = parsed_exts
+                exts += [ext for ext in parsed_exts if ext not in exts]
 
             modpath_exts.update({mod_name: exts})
 
