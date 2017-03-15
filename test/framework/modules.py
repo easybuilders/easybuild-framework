@@ -405,7 +405,8 @@ class ModulesTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
-        os.makedirs("%s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'])
+        # need to create this directory, otherwise the conditional below does not expand in "module show" output.
+        mkdir("%s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'], parents=True)
 
         # test result in case conditional loads are used
         test_mod = 'test-modpaths/1.2.3.4'
