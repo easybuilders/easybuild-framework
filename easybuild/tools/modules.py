@@ -738,28 +738,29 @@ class ModulesTool(object):
         # regex for $MODULEPATH extensions;
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
         # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        modpath_ext_use_regex = '^\s*module\s+use\s+"?([^"\s]+)"?'  # 'module use' in Tcl module files
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
+            modpath_ext_use_regex,
             r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
             r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
         ])
+        modpath_ext_use_regex = re.compile(modpath_ext_use_regex, re.M)
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
         modpath_exts = {}
         for mod_name in mod_names:
+            # we must include parsed MODULEPATH extensions where the module tool expands
+            # environment variables, concatenates strings, etc.
+            # The show output is actually sufficient except for modulecmd.tcl < 1.661
+            # which does not show "module use" statements in the "module show" output.
+            # The easiest is to simply merge "module show" output with "module use" statements from
+            # the module file contents, removing common entries.
             modtxt = self.read_module_file(mod_name)
-            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+            use_exts = modpath_ext_use_regex.findall(modtxt)
+            modtxt = self.show(mod_name)
+            parsed_exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+            exts = use_exts + [ext for ext in parsed_exts if ext not in use_exts]
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
-            if exts:
-                # we must also included parsed MODULEPATH extensions where the module tool expands
-                # environment variables, concatenates strings, etc.
-                # The show output is actually sufficient except for modulecmd.tcl < 1.661
-                # which does not show "module use" statements in the "module show" output.
-                # The easiest is to simply merge "module show" output with the module file contents,
-                # removing common entries.
-                modtxt = self.show(mod_name)
-                parsed_exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
-                exts += [ext for ext in parsed_exts if ext not in exts]
 
             modpath_exts.update({mod_name: exts})
 
