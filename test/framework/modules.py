@@ -404,7 +404,6 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Can't get value from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
-        realhome = os.environ.get('HOME')
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
         os.makedirs("%s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'])
 
@@ -456,11 +455,6 @@ class ModulesTest(EnhancedTestCase):
             expected = {test_mod: expected['test-modpaths/1.2.3.4']}
 
             self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
-
-        if realhome is not None:
-            os.environ['HOME'] = realhome
-        else:
-            del os.environ['HOME']
 
     def test_path_to_top_of_module_tree_categorized_hmns(self):
         """
