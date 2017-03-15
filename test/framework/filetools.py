@@ -793,6 +793,13 @@ class FileToolsTest(EnhancedTestCase):
         pattern = "I'm a toy, and very proud of it"
         self.assertTrue(pattern in patched)
 
+        # This patch is dependent on the previous one
+        toy_patch_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
+        self.assertTrue(ft.apply_patch(toy_patch_gz, path))
+        patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        pattern = "I'm a toy, and very very proud of it"
+        self.assertTrue(pattern in patched_gz)
+
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
