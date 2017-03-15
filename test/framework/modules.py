@@ -419,8 +419,8 @@ class ModulesTest(EnhancedTestCase):
             # using prepend-path & quoted
             ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
             # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
-            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
+            '    prepend-path MODULEPATH "$env(HOME)/modules/Compiler/GCC/4.7.2"',
             "}",
         ])
         write_file(test_modfile, test_modtxt)
@@ -447,8 +447,8 @@ class ModulesTest(EnhancedTestCase):
                 'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
                 'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
                 # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
-                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                'if isDir(pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2")) then',
+                '    prepend_path("MODULEPATH", pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2"))',
                 'end',
             ])
             write_file(test_modfile, test_modtxt)
