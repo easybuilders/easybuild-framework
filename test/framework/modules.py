@@ -419,7 +419,7 @@ class ModulesTest(EnhancedTestCase):
             ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
             # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
             "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
-            '    module use "$env(HOME)/modules/Compiler/GCC/4.7.2"',
+            "    module use $env(HOME)/modules/Compiler/GCC/4.7.2",
             "}",
         ])
         write_file(test_modfile, test_modtxt)
