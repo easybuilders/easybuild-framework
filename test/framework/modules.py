@@ -404,9 +404,8 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Can't get value from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
+        # make sure $HOME is set to something
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
-        # need to create this directory, otherwise the conditional below does not expand in "module show" output.
-        mkdir("%s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'], parents=True)
 
         # test result in case conditional loads are used
         test_mod = 'test-modpaths/1.2.3.4'
@@ -420,7 +419,7 @@ class ModulesTest(EnhancedTestCase):
             ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
             # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
             "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
-            '    prepend-path MODULEPATH "$env(HOME)/modules/Compiler/GCC/4.7.2"',
+            '    module use "$env(HOME)/modules/Compiler/GCC/4.7.2"',
             "}",
         ])
         write_file(test_modfile, test_modtxt)

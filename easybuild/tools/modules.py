@@ -738,30 +738,48 @@ class ModulesTool(object):
         # regex for $MODULEPATH extensions;
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
         # or 'prepend_path("MODULEPATH", "...") in Lua modules
-        modpath_ext_use_regex = '^\s*module\s+use\s+"?([^"\s]+)"?'  # 'module use' in Tcl module files
         modpath_ext_regex = r'|'.join([
-            modpath_ext_use_regex,
+            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
             r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
             r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*pathJoin\((.+)\)\)',  # prepend to $MODULEPATH in Lua modules using pathJoin
         ])
-        modpath_ext_use_regex = re.compile(modpath_ext_use_regex, re.M)
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
         modpath_exts = {}
         for mod_name in mod_names:
-            # we must include parsed MODULEPATH extensions where the module tool expands
-            # environment variables, concatenates strings, etc.
-            # The show output is actually sufficient except for modulecmd.tcl < 1.661
-            # which does not show "module use" statements in the "module show" output.
-            # The easiest is to simply merge "module show" output with "module use" statements from
-            # the module file contents, removing common entries.
             modtxt = self.read_module_file(mod_name)
-            use_exts = modpath_ext_use_regex.findall(modtxt)
-            modtxt = self.show(mod_name)
-            parsed_exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
-            exts = use_exts + [ext for ext in parsed_exts if ext not in use_exts]
+            matches = modpath_ext_regex.findall(modtxt)
+            exts = [ext for tup in matches for ext in tup if ext]
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
 
+            # Need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
+            for i, ext in enumerate(exts):
+
+                if not matches[i][2]: # can skip plain literal Lua match
+
+                    # expand environment variables
+                    if matches[i][3]: # pathJoin match (Lua)
+                        envstr = "os.getenv("
+                    else: # TCL match
+                        envstr = "$env("
+                    envlocstart = ext.find(envstr)
+                    while envlocstart != -1:
+                        envlocend = ext.find(")", envlocstart+len(envstr))
+                        if envlocend == -1:
+                            break
+                        envvar = ext[envlocstart+len(envstr):envlocend].strip('"')
+                        envval = os.environ.get(envvar, "")
+                        ext = ext.replace(ext[envlocstart:envlocend+1], envval)
+                        envlocstart = ext.find(envstr,envlocstart+len(envval))
+
+                    # join paths (Lua)
+                    if matches[i][3]:
+                        ext = os.path.join(*ext.replace(",","").replace('"','').split())
+
+                exts[i] = ext
+
+            self.log.debug("Found expanded $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:
