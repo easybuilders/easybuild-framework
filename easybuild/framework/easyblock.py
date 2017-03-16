@@ -1519,7 +1519,7 @@ class EasyBlock(object):
         # create parent dirs in install and modules path already
         # this is required when building in parallel
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        parent_subdir = os.path.dirname(self.install_subdir)
+        parent_subdir = os.path.dirname(ActiveMNS().det_full_module_name(self.cfg))
         pardirs = [
             self.installdir,
             os.path.join(self.installdir_mod, parent_subdir),
