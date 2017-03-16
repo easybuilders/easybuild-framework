@@ -65,6 +65,10 @@ class StyleTest(EnhancedTestCase):
 
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
+        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
+            print "Skipping trailing whitespace checks (no pycodestyle or pep8 available)"
+            return
+
         lines = [
             "name = 'foo'",  # no trailing whitespace
             "version = '1.2.3'  ",  # trailing whitespace
