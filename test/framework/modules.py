@@ -440,6 +440,8 @@ class ModulesTest(EnhancedTestCase):
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
         os.environ['USER'] = 'testuser'
 
+        mkdir(os.path.join(self.test_prefix, os.environ['USER'], 'test'), parents=True)
+
         # test result in case conditional loads are used
         test_mod = 'test-modpaths/1.2.3.4'
         test_modfile = os.path.join(mod_dir, test_mod)
@@ -460,7 +462,7 @@ class ModulesTest(EnhancedTestCase):
             "setenv EXAMPLE example",
             # more (fictional) extensions that use os.getenv
             'prepend-path   MODULEPATH    "$env(HOME)"',
-            'module use  "/example/$env(USER)/test"',
+            'module use  "%s/$env(USER)/test"' % self.test_prefix,
         ])
         write_file(test_modfile, test_modtxt)
 
@@ -471,7 +473,7 @@ class ModulesTest(EnhancedTestCase):
                 os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
                 os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
                 os.environ['HOME'],
-                os.path.join('/example', os.environ['USER'], 'test'),
+                os.path.join(self.test_prefix, os.environ['USER'], 'test'),
             ]
         }
         self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
@@ -496,7 +498,7 @@ class ModulesTest(EnhancedTestCase):
                 'setenv("EXAMPLE", "example")',
                 # more (fictional) extensions that use os.getenv
                 'prepend_path("MODULEPATH", os.getenv("HOME"))',
-                'prepend_path("MODULEPATH", pathJoin("/example", os.getenv("USER"), "test"))',
+                'prepend_path("MODULEPATH", pathJoin("%s", os.getenv("USER"), "test"))' % self.test_prefix,
             ])
             write_file(test_modfile, test_modtxt)
 
