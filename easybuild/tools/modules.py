@@ -37,6 +37,7 @@ This python module implements the environment modules functionality:
 """
 import os
 import re
+import shlex
 import subprocess
 from distutils.version import StrictVersion
 from subprocess import PIPE
@@ -720,6 +721,18 @@ class ModulesTool(object):
 
         return read_file(modfilepath)
 
+    def parse_raw_path_tcl(self, getenv_regex, txt):
+        """Interpret raw path (TCL syntax): resolve environment variables"""
+        return getenv_regex.sub(lambda res: os.getenv(res.group(1).strip('"'), ""), txt)
+
+    def parse_raw_path_lua(self, getenv_regex, txt):
+        """Interpret raw path (Lua syntax): resolve environment variables, join paths where `pathJoin` is specified"""
+        txt = getenv_regex.sub(lambda res: '"%s"' % os.getenv(res.group(1).strip('"'), ""), txt)
+        # this splits the string at , and whitespace, and unquotes like the shell
+        lexer = shlex.shlex(txt, posix=True)
+        lexer.whitespace += ','
+        return os.path.join(*lexer)
+
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
@@ -739,47 +752,34 @@ class ModulesTool(object):
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
         # or 'prepend_path("MODULEPATH", "...") in Lua modules
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
-            r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*pathJoin\((.+)\)\)',  # prepend to $MODULEPATH in Lua modules using pathJoin
+            r'^\s*module\s+use\s+"?(?P<tcl_use>[^"\s]+)"?',                          # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+"?(?P<tcl_prepend>[^"\s]+)"?',         # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(?P<lua_string>\S+)\"',          # prepend to $MODULEPATH in Lua modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_env>os\.getenv\(.+?\))\)', # prepend to $MODULEPATH in Lua modules using os.getenv
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*pathJoin\((?P<lua_join>.+)\)\)',   # prepend to $MODULEPATH in Lua modules using pathJoin
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
+        getenv_regex_tcl = re.compile(r'\$env\((.*)\)')
+        getenv_regex_lua = re.compile(r'os.getenv\("([^"]*)"\)')
 
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            matches = modpath_ext_regex.findall(modtxt)
-            exts = [ext for tup in matches for ext in tup if ext]
+
+            exts = []
+            for m in modpath_ext_regex.finditer(modtxt):
+                for key, raw_ext in m.groupdict().iteritems():
+                    if raw_ext is not None:
+                        # Need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
+                        if key == 'tcl_use' or key == 'tcl_prepend':
+                            ext = self.parse_raw_path_tcl(getenv_regex_tcl, raw_ext)
+                        elif key == 'lua_string':
+                            ext = raw_ext
+                        else: # lua_env or lua_join
+                            ext = self.parse_raw_path_lua(getenv_regex_lua, raw_ext)
+                        exts.append(ext)
+
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
-
-            # Need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
-            for i, ext in enumerate(exts):
-
-                if not matches[i][2]: # can skip plain literal Lua match
-
-                    # expand environment variables
-                    if matches[i][3]: # pathJoin match (Lua)
-                        envstr = "os.getenv("
-                    else: # TCL match
-                        envstr = "$env("
-                    envlocstart = ext.find(envstr)
-                    while envlocstart != -1:
-                        envlocend = ext.find(")", envlocstart+len(envstr))
-                        if envlocend == -1:
-                            break
-                        envvar = ext[envlocstart+len(envstr):envlocend].strip('"')
-                        envval = os.environ.get(envvar, "")
-                        ext = ext.replace(ext[envlocstart:envlocend+1], envval)
-                        envlocstart = ext.find(envstr,envlocstart+len(envval))
-
-                    # join paths (Lua)
-                    if matches[i][3]:
-                        ext = os.path.join(*ext.replace(",","").replace('"','').split())
-
-                exts[i] = ext
-
-            self.log.debug("Found expanded $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:
