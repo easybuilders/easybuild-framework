@@ -396,12 +396,11 @@ class ModulesTest(EnhancedTestCase):
         lua_str = 'pathJoin("foo", os.getenv("TEST_VAR"), "bar", os.getenv("TEST_VAR"))'
         self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'foo/test123/bar/test123')
 
-
     def test_interpret_raw_path_tcl(self):
         """Test interpret_raw_path_tcl method"""
 
-        self.assertEqual(self.modtool.interpret_raw_path_tcl("test"), "test")
-        self.assertEqual(self.modtool.interpret_raw_path_tcl("just/a/path"), "just/a/path")
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('"test"'), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('"just/a/path"'), "just/a/path")
 
         os.environ['TEST_VAR'] = 'test123'
         self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)'), 'test123')
@@ -411,6 +410,9 @@ class ModulesTest(EnhancedTestCase):
 
         tcl_str = 'foo/$env(TEST_VAR)/bar/$env(TEST_VAR)'
         self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'foo/test123/bar/test123')
+
+        tcl_str = '[ file join $env(TEST_VAR) "foo/bar" ]'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'test123/foo/bar')
 
     def test_modpath_extensions_for(self):
         """Test modpath_extensions_for method."""
@@ -454,10 +456,10 @@ class ModulesTest(EnhancedTestCase):
             # quoted path
             'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
             # using prepend-path & quoted
-            ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
+            ' prepend-path MODULEPATH [ file join %s "MPI/GCC/4.7.2/OpenMPI/1.6.4" ]' % mod_dir,
             # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
             "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
-            "    module use $env(HOME)/modules/Compiler/GCC/4.7.2",
+            '    module use [ file join $env(HOME) "modules/Compiler/GCC/4.7.2" ]',
             "}",
             "setenv EXAMPLE example",
             # more (fictional) extensions that use os.getenv

@@ -745,8 +745,16 @@ class ModulesTool(object):
 
     def interpret_raw_path_tcl(self, txt):
         """Interpret raw path (TCL syntax): resolve environment variables"""
-        # interpret all $env(...) parts
-        return re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), txt)
+        res = txt.strip('"')
+
+        # first interpret (outer) 'file join' statement (if any)
+        file_join = lambda res: os.path.join(*[x.strip('"') for x in res.groups()])
+        res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
+
+        # also interpret all $env(...) parts
+        res = re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), res)
+
+        return res
 
     def modpath_extensions_for(self, mod_names):
         """
@@ -767,9 +775,9 @@ class ModulesTool(object):
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
         # or 'prepend_path("MODULEPATH", ...) in Lua modules
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?(?P<tcl_use>[^"\s]+)"?',                   # 'module use' in Tcl module files
-            r'^\s*prepend-path\s+MODULEPATH\s+"?(?P<tcl_prepend>[^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_prepend>.+)\)',     # prepend to $MODULEPATH in Lua modules
+            r'^\s*module\s+use\s+(?P<tcl_use>.+)',                         # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+(?P<tcl_prepend>.+)',        # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_prepend>.+)\)',  # prepend to $MODULEPATH in Lua modules
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
