@@ -3,6 +3,26 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.1.2 (March 17th 2017)
+------------------------
+
+bugfix release
+- minor enhancements, including:
+  - implement change_dir function in filetools module (#2155)
+  - add ld.bfd to wrappers for rpath (#2156)
+  - use checker_state in trailing whitespace style check + add dedicated test (#2160)
+  - consider both pycodestyle and pep8 Python modules in style checks (#2161)
+- various bug fixes, including:
+  - take into account that $PATH or $PYTHONPATH may be empty when running tests (#2149)
+  - handle duplicates in --include-* (#2151)
+  - exclude dependencies of dependencies that extend $MODULEPATH (#2152)
+  - fix run_cmd bug with shell=False (#2153)
+  - fix test_vsc_location, vsc.__file__ may not be available when vsc is installed as a namespace package (#2159)
+  - fix reported problems with scripts & docs tests (#2164)
+  - fix --try-software-version using non-greedy matching + lookahead assertion, add test for tweak_one (#2166)
+  - skip check_trailing_whitespace test if pep8/pycodestyle is not available (#2169)
+
+
 v3.1.1 (March 7th 2017)
 -----------------------
 
