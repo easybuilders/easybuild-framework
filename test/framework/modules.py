@@ -380,6 +380,40 @@ class ModulesTest(EnhancedTestCase):
         else:
             print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
 
+    def test_interpret_raw_path_lua(self):
+        """Test interpret_raw_path_lua method"""
+
+        self.assertEqual(self.modtool.interpret_raw_path_lua('"test"'), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_lua('"just/a/path"'), "just/a/path")
+
+        os.environ['TEST_VAR'] = 'test123'
+        self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("TEST_VAR")'), 'test123')
+        self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("NO_SUCH_ENVIRONMENT_VARIABLE")'), '')
+
+        lua_str = 'pathJoin(os.getenv("TEST_VAR"), "bar")'
+        self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'test123/bar')
+
+        lua_str = 'pathJoin("foo", os.getenv("TEST_VAR"), "bar", os.getenv("TEST_VAR"))'
+        self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'foo/test123/bar/test123')
+
+    def test_interpret_raw_path_tcl(self):
+        """Test interpret_raw_path_tcl method"""
+
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('"test"'), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('"just/a/path"'), "just/a/path")
+
+        os.environ['TEST_VAR'] = 'test123'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)'), 'test123')
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(NO_SUCH_ENVIRONMENT_VARIABLE)'), '')
+
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)/bar'), 'test123/bar')
+
+        tcl_str = 'foo/$env(TEST_VAR)/bar/$env(TEST_VAR)'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'foo/test123/bar/test123')
+
+        tcl_str = '[ file join $env(TEST_VAR) "foo/bar" ]'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'test123/foo/bar')
+
     def test_modpath_extensions_for(self):
         """Test modpath_extensions_for method."""
         self.setup_hierarchical_modules()
@@ -404,20 +438,33 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Can't get value from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
+        # make sure $HOME/$USER is set to something we can easily check
+        os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
+        os.environ['USER'] = 'testuser'
+
+        mkdir(os.path.join(self.test_prefix, os.environ['USER'], 'test'), parents=True)
+
         # test result in case conditional loads are used
         test_mod = 'test-modpaths/1.2.3.4'
         test_modfile = os.path.join(mod_dir, test_mod)
+
+        # only prepend-path entries for MODULEPATH and 'module use' statements are really relevant
         test_modtxt = '\n'.join([
             '#%Module',
+            'prepend-path PATH /example/bin',
             "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
             # quoted path
             'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
             # using prepend-path & quoted
-            ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
+            ' prepend-path MODULEPATH [ file join %s "MPI/GCC/4.7.2/OpenMPI/1.6.4" ]' % mod_dir,
             # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
-            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
+            '    module use [ file join $env(HOME) "modules/Compiler/GCC/4.7.2" ]',
             "}",
+            "setenv EXAMPLE example",
+            # more (fictional) extensions that use os.getenv
+            'prepend-path   MODULEPATH    "$env(HOME)"',
+            'module use  "%s/$env(USER)/test"' % self.test_prefix,
         ])
         write_file(test_modfile, test_modtxt)
 
@@ -427,6 +474,8 @@ class ModulesTest(EnhancedTestCase):
                 os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
                 os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
                 os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+                os.environ['HOME'],
+                os.path.join(self.test_prefix, os.environ['USER'], 'test'),
             ]
         }
         self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
@@ -437,15 +486,21 @@ class ModulesTest(EnhancedTestCase):
             test_mod = 'test-modpaths-lua/1.2.3.4'
             test_modfile = os.path.join(mod_dir, test_mod + '.lua')
 
+            # only prepend_path entries for MODULEPATH are really relevant
             test_modtxt = '\n'.join([
+                'prepend_path("PATH", "/example/bin")',
                 # indented without guard
                 '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
                 'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
                 'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
                 # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
-                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                'if isDir(pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2")) then',
+                '    prepend_path("MODULEPATH", pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2"))',
                 'end',
+                'setenv("EXAMPLE", "example")',
+                # more (fictional) extensions that use os.getenv
+                'prepend_path("MODULEPATH", os.getenv("HOME"))',
+                'prepend_path("MODULEPATH", pathJoin("%s", os.getenv("USER"), "test"))' % self.test_prefix,
             ])
             write_file(test_modfile, test_modtxt)
 
