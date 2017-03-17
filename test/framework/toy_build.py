@@ -1299,9 +1299,15 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-one', 'bin', 'toy')))
         self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-two', 'bin', 'toy')))
 
+        toytwo_name = '0.0-two'
+        yot_name = '0.0-one'
+        if get_module_syntax() == 'Lua':
+            toytwo_name += '.lua'
+            yot_name += '.lua'
+
         # modules for both installations with alternative name should be there
-        self.assertTrue(os.path.exists(os.path.join(modules_path, 'toytwo', '0.0-two.lua')))
-        self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', '0.0-one.lua')))
+        self.assertTrue(os.path.exists(os.path.join(modules_path, 'toytwo', toytwo_name)))
+        self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
 
         # only subdirectories for software should be created
         self.assertEqual(os.listdir(software_path), ['toy'])
@@ -1309,8 +1315,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # only subdirectories for modules with alternative names should be created
         self.assertEqual(sorted(os.listdir(modules_path)), ['toytwo', 'yot'])
-        self.assertEqual(os.listdir(os.path.join(modules_path, 'toytwo')), ['0.0-two.lua'])
-        self.assertEqual(os.listdir(os.path.join(modules_path, 'yot')), ['0.0-one.lua'])
+        self.assertEqual(os.listdir(os.path.join(modules_path, 'toytwo')), [toytwo_name])
+        self.assertEqual(os.listdir(os.path.join(modules_path, 'yot')), [yot_name])
 
 
 def suite():
