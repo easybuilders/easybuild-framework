@@ -1305,10 +1305,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         # only subdirectories for software should be created
         self.assertEqual(os.listdir(software_path), ['toy'])
-        self.assertEqual(os.listdir(os.path.join(software_path, 'toy')), ['0.0-one', '0.0-two'])
+        self.assertEqual(sorted(os.listdir(os.path.join(software_path, 'toy'))), ['0.0-one', '0.0-two'])
 
         # only subdirectories for modules with alternative names should be created
-        self.assertEqual(os.listdir(modules_path), ['toytwo', 'yot'])
+        self.assertEqual(sorted(os.listdir(modules_path)), ['toytwo', 'yot'])
         self.assertEqual(os.listdir(os.path.join(modules_path, 'toytwo')), ['0.0-two.lua'])
         self.assertEqual(os.listdir(os.path.join(modules_path, 'yot')), ['0.0-one.lua'])
 
