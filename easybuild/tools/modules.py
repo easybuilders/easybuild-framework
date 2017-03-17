@@ -727,7 +727,6 @@ class ModulesTool(object):
         if txt.startswith('"') and txt.endswith('"'):
             # don't touch a raw string
             res = txt
-
         else:
             # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
             res = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
