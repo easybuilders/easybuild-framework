@@ -721,17 +721,30 @@ class ModulesTool(object):
 
         return read_file(modfilepath)
 
-    def parse_raw_path_tcl(self, getenv_regex, txt):
-        """Interpret raw path (TCL syntax): resolve environment variables"""
-        return getenv_regex.sub(lambda res: os.getenv(res.group(1).strip('"'), ""), txt)
-
-    def parse_raw_path_lua(self, getenv_regex, txt):
+    def interpret_raw_path_lua(self, txt):
         """Interpret raw path (Lua syntax): resolve environment variables, join paths where `pathJoin` is specified"""
-        txt = getenv_regex.sub(lambda res: '"%s"' % os.getenv(res.group(1).strip('"'), ""), txt)
-        # this splits the string at , and whitespace, and unquotes like the shell
-        lexer = shlex.shlex(txt, posix=True)
-        lexer.whitespace += ','
-        return os.path.join(*lexer)
+
+        # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
+        txt = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
+
+        # interpret (outer) 'pathJoin' statement if found
+        path_join_prefix = 'pathJoin('
+        if txt.startswith(path_join_prefix):
+            txt = txt[len(path_join_prefix):].rstrip(')')
+
+            # split the string at ',' and whitespace, and unquotes like the shell
+            lexer = shlex.shlex(txt, posix=True)
+            lexer.whitespace += ','
+            res = os.path.join(*lexer)
+        else:
+            res = txt
+
+        return res.strip('"')
+
+    def interpret_raw_path_tcl(self, txt):
+        """Interpret raw path (TCL syntax): resolve environment variables"""
+        # interpret all $env(...) parts
+        return re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), txt)
 
     def modpath_extensions_for(self, mod_names):
         """
@@ -754,13 +767,9 @@ class ModulesTool(object):
         modpath_ext_regex = r'|'.join([
             r'^\s*module\s+use\s+"?(?P<tcl_use>[^"\s]+)"?',                          # 'module use' in Tcl module files
             r'^\s*prepend-path\s+MODULEPATH\s+"?(?P<tcl_prepend>[^"\s]+)"?',         # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(?P<lua_string>\S+)\"',          # prepend to $MODULEPATH in Lua modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_env>os\.getenv\(.+?\))\)', # prepend to $MODULEPATH in Lua modules using os.getenv
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*pathJoin\((?P<lua_join>.+)\)\)',   # prepend to $MODULEPATH in Lua modules using pathJoin
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_string>.+)\)',            # prepend to $MODULEPATH in Lua modules
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
-        getenv_regex_tcl = re.compile(r'\$env\((.*)\)')
-        getenv_regex_lua = re.compile(r'os.getenv\("([^"]*)"\)')
 
         modpath_exts = {}
         for mod_name in mod_names:
@@ -770,13 +779,11 @@ class ModulesTool(object):
             for m in modpath_ext_regex.finditer(modtxt):
                 for key, raw_ext in m.groupdict().iteritems():
                     if raw_ext is not None:
-                        # Need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
-                        if key == 'tcl_use' or key == 'tcl_prepend':
-                            ext = self.parse_raw_path_tcl(getenv_regex_tcl, raw_ext)
-                        elif key == 'lua_string':
-                            ext = raw_ext
-                        else: # lua_env or lua_join
-                            ext = self.parse_raw_path_lua(getenv_regex_lua, raw_ext)
+                        # need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
+                        if key in ['tcl_prepend', 'tcl_use']:
+                            ext = self.interpret_raw_path_tcl(raw_ext)
+                        else:
+                            ext = self.interpret_raw_path_lua(raw_ext.strip('"'))
                         exts.append(ext)
 
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)

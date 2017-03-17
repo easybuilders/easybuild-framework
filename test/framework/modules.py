@@ -380,6 +380,38 @@ class ModulesTest(EnhancedTestCase):
         else:
             print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
 
+    def test_interpret_raw_path_lua(self):
+        """Test interpret_raw_path_lua method"""
+
+        self.assertEqual(self.modtool.interpret_raw_path_lua("test"), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_lua("just/a/path"), "just/a/path")
+
+        os.environ['TEST_VAR'] = 'test123'
+        self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("TEST_VAR")'), 'test123')
+        self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("NO_SUCH_ENVIRONMENT_VARIABLE")'), '')
+
+        lua_str = 'pathJoin(os.getenv("TEST_VAR"), "bar")'
+        self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'test123/bar')
+
+        lua_str = 'pathJoin("foo", os.getenv("TEST_VAR"), "bar", os.getenv("TEST_VAR"))'
+        self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'foo/test123/bar/test123')
+
+
+    def test_interpret_raw_path_tcl(self):
+        """Test interpret_raw_path_tcl method"""
+
+        self.assertEqual(self.modtool.interpret_raw_path_tcl("test"), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_tcl("just/a/path"), "just/a/path")
+
+        os.environ['TEST_VAR'] = 'test123'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)'), 'test123')
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(NO_SUCH_ENVIRONMENT_VARIABLE)'), '')
+
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)/bar'), 'test123/bar')
+
+        tcl_str = 'foo/$env(TEST_VAR)/bar/$env(TEST_VAR)'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'foo/test123/bar/test123')
+
     def test_modpath_extensions_for(self):
         """Test modpath_extensions_for method."""
         self.setup_hierarchical_modules()
