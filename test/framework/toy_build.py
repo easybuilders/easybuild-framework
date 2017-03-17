@@ -1282,14 +1282,41 @@ class ToyBuildTest(EnhancedTestCase):
             toy_ec_txt,
             "versionsuffix = '-two'",
             "dependencies = [('toy', '0.0', '-one')]",
+            "modaltsoftname = 'toytwo'",
         ])
         write_file(ec2, ec2_txt)
 
         extra_args = [
             '--module-naming-scheme=HierarchicalMNS',
-            '--robot-paths=%s'%self.test_prefix,
+            '--robot-paths=%s' % self.test_prefix,
         ]
         self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
+
+        software_path = os.path.join(self.test_installpath, 'software', 'Core')
+        modules_path = os.path.join(self.test_installpath, 'modules', 'all', 'Core')
+
+        # install dirs for both installations should be there (using original software name)
+        self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-one', 'bin', 'toy')))
+        self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-two', 'bin', 'toy')))
+
+        toytwo_name = '0.0-two'
+        yot_name = '0.0-one'
+        if get_module_syntax() == 'Lua':
+            toytwo_name += '.lua'
+            yot_name += '.lua'
+
+        # modules for both installations with alternative name should be there
+        self.assertTrue(os.path.exists(os.path.join(modules_path, 'toytwo', toytwo_name)))
+        self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
+
+        # only subdirectories for software should be created
+        self.assertEqual(os.listdir(software_path), ['toy'])
+        self.assertEqual(sorted(os.listdir(os.path.join(software_path, 'toy'))), ['0.0-one', '0.0-two'])
+
+        # only subdirectories for modules with alternative names should be created
+        self.assertEqual(sorted(os.listdir(modules_path)), ['toytwo', 'yot'])
+        self.assertEqual(os.listdir(os.path.join(modules_path, 'toytwo')), [toytwo_name])
+        self.assertEqual(os.listdir(os.path.join(modules_path, 'yot')), [yot_name])
 
 
 def suite():
