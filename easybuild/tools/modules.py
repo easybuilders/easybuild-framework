@@ -763,11 +763,11 @@ class ModulesTool(object):
 
         # regex for $MODULEPATH extensions;
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
-        # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        # or 'prepend_path("MODULEPATH", ...) in Lua modules
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?(?P<tcl_use>[^"\s]+)"?',                          # 'module use' in Tcl module files
-            r'^\s*prepend-path\s+MODULEPATH\s+"?(?P<tcl_prepend>[^"\s]+)"?',         # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_string>.+)\)',            # prepend to $MODULEPATH in Lua modules
+            r'^\s*module\s+use\s+"?(?P<tcl_use>[^"\s]+)"?',                   # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+"?(?P<tcl_prepend>[^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_prepend>.+)\)',     # prepend to $MODULEPATH in Lua modules
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
@@ -776,8 +776,8 @@ class ModulesTool(object):
             modtxt = self.read_module_file(mod_name)
 
             exts = []
-            for m in modpath_ext_regex.finditer(modtxt):
-                for key, raw_ext in m.groupdict().iteritems():
+            for modpath_ext in modpath_ext_regex.finditer(modtxt):
+                for key, raw_ext in modpath_ext.groupdict().iteritems():
                     if raw_ext is not None:
                         # need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
                         if key in ['tcl_prepend', 'tcl_use']:

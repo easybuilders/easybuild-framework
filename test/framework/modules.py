@@ -436,14 +436,18 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Can't get value from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
-        # make sure $HOME is set to something
+        # make sure $HOME/$USER is set to something we can easily check
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
+        os.environ['USER'] = 'testuser'
 
         # test result in case conditional loads are used
         test_mod = 'test-modpaths/1.2.3.4'
         test_modfile = os.path.join(mod_dir, test_mod)
+
+        # only prepend-path entries for MODULEPATH and 'module use' statements are really relevant
         test_modtxt = '\n'.join([
             '#%Module',
+            'prepend-path PATH /example/bin',
             "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
             # quoted path
             'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
@@ -453,6 +457,10 @@ class ModulesTest(EnhancedTestCase):
             "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
             "    module use $env(HOME)/modules/Compiler/GCC/4.7.2",
             "}",
+            "setenv EXAMPLE example",
+            # more (fictional) extensions that use os.getenv
+            'prepend-path   MODULEPATH    "$env(HOME)"',
+            'module use  "/example/$env(USER)/test"',
         ])
         write_file(test_modfile, test_modtxt)
 
@@ -462,6 +470,8 @@ class ModulesTest(EnhancedTestCase):
                 os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
                 os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
                 os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+                os.environ['HOME'],
+                os.path.join('/example', os.environ['USER'], 'test'),
             ]
         }
         self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
@@ -472,7 +482,9 @@ class ModulesTest(EnhancedTestCase):
             test_mod = 'test-modpaths-lua/1.2.3.4'
             test_modfile = os.path.join(mod_dir, test_mod + '.lua')
 
+            # only prepend_path entries for MODULEPATH are really relevant
             test_modtxt = '\n'.join([
+                'prepend_path("PATH", "/example/bin")',
                 # indented without guard
                 '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
                 'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
@@ -481,6 +493,10 @@ class ModulesTest(EnhancedTestCase):
                 'if isDir(pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2")) then',
                 '    prepend_path("MODULEPATH", pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2"))',
                 'end',
+                'setenv("EXAMPLE", "example")',
+                # more (fictional) extensions that use os.getenv
+                'prepend_path("MODULEPATH", os.getenv("HOME"))',
+                'prepend_path("MODULEPATH", pathJoin("/example", os.getenv("USER"), "test"))',
             ])
             write_file(test_modfile, test_modtxt)
 
