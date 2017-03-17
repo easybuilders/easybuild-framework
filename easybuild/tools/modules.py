@@ -724,20 +724,23 @@ class ModulesTool(object):
     def interpret_raw_path_lua(self, txt):
         """Interpret raw path (Lua syntax): resolve environment variables, join paths where `pathJoin` is specified"""
 
-        # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
-        txt = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
-
-        # interpret (outer) 'pathJoin' statement if found
-        path_join_prefix = 'pathJoin('
-        if txt.startswith(path_join_prefix):
-            txt = txt[len(path_join_prefix):].rstrip(')')
-
-            # split the string at ',' and whitespace, and unquotes like the shell
-            lexer = shlex.shlex(txt, posix=True)
-            lexer.whitespace += ','
-            res = os.path.join(*lexer)
-        else:
+        if txt.startswith('"') and txt.endswith('"'):
+            # don't touch a raw string
             res = txt
+
+        else:
+            # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
+            res = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
+
+            # interpret (outer) 'pathJoin' statement if found
+            path_join_prefix = 'pathJoin('
+            if res.startswith(path_join_prefix):
+                res = res[len(path_join_prefix):].rstrip(')')
+
+                # split the string at ',' and whitespace, and unquotes like the shell
+                lexer = shlex.shlex(res, posix=True)
+                lexer.whitespace += ','
+                res = os.path.join(*lexer)
 
         return res.strip('"')
 
@@ -783,7 +786,7 @@ class ModulesTool(object):
                         if key in ['tcl_prepend', 'tcl_use']:
                             ext = self.interpret_raw_path_tcl(raw_ext)
                         else:
-                            ext = self.interpret_raw_path_lua(raw_ext.strip('"'))
+                            ext = self.interpret_raw_path_lua(raw_ext)
                         exts.append(ext)
 
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)

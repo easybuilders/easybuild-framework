@@ -383,8 +383,8 @@ class ModulesTest(EnhancedTestCase):
     def test_interpret_raw_path_lua(self):
         """Test interpret_raw_path_lua method"""
 
-        self.assertEqual(self.modtool.interpret_raw_path_lua("test"), "test")
-        self.assertEqual(self.modtool.interpret_raw_path_lua("just/a/path"), "just/a/path")
+        self.assertEqual(self.modtool.interpret_raw_path_lua('"test"'), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_lua('"just/a/path"'), "just/a/path")
 
         os.environ['TEST_VAR'] = 'test123'
         self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("TEST_VAR")'), 'test123')
