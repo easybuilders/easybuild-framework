@@ -3,24 +3,29 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
-v3.1.2 (March 17th 2017)
+v3.1.2 (March 20th 2017)
 ------------------------
 
 bugfix release
 - minor enhancements, including:
   - implement change_dir function in filetools module (#2155)
-  - add ld.bfd to wrappers for rpath (#2156)
   - use checker_state in trailing whitespace style check + add dedicated test (#2160)
   - consider both pycodestyle and pep8 Python modules in style checks (#2161)
+  - make bootstrap script aware various modules-related $EASYBUILD_* environment variables (#2170)
 - various bug fixes, including:
+  - interpret statements that extend $MODULEPATH in modpath_extensions_for method (#2104)
+    - also fixes inclusion of superfluous load statements in modules installed in user HMNS module tree (cfr. #2172)
   - take into account that $PATH or $PYTHONPATH may be empty when running tests (#2149)
   - handle duplicates in --include-* (#2151)
   - exclude dependencies of dependencies that extend $MODULEPATH (#2152)
   - fix run_cmd bug with shell=False (#2153)
+  - add ld.bfd to wrappers for rpath (#2156)
   - fix test_vsc_location, vsc.__file__ may not be available when vsc is installed as a namespace package (#2159)
   - fix reported problems with scripts & docs tests (#2164)
   - fix --try-software-version using non-greedy matching + lookahead assertion, add test for tweak_one (#2166)
+  - avoid creating empty modulefile directories when using modaltsoftname (#2168)
   - skip check_trailing_whitespace test if pep8/pycodestyle is not available (#2169)
+  - fix fftw_libs for MKL without interface libraries (#2171)
 
 
 v3.1.1 (March 7th 2017)
