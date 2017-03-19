@@ -7,6 +7,7 @@ v3.1.2 (March 20th 2017)
 ------------------------
 
 bugfix release
+- fix broken packaging support by fixing ``run_cmd`` bug with ``shell=False`` (#2153)
 - minor enhancements, including:
   - implement change_dir function in filetools module (#2155)
   - use checker_state in trailing whitespace style check + add dedicated test (#2160)
@@ -18,8 +19,7 @@ bugfix release
   - take into account that $PATH or $PYTHONPATH may be empty when running tests (#2149)
   - handle duplicates in --include-* (#2151)
   - exclude dependencies of dependencies that extend $MODULEPATH (#2152)
-  - fix run_cmd bug with shell=False (#2153)
-  - add ld.bfd to wrappers for rpath (#2156)
+  - add ld.bfd to RPATH wrappers (#2156)
   - fix test_vsc_location, vsc.__file__ may not be available when vsc is installed as a namespace package (#2159)
   - fix reported problems with scripts & docs tests (#2164)
   - fix --try-software-version using non-greedy matching + lookahead assertion, add test for tweak_one (#2166)
