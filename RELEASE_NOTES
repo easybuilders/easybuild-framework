@@ -10,7 +10,7 @@ bugfix release
 - fix broken packaging support by fixing ``run_cmd`` bug with ``shell=False`` (#2153)
 - minor enhancements, including:
   - implement change_dir function in filetools module (#2155)
-  - use checker_state in trailing whitespace style check + add dedicated test (#2160)
+  - use checker_state in trailing whitespace style check + add dedicated test (#2160, #2169)
   - consider both pycodestyle and pep8 Python modules in style checks (#2161)
   - make bootstrap script aware various modules-related $EASYBUILD_* environment variables (#2170)
 - various bug fixes, including:
@@ -24,7 +24,6 @@ bugfix release
   - fix reported problems with scripts & docs tests (#2164)
   - fix --try-software-version using non-greedy matching + lookahead assertion, add test for tweak_one (#2166)
   - avoid creating empty modulefile directories when using modaltsoftname (#2168)
-  - skip check_trailing_whitespace test if pep8/pycodestyle is not available (#2169)
   - fix fftw_libs for MKL without interface libraries (#2171)
 
 
