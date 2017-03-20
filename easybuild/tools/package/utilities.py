@@ -42,7 +42,7 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import which
+from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -83,11 +83,7 @@ def package_with_fpm(easyblock):
     pkgtype = build_option('package_type')
     _log.info("Will be creating %s package(s) in %s", pkgtype, workdir)
 
-    try:
-        origdir = os.getcwd()
-        os.chdir(workdir)
-    except OSError, err:
-        raise EasyBuildError("Failed to chdir into workdir %s: %s", workdir, err)
+    origdir = change_dir(workdir)
 
     package_naming_scheme = ActivePNS()
 
@@ -148,10 +144,7 @@ def package_with_fpm(easyblock):
 
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
-    try:
-        os.chdir(origdir)
-    except OSError, err:
-        raise EasyBuildError("Failed to chdir back to %s: %s", origdir, err)
+    change_dir(origdir)
 
     return workdir
 

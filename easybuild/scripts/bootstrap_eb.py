@@ -92,6 +92,10 @@ orig_os_environ = copy.deepcopy(os.environ)
 easybuild_modules_tool = os.environ.get('EASYBUILD_MODULES_TOOL', None)
 easybuild_module_syntax = os.environ.get('EASYBUILD_MODULE_SYNTAX', None)
 
+# If modules subdir specifications are defined, use them
+easybuild_installpath_modules = os.environ.get('EASYBUILD_INSTALLPATH_MODULES', None)
+easybuild_subdir_modules = os.environ.get('EASYBUILD_SUBDIR_MODULES', 'modules')
+easybuild_suffix_modules_path = os.environ.get('EASYBUILD_SUFFIX_MODULES_PATH', 'all')
 
 #
 # Utility functions
@@ -150,6 +154,16 @@ def det_lib_path(libdir):
         libdir = 'lib'
     pyver = '.'.join([str(x) for x in sys.version_info[:2]])
     return os.path.join(libdir, 'python%s' % pyver, 'site-packages')
+
+
+def det_modules_path(install_path):
+    """Determine modules path."""
+    if easybuild_installpath_modules is not None:
+        modules_path = os.path.join(easybuild_installpath_modules, easybuild_suffix_modules_path)
+    else:
+        modules_path = os.path.join(install_path, easybuild_subdir_modules, easybuild_suffix_modules_path)
+
+    return modules_path
 
 
 def find_egg_dir_for(path, pkg):
@@ -660,7 +674,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
     if install_path is not None:
-        modules_path = os.path.join(install_path, 'modules', 'all')
+        modules_path = det_modules_path(install_path)
         if not os.path.exists(modules_path):
             os.makedirs(modules_path)
         debug("Created path %s" % modules_path)
@@ -781,7 +795,7 @@ def main():
 
     if install_path is not None:
         info('EasyBuild v%s was installed to %s, so make sure your $MODULEPATH includes %s' %
-             (templates['version'], install_path, os.path.join(install_path, 'modules', 'all')))
+             (templates['version'], install_path, det_modules_path(install_path)))
     else:
         info('EasyBuild v%s was installed to configured install path, make sure your $MODULEPATH is set correctly.' %
              templates['version'])
