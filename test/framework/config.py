@@ -43,7 +43,7 @@ from easybuild.tools.config import build_option, build_path, source_paths, insta
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
 
@@ -266,7 +266,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -484,7 +484,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         tmp_ecs_dir = os.path.join(tmpdir, 'easybuild', 'easyconfigs')
-        shutil.copytree(test_ecs_path, tmp_ecs_dir)
+        copy_dir(test_ecs_path, tmp_ecs_dir)
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         orig_sys_path = sys.path[:]
