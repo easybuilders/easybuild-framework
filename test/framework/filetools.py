@@ -799,12 +799,15 @@ class FileToolsTest(EnhancedTestCase):
     def test_copy_file(self):
         """ Test copy_file """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = self.test_prefix
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        target_path = os.path.join(tmpdir, 'toy.eb')
+        target_path = os.path.join(self.test_prefix, 'toy.eb')
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
+        # clean error when trying to copy a directory with copy_file
+        src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
+        self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -832,6 +835,58 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertEqual(txt, '')
+
+    def test_copy_dir(self):
+        """Test copy_file"""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
+
+        target_dir = os.path.join(self.test_prefix, 'GCC')
+        self.assertFalse(os.path.exists(target_dir))
+
+        ft.copy_dir(to_copy, target_dir)
+        self.assertTrue(os.path.exists(target_dir))
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
+                    'GCC-4.9.3-2.25.eb']
+        self.assertTrue(sorted(os.listdir(target_dir)), expected)
+
+        # clean error when trying to copy a file with copy_dir
+        src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory.*Not a directory", ft.copy_dir, src, target)
+
+        # if directory already exists, we expect a clean error
+        testdir = os.path.join(self.test_prefix, 'thisdirexists')
+        ft.mkdir(testdir)
+        self.assertErrorRegex(EasyBuildError, "Target location .* already exists", ft.copy_dir, to_copy, testdir)
+
+        # also test behaviour of copy_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        shutil.rmtree(target_dir)
+        self.assertFalse(os.path.exists(target_dir))
+
+        # no actual copying in dry run mode, unless forced
+        self.mock_stdout(True)
+        ft.copy_dir(to_copy, target_dir)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(target_dir))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy_dir(to_copy, target_dir, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.exists(target_dir))
+        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(target_dir)))
         self.assertEqual(txt, '')
 
     def test_change_dir(self):
