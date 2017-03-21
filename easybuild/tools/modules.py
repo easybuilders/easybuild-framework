@@ -37,6 +37,7 @@ This python module implements the environment modules functionality:
 """
 import os
 import re
+import shlex
 import subprocess
 from distutils.version import StrictVersion
 from subprocess import PIPE
@@ -711,6 +712,50 @@ class ModulesTool(object):
 
         return loaded_modules
 
+    def read_module_file(self, mod_name):
+        """
+        Read module file with specified name.
+        """
+        modfilepath = self.modulefile_path(mod_name)
+        self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
+
+        return read_file(modfilepath)
+
+    def interpret_raw_path_lua(self, txt):
+        """Interpret raw path (Lua syntax): resolve environment variables, join paths where `pathJoin` is specified"""
+
+        if txt.startswith('"') and txt.endswith('"'):
+            # don't touch a raw string
+            res = txt
+        else:
+            # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
+            res = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
+
+            # interpret (outer) 'pathJoin' statement if found
+            path_join_prefix = 'pathJoin('
+            if res.startswith(path_join_prefix):
+                res = res[len(path_join_prefix):].rstrip(')')
+
+                # split the string at ',' and whitespace, and unquotes like the shell
+                lexer = shlex.shlex(res, posix=True)
+                lexer.whitespace += ','
+                res = os.path.join(*lexer)
+
+        return res.strip('"')
+
+    def interpret_raw_path_tcl(self, txt):
+        """Interpret raw path (TCL syntax): resolve environment variables"""
+        res = txt.strip('"')
+
+        # first interpret (outer) 'file join' statement (if any)
+        file_join = lambda res: os.path.join(*[x.strip('"') for x in res.groups()])
+        res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
+
+        # also interpret all $env(...) parts
+        res = re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), res)
+
+        return res
+
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
@@ -728,18 +773,29 @@ class ModulesTool(object):
 
         # regex for $MODULEPATH extensions;
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
-        # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        # or 'prepend_path("MODULEPATH", ...) in Lua modules
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
-            r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
+            r'^\s*module\s+use\s+(?P<tcl_use>.+)',                         # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+(?P<tcl_prepend>.+)',        # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_prepend>.+)\)',  # prepend to $MODULEPATH in Lua modules
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
         modpath_exts = {}
         for mod_name in mod_names:
-            modtxt = self.show(mod_name)
-            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+            modtxt = self.read_module_file(mod_name)
+
+            exts = []
+            for modpath_ext in modpath_ext_regex.finditer(modtxt):
+                for key, raw_ext in modpath_ext.groupdict().iteritems():
+                    if raw_ext is not None:
+                        # need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
+                        if key in ['tcl_prepend', 'tcl_use']:
+                            ext = self.interpret_raw_path_tcl(raw_ext)
+                        else:
+                            ext = self.interpret_raw_path_lua(raw_ext)
+                        exts.append(ext)
+
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 

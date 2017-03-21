@@ -33,7 +33,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-import vsc
+import vsc.utils.generaloption
 
 import easybuild.framework
 from easybuild.tools.build_log import EasyBuildError
@@ -49,8 +49,9 @@ class GeneralTest(EnhancedTestCase):
         # cfr. https://github.com/hpcugent/easybuild-framework/pull/1160
         # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
-        # vsc.__file__ provides location to <prefix>/vsc/__init__.py
-        vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+        # vsc.utils.generaloption.__file__ provides location to <prefix>/vsc/utils/generaloption/__init__.py
+        generaloption_loc = os.path.abspath(vsc.utils.generaloption.__file__)
+        vsc_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(generaloption_loc))))
         # make sure vsc is being imported from outside of framework
         msg = "vsc-base is not provided by EasyBuild framework itself, found location: %s" % vsc_loc
         self.assertFalse(os.path.samefile(framework_loc, vsc_loc), msg)
@@ -81,12 +82,25 @@ class GeneralTest(EnhancedTestCase):
 
         foo()
 
+        @only_if_module_is_available(('nosuchmoduleoutthere', 'easybuild'))
+        def foo2():
+            pass
+
+        foo2()
+
         @only_if_module_is_available('nosuchmoduleoutthere', pkgname='nosuchpkg')
         def bar():
             pass
 
         err_pat = "required module 'nosuchmoduleoutthere' is not available.*package nosuchpkg.*pypi/nosuchpkg"
         self.assertErrorRegex(EasyBuildError, err_pat, bar)
+
+        @only_if_module_is_available(('nosuchmodule', 'anothernosuchmodule'))
+        def bar2():
+            pass
+
+        err_pat = "ImportError: None of the specified modules nosuchmodule, anothernosuchmodule is available"
+        self.assertErrorRegex(EasyBuildError, err_pat, bar2)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')

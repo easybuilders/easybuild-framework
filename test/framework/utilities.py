@@ -181,8 +181,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
         # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
         # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
-        self.env_path = os.environ['PATH']
-        self.env_pythonpath = os.environ['PYTHONPATH']
+        self.env_path = os.environ.get('PATH')
+        self.env_pythonpath = os.environ.get('PYTHONPATH')
 
         self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
@@ -231,8 +231,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         """
         Restore $PATH & $PYTHONPATH in environment using saved values.
         """
-        os.environ['PATH'] = self.env_path
-        os.environ['PYTHONPATH'] = self.env_pythonpath
+        if self.env_path is not None:
+            os.environ['PATH'] = self.env_path
+        if self.env_path is not None:
+            os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""

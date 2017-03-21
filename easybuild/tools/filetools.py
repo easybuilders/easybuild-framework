@@ -186,6 +186,28 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove %s: %s", path, err)
 
 
+def change_dir(path):
+    """
+    Change to directory at specified location.
+
+    :param path: location to change to
+    :return: previous location we were in
+    """
+    # determining the current working directory can fail if we're in a non-existing directory
+    try:
+        cwd = os.getcwd()
+    except OSError as err:
+        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
+        cwd = None
+
+    try:
+        os.chdir(path)
+    except OSError as err:
+        raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+
+    return cwd
+
+
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
     """
     Extract file at given path to specified directory
@@ -206,11 +228,8 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     abs_dest = os.path.abspath(dest)
 
     # change working directory
-    try:
-        _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
-        os.chdir(abs_dest)
-    except OSError, err:
-        raise EasyBuildError("Can't change to directory %s: %s", abs_dest, err)
+    _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
+    change_dir(abs_dest)
 
     if not cmd:
         cmd = extract_cmd(fn, overwrite=overwrite)
@@ -595,10 +614,7 @@ def find_base_dir():
         if not os.path.isdir(new_dir):
             break
 
-        try:
-            os.chdir(new_dir)
-        except OSError, err:
-            raise EasyBuildError("Changing to dir %s from current dir %s failed: %s", new_dir, os.getcwd(), err)
+        change_dir(new_dir)
         lst = get_local_dirs_purged()
 
     # make sure it's a directory, and not a (single) file that was in a tarball for example
