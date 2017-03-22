@@ -1,4 +1,4 @@
-# #
+
 # Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
@@ -1201,6 +1201,8 @@ def copytree(src, dst, symlinks=False, ignore=None):
     XXX Consider this example code rather than the ultimate tool.
 
     """
+    _log.deprecated("Use 'copy_dir' rather than 'copytree'", '4.0')
+
     class Error(EnvironmentError):
         pass
     try:
@@ -1419,7 +1421,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
 def copy_file(path, target_path, force_in_dry_run=False):
     """
-    Copy a file from path to target_path
+    Copy a file from specified location to specified location
     :param path: the original filepath
     :param target_path: path to copy the file to
     :param force_in_dry_run: force running the command during dry run
@@ -1431,5 +1433,25 @@ def copy_file(path, target_path, force_in_dry_run=False):
             mkdir(os.path.dirname(target_path), parents=True)
             shutil.copy2(path, target_path)
             _log.info("%s copied to %s", path, target_path)
-        except OSError as err:
-            raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+
+def copy_dir(path, target_path, force_in_dry_run=False):
+    """
+    Copy a directory from specified location to specified location
+    :param path: the original directory path
+    :param target_path: path to copy the directory to
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("copied directory %s to %s" % (path, target_path))
+    else:
+        try:
+            if os.path.exists(target_path):
+                raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
+
+            shutil.copytree(path, target_path)
+            _log.info("%s copied to %s", path, target_path)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)

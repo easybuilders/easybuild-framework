@@ -52,7 +52,7 @@ from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.filetools import copy_dir, mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
@@ -308,7 +308,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+            copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
         # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
@@ -354,7 +354,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         'modules', 'CategorizedHMNS', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+            copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make C/Tcl modules happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
         mkdir(os.path.join(mpi_pref, 'base'))
