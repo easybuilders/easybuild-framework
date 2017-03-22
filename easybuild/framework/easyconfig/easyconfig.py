@@ -1058,10 +1058,19 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
+    if 'default_fallback' in kwargs:
+        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
+        msg += "use 'error_on_missing_easyblock' instead"
+        _log.deprecated(msg, '4.0')
+        if error_on_missing_easyblock is None:
+            error_on_missing_easyblock = kwargs['default_fallback']
+    elif error_on_missing_easyblock is None:
+        error_on_missing_easyblock = True
+
     cls = None
     try:
         if easyblock:

@@ -1001,6 +1001,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
 
+        # also test deprecated default_fallback named argument
+        self.assertErrorRegex(EasyBuildError, "DEPRECATED", get_easyblock_class, None, name='gzip',
+                                                                                 default_fallback=False)
+
+        orig_value = easybuild.tools.build_log.CURRENT_VERSION
+        easybuild.tools.build_log.CURRENT_VERSION = '3.9'
+        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
+        easybuild.tools.build_log.CURRENT_VERSION = orig_value
+
     def test_letter_dir(self):
         """Test letter_dir_for function."""
         test_cases = {
