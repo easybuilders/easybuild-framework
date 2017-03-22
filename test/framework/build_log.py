@@ -112,8 +112,15 @@ class BuildLogTest(EnhancedTestCase):
         log.error("err: %s", 'msg: %s')
         stderr = self.get_stderr()
         self.mock_stderr(False)
-        # no output to stderr (should all go to log file)
-        self.assertEqual(stderr, '')
+
+        more_info = "see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        expected_stderr = '\n'.join([
+            "Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
+            "Deprecated functionality, will no longer work in v2.0: onemorewarning",
+            "Deprecated functionality, will no longer work in v2.0: lastwarning",
+        ]) + '\n'
+        self.assertEqual(stderr, expected_stderr)
+
         try:
             log.exception("oops")
         except EasyBuildError:
