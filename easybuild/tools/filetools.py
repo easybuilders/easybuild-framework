@@ -1,4 +1,4 @@
-# #
+
 # Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
@@ -1453,5 +1453,5 @@ def copy_dir(path, target_path, force_in_dry_run=False):
 
             shutil.copytree(path, target_path)
             _log.info("%s copied to %s", path, target_path)
-        except OSError as err:
+        except (IOError, OSError) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
