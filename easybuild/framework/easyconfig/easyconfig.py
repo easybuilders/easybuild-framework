@@ -1058,10 +1058,19 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
+    if 'default_fallback' in kwargs:
+        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
+        msg += "use 'error_on_missing_easyblock' instead"
+        _log.deprecated(msg, '4.0')
+        if error_on_missing_easyblock is None:
+            error_on_missing_easyblock = kwargs['default_fallback']
+    elif error_on_missing_easyblock is None:
+        error_on_missing_easyblock = True
+
     cls = None
     try:
         if easyblock:
@@ -1120,26 +1129,18 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
                 _log.debug("error regexp: %s" % error_re.pattern)
                 if error_re.match(str(err)):
-                    if default_fallback:
-                        # no easyblock could be found, so fall back to ConfigureMake (NO LONGER SUPPORTED)
-                        legacy_fallback_easyblock = 'ConfigureMake'
-                        def_mod_path = get_module_path(legacy_fallback_easyblock, generic=True)
-                        depr_msg = "Fallback to default easyblock %s (from %s)" % (legacy_fallback_easyblock, def_mod_path)
-                        depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % legacy_fallback_easyblock
-                        _log.nosupport(depr_msg, '2.0')
+                    if error_on_missing_easyblock:
+                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name)
+                elif error_on_failed_import:
+                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err)
                 else:
-                    if error_on_failed_import:
-                        raise EasyBuildError("Failed to import easyblock for %s because of module issue: %s",
-                                             class_name, err)
-                    else:
-                        _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
                       cls.__name__, easyblock, name)
         else:
-            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s",
-                       easyblock, name, default_fallback)
+            _log.debug("No class found for easyblock '%s' (software name '%s')", easyblock, name)
 
         return cls
 
