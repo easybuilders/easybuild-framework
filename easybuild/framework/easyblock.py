@@ -1727,7 +1727,8 @@ class EasyBlock(object):
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext['name'], default_fallback=False, error_on_failed_import=False)
+                cls = get_easyblock_class(None, name=ext['name'], error_on_failed_import=False,
+                                          error_on_missing_easyblock=False)
                 self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
                 if cls is not None:
                     inst = cls(self, ext)
