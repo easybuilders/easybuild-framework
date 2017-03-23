@@ -677,7 +677,7 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
-    def dump(self, fp):
+    def dump(self, fp, convert_yeb=False):
         """
         Dump this easyconfig to file, with the given filename.
         """
@@ -697,7 +697,10 @@ class EasyConfig(object):
         keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
-        ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
+        if convert_yeb:
+            ectxt = self.parser.convert_and_dump_yeb_as_eb(self, default_values, templ_const, templ_val)
+        else:
+            ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
         self.log.debug("Dumped easyconfig: %s", ectxt)
 
         if build_option('dump_autopep8'):

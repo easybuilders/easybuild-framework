@@ -225,6 +225,19 @@ class EasyConfigParser(object):
 
         return cfg
 
+    def convert_and_dump_yeb_as_eb(self, ecfg, default_values, templ_const, templ_val):
+        """Convert a parsed yeb easyconfig as a format 1 file"""
+        # First need to fake the format version
+        original_formatter = self._formatter
+        klass = self._get_format_version_class()
+        self._formatter = klass()
+        dump_txt = self._formatter.dump(ecfg, default_values, templ_const, templ_val, comments=False)
+        # Return to original
+        self._formatter = original_formatter
+        return dump_txt
+
+
+
     def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump easyconfig in format it was parsed from."""
         return self._formatter.dump(ecfg, default_values, templ_const, templ_val)

@@ -94,6 +94,7 @@ class YebTest(EnhancedTestCase):
 
         for filename in test_files:
             ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
+            ec_yeb.dump('/home/alanc/test/%s.eb' % filename, convert_yeb=True)
             # compare with parsed result of .eb easyconfig
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)

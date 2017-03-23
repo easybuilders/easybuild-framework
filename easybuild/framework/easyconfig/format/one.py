@@ -188,13 +188,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     def _get_item_comments(self, key, val):
         """Get per-item comments for specified parameter name/value."""
         item_comments = {}
-        for comment_key, comment_val in self.comments['iter'].get(key, {}).items():
-            if str(val) in comment_key:
-                item_comments[str(val)] = comment_val
+#        for comment_key, comment_val in self.comments['iter'].get(key, {}).items():
+#            if str(val) in comment_key:
+#                item_comments[str(val)] = comment_val
 
         return item_comments
 
-    def _find_param_with_comments(self, key, val, templ_const, templ_val):
+    def _find_param_with_comments(self, key, val, templ_const, templ_val, comments=True):
         """Find parameter definition and accompanying comments, to include in dumped easyconfig file."""
         res = []
 
@@ -207,16 +207,19 @@ class FormatOneZero(EasyConfigFormatConfigObj):
             if not r'%(' + key in new_val:
                 val = new_val
 
-        if key in self.comments['inline']:
-            res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
+        if comments:
+            if key in self.comments['inline']:
+                res.append("%s = %s%s" % (key, val, self.comments['inline'][key]))
+            else:
+                if key in self.comments['above']:
+                    res.extend(self.comments['above'][key])
+                res.append("%s = %s" % (key, val))
         else:
-            if key in self.comments['above']:
-                res.extend(self.comments['above'][key])
             res.append("%s = %s" % (key, val))
 
         return res
 
-    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val):
+    def _find_defined_params(self, ecfg, keyset, default_values, templ_const, templ_val, comments=True):
         """
         Determine parameters in the dumped easyconfig file which have a non-default value.
         """
@@ -239,7 +242,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     else:
                         valstr = quote_py_str(ecfg[key])
 
-                    eclines.extend(self._find_param_with_comments(key, valstr, templ_const, templ_val))
+                    eclines.extend(self._find_param_with_comments(key, valstr, templ_const, templ_val,
+                                                                  comments=comments))
 
                     printed_keys.append(key)
                     printed = True
@@ -248,7 +252,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return eclines, printed_keys
 
-    def dump(self, ecfg, default_values, templ_const, templ_val):
+    def dump(self, ecfg, default_values, templ_const, templ_val, comments=True):
         """
         Dump easyconfig in format v1.
 
@@ -258,24 +262,30 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         :param templ_val: known template values
         """
         # include header comments first
-        dump = self.comments['header'][:]
+        dump=[]
+        if comments:
+            dump = self.comments['header'][:]
 
         # print easyconfig parameters ordered and in groups specified above
-        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val)
+        params, printed_keys = self._find_defined_params(ecfg, GROUPED_PARAMS, default_values, templ_const, templ_val,
+                                                         comments=comments)
         dump.extend(params)
 
         # print other easyconfig parameters at the end
         keys_to_ignore = printed_keys + LAST_PARAMS
         for key in default_values:
             if key not in keys_to_ignore and ecfg[key] != default_values[key]:
-                dump.extend(self._find_param_with_comments(key, quote_py_str(ecfg[key]), templ_const, templ_val))
+                dump.extend(self._find_param_with_comments(key, quote_py_str(ecfg[key]), templ_const, templ_val,
+                                                           comments=comments))
         dump.append('')
 
         # print last parameters
-        params, _ = self._find_defined_params(ecfg, [[k] for k in LAST_PARAMS], default_values, templ_const, templ_val)
+        params, _ = self._find_defined_params(ecfg, [[k] for k in LAST_PARAMS], default_values, templ_const, templ_val,
+                                              comments=comments)
         dump.extend(params)
 
-        dump.extend(self.comments['tail'])
+        if comments:
+            dump.extend(self.comments['tail'])
 
         return '\n'.join(dump)
 
