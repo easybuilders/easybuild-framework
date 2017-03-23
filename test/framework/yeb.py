@@ -94,7 +94,6 @@ class YebTest(EnhancedTestCase):
 
         for filename in test_files:
             ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
-            ec_yeb.dump('/home/alanc/test/%s.eb' % filename, convert_yeb=True)
             # compare with parsed result of .eb easyconfig
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)
@@ -103,6 +102,56 @@ class YebTest(EnhancedTestCase):
             for key in sorted(ec_yeb.asdict()):
                 eb_val = ec_eb[key]
                 yeb_val = ec_yeb[key]
+                if key == 'description':
+                    # multi-line string is always terminated with '\n' in YAML, so strip it off
+                    yeb_val = yeb_val.strip()
+
+                self.assertEqual(yeb_val, eb_val)
+
+    def test_yeb_to_eb_dump(self):
+        """Test parsing of .yeb easyconfig and dumping as .eb easyconfig."""
+        if 'yaml' not in sys.modules:
+            print "Skipping test_parse_yeb (no PyYAML available)"
+            return
+
+        build_options = {
+            'check_osdeps': False,
+            'external_modules_metadata': {},
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyconfigs = os.path.join(testdir, 'easyconfigs')
+        test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
+
+        # test parsing
+        test_files = [
+            'bzip2-1.0.6-GCC-4.9.2',
+            'gzip-1.6-GCC-4.9.2',
+            'goolf-1.4.10',
+            'ictce-4.1.13',
+            'SQLite-3.8.10.2-goolf-1.4.10',
+            'Python-2.7.10-ictce-4.1.13',
+            'CrayCCE-5.1.29',
+            'toy-0.0',
+        ]
+
+        for filename in test_files:
+            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
+            # Temporarily dump the parsed yeb
+            ec_yeb.dump('/home/alanc/test/%s.eb' % filename, convert_yeb=True)
+            # Read the dumped file again
+            dumped_ec_eb = EasyConfig('/home/alanc/test/%s.eb' % filename)
+            # compare with parsed result of .eb easyconfig
+            ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
+            ec_eb = EasyConfig(ec_file)
+
+            no_match = False
+            for key in sorted(dumped_ec_eb.asdict()):
+                eb_val = ec_eb[key]
+                yeb_val = dumped_ec_eb[key]
                 if key == 'description':
                     # multi-line string is always terminated with '\n' in YAML, so strip it off
                     yeb_val = yeb_val.strip()
