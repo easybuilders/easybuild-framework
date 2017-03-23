@@ -1422,6 +1422,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 def copy_file(path, target_path, force_in_dry_run=False):
     """
     Copy a file from specified location to specified location
+
     :param path: the original filepath
     :param target_path: path to copy the file to
     :param force_in_dry_run: force running the command during dry run
@@ -1440,6 +1441,7 @@ def copy_file(path, target_path, force_in_dry_run=False):
 def copy_dir(path, target_path, force_in_dry_run=False):
     """
     Copy a directory from specified location to specified location
+
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
@@ -1455,3 +1457,28 @@ def copy_dir(path, target_path, force_in_dry_run=False):
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
+
+
+def copy(paths, target_path, force_in_dry_run=False):
+    """
+    Copy single file/directory or list of files and directories to specified location
+
+    :param paths: path(s) to copy
+    :param target_path: target location
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Copying %d files & directories to %s", len(paths), target_path)
+
+    for path in paths:
+        full_target_path = os.path.join(target_path, os.path.basename(path))
+        mkdir(os.path.dirname(full_target_path), parents=True)
+
+        if os.path.isfile(path):
+            copy_file(path, full_target_path, force_in_dry_run=force_in_dry_run)
+        elif os.path.isdir(path):
+            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
+        else:
+            raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)

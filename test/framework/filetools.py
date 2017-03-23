@@ -889,6 +889,54 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(target_dir)))
         self.assertEqual(txt, '')
 
+    def test_copy(self):
+        """Test copy function."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+
+        toy_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        gcc_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
+
+        ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
+
+        self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'GCC')))
+        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', 'toy-0.0_typo.patch']:
+            self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, filepath)))
+
+        # test copying of a single file, to a non-existing directory
+        ft.copy(toy_file, os.path.join(self.test_prefix, 'foo'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', 'toy-0.0.eb')))
+
+        # also test behaviour of copy under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        # no actual copying in dry run mode, unless forced
+        self.mock_stdout(True)
+        to_copy = [os.path.dirname(toy_file), os.path.join(gcc_dir, 'GCC-4.6.3.eb')]
+        ft.copy(to_copy, self.test_prefix)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy')))
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
+        self.assertTrue(re.search("^copied directory .*/toy to .*/toy", txt, re.M))
+        self.assertTrue(re.search("^copied file .*/GCC-4.6.3.eb to .*/GCC-4.6.3.eb", txt, re.M))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy(to_copy, self.test_prefix, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'toy')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
+        self.assertEqual(txt, '')
+
     def test_change_dir(self):
         """Test change_dir"""
 
