@@ -231,6 +231,7 @@ class EasyConfigParser(object):
         original_formatter = self._formatter
         klass = self._get_format_version_class()
         self._formatter = klass()
+        # Comments are not retained by current yeb format
         dump_txt = self._formatter.dump(ecfg, default_values, templ_const, templ_val, comments=False)
         # Return to original
         self._formatter = original_formatter
