@@ -124,7 +124,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """
         super(FormatOneZero, self).parse(txt, strict_section_markers=True)
 
-    def _reformat_line(self, param_name, param_val, outer=False, addlen=0):
+    def _reformat_line(self, param_name, param_val, outer=False, addlen=0, comments=True):
         """
         Construct formatted string representation of iterable parameter (list/tuple/dict), including comments.
 
@@ -158,7 +158,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                     ordered_item_keys = REFORMAT_ORDERED_ITEM_KEYS.get(param_name, sorted(param_val.keys()))
                     for item_key in ordered_item_keys:
                         item_val = param_val[item_key]
-                        comment = self._get_item_comments(param_name, item_val).get(str(item_val), '')
+                        comment = self._get_item_comments(param_name, item_val, comments=comments).get(str(item_val), '')
                         key_pref = quote_py_str(item_key) + ': '
                         addlen = addlen + len(INDENT_4SPACES) + len(key_pref) + len(comment)
                         formatted_item_val = self._reformat_line(param_name, item_val, addlen=addlen)
@@ -168,7 +168,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                         }
                 else:  # list, tuple
                     for item in param_val:
-                        comment = self._get_item_comments(param_name, item).get(str(item), '')
+                        comment = self._get_item_comments(param_name, item, comments=comments).get(str(item), '')
                         addlen = addlen + len(INDENT_4SPACES) + len(comment)
                         res += item_tmpl % {
                             'comment': comment,
@@ -185,12 +185,13 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
         return res
 
-    def _get_item_comments(self, key, val):
+    def _get_item_comments(self, key, val, comments=True):
         """Get per-item comments for specified parameter name/value."""
         item_comments = {}
-#        for comment_key, comment_val in self.comments['iter'].get(key, {}).items():
-#            if str(val) in comment_key:
-#                item_comments[str(val)] = comment_val
+        if comments:
+            for comment_key, comment_val in self.comments['iter'].get(key, {}).items():
+                if str(val) in comment_key:
+                    item_comments[str(val)] = comment_val
 
         return item_comments
 
@@ -198,7 +199,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         """Find parameter definition and accompanying comments, to include in dumped easyconfig file."""
         res = []
 
-        val = self._reformat_line(key, val, outer=True)
+        val = self._reformat_line(key, val, outer=True, comments=comments)
 
         # templates
         if key not in EXCLUDED_KEYS_REPLACE_TEMPLATES:
