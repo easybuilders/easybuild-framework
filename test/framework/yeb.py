@@ -141,9 +141,10 @@ class YebTest(EnhancedTestCase):
         for filename in test_files:
             ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
             # Temporarily dump the parsed yeb
-            ec_yeb.dump('/home/alanc/test/%s.eb' % filename, convert_yeb=True)
+            dumped_file = '%s/%s.eb' % (self.test_prefix, filename)
+            ec_yeb.dump(dumped_file, convert_yeb=True)
             # Read the dumped file again
-            dumped_ec_eb = EasyConfig('/home/alanc/test/%s.eb' % filename)
+            dumped_ec_eb = EasyConfig(dumped_file)
             # compare with parsed result of .eb easyconfig
             ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
             ec_eb = EasyConfig(ec_file)
