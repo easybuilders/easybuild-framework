@@ -236,8 +236,6 @@ class EasyConfigParser(object):
         self._formatter = original_formatter
         return dump_txt
 
-
-
     def dump(self, ecfg, default_values, templ_const, templ_val):
         """Dump easyconfig in format it was parsed from."""
         return self._formatter.dump(ecfg, default_values, templ_const, templ_val)
