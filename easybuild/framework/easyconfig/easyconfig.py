@@ -53,6 +53,7 @@ from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
+from easybuild.framework.easyconfig.format.yeb import is_yeb_format
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
 from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
@@ -697,7 +698,7 @@ class EasyConfig(object):
         keys = sorted(self.template_values, key=lambda k: len(self.template_values[k]), reverse=True)
         templ_val = OrderedDict([(self.template_values[k], k) for k in keys if len(self.template_values[k]) > 2])
 
-        if convert_yeb:
+        if convert_yeb and is_yeb_format(self.path, None):
             ectxt = self.parser.convert_and_dump_yeb_as_eb(self, default_values, templ_const, templ_val)
         else:
             ectxt = self.parser.dump(self, default_values, templ_const, templ_val)
