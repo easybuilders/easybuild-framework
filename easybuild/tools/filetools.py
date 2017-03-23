@@ -1473,7 +1473,6 @@ def copy(paths, target_path, force_in_dry_run=False):
     _log.info("Copying %d files & directories to %s", len(paths), target_path)
 
     for path in paths:
-
         full_target_path = os.path.join(target_path, os.path.basename(path))
         mkdir(os.path.dirname(full_target_path), parents=True)
 
