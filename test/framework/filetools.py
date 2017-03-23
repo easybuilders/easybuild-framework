@@ -355,23 +355,35 @@ class FileToolsTest(EnhancedTestCase):
         os.chmod(test_file, 0)
         self.assertFalse(ft.is_readable(test_file))
 
-    def test_symlink_readlink_file(self):
-        """Test read link target file"""
+    def test_symlink_resolve_path(self):
+        """Test symlink and resolve_path function"""
 
         # write_file and read_file tests are elsewhere. so not getting their states
-        fp = os.path.join(self.test_prefix, 'test.txt')
-        txt = "test_my_link_file"
-        ft.write_file(fp, txt)
+        test_dir = os.path.join(os.path.realpath(self.test_prefix), 'test')
+        ft.mkdir(test_dir)
 
-        link = os.path.join(self.test_prefix, 'test.link')
+        link_dir = os.path.join(self.test_prefix, 'linkdir')
+        ft.symlink(test_dir, link_dir)
+        self.assertTrue(os.path.islink(link_dir))
+        self.assertTrue(os.path.exists(link_dir))
+
+        test_file = os.path.join(link_dir, 'test.txt')
+        ft.write_file(test_file, "test123")
+
         # creating the link file
-        ft.symlink(fp, link)
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(test_file, link)
 
         # checking if file is symlink
         self.assertTrue(os.path.islink(link))
+        self.assertTrue(os.path.exists(link_dir))
 
-        # reading link target and comparing to file name
-        self.assertEqual(os.path.realpath(fp), os.path.realpath(ft.readlink(link)))
+        self.assertTrue(os.path.samefile(os.path.join(self.test_prefix, 'test', 'test.txt'), link))
+
+        # test resolve_path
+        self.assertEqual(test_dir, ft.resolve_path(link_dir))
+        self.assertEqual(os.path.join(os.path.realpath(self.test_prefix), 'test', 'test.txt'), ft.resolve_path(link))
+        self.assertEqual(ft.read_file(link), "test123")
 
     def test_remove_symlinks(self):
         """Test remove valid and invalid symlinks"""
