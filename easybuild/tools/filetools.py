@@ -171,18 +171,18 @@ def write_file(path, txt, append=False, forced=False):
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
-def readlink(symlink_path):
+def resolve_path(path):
     """
-    Read symlink target at the specified path to the given path.
+    Return fully resolved path for given path.
 
-    :param symlink_path: symlink file path
+    :param path: path that (maybe) contains symlinks
     """
     try:
-        target_symlink_path = os.readlink(symlink_path)
+        resolved_path = os.path.realpath(path)
     except OSError as err:
-        raise EasyBuildError("Get target of symlink %s failed: %s", symlink_path, err)
+        raise EasyBuildError("Resolving path %s failed: %s", path, err)
 
-    return target_symlink_path
+    return resolved_path
 
 
 def symlink(source_path, symlink_path, use_abspath_source=True):

@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, readlink, read_file, remove_file, symlink, write_file
+from easybuild.tools.filetools import mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
 
@@ -719,7 +719,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         default_filepath = os.path.join(module_folder_path, 'default')
 
         if os.path.islink(default_filepath):
-            link_target = readlink(default_filepath)
+            link_target = resolve_path(default_filepath)
             remove_file(default_filepath)
             self.log.info("Removed default version marking from %s.", link_target)
         elif os.path.exists(default_filepath):

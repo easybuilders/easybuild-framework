@@ -2081,11 +2081,10 @@ class EasyBlock(object):
 
         sets the default module version except if we are in dry run.
         """
-        mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath())
-
         if self.dry_run:
             dry_run_msg("Marked %s v%s as default version" % (self.name, self.version))
         else:
+            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath())
             self.module_generator.set_as_default(mod_folderpath, self.version)
 
     def cleanup_step(self):
