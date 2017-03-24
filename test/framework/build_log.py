@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_warning
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -215,6 +215,19 @@ class BuildLogTest(EnhancedTestCase):
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+
+    def test_print_warning(self):
+        """Test print_warning"""
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        print_warning('You have been warned.')
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertEqual(stderr, "\nWARNING: You have been warned.\n\n")
+        self.assertEqual(stdout, '')
 
 
 def suite():

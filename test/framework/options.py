@@ -36,6 +36,7 @@ import tempfile
 from unittest import TextTestRunner
 from urllib2 import URLError
 
+import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
@@ -93,9 +94,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
+        self.orig_os_getuid = easybuild.main.os.getuid
 
     def tearDown(self):
         """Clean up after test."""
+        easybuild.main.os.getuid = self.orig_os_getuid
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
         super(CommandLineOptionsTest, self).tearDown()
 
@@ -3060,6 +3063,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_allow_use_as_root(self):
+        """Test --allow-use-as-root-and-accept-consequences"""
+
+        # pretend we're running as root by monkey patching os.getuid used in main
+        easybuild.main.os.getuid = lambda: 0
+
+        # running as root is disallowed by default
+        error_msg = "You seem to be running EasyBuild with root privileges which is not wise, so let's end this here"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, ['toy-0.0.eb'], raise_error=True)
+
+        # running as root is allowed under --allow-use-as-root, but does result in a warning being printed to stderr
+        self.mock_stderr(True)
+        self.eb_main(['toy-0.0.eb', '--allow-use-as-root-and-accept-consequences'], raise_error=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+
+        expected = "WARNING: Using EasyBuild as root is NOT recommended, please proceed with care!\n"
+        expected += "(this is only allowed because EasyBuild was configured with "
+        expected += "--allow-use-as-root-and-accept-consequences)"
+        self.assertEqual(stderr, expected)
 
 
 def suite():
