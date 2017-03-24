@@ -1,4 +1,4 @@
-# #
+
 # Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
@@ -171,6 +171,38 @@ def write_file(path, txt, append=False, forced=False):
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
+def resolve_path(path):
+    """
+    Return fully resolved path for given path.
+
+    :param path: path that (maybe) contains symlinks
+    """
+    try:
+        resolved_path = os.path.realpath(path)
+    except OSError as err:
+        raise EasyBuildError("Resolving path %s failed: %s", path, err)
+
+    return resolved_path
+
+
+def symlink(source_path, symlink_path, use_abspath_source=True):
+    """
+    Create a symlink at the specified path to the given path.
+
+    :param source_path: source file path
+    :param symlink_path: symlink file path
+    :param use_abspath_source: resolves the absolute path of source_path
+    """
+    if use_abspath_source:
+        source_path = os.path.abspath(source_path)
+
+    try:
+        os.symlink(source_path, symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
+    except OSError as err:
+        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+
+
 def remove_file(path):
     """Remove file at specified path."""
 
@@ -180,10 +212,33 @@ def remove_file(path):
         return
 
     try:
-        if os.path.exists(path):
+        # note: file may also be a broken symlink...
+        if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
         raise EasyBuildError("Failed to remove %s: %s", path, err)
+
+
+def change_dir(path):
+    """
+    Change to directory at specified location.
+
+    :param path: location to change to
+    :return: previous location we were in
+    """
+    # determining the current working directory can fail if we're in a non-existing directory
+    try:
+        cwd = os.getcwd()
+    except OSError as err:
+        _log.debug("Failed to determine current working directory (but proceeding anyway: %s", err)
+        cwd = None
+
+    try:
+        os.chdir(path)
+    except OSError as err:
+        raise EasyBuildError("Failed to change from %s to %s: %s", cwd, path, err)
+
+    return cwd
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False):
@@ -206,11 +261,8 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     abs_dest = os.path.abspath(dest)
 
     # change working directory
-    try:
-        _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
-        os.chdir(abs_dest)
-    except OSError, err:
-        raise EasyBuildError("Can't change to directory %s: %s", abs_dest, err)
+    _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
+    change_dir(abs_dest)
 
     if not cmd:
         cmd = extract_cmd(fn, overwrite=overwrite)
@@ -347,7 +399,7 @@ def download_file(filename, url, path, forced=False):
 
     # use custom HTTP header
     url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild'})
-    
+
     while not downloaded and attempt_cnt < max_attempts:
         try:
             # urllib2 does the right thing for http proxy setups, urllib does not!
@@ -595,10 +647,7 @@ def find_base_dir():
         if not os.path.isdir(new_dir):
             break
 
-        try:
-            os.chdir(new_dir)
-        except OSError, err:
-            raise EasyBuildError("Changing to dir %s from current dir %s failed: %s", new_dir, os.getcwd(), err)
+        change_dir(new_dir)
         lst = get_local_dirs_purged()
 
     # make sure it's a directory, and not a (single) file that was in a tarball for example
@@ -1046,15 +1095,6 @@ def weld_paths(path1, path2):
     return os.path.join(path1, path2_tail)
 
 
-def symlink(source_path, symlink_path):
-    """Create a symlink at the specified path to the given path."""
-    try:
-        os.symlink(os.path.abspath(source_path), symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
-
-
 def path_matches(path, paths):
     """Check whether given path matches any of the provided paths."""
     if not os.path.exists(path):
@@ -1185,6 +1225,8 @@ def copytree(src, dst, symlinks=False, ignore=None):
     XXX Consider this example code rather than the ultimate tool.
 
     """
+    _log.deprecated("Use 'copy_dir' rather than 'copytree'", '4.0')
+
     class Error(EnvironmentError):
         pass
     try:
@@ -1403,7 +1445,8 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
 
 def copy_file(path, target_path, force_in_dry_run=False):
     """
-    Copy a file from path to target_path
+    Copy a file from specified location to specified location
+
     :param path: the original filepath
     :param target_path: path to copy the file to
     :param force_in_dry_run: force running the command during dry run
@@ -1415,5 +1458,51 @@ def copy_file(path, target_path, force_in_dry_run=False):
             mkdir(os.path.dirname(target_path), parents=True)
             shutil.copy2(path, target_path)
             _log.info("%s copied to %s", path, target_path)
-        except OSError as err:
-            raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
+
+
+def copy_dir(path, target_path, force_in_dry_run=False):
+    """
+    Copy a directory from specified location to specified location
+
+    :param path: the original directory path
+    :param target_path: path to copy the directory to
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("copied directory %s to %s" % (path, target_path))
+    else:
+        try:
+            if os.path.exists(target_path):
+                raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
+
+            shutil.copytree(path, target_path)
+            _log.info("%s copied to %s", path, target_path)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
+
+
+def copy(paths, target_path, force_in_dry_run=False):
+    """
+    Copy single file/directory or list of files and directories to specified location
+
+    :param paths: path(s) to copy
+    :param target_path: target location
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if isinstance(paths, basestring):
+        paths = [paths]
+
+    _log.info("Copying %d files & directories to %s", len(paths), target_path)
+
+    for path in paths:
+        full_target_path = os.path.join(target_path, os.path.basename(path))
+        mkdir(os.path.dirname(full_target_path), parents=True)
+
+        if os.path.isfile(path):
+            copy_file(path, full_target_path, force_in_dry_run=force_in_dry_run)
+        elif os.path.isdir(path):
+            copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
+        else:
+            raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)

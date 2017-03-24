@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.filetools import mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
 
@@ -252,6 +252,15 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Set generated module as default module
+
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        raise NotImplementedError
+
     def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
@@ -458,6 +467,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
+
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create a .version file inside the package module folder in order to set the default version for TMod
+
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        txt = self.MODULE_SHEBANG + '\n'
+        txt += 'set ModulesVersion %s\n' % module_version
+
+        # write the file no matter what
+        write_file(os.path.join(module_folder_path, '.version'), txt)
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -696,6 +718,25 @@ class ModuleGeneratorLua(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set_alias("%s", %s)\n' % (key, quote_str(value))
 
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create a symlink named 'default' inside the package's module folder in order to set the default module version
+
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        default_filepath = os.path.join(module_folder_path, 'default')
+
+        if os.path.islink(default_filepath):
+            link_target = resolve_path(default_filepath)
+            remove_file(default_filepath)
+            self.log.info("Removed default version marking from %s.", link_target)
+        elif os.path.exists(default_filepath):
+            raise EasyBuildError('Found an unexpected file named default in dir %s' % module_folder_path)
+
+        symlink(module_version + self.MODULE_FILE_EXTENSION, default_filepath, use_abspath_source=False)
+        self.log.info("Module default version file written to point to %s", default_filepath)
+
     def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
@@ -763,5 +804,3 @@ class ModuleGeneratorLua(ModuleGenerator):
             else:
                 use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
         return ''.join(use_statements)
-
-

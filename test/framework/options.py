@@ -36,6 +36,7 @@ import tempfile
 from unittest import TextTestRunner
 from urllib2 import URLError
 
+import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
@@ -47,7 +48,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_MODULECLASSES
 from easybuild.tools.config import find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_file, download_file, mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_dir, copy_file, download_file, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, URL_SEPARATOR
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import Lmod
@@ -93,9 +94,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
+        self.orig_os_getuid = easybuild.main.os.getuid
 
     def tearDown(self):
         """Clean up after test."""
+        easybuild.main.os.getuid = self.orig_os_getuid
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
         super(CommandLineOptionsTest, self).tearDown()
 
@@ -505,7 +508,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -745,7 +748,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -965,7 +968,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ecstmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(ecstmpdir, 'easybuild'), parents=True)
-        shutil.copytree(test_ecs_path, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(test_ecs_path, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
 
         # inject path to test easyconfigs into head of Python search path
         sys.path.insert(0, ecstmpdir)
@@ -1290,10 +1293,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topt = EasyBuildOptions(
             go_args=['--deprecated=0.%s' % orig_value],
         )
+        stderr = None
         try:
+            self.mock_stderr(True)
             log.deprecated('x', str(orig_value))
+            stderr = self.get_stderr()
+            self.mock_stderr(False)
         except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Deprecated logging should work')
+
+        stderr_regex = re.compile("^Deprecated functionality, will no longer work in")
+        self.assertTrue(stderr_regex.search(stderr), "Pattern '%s' found in: %s" % (stderr_regex.pattern, stderr))
 
         # force it to current version, which should result in deprecation
         topt = EasyBuildOptions(
@@ -1382,7 +1392,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test whether --try options are taken into account."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
-        shutil.copy2(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
+        copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
         f = open(tweaked_toy_ec, 'a')
         f.write("easyblock = 'ConfigureMake'")
         f.close()
@@ -1440,7 +1450,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test whether recursive --try-X works."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
-        shutil.copy2(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
+        copy_file(os.path.join(ecs_path, 't', 'toy', 'toy-0.0.eb'), tweaked_toy_ec)
         f = open(tweaked_toy_ec, 'a')
         f.write("dependencies = [('gzip', '1.4')]\n")  # add fictious dependency
         f.close()
@@ -1684,7 +1694,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
-        shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         del os.environ['EASYBUILD_ROBOT_PATHS']
@@ -2384,7 +2394,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         toy_patch = os.path.join(topdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
         # purposely picked one with non-default toolchain/versionsuffix
-        shutil.copy2(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
+        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
 
         args = [
             '--new-pr',
@@ -2970,7 +2980,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
-        
+
         options = EasyBuildOptions()
 
         # Check for EasyBuildErrors
@@ -2980,7 +2990,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         options.options.optarch = 'Intel:something;'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
-        
+
         options.options.optarch = 'Intel:something:somethingelse'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
 
@@ -3004,9 +3014,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             options.options.optarch = optarch_string
             options.postprocess()
             self.assertEqual(options.options.optarch, optarch_parsed)
-    
+
     def test_check_style(self):
         """Test --check-style."""
+        try:
+            import pep8
+        except ImportError:
+            print "Skipping test_check_style, since pep8 is not available"
+            return
+
         args = [
             '--check-style',
             'GCC-4.9.2.eb',
@@ -3047,6 +3063,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stdout, re.M), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+    def test_allow_use_as_root(self):
+        """Test --allow-use-as-root-and-accept-consequences"""
+
+        # pretend we're running as root by monkey patching os.getuid used in main
+        easybuild.main.os.getuid = lambda: 0
+
+        # running as root is disallowed by default
+        error_msg = "You seem to be running EasyBuild with root privileges which is not wise, so let's end this here"
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, ['toy-0.0.eb'], raise_error=True)
+
+        # running as root is allowed under --allow-use-as-root, but does result in a warning being printed to stderr
+        self.mock_stderr(True)
+        self.eb_main(['toy-0.0.eb', '--allow-use-as-root-and-accept-consequences'], raise_error=True)
+        stderr = self.get_stderr().strip()
+        self.mock_stderr(False)
+
+        expected = "WARNING: Using EasyBuild as root is NOT recommended, please proceed with care!\n"
+        expected += "(this is only allowed because EasyBuild was configured with "
+        expected += "--allow-use-as-root-and-accept-consequences)"
+        self.assertEqual(stderr, expected)
 
 
 def suite():

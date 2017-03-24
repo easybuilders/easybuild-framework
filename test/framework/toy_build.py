@@ -47,7 +47,7 @@ from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.modules import Lmod
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
@@ -733,6 +733,117 @@ class ToyBuildTest(EnhancedTestCase):
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
         self.assertTrue(os.path.exists(gompi_module_path), "%s found" % gompi_module_path)
 
+    def test_toy_hierarchical_subdir_user_modules(self):
+        """
+        Test toy build under example hierarchical module naming scheme that was created using --subidr-user-modules
+        """
+
+        # redefine $HOME to a temporary location we can fiddle with
+        home = os.path.join(self.test_prefix, 'HOME')
+        mkdir(home)
+        os.environ['HOME'] = home
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        self.setup_hierarchical_modules()
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+
+        gcc_mod_subdir = os.path.join('Compiler', 'GCC', '4.7.2')
+        openmpi_mod_subdir = os.path.join('MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+
+        # include guarded 'module use' statement in GCC & OpenMPI modules,
+        # like there would be when --subdir-user-modules=modules/all is used
+        extra_modtxt = '\n'.join([
+            'if { [ file isdirectory [ file join $env(HOME) "modules/all/%s" ] ] } {' % gcc_mod_subdir,
+            '    module use [ file join $env(HOME) "modules/all/%s" ]' % gcc_mod_subdir,
+            '}',
+        ])
+        gcc_mod = os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2')
+        write_file(gcc_mod, extra_modtxt, append=True)
+
+        extra_modtxt = '\n'.join([
+            'if { [ file isdirectory [ file join $env(HOME) "modules/all/%s" ] ] } {' % openmpi_mod_subdir,
+            '    module use [ file join $env(HOME) "modules/all/%s" ]' % openmpi_mod_subdir,
+            '}',
+        ])
+        openmpi_mod = os.path.join(mod_prefix, gcc_mod_subdir, 'OpenMPI', '1.6.4')
+        write_file(openmpi_mod, extra_modtxt, append=True)
+
+        args = [
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'),
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % home,
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--module-naming-scheme=HierarchicalMNS',
+            '--try-toolchain=goolf,1.4.10',
+        ]
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        mod_ext = ''
+        if get_module_syntax() == 'Lua':
+            mod_ext = '.lua'
+
+        toy_mod = os.path.join(home, 'modules', 'all', openmpi_mod_subdir, 'toy', '0.0' + mod_ext)
+        toy_modtxt = read_file(toy_mod)
+
+        for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
+            regex = re.compile('load.*' + modname, re.M)
+            self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+
+        for modname in ['GCC', 'OpenMPI']:
+            regex = re.compile('load.*' + modname, re.M)
+            self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
+
+        # also check with Lua GCC/OpenMPI modules in case of Lmod
+        if isinstance(self.modtool, Lmod):
+
+            # remove Tcl modules for GCC/OpenMPI in hierarchy
+            remove_file(gcc_mod)
+            remove_file(openmpi_mod)
+
+            # we also need to clear the 'module show' cache since we're replacing modules in the same $MODULEPATH
+            from easybuild.tools.modules import MODULE_SHOW_CACHE
+            MODULE_SHOW_CACHE.clear()
+
+            # make very sure toy module is regenerated
+            remove_file(toy_mod)
+
+            mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+
+            # create minimal GCC module that extends $MODULEPATH with Compiler/GCC/4.7.2 in both locations
+            gcc_mod_txt = '\n'.join([
+                'setenv("EBROOTGCC", "/tmp/software/Core/GCC/4.7.2")',
+                'setenv("EBVERSIONGCC", "4.7.2")',
+                'prepend_path("MODULEPATH", "%s/%s")' % (mod_prefix, gcc_mod_subdir),
+                'if isDir(pathJoin(os.getenv("HOME"), "modules/all/%s")) then' % gcc_mod_subdir,
+                '    prepend_path("MODULEPATH", pathJoin(os.getenv("HOME"), "modules/all/%s"))' % gcc_mod_subdir,
+                'end',
+            ])
+            write_file(gcc_mod + '.lua', gcc_mod_txt)
+
+            # create minimal OpenMPI module that extends $MODULEPATH with MPI/GCC/4.7.2/OpenMPi/1.6.4 in both locations
+            openmpi_mod_txt = '\n'.join([
+                'setenv("EBROOTOPENMPI", "/tmp/software/Compiler/GCC/4.7.2/OpenMPI/1.6.4")',
+                'setenv("EBVERSIONOPENMPI", "1.6.4")',
+                'prepend_path("MODULEPATH", "%s/%s")' % (mod_prefix, openmpi_mod_subdir),
+                'if isDir(pathJoin(os.getenv("HOME"), "modules/all/%s")) then' % openmpi_mod_subdir,
+                '    prepend_path("MODULEPATH", pathJoin(os.getenv("HOME"), "modules/all/%s"))' % openmpi_mod_subdir,
+                'end',
+            ])
+            write_file(openmpi_mod + '.lua', openmpi_mod_txt)
+
+            self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+            toy_modtxt = read_file(toy_mod)
+
+            for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
+                regex = re.compile('load.*' + modname, re.M)
+                self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+
+            for modname in ['GCC', 'OpenMPI']:
+                regex = re.compile('load.*' + modname, re.M)
+                self.assertFalse(regex.search(toy_modtxt), "Pattern '%s' not found in: %s" % (regex.pattern, toy_modtxt))
+
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -860,6 +971,7 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_lua + [
                 r'end',
                 r'io.stderr:write\("oh hai\!"\)',
+                r'setenv\("TOY", "toy-0.0"\)',
                 r'-- Built with EasyBuild version .*$',
             ])
         elif get_module_syntax() == 'Tcl':
@@ -892,6 +1004,7 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_tcl + [
                 r'}',
                 r'puts stderr "oh hai\!"',
+                r'setenv	TOY		"toy-0.0"',
                 r'# Built with EasyBuild version .*$',
             ])
         else:
@@ -1258,6 +1371,63 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_ec_txt)
         self.test_toy_build(ec_file=toy_ec, extra_args=['--rpath', '--experimental'], raise_error=True)
+
+    def test_toy_modaltsoftname(self):
+        """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec_file)
+
+        self.assertFalse(re.search('^modaltsoftname', toy_ec_txt, re.M))
+
+        ec1 = os.path.join(self.test_prefix, 'toy-0.0-one.eb')
+        ec1_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-one'",
+            "modaltsoftname = 'yot'"
+        ])
+        write_file(ec1, ec1_txt)
+
+        ec2 = os.path.join(self.test_prefix, 'toy-0.0-two.eb')
+        ec2_txt = '\n'.join([
+            toy_ec_txt,
+            "versionsuffix = '-two'",
+            "dependencies = [('toy', '0.0', '-one')]",
+            "modaltsoftname = 'toytwo'",
+        ])
+        write_file(ec2, ec2_txt)
+
+        extra_args = [
+            '--module-naming-scheme=HierarchicalMNS',
+            '--robot-paths=%s' % self.test_prefix,
+        ]
+        self.test_toy_build(ec_file=self.test_prefix, verify=False, extra_args=extra_args, raise_error=True)
+
+        software_path = os.path.join(self.test_installpath, 'software', 'Core')
+        modules_path = os.path.join(self.test_installpath, 'modules', 'all', 'Core')
+
+        # install dirs for both installations should be there (using original software name)
+        self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-one', 'bin', 'toy')))
+        self.assertTrue(os.path.exists(os.path.join(software_path, 'toy', '0.0-two', 'bin', 'toy')))
+
+        toytwo_name = '0.0-two'
+        yot_name = '0.0-one'
+        if get_module_syntax() == 'Lua':
+            toytwo_name += '.lua'
+            yot_name += '.lua'
+
+        # modules for both installations with alternative name should be there
+        self.assertTrue(os.path.exists(os.path.join(modules_path, 'toytwo', toytwo_name)))
+        self.assertTrue(os.path.exists(os.path.join(modules_path, 'yot', yot_name)))
+
+        # only subdirectories for software should be created
+        self.assertEqual(os.listdir(software_path), ['toy'])
+        self.assertEqual(sorted(os.listdir(os.path.join(software_path, 'toy'))), ['0.0-one', '0.0-two'])
+
+        # only subdirectories for modules with alternative names should be created
+        self.assertEqual(sorted(os.listdir(modules_path)), ['toytwo', 'yot'])
+        self.assertEqual(os.listdir(os.path.join(modules_path, 'toytwo')), [toytwo_name])
+        self.assertEqual(os.listdir(os.path.join(modules_path, 'yot')), [yot_name])
 
 
 def suite():
