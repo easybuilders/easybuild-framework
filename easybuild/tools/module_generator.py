@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.filetools import mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
 
@@ -211,6 +211,9 @@ class ModuleGenerator(object):
         :param mod_name_in: name of module to load (swap in)
         :param guarded: guard 'swap' statement, fall back to 'load' if module being swapped out is not loaded
         """
+        raise NotImplementedError
+
+    def set_as_default(self, module_folder_path, module_version):
         raise NotImplementedError
 
 
@@ -452,6 +455,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '$env(%s)' % envvar
 
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create a .version file inside the package module folder in order to set the default version
+        for TMod
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        txt = self.MODULE_SHEBANG + '\n'
+        txt += 'set ModulesVersion %s\n' % module_version
+
+        # write the file no matter what
+        write_file(os.path.join(module_folder_path, '.version'), txt)
+
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
@@ -691,6 +707,26 @@ class ModuleGeneratorLua(ModuleGenerator):
         Return module-syntax specific code to get value of specific environment variable.
         """
         return 'os.getenv("%s")' % envvar
+
+
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create a symlink named 'default' inside the package's module folder in order
+        to set the default module version
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        default_filepath = os.path.join(module_folder_path, 'default')
+
+        if os.path.islink(default_filepath):
+            link_target = resolve_path(default_filepath)
+            remove_file(default_filepath)
+            self.log.info("Removed default version marking from %s.", link_target)
+        elif os.path.exists(default_filepath):
+            raise EasyBuildError('Found an unexpected file named default in dir %s' % module_folder_path)
+
+        symlink(module_version + self.MODULE_FILE_EXTENSION, default_filepath, use_abspath_source=False)
+        self.log.info("Module default version file written to point to %s", default_filepath)
 
 
 def avail_module_generators():

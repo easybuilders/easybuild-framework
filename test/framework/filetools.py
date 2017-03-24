@@ -355,6 +355,62 @@ class FileToolsTest(EnhancedTestCase):
         os.chmod(test_file, 0)
         self.assertFalse(ft.is_readable(test_file))
 
+    def test_symlink_resolve_path(self):
+        """Test symlink and resolve_path function"""
+
+        # write_file and read_file tests are elsewhere. so not getting their states
+        test_dir = os.path.join(os.path.realpath(self.test_prefix), 'test')
+        ft.mkdir(test_dir)
+
+        link_dir = os.path.join(self.test_prefix, 'linkdir')
+        ft.symlink(test_dir, link_dir)
+        self.assertTrue(os.path.islink(link_dir))
+        self.assertTrue(os.path.exists(link_dir))
+
+        test_file = os.path.join(link_dir, 'test.txt')
+        ft.write_file(test_file, "test123")
+
+        # creating the link file
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(test_file, link)
+
+        # checking if file is symlink
+        self.assertTrue(os.path.islink(link))
+        self.assertTrue(os.path.exists(link_dir))
+
+        self.assertTrue(os.path.samefile(os.path.join(self.test_prefix, 'test', 'test.txt'), link))
+
+        # test resolve_path
+        self.assertEqual(test_dir, ft.resolve_path(link_dir))
+        self.assertEqual(os.path.join(os.path.realpath(self.test_prefix), 'test', 'test.txt'), ft.resolve_path(link))
+        self.assertEqual(ft.read_file(link), "test123")
+
+    def test_remove_symlinks(self):
+        """Test remove valid and invalid symlinks"""
+
+        # creating test file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        txt = "test_my_link_file"
+        ft.write_file(fp, txt)
+
+        # creating the symlink
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(fp, link) # test if is symlink is valid is done elsewhere
+
+        # Attempting to remove a valid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+        # Testing the removal of invalid symlinks
+        # Restoring the symlink and removing the file, this way the symlink is invalid
+        ft.symlink(fp, link)
+        ft.remove_file(fp)
+        # attempting to remove the invalid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 
@@ -387,6 +443,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
+
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""

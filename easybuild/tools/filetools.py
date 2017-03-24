@@ -171,6 +171,38 @@ def write_file(path, txt, append=False, forced=False):
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
+def resolve_path(path):
+    """
+    Return fully resolved path for given path.
+
+    :param path: path that (maybe) contains symlinks
+    """
+    try:
+        resolved_path = os.path.realpath(path)
+    except OSError as err:
+        raise EasyBuildError("Resolving path %s failed: %s", path, err)
+
+    return resolved_path
+
+
+def symlink(source_path, symlink_path, use_abspath_source=True):
+    """
+    Create a symlink at the specified path to the given path.
+
+    :param source_path: source file path
+    :param symlink_path: symlink file path
+    :param use_abspath_source: resolves the absolute path of source_path
+    """
+    if use_abspath_source:
+        source_path = os.path.abspath(source_path)
+
+    try:
+        os.symlink(source_path, symlink_path)
+        _log.info("Symlinked %s to %s", source_path, symlink_path)
+    except OSError as err:
+        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
+
+
 def remove_file(path):
     """Remove file at specified path."""
 
@@ -180,7 +212,8 @@ def remove_file(path):
         return
 
     try:
-        if os.path.exists(path):
+        # note: file may also be a broken symlink...
+        if os.path.exists(path) or os.path.islink(path):
             os.remove(path)
     except OSError, err:
         raise EasyBuildError("Failed to remove %s: %s", path, err)
@@ -1060,15 +1093,6 @@ def weld_paths(path1, path2):
             path2_head = None
 
     return os.path.join(path1, path2_tail)
-
-
-def symlink(source_path, symlink_path):
-    """Create a symlink at the specified path to the given path."""
-    try:
-        os.symlink(os.path.abspath(source_path), symlink_path)
-        _log.info("Symlinked %s to %s", source_path, symlink_path)
-    except OSError as err:
-        raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
 def path_matches(path, paths):
