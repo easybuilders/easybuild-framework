@@ -812,6 +812,21 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
+    # Attempt extracting the patch if it ends in .patch.gz, .patch.bz2, .patch.xz
+    # split in name + extension
+    apatch_root, apatch_file = os.path.split(apatch)
+    apatch_name, apatch_extension = os.path.splitext(apatch_file)
+    # Supports only bz2, gz and xz. zip can be archives which are not supported.
+    if apatch_extension in ['.gz','.bz2','.xz']:
+        # split again to get the second extension
+        apatch_subname, apatch_subextension = os.path.splitext(apatch_name)
+        if apatch_subextension == ".patch":
+            workdir = tempfile.mkdtemp(prefix='eb-patch-')
+            _log.debug("Extracting the patch to: %s", workdir)
+            # extracting the patch
+            apatch_dir = extract_file(apatch, workdir)
+            apatch = os.path.join(apatch_dir, apatch_name)
+
     if level is None and build_option('extended_dry_run'):
         level = '<derived>'
 
