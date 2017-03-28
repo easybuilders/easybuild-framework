@@ -2991,7 +2991,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Use no arguments for the rest of the tests
         options = EasyBuildOptions()
 
-       # Check for EasyBuildErrors
+        # Check for EasyBuildErrors
         error_msg = "The optarch option has an incorrect syntax"
         options.options.optarch = 'Intel:something;GCC'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
