@@ -727,8 +727,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
-        # make sure --optarch has a valid format
-        if self.options.optarch:
+        # make sure --optarch has a valid format, but do it only if we are not going to submit jobs. Otherwise it gets
+        # processed twice and fails when trying to parse a dictionary as if it was a string
+        if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
         # handle configuration options that affect other configuration options

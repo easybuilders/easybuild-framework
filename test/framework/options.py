@@ -2981,9 +2981,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
 
+        # Check that it is not parsed if we are submitting a job
+        options = EasyBuildOptions(go_args=['--job'])
+        optarch_string = 'Intel:something;GCC:somethinglese'
+        options.options.optarch = optarch_string
+        options.postprocess()
+        self.assertEqual(options.options.optarch, optarch_string)
+
+        # Use no arguments for the rest of the tests
         options = EasyBuildOptions()
 
-        # Check for EasyBuildErrors
+       # Check for EasyBuildErrors
         error_msg = "The optarch option has an incorrect syntax"
         options.options.optarch = 'Intel:something;GCC'
         self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
