@@ -1379,7 +1379,7 @@ def robot_find_easyconfig(name, version):
     return res
 
 
-def verify_easyconfig_filename(path, specs, parsed_ec=None):
+def verify_easyconfig_filename(path, specs=None, parsed_ec=None):
     """
     Check whether parsed easyconfig at specified path matches expected specs;
     this basically verifies whether the easyconfig filename corresponds to its contents
@@ -1397,11 +1397,26 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
     else:
         raise EasyBuildError("Unexpected value type for parsed_ec: %s (%s)", type(parsed_ec), parsed_ec)
 
+    if specs is None:
+        specs = ecs[0]['ec']
+
     fullver = det_full_ec_version(specs)
 
     expected_filename = '%s-%s.eb' % (specs['name'], fullver)
     if os.path.basename(path) != expected_filename:
-        raise EasyBuildError("Easyconfig filename %s does not match provided specs %s", os.path.basename(path), specs)
+        # only retain relevant specs
+        specstr = ''
+        for key in ['name', 'version', 'versionsuffix']:
+            specstr += "%s: %s; " % (key, quote_py_str(specs.get(key)))
+        toolchain = specs.get('toolchain')
+        if toolchain:
+            tcname, tcver = quote_py_str(toolchain.get('name')), quote_py_str(toolchain.get('version'))
+            specstr += "toolchain name, version: %s, %s" % (tcname, tcver)
+        else:
+            specstr += "toolchain: None"
+
+        raise EasyBuildError("Easyconfig filename '%s' does not match with expected filename '%s' (specs: %s)",
+                             os.path.basename(path), expected_filename, specstr)
 
     for ec in ecs:
         found_fullver = det_full_ec_version(ec['ec'])
