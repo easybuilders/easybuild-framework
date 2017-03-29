@@ -32,7 +32,7 @@ CUDA, Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 :author: Maxime Boissonneault (Compute Canada)
 """
 
-from easybuild.toolchains.iompic import Iompic
+from easybuild.toolchains.iccifortcuda import IccIfortCUDA
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
