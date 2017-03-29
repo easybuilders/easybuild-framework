@@ -50,6 +50,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
@@ -318,6 +319,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+
+    # verify easyconfig filenames, if desired
+    if options.verify_easyconfig_filenames:
+        for path in paths:
+            verify_easyconfig_filename(path)
+
     if paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in paths]

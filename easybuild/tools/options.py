@@ -370,6 +370,7 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
+            'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
@@ -383,9 +384,10 @@ class EasyBuildOptions(GeneralOption):
                              str, 'store', False, {'metavar': "PATH"}),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
+            'verify-easyconfig-filenames': ("Verify whether filenames of specified easyconfig match with contents",
+                                            None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
-            'set-default-module': ("Set the generated module as default", None, 'store_true', False),
 
         })
 
