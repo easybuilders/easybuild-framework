@@ -319,12 +319,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
-
-    # verify easyconfig filenames, if desired
-    if options.verify_easyconfig_filenames:
-        for path in paths:
-            verify_easyconfig_filename(path)
-
     if paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
         paths = [(p, False) for p in paths]
@@ -358,6 +352,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # read easyconfig files
     easyconfigs, generated_ecs = parse_easyconfigs(paths)
+
+    # verify easyconfig filenames, if desired
+    if options.verify_easyconfig_filenames:
+        _log.info("Verifying easyconfig filenames...")
+        for easyconfig in easyconfigs:
+            verify_easyconfig_filename(easyconfig['spec'], easyconfig['ec'], parsed_ec=easyconfig['ec'])
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail

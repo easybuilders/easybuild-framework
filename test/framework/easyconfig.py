@@ -2001,7 +2001,9 @@ class EasyConfigTest(EnhancedTestCase):
         verify_easyconfig_filename(toy_ec, specs)
 
         # pass parsed easyconfig
-        verify_easyconfig_filename(toy_ec, specs, parsed_ec=process_easyconfig(toy_ec))
+        parsed_ecs = process_easyconfig(toy_ec)
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=parsed_ecs)
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=parsed_ecs[0]['ec'])
 
         # incorrect spec
         specs['versionsuffix'] = ''
@@ -2011,10 +2013,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
         specs['versionsuffix'] = '-test'
 
-        # if no specs are provided, they're derived from the provided easyconfig
-        # name of specified easyconfig matches with contents => all good!
-        verify_easyconfig_filename(toy_ec)
-
         # incorrect file name
         toy_txt = read_file(toy_ec)
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
@@ -2023,10 +2021,6 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
         error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
-
-        # if no specs are provided, they're derived from the provided easyconfig
-        # no match in this case since specified easyconfig file is named 'toy.eb'
-        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec)
 
         # incorrect file contents
         error_pattern = r"Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)

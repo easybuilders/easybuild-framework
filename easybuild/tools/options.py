@@ -384,7 +384,7 @@ class EasyBuildOptions(GeneralOption):
                              str, 'store', False, {'metavar': "PATH"}),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
-            'verify-easyconfig-filenames': ("Verify whether filenames of specified easyconfig match with contents",
+            'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
                                             None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
