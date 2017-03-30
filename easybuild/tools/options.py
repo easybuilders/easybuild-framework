@@ -107,8 +107,11 @@ def eb_shell_quote(token):
     Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
     so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
     """
+    # first, strip off double quotes that may wrap the entire value,
+    # we don't want to wrap single quotes around a double-quoted value
+    token = str(token).strip('"')
     # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", str(token))
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
 
 vsc.utils.generaloption.shell_quote = eb_shell_quote
 

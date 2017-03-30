@@ -1876,11 +1876,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--suffix-modules-path=',
             '--try-toolchain=foss,2015b',
             '--logfile-format=easybuild,eb-%(name)s.log',
+            # option with spaces with value wrapped in double quotes, oh boy...
+            '--optarch="O3 -mtune=generic"',
         ]
         expected = [
             '--debug',
             "--installpath='/this/is/a/weird\\'prefix'",
             "--logfile-format='easybuild,eb-%(name)s.log'",
+            "--optarch='O3 -mtune=generic'",
             "--suffix-modules-path=''",
             "--test-report-env-filter='(COOKIE|SESSION)'",
             "--try-toolchain='foss,2015b'",
