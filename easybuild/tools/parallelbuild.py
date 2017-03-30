@@ -35,7 +35,6 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 import math
 import os
 import re
-import subprocess
 
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
@@ -134,12 +133,13 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
 
     # compose string with command line options, properly quoted and with '%' characters escaped
-    opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
+    opts_str = ' '.join(opts).replace('%', '%%')
 
     command = "unset TMPDIR && cd %s && eb %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
+        return command
     else:
         return build_easyconfigs_in_parallel(command, ordered_ecs, prepare_first=prepare_first)
 
