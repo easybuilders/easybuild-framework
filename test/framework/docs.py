@@ -32,7 +32,7 @@ import sys
 from unittest import TextTestRunner
 
 from easybuild.tools.config import module_classes
-from easybuild.tools.docs import avail_easyconfig_licenses_txt, gen_easyblocks_overview_rst, list_software
+from easybuild.tools.docs import avail_easyconfig_licenses, gen_easyblocks_overview_rst, list_software
 from easybuild.tools.utilities import import_available_modules
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
@@ -41,14 +41,14 @@ class DocsTest(EnhancedTestCase):
 
     def test_gen_easyblocks(self):
         """ Test gen_easyblocks_overview_rst function """
-        module = 'easybuild.easyblocks.generic'
-        modules = import_available_modules(module)
+        gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
+        modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
             'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
         }
         doc_functions = ['build_step', 'configure_step', 'test_step']
 
-        eb_overview = gen_easyblocks_overview_rst(module, 'easyconfigs', common_params, doc_functions)
+        eb_overview = gen_easyblocks_overview_rst(gen_easyblocks_pkg, 'easyconfigs', common_params, doc_functions)
         ebdoc = '\n'.join(eb_overview)
 
         # extensive check for ConfigureMake easyblock
@@ -81,11 +81,11 @@ class DocsTest(EnhancedTestCase):
             for name, obj in inspect.getmembers(mod, inspect.isclass):
                 eb_class = getattr(mod, name)
                 # skip imported classes that are not easyblocks
-                if eb_class.__module__.startswith(module):
+                if eb_class.__module__.startswith(gen_easyblocks_pkg):
                     self.assertTrue(name in ebdoc)
                     names.append(name)
 
-        toc = [":ref:`" + n + "`" for n in sorted(names)]
+        toc = [":ref:`" + n + "`" for n in sorted(set(names))]
         pattern = " - ".join(toc)
 
         regex = re.compile(pattern)
@@ -93,9 +93,13 @@ class DocsTest(EnhancedTestCase):
 
     def test_license_docs(self):
         """Test license_documentation function."""
-        lic_docs = avail_easyconfig_licenses_txt()
+        lic_docs = avail_easyconfig_licenses(output_format='txt')
         gplv3 = "GPLv3: The GNU General Public License"
         self.assertTrue(gplv3 in lic_docs, "%s found in: %s" % (gplv3, lic_docs))
+
+        lic_docs = avail_easyconfig_licenses(output_format='rst')
+        regex = re.compile("^``GPLv3``\s*The GNU General Public License", re.M)
+        self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
 
     def test_list_software(self):
         """Test list_software* functions."""
@@ -259,7 +263,7 @@ class DocsTest(EnhancedTestCase):
             '=======    =============    ================',
             'version    versionsuffix    toolchain       ',
             '=======    =============    ================',
-            '``0.0``    ````             ``dummy``       ',
+            '``0.0``                     ``dummy``       ',
             '``0.0``    ``-deps``        ``dummy``       ',
             '``0.0``    ``-iter``        ``dummy``       ',
             '``0.0``    ``-multiple``    ``dummy``       ',

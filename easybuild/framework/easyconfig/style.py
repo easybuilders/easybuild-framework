@@ -24,70 +24,83 @@
 # #
 
 """
-Style tests for easyconfig files using pep8.
+Style tests for easyconfig files using pycodestyle.
 
 :author: Ward Poelmans (Ghent University)
 """
 import re
+import sys
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:
-    import pep8
+    import pycodestyle
+    from pycodestyle import StyleGuide, register_check, trailing_whitespace
 except ImportError:
-    pass
+    try:
+        # fallback to importing from 'pep8', which was renamed to pycodestyle in 2016
+        import pep8
+        from pep8 import StyleGuide, register_check, trailing_whitespace
+    except ImportError:
+        pass
 
 _log = fancylogger.getLogger('easyconfig.style', fname=False)
 
 EB_CHECK = '_eb_check_'
 
+COMMENT_REGEX = re.compile(r'^\s*#')
+PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 
-# any function starting with _eb_check_ (see EB_CHECK variable) will be
+
+# Any function starting with _eb_check_ (see EB_CHECK variable) will be
 # added to the tests if the test number is added to the select list.
+#
+# Note: only functions that have a first argument named 'physical_line' or 'logical_line'
+# will actually be used!
+#
 # The test number is definied as WXXX and EXXX (for warnings and errors)
 # where XXX is a 3 digit number.
 #
 # It should be mentioned in the docstring as a single word.
-# Read the pep8 docs to understand the arguments of these functions:
-# https://pep8.readthedocs.org or more specifically:
-# https://pep8.readthedocs.org/en/latest/developer.html#contribute
-def _eb_check_trailing_whitespace(physical_line, lines, line_number, total_lines):  # pylint:disable=unused-argument
+# Read the pycodestyle docs to understand the arguments of these functions:
+# https://pycodestyle.readthedocs.io or more specifically:
+# https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
+
+def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_state):  # pylint:disable=unused-argument
     """
     W299
     Warn about trailing whitespace, except for the description and comments.
     This differs from the standard trailing whitespace check as that
     will warn for any trailing whitespace.
     The arguments are explained at
-    https://pep8.readthedocs.org/en/latest/developer.html#contribute
+    https://pycodestyle.readthedocs.io/en/latest/developer.html#contribute
     """
-    comment_re = re.compile(r'^\s*#')
-    if comment_re.match(physical_line):
+    # apparently this is not the same as physical_line line?!
+    line = lines[line_number-1]
+
+    if COMMENT_REGEX.match(line):
         return None
 
-    result = pep8.trailing_whitespace(physical_line)
+    result = trailing_whitespace(line)
     if result:
-        result = (result[0], result[1].replace("W291", "W299"))
+        result = (result[0], result[1].replace('W291', 'W299'))
+
+    # keep track of name of last parameter that was defined
+    param_def = PARAM_DEF_REGEX.search(line)
+    if param_def:
+        checker_state['eb_last_key'] = param_def.group('key')
 
     # if the warning is about the multiline string of description
     # we will not issue a warning
-    keys_re = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
-
-    # starting from the current line and going to the top,
-    # check that if the first `key = value` that is found, has
-    # key == description, then let the test pass, else return
-    # the result of the general pep8 check.
-    for line in reversed(lines[:line_number]):
-        res = keys_re.match(line)
-        if res and res.group("key") == "description":
-            result = None
-            break
+    if checker_state.get('eb_last_key') == 'description':
+        result = None
 
     return result
 
 
-@only_if_module_is_available('pep8')
+@only_if_module_is_available(('pycodestyle', 'pep8'))
 def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     Check the given list of easyconfigs for style
@@ -97,28 +110,31 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     """
     # importing autopep8 changes some pep8 functions.
     # We reload it to be sure to get the real pep8 functions.
-    reload(pep8)
+    if 'pycodestyle' in sys.modules:
+        reload(pycodestyle)
+    else:
+        reload(pep8)
 
     # register the extra checks before using pep8:
     # any function in this module starting with `_eb_check_` will be used.
     cands = globals()
     for check_function in sorted([cands[f] for f in cands if callable(cands[f]) and f.startswith(EB_CHECK)]):
         _log.debug("Adding custom style check %s", check_function)
-        pep8.register_check(check_function)
+        register_check(check_function)
 
-    pep8style = pep8.StyleGuide(quiet=False, config_file=None)
-    options = pep8style.options
+    styleguide = StyleGuide(quiet=False, config_file=None)
+    options = styleguide.options
     # we deviate from standard pep8 and allow 120 chars
     # on a line: the default of 79 is too narrow.
     options.max_line_length = 120
     # we ignore some tests
-    # note that W291 has be replaced by our custom W299
+    # note that W291 has been replaced by our custom W299
     options.ignore = (
         'W291',  # replaced by W299
     )
     options.verbose = int(verbose)
 
-    result = pep8style.check_files(easyconfigs)
+    result = styleguide.check_files(easyconfigs)
 
     if verbose:
         result.print_statistics()

@@ -36,7 +36,6 @@ import os
 import random
 import re
 import socket
-import shutil
 import string
 import sys
 import tempfile
@@ -51,7 +50,7 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
@@ -382,7 +381,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if not(pr_data['merged']):
         if not stable or closed:
-            print "\n*** WARNING: Using easyconfigs from unstable/closed PR #%s ***\n" % pr
+            state_msg = "unstable (pending/failed tests or merge conflict)" if not stable else "closed (but not merged)"
+            print "\n*** WARNING: Using easyconfigs from %s PR #%s ***\n" % (state_msg, pr)
             # obtain most recent version of patched files
             for patched_file in patched_files:
                 # path to patch file, incl. subdir it is in
@@ -468,11 +468,8 @@ def init_repo(path, repo_name, silent=False):
     if git_working_dirs_path:
         workdir = os.path.join(git_working_dirs_path, repo_name)
         if os.path.exists(workdir):
-            try:
-                print_msg("copying %s..." % workdir, silent=silent)
-                shutil.copytree(workdir, repo_path)
-            except OSError as err:
-                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, repo_path, err)
+            print_msg("copying %s..." % workdir, silent=silent)
+            copy_dir(workdir, repo_path)
 
     if not os.path.exists(repo_path):
         mkdir(repo_path, parents=True)

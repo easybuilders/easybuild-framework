@@ -35,7 +35,6 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.config import log_path
 from easybuild.tools.build_log import EasyBuildError
@@ -45,85 +44,99 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 DEBUG = False
 DEBUG_FPM_FILE = "debug_fpm_mock"
-MOCKED_FPM = """#!/bin/bash
 
-DEBUG=%(debug)s  #put something here if you want to debug
+# purposely using non-bash script, to detect issues with shebang line being ignored (run_cmd with shell=False)
+MOCKED_FPM = """#!/usr/bin/env python
+import os, sys
 
-debug_echo () {
-    if [ -n "$DEBUG" ]; then
-        echo "$@" >> %(debug_fpm_file)s
-    fi
-}
+def debug(msg):
+    if '%(debug)s':
+        fp = open('%(debug_fpm_file)s', 'a')
+        fp.write(msg +'\\n')
+        fp.close()
 
-debug_echo "$@"
+description, iteration, name, source, target, url, version, workdir = '', '', '', '', '', '', '', ''
+excludes = []
 
-#an array of excludes (probably more than one)
-excludes=()
-# only parse what we need to spit out the expected package file, ignore the rest
-while true
-do
-    debug_echo "arg: $1"
-    case "$1" in
-        "--workdir")
-            workdir="$2"
-            debug_echo "workdir"
-            debug_echo "$workdir"
-            ;;
-        "--name")
-            name="$2"
-            ;;
-        "--version")
-            version="$2"
-            debug_echo "version"
-            debug_echo "$version"
-            ;;
-        "--description")
-            description="$2"
-            ;;
-        "--url")
-            url="$2"
-            ;;
-        "--iteration")
-            iteration="$2"
-            ;;
-        "-t")
-            target="$2"
-            ;;
-        "-s")
-            source="$2"
-            ;;
-        "--exclude")
-            # pushing this onto an array
-            debug_echo "an exclude being pushed" $2
-            excludes+=("$2")
-            ;;
-        --*)
-            debug_echo "got a unhandled option"
-            ;;
-        *)
-            debug_echo "got the rest of the output"
-            installdir="$1"
-            modulefile="$2"
-            break
-            ;;
-    esac
-    shift 2
-done
+debug(' '.join(sys.argv[1:]))
 
-pkgfile=${workdir}/${name}-${version}.${iteration}.${target}
-echo "thisisan$target" > $pkgfile
-echo $@ >> $pkgfile
-echo "STARTCONTENTS of installdir $installdir:" >> $pkgfile
-for exclude in ${excludes[*]}; do
-    exclude_str+=" -not -path /${exclude} "
-done
-find_cmd="find $installdir  $exclude_str "
-debug_echo "trying: $find_cmd"
-$find_cmd >> $pkgfile
-echo "ENDCONTENTS" >> $pkgfile
-echo "Contents of module file $modulefile:" >> $pkgfile
-cat $modulefile >> $pkgfile
-echo "I found excludes "${excludes[*]} >> $pkgfile
+idx = 1
+while idx < len(sys.argv):
+
+    if sys.argv[idx] == '--workdir':
+        idx += 1
+        workdir = sys.argv[idx]
+        debug('workdir'); debug(workdir)
+
+    elif sys.argv[idx] == '--name':
+        idx += 1
+        name = sys.argv[idx]
+
+    elif sys.argv[idx] == '--version':
+        idx += 1
+        version = sys.argv[idx]
+        debug('version'); debug(version)
+
+    elif sys.argv[idx] == '--description':
+        idx += 1
+        description = sys.argv[idx]
+
+    elif sys.argv[idx] == '--url':
+        idx += 1
+        url = sys.argv[idx]
+
+    elif sys.argv[idx] == '--iteration':
+        idx += 1
+        iteration = sys.argv[idx]
+
+    elif sys.argv[idx] == '-t':
+        idx += 1
+        target = sys.argv[idx]
+
+    elif sys.argv[idx] == '-s':
+        idx += 1
+        source = sys.argv[idx]
+
+    elif sys.argv[idx] == '--exclude':
+        idx += 1
+        excludes.append(sys.argv[idx])
+
+    elif sys.argv[idx].startswith('--'):
+        debug("got a unhandled option: " + sys.argv[idx] + ' ' + sys.argv[idx+1])
+        idx += 1
+
+    else:
+        installdir = sys.argv[idx]
+        modulefile = sys.argv[idx+1]
+        break
+
+    idx += 1
+
+pkgfile = os.path.join(workdir, name + '-' + version + '.' + iteration + '.' + target)
+
+fp = open(pkgfile, 'w')
+
+fp.write('thisisan' + target + '\\n')
+fp.write(' '.join(sys.argv[1:]) + '\\n')
+fp.write("STARTCONTENTS of installdir " + installdir + ':\\n')
+
+find_cmd = 'find ' + installdir + '  ' + ''.join([" -not -path /" + x + ' ' for x in excludes])
+debug("trying: " + find_cmd)
+fp.write(find_cmd + '\\n')
+
+fp.write('ENDCONTENTS\\n')
+
+fp.write("Contents of module file " + modulefile + ':')
+
+
+fp.write('modulefile: ' + modulefile + '\\n')
+#modtxt = open(modulefile).read()
+#fp.write(modtxt + '\\n')
+
+fp.write("I found excludes " + ' '.join(excludes) + '\\n')
+fp.write("DESCRIPTION: " + description + '\\n')
+
+fp.close()
 """
 
 
@@ -207,8 +220,14 @@ class PackageTest(EnhancedTestCase):
 
         # package using default packaging configuration (FPM to build RPM packages)
         pkgdir = package(easyblock)
-
         pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+
+        if DEBUG:
+            print "The FPM script debug output"
+            print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
+            print "The Package File"
+            print read_file(pkgfile)
+
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
         pkgtxt = read_file(pkgfile)
@@ -218,11 +237,26 @@ class PackageTest(EnhancedTestCase):
         no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL|re.MULTILINE)
         self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
-        if DEBUG:
-            print "The FPM script debug output"
-            print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
-            print "The Package File"
-            print read_file(pkgfile)
+        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
+        replace_str = '''description = """Toy C program. Now with `backticks'\n'''
+        replace_str += '''and newlines"""'''
+        toy_txt = re.sub('description = .*', replace_str, toy_txt)
+        toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
+        write_file(toy_file, toy_txt)
+
+        regex = re.compile(r"""`backticks'""")
+        self.assertTrue(regex.search(toy_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_txt))
+        ec_desc = EasyConfig(toy_file, validate=False)
+        easyblock_desc = EB_toy(ec_desc)
+        easyblock_desc.run_all_steps(False)
+        pkgdir = package(easyblock_desc)
+        pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
+        self.assertTrue(os.path.isfile(pkgfile))
+        pkgtxt = read_file(pkgfile)
+        regex_pkg = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
+        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
+        regex_pkg = re.compile(r"""DESCRIPTION:.*\nand newlines""", re.MULTILINE)
+        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
 
 
 def suite():

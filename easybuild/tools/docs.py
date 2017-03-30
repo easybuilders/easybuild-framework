@@ -183,7 +183,7 @@ def avail_easyconfig_licenses(output_format=FORMAT_TXT):
 def avail_easyconfig_licenses_txt():
     """Generate easyconfig license documentation in txt format"""
     doc = ["License constants that can be used in easyconfigs"]
-    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
+    for lic_name, lic in sorted(EASYCONFIG_LICENSES_DICT.items()):
         lic_inst = lic()
         strver = ''
         if lic_inst.version:
@@ -203,10 +203,11 @@ def avail_easyconfig_licenses_rst():
         "Version",
     ]
 
+    lics = sorted(EASYCONFIG_LICENSES_DICT.items())
     table_values = [
-        ["``%s``" % name for name in EASYCONFIG_LICENSES_DICT.keys()],
-        ["%s" % lic().description for lic in EASYCONFIG_LICENSES_DICT.values()],
-        ["``%s``" % lic().version for lic in EASYCONFIG_LICENSES_DICT.values()],
+        ["``%s``" % lic().name for _, lic in lics],
+        ["%s" % lic().description for _, lic in lics],
+        ["``%s``" % lic().version for _, lic in lics],
     ]
 
     doc = rst_title_and_table(title, table_titles, table_values)
@@ -274,7 +275,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
 
     # include list of extra parameters (if any)
     extra_params = {}
-    app = get_easyblock_class(easyblock, default_fallback=False)
+    app = get_easyblock_class(easyblock, error_on_missing_easyblock=False)
     if app is not None:
         extra_params = app.extra_options()
     params.update(extra_params)
@@ -667,7 +668,10 @@ def list_software_rst(software, detailed=False):
             for ver, vsuff in sorted((LooseVersion(v), vs) for (v, vs) in pairs):
                 table_values[0].append('``%s``' % ver)
                 if with_vsuff:
-                    table_values[1].append('``%s``' % vsuff)
+                    if vsuff:
+                        table_values[1].append('``%s``' % vsuff)
+                    else:
+                        table_values[1].append('')
                 tcs = [x['toolchain'] for x in software[key] if x['version'] == ver and x['versionsuffix'] == vsuff]
                 table_values[-1].append(', '.join('``%s``' % tc for tc in sorted(nub(tcs))))
 

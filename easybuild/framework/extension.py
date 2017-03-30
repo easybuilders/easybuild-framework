@@ -38,6 +38,7 @@ import os
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path
+from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_cmd
 
 
@@ -113,10 +114,7 @@ class Extension(object):
         Sanity check to run after installing extension
         """
 
-        try:
-            os.chdir(self.installdir)
-        except OSError, err:
-            raise EasyBuildError("Failed to change %s: %s", self.installdir, err)
+        change_dir(self.installdir)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False
