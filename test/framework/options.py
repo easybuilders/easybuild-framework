@@ -3085,6 +3085,42 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected += "--allow-use-as-root-and-accept-consequences)"
         self.assertEqual(stderr, expected)
 
+    def test_verify_easyconfig_filenames(self):
+        """Test --verify-easyconfig-filename"""
+        test_easyconfigs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        toy_ec = os.path.join(test_easyconfigs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        copy_file(toy_ec, test_ec)
+
+        args = [
+            test_ec,
+            '--dry-run',  # implies enabling dependency resolution
+            '--unittest-file=%s' % self.logfile,
+        ]
+
+        # filename of provided easyconfig doesn't matter by default
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertTrue('module: toy/0.0' in logtxt)
+
+        write_file(self.logfile, '')
+
+        # when --verify-easyconfig-filenames is enabled, EB gets picky about the easyconfig filename
+        args.append('--verify-easyconfig-filenames')
+        error_pattern = "Easyconfig filename 'test.eb' does not match with expected filename 'toy-0.0.eb' \(specs: "
+        error_pattern += "name: 'toy'; version: '0.0'; versionsuffix: ''; toolchain name, version: 'dummy', 'dummy'\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
+
+        write_file(self.logfile, '')
+
+        args[0] = toy_ec
+        self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        logtxt = read_file(self.logfile)
+        self.assertTrue('module: toy/0.0' in logtxt)
+
 
 def suite():
     """ returns all the testcases in this module """

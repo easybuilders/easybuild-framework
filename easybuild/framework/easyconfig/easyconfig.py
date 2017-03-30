@@ -1389,7 +1389,7 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
     :param parsed_ec: (list of) EasyConfig instance(s) corresponding to easyconfig file
     """
     if isinstance(parsed_ec, EasyConfig):
-        ecs = [parsed_ec]
+        ecs = [{'ec': parsed_ec}]
     elif isinstance(parsed_ec, (list, tuple)):
         ecs = parsed_ec
     elif parsed_ec is None:
@@ -1401,7 +1401,19 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
 
     expected_filename = '%s-%s.eb' % (specs['name'], fullver)
     if os.path.basename(path) != expected_filename:
-        raise EasyBuildError("Easyconfig filename %s does not match provided specs %s", os.path.basename(path), specs)
+        # only retain relevant specs to produce a more useful error message
+        specstr = ''
+        for key in ['name', 'version', 'versionsuffix']:
+            specstr += "%s: %s; " % (key, quote_py_str(specs.get(key)))
+        toolchain = specs.get('toolchain')
+        if toolchain:
+            tcname, tcver = quote_py_str(toolchain.get('name')), quote_py_str(toolchain.get('version'))
+            specstr += "toolchain name, version: %s, %s" % (tcname, tcver)
+        else:
+            specstr += "toolchain: None"
+
+        raise EasyBuildError("Easyconfig filename '%s' does not match with expected filename '%s' (specs: %s)",
+                             os.path.basename(path), expected_filename, specstr)
 
     for ec in ecs:
         found_fullver = det_full_ec_version(ec['ec'])
