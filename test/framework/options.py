@@ -1876,11 +1876,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--suffix-modules-path=',
             '--try-toolchain=foss,2015b',
             '--logfile-format=easybuild,eb-%(name)s.log',
+            # option with spaces with value wrapped in double quotes, oh boy...
+            '--optarch="O3 -mtune=generic"',
         ]
         expected = [
             '--debug',
             "--installpath='/this/is/a/weird\\'prefix'",
             "--logfile-format='easybuild,eb-%(name)s.log'",
+            "--optarch='O3 -mtune=generic'",
             "--suffix-modules-path=''",
             "--test-report-env-filter='(COOKIE|SESSION)'",
             "--try-toolchain='foss,2015b'",
@@ -2981,6 +2984,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_parse_optarch(self):
         """Test correct parsing of optarch option."""
 
+        # Check that it is not parsed if we are submitting a job
+        options = EasyBuildOptions(go_args=['--job'])
+        optarch_string = 'Intel:something;GCC:somethinglese'
+        options.options.optarch = optarch_string
+        options.postprocess()
+        self.assertEqual(options.options.optarch, optarch_string)
+
+        # Use no arguments for the rest of the tests
         options = EasyBuildOptions()
 
         # Check for EasyBuildErrors
