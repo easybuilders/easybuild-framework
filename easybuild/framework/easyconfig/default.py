@@ -172,13 +172,13 @@ DEFAULT_CONFIG = {
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
-    'docpaths': [None, "List of paths of installed documentation relative to package root dir", MODULES],
-    'examples': [None, "Free-form text with examples", MODULES],
-    'site_contact': [None, "String/list of strings with site contacts for the package", MODULES],
-    'upstream_contact': [None, ("String/list of strings with upstream contact addresses "
+    'docpaths': [None, "List of paths for documentation relative to installation directory", MODULES],
+    'examples': [None, "Free-form text with examples on using the software", MODULES],
+    'site_contacts': [None, "String/list of strings with site contacts for the software", MODULES],
+    'upstream_contacts': [None, ("String/list of strings with upstream contact addresses "
                                 "(e.g., support e-mail, mailing list, bugtracker)"), MODULES],
-    'usage': [None, "Usage instructions for the package", MODULES],
-    'whatis': [None, "List of brief (one line) package description entries", MODULES],
+    'usage': [None, "Usage instructions for the software", MODULES],
+    'whatis': [None, "List of brief (one line) description entries for the software", MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],

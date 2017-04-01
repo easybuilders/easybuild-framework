@@ -299,73 +299,65 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def _generate_extension_list(self):
+        """
+        Generate a string with a comma-separated list of extensions.
+        """
+        exts_list = self.app.cfg['exts_list']
+        extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
+
+        return extensions
+
     def _generate_help_text(self):
         """
         Generate syntax-independent help text used for `module help`.
         """
 
-        def generate_section(sec_name, sec_txt, strip=False):
-            """
-            Generate section with given name and contents.
-            """
-            if sec_txt:
-                if strip:
-                    text = sec_txt.strip()
-                else:
-                    text = sec_txt
-
-                return [
-                    '',
-                    '',
-                    sec_name,
-                    '=' * len(sec_name),
-                    text,
-                ]
-            else:
-                return []
-
         # General package description (mandatory)
-        lines = generate_section('Description', self.app.cfg['description'], strip=True)
+        lines = self._generate_section('Description', self.app.cfg['description'], strip=True)
 
         # Package usage instructions (optional)
-        lines.extend(generate_section('Usage', self.app.cfg['usage'], strip=True))
+        lines.extend(self._generate_section('Usage', self.app.cfg['usage'], strip=True))
 
         # Examples (optional)
-        lines.extend(generate_section('Examples', self.app.cfg['examples'], strip=True))
+        lines.extend(self._generate_section('Examples', self.app.cfg['examples'], strip=True))
 
         # Additional information: homepage + (if available) doc paths/urls, upstream/site contact
-        lines.extend(generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
+        lines.extend(self._generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
 
         docpaths = self.app.cfg['docpaths'] or []
         docurls = self.app.cfg['docurls'] or []
         if docpaths or docurls:
-            env_name = convert_name(self.app.name, upper=True)
-            root_envvar = ROOT_ENV_VAR_NAME_PREFIX + env_name
+            root_envvar = ROOT_ENV_VAR_NAME_PREFIX + convert_name(self.app.name, upper=True)
             lines.extend([" - Documentation:"])
-            lines.extend(["    - $%s/%s" % (root_envvar,path) for path in docpaths])
+            lines.extend(["    - $%s/%s" % (root_envvar, path) for path in docpaths])
             lines.extend(["    - %s" % url for url in docurls])
 
-        upstream = self.app.cfg['upstream_contact']
-        if upstream:
-            if isinstance(upstream, list):
-                lines.extend([" - Upstream contacts:"])
-                lines.extend(["    - %s" % address for address in upstream])
-            else:
-                lines.extend([" - Upstream contact: %s" % upstream])
-
-        site_contact = self.app.cfg['site_contact']
-        if site_contact:
-            if isinstance(site_contact, list):
-                lines.extend([" - Site contacts:"])
-                lines.extend(["    - %s" % address for address in site_contact])
-            else:
-                lines.extend([" - Site contact: %s" % site_contact])
+        for contacts_type in ['upstream', 'site']:
+            contacts = self.app.cfg['%s_contacts' % contacts_type]
+            if contacts:
+                if isinstance(contacts, list):
+                    lines.append(" - %s contacts:" % contacts_type.capitalize())
+                    lines.extend(["    - %s" % contact for contact in contacts])
+                else:
+                    lines.append(" - %s contact: %s" % (contacts_type.capitalize(), contacts))
 
         # Extensions (if any)
         extensions = self._generate_extension_list()
-        lines.extend(generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
+        lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
+
+    def _generate_section(self, sec_name, sec_txt, strip=False):
+        """
+        Generate section with given name and contents.
+        """
+        res = []
+        if sec_txt:
+            if strip:
+                sec_txt = sec_txt.strip()
+            res = ['', '', sec_name, '=' * len(sec_name), sec_txt]
+        return res
 
     def _generate_whatis_lines(self):
         """
@@ -383,15 +375,6 @@ class ModuleGenerator(object):
                 whatis.append("Extensions: %s" % extensions)
 
         return whatis
-
-    def _generate_extension_list(self):
-        """
-        Generate a string with a comma-separated list of extensions.
-        """
-        exts_list = self.app.cfg['exts_list']
-        extensions = ', '.join(sorted(['%s-%s' % (ext[0], ext[1]) for ext in exts_list], key=str.lower))
-
-        return extensions
 
 
 class ModuleGeneratorTcl(ModuleGenerator):
@@ -464,12 +447,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis = self._generate_whatis_lines()
         txt = '\n'.join(lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': self.app.cfg['description'],
-            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in whatis]),
+            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in self._generate_whatis_lines()]),
             'installdir': self.app.installdir,
         }
 
@@ -706,12 +688,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
-        whatis = self._generate_whatis_lines()
         txt = '\n'.join(lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': self.app.cfg['description'],
-            'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in whatis]),
+            'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in self._generate_whatis_lines()]),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
         }

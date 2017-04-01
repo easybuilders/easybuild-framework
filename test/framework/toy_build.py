@@ -226,8 +226,8 @@ class ToyBuildTest(EnhancedTestCase):
             "examples = 'No example available'",
             "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
             "docurls = ['http://hpcugent.github.com/easybuild/toy/docs.html']",
-            "upstream_contact = 'support@toy.org'",
-            "site_contact = ['Jim Admin', 'Jane Admin']",
+            "upstream_contacts = 'support@toy.org'",
+            "site_contacts = ['Jim Admin', 'Jane Admin']",
         ])
         write_file(ec_file, ec_extra, append=True)
 

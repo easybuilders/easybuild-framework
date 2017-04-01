@@ -74,7 +74,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
 
-        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+        descr = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
         homepage = "http://www.gzip.org/"
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
@@ -84,7 +84,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % gzip_txt,
+                "%s" % descr,
                 '',
                 '',
                 "More information",
@@ -93,7 +93,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "    }",
                 "}",
                 '',
-                "module-whatis {Description: %s}" % gzip_txt,
+                "module-whatis {Description: %s}" % descr,
                 "module-whatis {Homepage: %s}" % homepage,
                 '',
                 "set root %s" % self.modgen.app.installdir,
@@ -108,7 +108,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % gzip_txt,
+                "%s" % descr,
                 '',
                 '',
                 "More information",
@@ -116,7 +116,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 " - Homepage: %s" % homepage,
                 ']])',
                 '',
-                "whatis([[Description: %s]])" % gzip_txt,
+                "whatis([[Description: %s]])" % descr,
                 "whatis([[Homepage: %s]])" % homepage,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
@@ -137,7 +137,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % gzip_txt,
+                "%s" % descr,
                 '',
                 '',
                 "More information",
@@ -161,7 +161,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % gzip_txt,
+                "%s" % descr,
                 '',
                 '',
                 "More information",
