@@ -42,23 +42,21 @@ from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-DEBUG = False
-DEBUG_FPM_FILE = "debug_fpm_mock"
+FPM_OUTPUT_FILE = 'fpm_mocked.out'
 
 # purposely using non-bash script, to detect issues with shebang line being ignored (run_cmd with shell=False)
 MOCKED_FPM = """#!/usr/bin/env python
 import os, sys
 
-def debug(msg):
-    if '%(debug)s':
-        fp = open('%(debug_fpm_file)s', 'a')
-        fp.write(msg +'\\n')
-        fp.close()
+def verbose(msg):
+    fp = open('%(fpm_output_file)s', 'a')
+    fp.write(msg + '\\n')
+    fp.close()
 
 description, iteration, name, source, target, url, version, workdir = '', '', '', '', '', '', '', ''
 excludes = []
 
-debug(' '.join(sys.argv[1:]))
+verbose(' '.join(sys.argv[1:]))
 
 idx = 1
 while idx < len(sys.argv):
@@ -66,7 +64,7 @@ while idx < len(sys.argv):
     if sys.argv[idx] == '--workdir':
         idx += 1
         workdir = sys.argv[idx]
-        debug('workdir'); debug(workdir)
+        verbose('workdir'); verbose(workdir)
 
     elif sys.argv[idx] == '--name':
         idx += 1
@@ -75,7 +73,7 @@ while idx < len(sys.argv):
     elif sys.argv[idx] == '--version':
         idx += 1
         version = sys.argv[idx]
-        debug('version'); debug(version)
+        verbose('version'); verbose(version)
 
     elif sys.argv[idx] == '--description':
         idx += 1
@@ -102,7 +100,7 @@ while idx < len(sys.argv):
         excludes.append(sys.argv[idx])
 
     elif sys.argv[idx].startswith('--'):
-        debug("got a unhandled option: " + sys.argv[idx] + ' ' + sys.argv[idx+1])
+        verbose("got an unhandled option: " + sys.argv[idx] + ' ' + sys.argv[idx+1])
         idx += 1
 
     else:
@@ -121,7 +119,7 @@ fp.write(' '.join(sys.argv[1:]) + '\\n')
 fp.write("STARTCONTENTS of installdir " + installdir + ':\\n')
 
 find_cmd = 'find ' + installdir + '  ' + ''.join([" -not -path /" + x + ' ' for x in excludes])
-debug("trying: " + find_cmd)
+verbose("trying: " + find_cmd)
 fp.write(find_cmd + '\\n')
 
 fp.write('ENDCONTENTS\\n')
@@ -144,10 +142,7 @@ def mock_fpm(tmpdir):
     """Put mocked version of fpm command in place in specified tmpdir."""
     # put mocked 'fpm' command in place, just for testing purposes
     fpm = os.path.join(tmpdir, 'fpm')
-    write_file(fpm, MOCKED_FPM % {
-        "debug": ('', 'on')[DEBUG],
-        "debug_fpm_file": os.path.join(tmpdir, DEBUG_FPM_FILE)}
-    )
+    write_file(fpm, MOCKED_FPM % {'fpm_output_file': os.path.join(tmpdir, FPM_OUTPUT_FILE)})
     adjust_permissions(fpm, stat.S_IXUSR, add=True)
 
     # also put mocked rpmbuild in place
@@ -197,7 +192,11 @@ class PackageTest(EnhancedTestCase):
 
     def test_package(self):
         """Test package function."""
-        init_config(build_options={'silent': True})
+        build_options = {
+            'package_tool_options': '--foo bar',
+            'silent': True,
+        }
+        init_config(build_options=build_options)
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
@@ -222,13 +221,18 @@ class PackageTest(EnhancedTestCase):
         pkgdir = package(easyblock)
         pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-1.3.12-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
 
-        if DEBUG:
-            print "The FPM script debug output"
-            print read_file(os.path.join(self.test_prefix, DEBUG_FPM_FILE))
-            print "The Package File"
-            print read_file(pkgfile)
+        fpm_output = read_file(os.path.join(self.test_prefix, FPM_OUTPUT_FILE))
+        pkgtxt = read_file(pkgfile)
+        #print "The FPM output"
+        #print fpm_output
+        #print "The Package File"
+        #print pkgtxt
 
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
+
+        # check whether extra packaging options were passed down
+        regex = re.compile("^got an unhandled option: --foo bar$", re.M)
+        self.assertTrue(regex.search(fpm_output), "Pattern '%s' found in: %s" % (regex.pattern, fpm_output))
 
         pkgtxt = read_file(pkgfile)
         pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
