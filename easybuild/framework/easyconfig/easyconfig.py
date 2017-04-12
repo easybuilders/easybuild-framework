@@ -387,7 +387,7 @@ class EasyConfig(object):
         """
         prev_value = self[key]
         if isinstance(prev_value, basestring):
-            self[key] = '%s %s ' % (prev_value, value)
+            self[key] = '%s %s' % (prev_value, value)
         elif isinstance(prev_value, list):
             self[key] = prev_value + value
         else:
