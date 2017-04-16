@@ -52,6 +52,7 @@ class IntelIccIfort(Compiler):
         'intel-static': (False, "Link Intel provided libraries statically"),
         'no-icc': (False, "Don't set Intel specific macros"),
         'error-unknown-option': (False, "Error instead of warning for unknown options"),
+        'phi': (False, "Compile targeting Intel Xeon Phi architecture"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
@@ -67,6 +68,7 @@ class IntelIccIfort(Compiler):
         'intel-static': 'static-intel',
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
+        'phi': 'mmic',
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
@@ -82,12 +84,12 @@ class IntelIccIfort(Compiler):
 
     COMPILER_CC = 'icc'
     COMPILER_CXX = 'icpc'
-    COMPILER_C_UNIQUE_FLAGS = ['intel-static', 'no-icc']
+    COMPILER_C_UNIQUE_FLAGS = ['intel-static', 'no-icc', 'phi']
 
     COMPILER_F77 = 'ifort'
     COMPILER_F90 = 'ifort'
     COMPILER_FC = 'ifort'
-    COMPILER_F_UNIQUE_FLAGS = ['intel-static']
+    COMPILER_F_UNIQUE_FLAGS = ['intel-static', 'phi']
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
