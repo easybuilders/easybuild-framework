@@ -146,6 +146,7 @@ DEFAULT_CONFIG = {
     'group': [None, "Name of the user group for which the software should be available", LICENSE],
     'key': [None, 'Key for installing software', LICENSE],
     'license_file': [None, 'License file for software', LICENSE],
+    'license_key': [None, 'License key for software', LICENSE],
     'license_server': [None, 'License server for software', LICENSE],
     'license_server_port': [None, 'Port for license server', LICENSE],
 
