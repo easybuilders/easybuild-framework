@@ -92,9 +92,53 @@ def raise_easybuilderror(msg, *args):
 class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
+
+    Customization of instance attributes of loggers is possible, based
+    on the logger name prefix.  See the `customize`:meth: for details.
     """
 
     RAISE_EXCEPTION_CLASS = EasyBuildError
+
+    # a dict mapping a logger name prefix to a set of instance
+    # attribute name/value pairs; when a new instance is created, any
+    # matching prefix customizations are applied
+    _customizations = {}
+
+    @classmethod
+    def customize(cls, prefix, **attrs):
+        """
+        Define customizations to loggers whose name starts with `prefix`.
+
+        Customizations are name/value pairs; when the logger is
+        created, instance attributes with the given names are set to
+        the corresponding values.  For example::
+
+        >>> from logging import setLoggerClass, getLogger
+        >>> setLoggerClass(EasyBuildLog)
+        >>> EasyBuildLog.customize('gc3', raiseError=False)
+        >>> lg1 = getLogger('gc3.test')
+        >>> lg1.raiseError
+        False
+        >>> lg2 = getLogger('doc.test')
+        >>> lg2.raiseError
+        True
+
+        If multiple prefixes match, the longest one wins::
+
+        >>> EasyBuildLog.customize('gc3.err', raiseError=True)
+        >>> lg3 = getLogger('gc3.err')
+        >>> lg3.raiseError
+        True
+        """
+        cls._customizations[prefix] = attrs
+
+    def __init__(self, name):
+        """Build new logger, applying any customizations depending on `name`."""
+        super(EasyBuildLog, self).__init__(name)
+        for prefix, attrs in sorted(EasyBuildLog._customizations.items()):
+            if name.startswith(prefix):
+                for attr in attrs.items():
+                    setattr(self, *attr)
 
     def caller_info(self):
         """Return string with caller info."""
