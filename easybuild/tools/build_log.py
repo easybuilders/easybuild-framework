@@ -166,12 +166,67 @@ class EasyBuildLog(fancylogger.FancyLogger):
         fancylogger.FancyLogger.exception(self, ebmsg + msg, *args)
 
 
+class LoggerFactory(object):
+    """
+    Instanciate different logger classes, depending upon requested
+    logger name.
+
+    Loggers can be associated with prefixes; when a logger is
+    requested, the constructor associated with the longest matching
+    prefix is used to actually create the class instance.
+    """
+
+    def __init__(self, loggers):
+        self._dispatch = {}
+        self.dispatch('', logging.getLoggerClass())
+        for prefix, cls in loggers.items():
+            self.dispatch(prefix, cls)
+
+    def dispatch(self, prefix, cls):
+        """
+        Register a logger of class `cls` to be used whenever a name
+        starting with `prefix` is requested.
+        """
+        self._dispatch[prefix] = cls
+
+    def __call__(self, name):
+        """
+        Create a logger with the specified name.
+
+        The actual logger constructor is selected among the registered
+        ones: the constructor associated with the longest matching
+        prefix is used.
+        """
+        #sys.stderr.write("=== Requested logger for %s\n" % name)
+        matched = -1
+        logger = None
+        for prefix, ctor in self._dispatch.items():
+            if name.startswith(prefix) and len(prefix) > matched:
+                matched = len(prefix)
+                logger = ctor
+        return logger(name)
+
+
 # set format for logger
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
-# set the default LoggerClass to EasyBuildLog
-fancylogger.logging.setLoggerClass(EasyBuildLog)
+# set the default LoggerClass depending on the caller
+logDispatcher = LoggerFactory({
+    # Ideally, one would use EasyBuildLog for EB and Python's default
+    # for anything else, but there's no common prefix for EB loggers,
+    # so let's use `EasyBuildLog` as default, and explicitly list
+    # exceptions (e.g., GC3Pie)
+    '':    EasyBuildLog,
+    'gc3': logging.Logger,
+})
+# `logging.setLoggerClass` insists that the passed callable is a class
+# definition and that it derives from `logging.Logger` (or the current
+# Logger); I cannot see a way of adapting the log dispatcher to meet
+# those requirements, so let us just bypass `logging.setLoggerClass`
+# and set the logger class by accessing a private global variable
+# directly.  Not kosher, but it works.
+logging._loggerClass = logDispatcher
 
 # you can't easily set another LoggerClass before fancylogger calls getLogger on import
 _init_fancylog = fancylogger.getLogger(fname=False)
