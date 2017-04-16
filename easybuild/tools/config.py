@@ -217,6 +217,7 @@ BUILD_OPTIONS_OTHER = {
 # https://wickie.hlrs.de/platforms/index.php/Application_software_packages
 DEFAULT_MODULECLASSES = [
     ('base', "Default module class"),
+    ('bundle', "Bundle of software"),
     ('bio', "Bioinformatics, biology and biomedical"),
     ('cae', "Computer Aided Engineering (incl. CFD)"),
     ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
