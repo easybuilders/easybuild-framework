@@ -28,9 +28,10 @@ EasyBuild support for GCC compiler toolchain.
 :author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.gcccore import GCCcore
 
-class GccToolchain(GCCcore):
+class GccToolchain(Gcc):
     """Simple toolchain with just the GCC compilers."""
     NAME = 'GCC'
     COMPILER_MODULE_NAME = [NAME]
