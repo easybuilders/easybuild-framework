@@ -173,6 +173,7 @@ DEFAULT_CONFIG = {
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
+    'options' : [{},"A list of extra options for specific blocks", OTHER],
 }
 
 
