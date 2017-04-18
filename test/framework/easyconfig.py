@@ -981,6 +981,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program.")
 
+        res = fetch_parameters_from_easyconfig("easyblock = 'ConfigureMake'  # test comment", ['easyblock'])
+        self.assertEqual(res, ['ConfigureMake'])
+
     def test_get_easyblock_class(self):
         """Test get_easyblock_class function."""
         from easybuild.easyblocks.generic.configuremake import ConfigureMake
