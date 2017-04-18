@@ -90,6 +90,8 @@ class Compiler(Toolchain):
         'openmp': (False, "Enable OpenMP"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
+        'extra_cflags':(None,"Specify extra CFLAGS options. Do not specify a leading dash as one is prepended already."),
+        'extra_fflags':(None,"Specify extra FFLAGS options. Do not specify a leading dash as one is prepended already."),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -107,6 +109,8 @@ class Compiler(Toolchain):
         'static': 'static',
         'unroll': 'unroll',
         'verbose': 'v',
+        'extra_cflags':'%(value)s',
+        'extra_fflags':'%(value)s',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
@@ -118,13 +122,13 @@ class Compiler(Toolchain):
 
     COMPILER_CC = None
     COMPILER_CXX = None
-    COMPILER_C_FLAGS = ['cstd']
+    COMPILER_C_FLAGS = ['cstd','extra_cflags']
     COMPILER_C_UNIQUE_FLAGS = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
-    COMPILER_F_FLAGS = ['i8', 'r8']
+    COMPILER_F_FLAGS = ['i8', 'r8','extra_fflags']
     COMPILER_F_UNIQUE_FLAGS = []
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
