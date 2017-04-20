@@ -46,7 +46,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
-    def __init__(self, mself, ext):
+    def __init__(self, mself, ext, extra_params=None):
         """
         mself has the logger
         """
@@ -67,6 +67,9 @@ class Extension(object):
         self.src = self.ext.get('src', [])
         self.patches = self.ext.get('patches', [])
         self.options = copy.deepcopy(self.ext.get('options', {}))
+
+        if extra_params:
+            self.cfg.extend_params(extra_params, overwrite=False)
 
         # custom easyconfig parameters for extension are included in self.options
         # make sure they are merged into self.cfg so they can be queried;
