@@ -79,10 +79,10 @@ class Extension(object):
             if key in self.cfg:
                 self.cfg[key] = self.options[key]
                 self.log.debug("Customising known easyconfig parameter '%s' for extension %s v%s: %s",
-                               key, self.name, self.version, self.cfg[key])
+                               key, self.ext['name'], self.ext['version'], self.cfg[key])
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s v%s: %s",
-                               key, self.name, self.version, self.options[key])
+                               key, self.ext['name'], self.ext['version'], self.options[key])
 
         self.sanity_check_fail_msgs = []
 
