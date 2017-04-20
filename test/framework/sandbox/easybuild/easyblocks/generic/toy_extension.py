@@ -38,7 +38,7 @@ class Toy_Extension(ExtensionEasyBlock):
         """Build toy extension."""
         super(Toy_Extension, self).run(unpack_src=True)
         EB_toy.configure_step(self.master, name=self.name)
-        EB_toy.build_step(self.master, name=self.name)
+        EB_toy.build_step(self.master, name=self.name, buildopts=self.cfg['buildopts'])
         EB_toy.install_step(self.master, name=self.name)
 
     def sanity_check_step(self, *args, **kwargs):
