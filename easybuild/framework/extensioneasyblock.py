@@ -82,12 +82,18 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.is_extension = True
             self.unpack_options = None
 
-            # custom easyconfig parameter for extension are included in self.options
+            # custom easyconfig parameters for extension are included in self.options
             # make sure they are merged into self.cfg so they can be queried;
+            # unknown easyconfig parameters are ignored since self.options may include keys only there for extensions;
             # this allows to specify custom easyconfig parameters on a per-extension basis
             for key in self.options:
-                self.cfg[key] = self.options[key]
-                self.log.debug("Customising '%s' for extension %s v%s: %s", key, self.name, self.version, self.cfg[key])
+                if key in self.cfg:
+                    self.cfg[key] = self.options[key]
+                    self.log.debug("Customising known easyconfig parameter '%s' for extension %s v%s: %s",
+                                   key, self.name, self.version, self.cfg[key])
+                else:
+                    self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s v%s: %s",
+                                   key, self.name, self.version, self.options[key])
 
             # make sure that extra custom easyconfig parameters are known
             extra_params = self.__class__.extra_options()
