@@ -65,14 +65,18 @@ class EB_toy(EasyBlock):
 
         setvar('TOY', '%s-%s' % (self.name, self.version))
 
-    def build_step(self, name=None):
+    def build_step(self, name=None, buildopts=None):
         """Build toy."""
+
+        if buildopts is None:
+            buildopts = self.cfg['buildopts']
+
         if name is None:
             name = self.name
         run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s %(buildopts)s' % {
             'name': name,
             'prebuildopts': self.cfg['prebuildopts'],
-            'buildopts': self.cfg['buildopts'],
+            'buildopts': buildopts,
         })
 
     def install_step(self, name=None):

@@ -72,7 +72,12 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         self.is_extension = False
 
         if isinstance(args[0], EasyBlock):
+            # make sure that extra custom easyconfig parameters are known
+            extra_params = self.__class__.extra_options()
+            kwargs['extra_params'] = extra_params
+
             Extension.__init__(self, *args, **kwargs)
+
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
@@ -81,10 +86,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.modules_tool = self.master.modules_tool
             self.is_extension = True
             self.unpack_options = None
-
-            # make sure that extra custom easyconfig parameters are known
-            extra_params = self.__class__.extra_options()
-            self.cfg.extend_params(extra_params, overwrite=False)
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
