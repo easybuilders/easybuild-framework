@@ -48,7 +48,11 @@ class Extension(object):
     """
     def __init__(self, mself, ext, extra_params=None):
         """
-        mself has the logger
+        Constructor for Extension class
+
+        :param mself: parent Easyblock instance
+        :param ext: dictionary with extension metadata (name, version, src, patches, options, ...)
+        :param extra_params: extra custom easyconfig parameters to take into account for this extension
         """
         self.master = mself
         self.log = self.master.log
@@ -78,10 +82,10 @@ class Extension(object):
         for key in self.options:
             if key in self.cfg:
                 self.cfg[key] = self.options[key]
-                self.log.debug("Customising known easyconfig parameter '%s' for extension %s v%s: %s",
+                self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
                                key, self.ext['name'], self.ext['version'], self.cfg[key])
             else:
-                self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s v%s: %s",
+                self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, self.ext['name'], self.ext['version'], self.options[key])
 
         self.sanity_check_fail_msgs = []
