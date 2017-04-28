@@ -336,7 +336,7 @@ def run_easy_install(args):
     try:
         easy_install.main(args)
         easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
-    except Exception as err:
+    except (Exception, SystemExit) as err:
         easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
         error("Running 'easy_install %s' failed: %s\n%s" % (' '.join(args), err, traceback.format_exc()))
 
