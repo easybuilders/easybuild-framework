@@ -164,6 +164,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',

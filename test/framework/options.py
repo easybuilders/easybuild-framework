@@ -2399,6 +2399,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # purposely picked one with non-default toolchain/versionsuffix
         copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
 
+        # modify file to mock archived easyconfig
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt = '\n'.join([
+            "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
+            toy_ec_txt,
+            "# Build statistics",
+            "buildstats = [{",
+            '   "build_time": 8.34,',
+            '   "os_type": "Linux",',
+            "}]",
+        ])
+        write_file(toy_ec, toy_ec_txt)
+
         args = [
             '--new-pr',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -2540,6 +2553,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+        # check whether comments/buildstats get filtered out
+        regexs = [
+            "# Built with EasyBuild",
+            "# Build statistics",
+            "buildstats\s*=",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
 
     def test_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""

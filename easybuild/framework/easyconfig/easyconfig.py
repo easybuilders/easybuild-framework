@@ -1508,6 +1508,27 @@ def det_location_for(path, target_dir, soft_name, target_file):
     return target_path
 
 
+def cleanup_easyconfigs(paths):
+    """
+    Clean up easyconfigs (in place) by filtering out comments/buildstats included by EasyBuild in archived easyconfigs
+    (cfr. FileRepository.add_easyconfig in easybuild.tools.repository.filerepo)
+
+    :param paths: list of paths to easyconfigs to clean up
+    """
+    regexs = [
+        re.compile(r"^# Built with EasyBuild.*\n", re.M),
+        re.compile(r"^# Build statistics.*\n", re.M),
+        # consume buildstats as a whole, i.e. all lines until closing '}]'
+        re.compile(r"\n*buildstats\s*=(.|\n)*\n}\]\s*\n?", re.M),
+    ]
+
+    for path in paths:
+        ectxt = read_file(path)
+        for regex in regexs:
+            ectxt = regex.sub('', ectxt)
+        write_file(path, ectxt)
+
+
 def copy_easyconfigs(paths, target_dir):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
@@ -1531,13 +1552,16 @@ def copy_easyconfigs(paths, target_dir):
             ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
-
             copy_file(path, target_path, force_in_dry_run=True)
+
             file_info['paths_in_repo'].append(target_path)
             file_info['new'].append(os.path.exists(target_path))
 
         else:
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+
+    if build_option('cleanup_easyconfigs'):
+        cleanup_easyconfigs(file_info['paths_in_repo'])
 
     return file_info
 
