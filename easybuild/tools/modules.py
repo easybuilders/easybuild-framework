@@ -651,6 +651,12 @@ class ModulesTool(object):
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
 
+        # also catch and check exit code
+        exit_code = proc.returncode
+        if exit_code != 0:
+            raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
+
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
 

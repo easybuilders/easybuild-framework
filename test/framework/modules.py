@@ -741,6 +741,11 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['hwloc/1.6.2'])
         self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
 
+    def test_exit_code_check(self):
+        """Verify that EasyBuild checks exit code of executed module commands"""
+        error_pattern = "Module command 'load nosuchmoduleavailableanywhere' failed with exit code"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
+
 
 def suite():
     """ returns all the testcases in this module """
