@@ -115,7 +115,7 @@ def import_available_modules(namespace):
             if not module.endswith('__init__.py'):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])
-                _log.debug("importing module %s" % modpath)
+                _log.debug("importing module %s", modpath)
                 try:
                     mod = __import__(modpath, globals(), locals(), [''])
                 except ImportError as err:
