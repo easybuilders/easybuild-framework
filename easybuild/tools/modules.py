@@ -214,7 +214,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False, check_exit_code=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -653,8 +653,8 @@ class ModulesTool(object):
 
         # also catch and check exit code
         exit_code = proc.returncode
-        if exit_code != 0:
-            raise EasyBuildError("Module command '%s' failed with exit code %s; stderr: %s; stdout: %s",
+        if kwargs.get('check_exit_code', True) and exit_code != 0:
+            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
                                  ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
 
         if kwargs.get('check_output', True):
