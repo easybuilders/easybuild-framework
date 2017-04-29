@@ -693,6 +693,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     from easybuild.framework.easyconfig.easyconfig import ActiveMNS
     eb_spec = {
         'name': 'EasyBuild',
+        'hidden': False,
         'toolchain': {'name': 'dummy', 'version': 'dummy'},
         'version': templates['version'],
         'versionprefix': '',
