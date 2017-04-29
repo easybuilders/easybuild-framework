@@ -748,7 +748,7 @@ class ModulesTest(EnhancedTestCase):
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
         else:
-            error_pattern = "Module command 'load nosuchmoduleavailableanywhere' failed with exit code"
+            error_pattern = "Module command 'module load nosuchmoduleavailableanywhere' failed with exit code"
             self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
 
