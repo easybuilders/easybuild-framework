@@ -743,13 +743,12 @@ class ModulesTest(EnhancedTestCase):
 
     def test_exit_code_check(self):
         """Verify that EasyBuild checks exit code of executed module commands"""
-        if isinstance(self.modtool, EnvironmentModulesTcl):
-            # pure Tcl implementation exits with 0 even when a non-existing module is loaded...
-            error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
-        else:
+        if isinstance(self.modtool, Lmod):
             error_pattern = "Module command 'module load nosuchmoduleavailableanywhere' failed with exit code"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
+        else:
+            # Tcl implementations exit with 0 even when a non-existing module is loaded...
+            error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
 
 def suite():
