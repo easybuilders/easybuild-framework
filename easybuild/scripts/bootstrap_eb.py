@@ -247,8 +247,8 @@ def check_module_command(tmpdir):
 
     # order matters, which is why we don't use a dict
     known_module_commands = [
-        ('modulecmd', 'EnvironmentModulesC'),
         ('lmod', 'Lmod'),
+        ('modulecmd', 'EnvironmentModulesC'),
         ('modulecmd.tcl', 'EnvironmentModulesTcl'),
     ]
     out = os.path.join(tmpdir, 'module_command.out')
