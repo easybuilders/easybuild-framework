@@ -580,6 +580,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'package': ("Enabling packaging", None, 'store_true', False),
             'package-tool': ("Packaging tool to use", None, 'store', DEFAULT_PKG_TOOL),
+            'package-tool-options': ("Extra options for packaging tool", None, 'store', ''),
             'package-type': ("Type of package to generate", None, 'store', DEFAULT_PKG_TYPE),
             'package-release': ("Package release iteration number", None, 'store', DEFAULT_PKG_RELEASE),
         })

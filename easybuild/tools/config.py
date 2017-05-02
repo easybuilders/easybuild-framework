@@ -119,6 +119,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_cmd_template',
         'only_blocks',
         'optarch',
+        'package_tool_options',
         'parallel',
         'rpath_filter',
         'regtest_output_dir',
