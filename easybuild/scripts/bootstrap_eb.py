@@ -336,7 +336,7 @@ def run_easy_install(args):
     try:
         easy_install.main(args)
         easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
-    except Exception as err:
+    except (Exception, SystemExit) as err:
         easy_install_stdout, easy_install_stderr = restore_stdout_stderr(orig_stdout, orig_stderr)
         error("Running 'easy_install %s' failed: %s\n%s" % (' '.join(args), err, traceback.format_exc()))
 
@@ -685,6 +685,36 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     # install EasyBuild with EasyBuild
     from easybuild.main import main as easybuild_main
     easybuild_main()
+
+    # make sure the EasyBuild module was actually installed
+    # EasyBuild configuration options that are picked up from configuration files/environment may break the bootstrap,
+    # for example by having $EASYBUILD_VERSION defined or via a configuration file specifies a value for 'stop'...
+    from easybuild.tools.config import build_option, install_path, get_module_syntax
+    from easybuild.framework.easyconfig.easyconfig import ActiveMNS
+    eb_spec = {
+        'name': 'EasyBuild',
+        'hidden': False,
+        'toolchain': {'name': 'dummy', 'version': 'dummy'},
+        'version': templates['version'],
+        'versionprefix': '',
+        'versionsuffix': '',
+        'moduleclass': 'tools',
+    }
+
+    mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
+    debug("EasyBuild module should have been installed to %s" % mod_path)
+
+    eb_mod_name = ActiveMNS().det_full_module_name(eb_spec)
+    debug("EasyBuild module name: %s" % eb_mod_name)
+
+    eb_mod_path = os.path.join(mod_path, eb_mod_name)
+    if get_module_syntax() == 'Lua':
+        eb_mod_path += '.lua'
+
+    if os.path.exists(eb_mod_path):
+        info("EasyBuild module installed: %s" % eb_mod_path)
+    else:
+        error("EasyBuild module not found at %s, define $EASYBUILD_BOOTSTRAP_DEBUG to debug" % eb_mod_path)
 
 
 def main():
