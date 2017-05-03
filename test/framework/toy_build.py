@@ -947,6 +947,9 @@ class ToyBuildTest(EnhancedTestCase):
         patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_typo.patch')
         self.assertTrue(os.path.exists(patch_file))
 
+        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_typo.patch')
+        self.assertTrue(os.path.isfile(archived_patch_file))
+
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
         self.test_toy_tweaked()
