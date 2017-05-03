@@ -65,8 +65,8 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
+from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
@@ -2600,6 +2600,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+
+        # copy patches
+        for patch in app.patches:
+            copy_file(patch['path'], new_log_dir)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)

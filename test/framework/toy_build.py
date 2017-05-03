@@ -933,6 +933,20 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(ec.name, 'toy')
         self.assertEqual(ec.version, '0.0')
 
+    def test_toy_patches(self):
+        """Test whether patches are being copied to install directory and easyconfigs archive"""
+        repositorypath = os.path.join(self.test_installpath, 'easyconfigs_archive')
+        extra_args = [
+            '--repository=FileRepository',
+            '--repositorypath=%s' % repositorypath,
+        ]
+        self.test_toy_build(raise_error=True, extra_args=extra_args)
+
+        installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+
+        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_typo.patch')
+        self.assertTrue(os.path.exists(patch_file))
+
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""
         self.test_toy_tweaked()
