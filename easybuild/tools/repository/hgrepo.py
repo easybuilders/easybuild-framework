@@ -124,17 +124,43 @@ class HgRepository(FileRepository):
         except (HgCommandError, HgServerError, HgResponseError, OSError, ValueError), err:
             raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
-    def add_easyconfig(self, cfg, name, version, stats, append):
+    def stage_file(self, path):
         """
-        Add easyconfig to mercurial repository.
+        Stage file at specified location in repository for commit
+
+        :param path: location of file to stage
         """
-        dest = FileRepository.add_easyconfig(self, cfg, name, version, stats, append)
-        # add it to version control
-        if dest:
-            try:
-                self.client.add(dest)
-            except (HgCommandError, HgServerError, HgResponseError, ValueError), err:
-                self.log.warning("adding %s to mercurial repository failed: %s" % (dest, err))
+        try:
+            self.client.add(path)
+        except (HgCommandError, HgServerError, HgResponseError, ValueError) as err:
+            self.log.warning("adding %s to mercurial repository failed: %s", path, err)
+
+    def add_easyconfig(self, cfg, name, version, stats, previous_stats):
+        """
+        Add easyconfig to Mercurial repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
+        """
+        path = super(HgRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        self.stage_file(path)
+        return path
+
+    def add_patch(self, patch, name):
+        """
+        Add patch to Mercurial repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
+        """
+        path = super(HgRepository, self).add_patch(patch, name)
+        self.stage_file(path)
+        return path
 
     def commit(self, msg=None):
         """
