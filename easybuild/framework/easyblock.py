@@ -195,6 +195,7 @@ class EasyBlock(object):
         self.logfile = None
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
+        self.current_step = None
 
         # list of loaded modules
         self.loaded_modules = []
@@ -2442,6 +2443,7 @@ class EasyBlock(object):
                         self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
+                    self.current_step = step_name
                     self.run_step(step_name, step_methods)
 
         except StopException:
@@ -2675,43 +2677,15 @@ def get_easyblock_instance(ecdict):
 def build_easyconfigs(easyconfigs, output_dir, test_results):
     """Build the list of easyconfigs."""
 
-    build_stopped = {}
-    apploginfo = lambda x, y: x.log.info(y)
+    build_stopped = []
 
     # sanitize environment before initialising easyblocks
     sanitize_env()
 
-    def perform_step(step, obj, method, logfile):
-        """Perform method on object if it can be built."""
-        if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
-
-            # update templates before every step (except for initialization)
-            if isinstance(obj, EasyBlock):
-                obj.update_config_template_run_step()
-
-            try:
-                if step == 'initialization':
-                    _log.info("Running %s step" % step)
-                    return get_easyblock_instance(obj)
-                else:
-                    apploginfo(obj, "Running %s step" % step)
-                    method(obj)()
-            except Exception, err:  # catch all possible errors, also crashes in EasyBuild code itself
-                fullerr = str(err)
-                if not isinstance(err, EasyBuildError):
-                    tb = traceback.format_exc()
-                    fullerr = '\n'.join([tb, str(err)])
-                # we cannot continue building it
-                if step == 'initialization':
-                    obj = obj['spec']
-                test_results.append((obj, step, fullerr, logfile))
-                # keep a dict of so we can check in O(1) if objects can still be build
-                build_stopped[obj] = step
-
     # initialize all instances
     apps = []
     for ec in easyconfigs:
-        instance = perform_step('initialization', ec, None, _log)
+        instance = get_easyblock_instance(ec)
         apps.append(instance)
 
     base_dir = os.getcwd()
@@ -2726,7 +2700,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
         # if initialisation step failed, app will be None
         if app:
-
             applog = os.path.join(output_dir, "%s-%s.log" % (app.name, det_full_ec_version(app.cfg)))
 
             start_time = time.time()
@@ -2736,15 +2709,19 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
             restore_env(base_env)
             sanitize_env()
 
-            steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
+            run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
 
-            for (step_name, _, step_methods, skippable) in steps:
-                if skippable and step_name in app.cfg['skipsteps']:
-                    _log.info("Skipping step %s" % step_name)
-                else:
-                    for step_method in step_methods:
-                        method_name = step_method(app).__name__
-                        perform_step('_'.join([step_name, method_name]), app, step_method, applog)
+            try:
+                result = app.run_all_steps(run_test_cases=run_test_cases)
+            # catch all possible errors, also crashes in EasyBuild code itself
+            except Exception as err:
+                fullerr = str(err)
+                if not isinstance(err, EasyBuildError):
+                    tb = traceback.format_exc()
+                    fullerr = '\n'.join([tb, str(err)])
+                test_results.append((app, app.current_step, fullerr, applog))
+                # keep a dict of so we can check in O(1) if objects can still be build
+                build_stopped.append(app)
 
             # close log and move it
             app.close_log()
