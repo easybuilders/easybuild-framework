@@ -157,7 +157,6 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
-    'whatis': [None, "List of brief (one line) package description entries", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
@@ -170,6 +169,16 @@ DEFAULT_CONFIG = {
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
+
+    # MODULES documentation easyconfig parameters
+    #    (docurls is part of MANDATORY)
+    'docpaths': [None, "List of paths for documentation relative to installation directory", MODULES],
+    'examples': [None, "Free-form text with examples on using the software", MODULES],
+    'site_contacts': [None, "String/list of strings with site contacts for the software", MODULES],
+    'upstream_contacts': [None, ("String/list of strings with upstream contact addresses "
+                                "(e.g., support e-mail, mailing list, bugtracker)"), MODULES],
+    'usage': [None, "Usage instructions for the software", MODULES],
+    'whatis': [None, "List of brief (one line) description entries for the software", MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],

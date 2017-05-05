@@ -128,8 +128,17 @@ class EasyBuildLog(fancylogger.FancyLogger):
                     else: version to check against max_ver to determine warning vs exception
         :param max_ver: version threshold for warning vs exception (compared to 'ver')
         """
+        # provide log_callback function that both logs a warning and prints to stderr
+        def log_callback_warning_and_print(msg):
+            """Log warning message, and also print it to stderr."""
+            self.warning(msg)
+            sys.stderr.write(msg + '\n')
+
+        kwargs['log_callback'] = log_callback_warning_and_print
+
         # always raise an EasyBuildError, nothing else
         kwargs['exception'] = EasyBuildError
+
         if max_ver is None:
             msg += "; see %s for more information" % DEPRECATED_DOC_URL
             fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), ver, *args, **kwargs)
@@ -278,4 +287,5 @@ def print_warning(message, silent=False):
     """
     Print warning message.
     """
-    print_msg("WARNING: %s\n" % message, silent=silent)
+    if not silent:
+        sys.stderr.write("\nWARNING: %s\n\n" % message)

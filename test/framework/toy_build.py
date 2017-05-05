@@ -221,7 +221,13 @@ class ToyBuildTest(EnhancedTestCase):
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
-            "modluafooter = 'io.stderr:write(\"oh hai!\")'"  # ignored when module syntax is Tcl
+            "modluafooter = 'io.stderr:write(\"oh hai!\")'",  # ignored when module syntax is Tcl
+            "usage = 'This toy is easy to use'",
+            "examples = 'No example available'",
+            "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
+            "docurls = ['http://hpcugent.github.com/easybuild/toy/docs.html']",
+            "upstream_contacts = 'support@toy.org'",
+            "site_contacts = ['Jim Admin', 'Jane Admin']",
         ])
         write_file(ec_file, ec_extra, append=True)
 
@@ -945,11 +951,43 @@ class ToyBuildTest(EnhancedTestCase):
             r'    I AM toy v0.0\]==\]\)',
         ]
 
+        help_txt = '\n'.join([
+            r'Description',
+            r'===========',
+            r'Toy C program.',
+            r'',
+            r'',
+            r'Usage',
+            r'=====',
+            r'This toy is easy to use',
+            r'',
+            r'',
+            r'Examples',
+            r'========',
+            r'No example available',
+            r'',
+            r'',
+            r'More information',
+            r'================',
+            r' - Homepage: http://hpcugent.github.com/easybuild',
+            r' - Documentation:',
+            r'    - \$EBROOTTOY/share/doc/toy/readme.txt',
+            r'    - \$EBROOTTOY/share/doc/toy/html/index.html',
+            r'    - http://hpcugent.github.com/easybuild/toy/docs.html',
+            r' - Upstream contact: support@toy.org',
+            r' - Site contacts:',
+            r'    - Jim Admin',
+            r'    - Jane Admin',
+        ])
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
-                r'help\(\[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'help\(\[\[',
                 r'',
-                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'%s' % help_txt,
+                r'\]\]\)',
+                r'',
+                r'whatis\(\[\[Description: Toy C program.\]\]\)',
+                r'whatis\(\[\[Homepage: http://hpcugent.github.com/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -978,11 +1016,14 @@ class ToyBuildTest(EnhancedTestCase):
             mod_txt_regex_pattern = '\n'.join([
                 r'^#%Module',
                 r'proc ModulesHelp { } {',
-                r'    puts stderr { Toy C program. - Homepage: http://hpcugent.github.com/easybuild',
+                r'    puts stderr {',
+                r'',
+                r'%s' % help_txt,
                 r'    }',
                 r'}',
                 r'',
-                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Description: Toy C program.}',
+                r'module-whatis {Homepage: http://hpcugent.github.com/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',

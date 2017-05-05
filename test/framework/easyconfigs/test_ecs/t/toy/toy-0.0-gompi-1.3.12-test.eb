@@ -20,12 +20,16 @@ checksums = [[
 patches = ['toy-0.0_typo.patch']
 
 exts_list = [
-    ('bar', '0.0'),
+    ('bar', '0.0', {
+        'buildopts': " && gcc bar.c -o anotherbar",
+        'toy_ext_param': "mv anotherbar bar_bis",
+        'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+    }),
     ('barbar', '0.0'),
 ]
 
 sanity_check_paths = {
-    'files': [('bin/yot', 'bin/toy'), 'bin/bar', 'lib/libtoy.a', 'lib/libbar.a'],
+    'files': [('bin/yot', 'bin/toy'), 'bin/bar', 'bin/bar_bis', 'lib/libtoy.a', 'lib/libbar.a'],
     'dirs': [],
 }
 

@@ -47,8 +47,8 @@ from easybuild.tools.package.package_naming_scheme.pns import PackageNamingSchem
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules
-
 _log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
+
 
 
 def avail_package_naming_schemes():
@@ -104,6 +104,10 @@ def package_with_fpm(easyblock):
         '--description', easyblock.cfg["description"],
         '--url', easyblock.cfg["homepage"],
     ]
+
+    extra_pkg_options = build_option('package_tool_options')
+    if extra_pkg_options:
+        cmdlist.extend(extra_pkg_options.split(' '))
 
     if build_option('debug'):
         cmdlist.append('--debug')

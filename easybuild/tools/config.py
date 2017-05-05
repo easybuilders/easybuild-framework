@@ -119,6 +119,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_cmd_template',
         'only_blocks',
         'optarch',
+        'package_tool_options',
         'parallel',
         'rpath_filter',
         'regtest_output_dir',
@@ -160,6 +161,7 @@ BUILD_OPTIONS_CMDLINE = {
         'use_ccache',
         'use_f90cache',
         'use_existing_modules',
+        'set_default_module',
     ],
     True: [
         'cleanup_builddir',
