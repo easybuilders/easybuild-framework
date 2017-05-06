@@ -979,7 +979,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(name, correct_name)
             self.assertEqual(easyblock, correct_easyblock)
 
-        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program.")
+        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program, 100% toy.")
 
         res = fetch_parameters_from_easyconfig("easyblock = 'ConfigureMake'  # test comment", ['easyblock'])
         self.assertEqual(res, ['ConfigureMake'])
@@ -1313,7 +1313,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['unpack_options'].strip(), '--strip-components=1')
 
         ec.update('description', "- just a test")
-        self.assertEqual(ec['description'].strip(), "Toy C program. - just a test")
+        self.assertEqual(ec['description'].strip(), "Toy C program, 100% toy. - just a test")
 
         # spaces in between multiple updates for stirng values
         ec.update('configopts', 'CC="$CC"')
