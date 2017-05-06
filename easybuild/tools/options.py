@@ -107,8 +107,11 @@ def eb_shell_quote(token):
     Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
     so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
     """
+    # first, strip off double quotes that may wrap the entire value,
+    # we don't want to wrap single quotes around a double-quoted value
+    token = str(token).strip('"')
     # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", str(token))
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
 
 vsc.utils.generaloption.shell_quote = eb_shell_quote
 
@@ -315,6 +318,8 @@ class EasyBuildOptions(GeneralOption):
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
+            'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
+                                                          None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -368,6 +373,7 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
+            'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
@@ -381,8 +387,11 @@ class EasyBuildOptions(GeneralOption):
                              str, 'store', False, {'metavar': "PATH"}),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
+            'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
+                                            None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
+
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -571,6 +580,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'package': ("Enabling packaging", None, 'store_true', False),
             'package-tool': ("Packaging tool to use", None, 'store', DEFAULT_PKG_TOOL),
+            'package-tool-options': ("Extra options for packaging tool", None, 'store', ''),
             'package-type': ("Type of package to generate", None, 'store', DEFAULT_PKG_TYPE),
             'package-release': ("Package release iteration number", None, 'store', DEFAULT_PKG_RELEASE),
         })
@@ -723,8 +733,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
-        # make sure --optarch has a valid format
-        if self.options.optarch:
+        # make sure --optarch has a valid format, but do it only if we are not going to submit jobs. Otherwise it gets
+        # processed twice and fails when trying to parse a dictionary as if it was a string
+        if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
         # handle configuration options that affect other configuration options

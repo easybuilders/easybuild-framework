@@ -82,7 +82,7 @@ def process_easyconfig_file(ec_file):
     """Process an easyconfig file: fix if it's broken, back it up before fixing it inline (if requested)."""
     ectxt = read_file(ec_file)
     name, easyblock = fetch_parameters_from_easyconfig(ectxt, ['name', 'easyblock'])
-    derived_easyblock_class = get_easyblock_class(easyblock, name=name, default_fallback=False)
+    derived_easyblock_class = get_easyblock_class(easyblock, name=name, error_on_missing_easyblock=False)
 
     fixed_ectxt = fix_broken_easyconfig(ectxt, derived_easyblock_class)
 

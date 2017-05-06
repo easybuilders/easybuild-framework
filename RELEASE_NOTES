@@ -3,6 +3,33 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.2.0 (May 5th 2017)
+---------------------
+
+feature release
+- various enhancements, including:
+  - add support for marking installed module file as new default version using --set-default-module (#2110)
+  - additional easyconfig parameters for documentation: docpaths, examples, site_contacts, upstream_contacts, usage (#2113)
+  - add support for --allow-use-as-root-and-accept-consequences (#2123)
+  - enable extraction of patches from compressed files before applying them (#2128)
+  - alphabetically sort functions and methods in module_generator module (#2132)
+  - introduce function ensure_iterable_license_specs (#2157)
+  - bump Travis config to use Lmod 7.4 (#2176)
+  - implement copy_dir function in filetools (#2177)
+  - clarify error message when no software-specific easyblock was found (#2178)
+  - make log.deprecated more verbose by also printing deprecation warnings to stderr (#2179)
+  - add copy function to filetools for easy copying of lists of files/directories (#2180)
+  - add support for --verify-easyconfig-filenames (#2185)
+  - add support for --package-tool-options (#2187)
+  - take into account inline trailing comments in fetch_parameters_from_easyconfig (#2192)
+  - add support for customising easyconfig parameters on a per-extension basis (#2194)
+  - perform sanity check after stage 2 of EasyBuild bootstrap script, module file should be in place (#2199)
+  - change order in which module commands are checked, consider Lmod first (#2201)
+- various bug fixes, including:
+  - fix use of compiler-specific --optarch value in combination with --job (#2183)
+  - call run_all_steps in regtest mode rather than running steps individually (#2203)
+
+
 v3.1.2 (March 20th 2017)
 ------------------------
 

@@ -355,6 +355,62 @@ class FileToolsTest(EnhancedTestCase):
         os.chmod(test_file, 0)
         self.assertFalse(ft.is_readable(test_file))
 
+    def test_symlink_resolve_path(self):
+        """Test symlink and resolve_path function"""
+
+        # write_file and read_file tests are elsewhere. so not getting their states
+        test_dir = os.path.join(os.path.realpath(self.test_prefix), 'test')
+        ft.mkdir(test_dir)
+
+        link_dir = os.path.join(self.test_prefix, 'linkdir')
+        ft.symlink(test_dir, link_dir)
+        self.assertTrue(os.path.islink(link_dir))
+        self.assertTrue(os.path.exists(link_dir))
+
+        test_file = os.path.join(link_dir, 'test.txt')
+        ft.write_file(test_file, "test123")
+
+        # creating the link file
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(test_file, link)
+
+        # checking if file is symlink
+        self.assertTrue(os.path.islink(link))
+        self.assertTrue(os.path.exists(link_dir))
+
+        self.assertTrue(os.path.samefile(os.path.join(self.test_prefix, 'test', 'test.txt'), link))
+
+        # test resolve_path
+        self.assertEqual(test_dir, ft.resolve_path(link_dir))
+        self.assertEqual(os.path.join(os.path.realpath(self.test_prefix), 'test', 'test.txt'), ft.resolve_path(link))
+        self.assertEqual(ft.read_file(link), "test123")
+
+    def test_remove_symlinks(self):
+        """Test remove valid and invalid symlinks"""
+
+        # creating test file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        txt = "test_my_link_file"
+        ft.write_file(fp, txt)
+
+        # creating the symlink
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(fp, link) # test if is symlink is valid is done elsewhere
+
+        # Attempting to remove a valid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+        # Testing the removal of invalid symlinks
+        # Restoring the symlink and removing the file, this way the symlink is invalid
+        ft.symlink(fp, link)
+        ft.remove_file(fp)
+        # attempting to remove the invalid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 
@@ -387,6 +443,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
+
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -806,12 +863,15 @@ class FileToolsTest(EnhancedTestCase):
     def test_copy_file(self):
         """ Test copy_file """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = self.test_prefix
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        target_path = os.path.join(tmpdir, 'toy.eb')
+        target_path = os.path.join(self.test_prefix, 'toy.eb')
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
+        # clean error when trying to copy a directory with copy_file
+        src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
+        self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -839,6 +899,106 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertEqual(txt, '')
+
+    def test_copy_dir(self):
+        """Test copy_file"""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
+
+        target_dir = os.path.join(self.test_prefix, 'GCC')
+        self.assertFalse(os.path.exists(target_dir))
+
+        ft.copy_dir(to_copy, target_dir)
+        self.assertTrue(os.path.exists(target_dir))
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
+                    'GCC-4.9.3-2.25.eb']
+        self.assertTrue(sorted(os.listdir(target_dir)), expected)
+
+        # clean error when trying to copy a file with copy_dir
+        src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory.*Not a directory", ft.copy_dir, src, target)
+
+        # if directory already exists, we expect a clean error
+        testdir = os.path.join(self.test_prefix, 'thisdirexists')
+        ft.mkdir(testdir)
+        self.assertErrorRegex(EasyBuildError, "Target location .* already exists", ft.copy_dir, to_copy, testdir)
+
+        # also test behaviour of copy_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        shutil.rmtree(target_dir)
+        self.assertFalse(os.path.exists(target_dir))
+
+        # no actual copying in dry run mode, unless forced
+        self.mock_stdout(True)
+        ft.copy_dir(to_copy, target_dir)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(target_dir))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy_dir(to_copy, target_dir, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.exists(target_dir))
+        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(target_dir)))
+        self.assertEqual(txt, '')
+
+    def test_copy(self):
+        """Test copy function."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+
+        toy_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        gcc_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
+
+        ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
+
+        self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'GCC')))
+        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', 'toy-0.0_typo.patch']:
+            self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, filepath)))
+
+        # test copying of a single file, to a non-existing directory
+        ft.copy(toy_file, os.path.join(self.test_prefix, 'foo'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', 'toy-0.0.eb')))
+
+        # also test behaviour of copy under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        # no actual copying in dry run mode, unless forced
+        self.mock_stdout(True)
+        to_copy = [os.path.dirname(toy_file), os.path.join(gcc_dir, 'GCC-4.6.3.eb')]
+        ft.copy(to_copy, self.test_prefix)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy')))
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
+        self.assertTrue(re.search("^copied directory .*/toy to .*/toy", txt, re.M))
+        self.assertTrue(re.search("^copied file .*/GCC-4.6.3.eb to .*/GCC-4.6.3.eb", txt, re.M))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy(to_copy, self.test_prefix, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'toy')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
         self.assertEqual(txt, '')
 
     def test_change_dir(self):

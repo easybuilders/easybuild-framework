@@ -35,9 +35,12 @@ import tempfile
 from distutils.version import StrictVersion
 from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import curr_module_paths
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
@@ -46,7 +49,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
-
 
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
@@ -72,17 +74,27 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
 
-        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
-        gzip_txt += "- Homepage: http://www.gzip.org/"
+        descr = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+        homepage = "http://www.gzip.org/"
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
-                "    puts stderr { %s" % gzip_txt,
+                "    puts stderr {",
+                '',
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
                 "    }",
                 "}",
                 '',
-                "module-whatis {Description: %s}" % gzip_txt,
+                "module-whatis {Description: %s}" % descr,
+                "module-whatis {Homepage: %s}" % homepage,
                 '',
                 "set root %s" % self.modgen.app.installdir,
                 '',
@@ -92,9 +104,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help([[%s]])' % gzip_txt,
+                "help([[",
                 '',
-                "whatis([[Description: %s]])" % gzip_txt,
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
+                ']])',
+                '',
+                "whatis([[Description: %s]])" % descr,
+                "whatis([[Homepage: %s]])" % homepage,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -110,7 +133,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             expected = '\n'.join([
                 "proc ModulesHelp { } {",
-                "    puts stderr { %s" % gzip_txt,
+                "    puts stderr {",
+                '',
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
                 "    }",
                 "}",
                 '',
@@ -125,7 +157,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                'help([[%s]])' % gzip_txt,
+                "help([[",
+                '',
+                'Description',
+                '===========',
+                "%s" % descr,
+                '',
+                '',
+                "More information",
+                "================",
+                " - Homepage: %s" % homepage,
+                ']])',
                 '',
                 "whatis([[foo]])",
                 "whatis([[bar]])",
@@ -138,6 +180,60 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
+
+    def test_set_default_module(self):
+        """
+        Test load part in generated module file.
+        """
+
+        # note: the lua modulefiles are only supported by Lmod. Therefore,
+        # skipping when it is not the case
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorLua and not isinstance(self.modtool, Lmod):
+            return
+
+        # creating base path
+        base_path = os.path.join(self.test_prefix, 'all')
+        mkdir(base_path)
+
+        # creating package module
+        module_name = 'foobar_mod'
+        modules_base_path = os.path.join(base_path, module_name)
+        mkdir(modules_base_path)
+
+        # creating two empty modules
+        txt = self.modgen.MODULE_SHEBANG
+        if txt:
+            txt += '\n'
+        txt += self.modgen.get_description()
+        txt += self.modgen.set_environment('foo', 'bar')
+
+        version_one = '1.0'
+        version_one_path = os.path.join(modules_base_path, version_one + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(version_one_path, txt)
+
+        version_two = '2.0'
+        version_two_path = os.path.join(modules_base_path, version_two + self.modgen.MODULE_FILE_EXTENSION)
+        write_file(version_two_path, txt)
+
+        # using base_path to possible module load
+        self.modtool.use(base_path)
+
+        # setting foo version as default
+        self.modgen.set_as_default(modules_base_path, version_one)
+        self.modtool.load([module_name])
+        full_module_name = module_name + '/' + version_one
+
+        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.modtool.purge()
+
+        # setting bar version as default
+        self.modgen.set_as_default(modules_base_path, version_two)
+        self.modtool.load([module_name])
+        full_module_name = module_name + '/' + version_two
+
+        self.assertTrue(full_module_name in self.modtool.loaded_modules())
+        self.modtool.purge()
+
 
     def test_load(self):
         """Test load part in generated module file."""

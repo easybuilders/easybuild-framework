@@ -44,7 +44,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
 from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
@@ -81,7 +81,7 @@ class ModulesTest(EnhancedTestCase):
         gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
         os.makedirs(gcc_mod_dir)
         gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
-        shutil.copy2(gcc_mod_path, gcc_mod_dir)
+        copy_file(gcc_mod_path, gcc_mod_dir)
 
         # try and use long modules path
         self.init_testmods(test_modules_paths=[long_mod_path])
@@ -549,8 +549,8 @@ class ModulesTest(EnhancedTestCase):
         test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
 
         # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
-        shutil.copytree(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
-        shutil.copytree(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
+        copy_dir(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
+        copy_dir(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '4.7.2'))
         modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2')
