@@ -424,12 +424,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        lines = [
+        txt = '\n'.join([
             "proc ModulesHelp { } {",
             "    puts stderr {%s" % self._generate_help_text(),
             "    }",
             '}',
             '',
+        ])
+
+        lines = [
             '%(whatis_lines)s',
             '',
             "set root %(installdir)s",
@@ -447,10 +450,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        txt = '\n'.join(lines + ['']) % {
+        txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'description': self.app.cfg['description'],
             'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in self._generate_whatis_lines()]),
             'installdir': self.app.installdir,
         }
@@ -672,10 +674,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate a description.
         """
-        lines = [
+        txt = '\n'.join([
             'help([[%s' % self._generate_help_text(),
             ']])',
             '',
+        ])
+
+        lines = [
             "%(whatis_lines)s",
             '',
             'local root = "%(installdir)s"',
@@ -688,10 +693,9 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
-        txt = '\n'.join(lines + ['']) % {
+        txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'description': self.app.cfg['description'],
             'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in self._generate_whatis_lines()]),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],

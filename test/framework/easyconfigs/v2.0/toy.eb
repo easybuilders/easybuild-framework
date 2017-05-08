@@ -8,7 +8,7 @@ docstring test
 name = "toy"
 
 homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
+description = "Toy C program, 100% toy."
 docurls = ["https://github.com/hpcugent/easybuild/wiki"]
 
 software_license = GPLv2

@@ -4,7 +4,7 @@ version = '0.0'
 versionsuffix = '-multiple'
 
 homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
+description = "Toy C program, 100% toy."
 
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 

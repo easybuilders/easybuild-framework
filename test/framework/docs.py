@@ -237,7 +237,7 @@ class DocsTest(EnhancedTestCase):
         expected = [
             '* toy',
             '',
-            'Toy C program.',
+            'Toy C program, 100% toy.',
             '',
             'homepage: http://hpcugent.github.com/easybuild',
             '',
@@ -256,7 +256,7 @@ class DocsTest(EnhancedTestCase):
             '*toy*',
             '+++++',
             '',
-            'Toy C program.',
+            'Toy C program, 100% toy.',
             '',
             '*homepage*: http://hpcugent.github.com/easybuild',
             '',
