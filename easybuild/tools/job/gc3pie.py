@@ -29,6 +29,7 @@ Interface for submitting jobs via GC3Pie.
 :author: Riccardo Murri (University of Zurich)
 :author: Kenneth Hoste (Ghent University)
 """
+from cStringIO import StringIO
 from distutils.version import LooseVersion
 from time import gmtime, strftime
 import re
@@ -219,6 +220,15 @@ class GC3Pie(JobBackend):
         # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
         self._engine.retrieve_overwrites = True
 
+        # `Engine.stats()` (which is used later on in `_print_status_report()`)
+        # changed between 2.4.2 and 2.5.0.dev -- make sure we stay compatible
+        # with both
+        try:
+            self._engine.init_stats_for(Application)
+        except AttributeError:
+            _log.debug("No `init_stats_for` method in the Engine class;"
+                       " assuming pre-2.5.0 GC3Pie and ignoring error.")
+
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
@@ -260,3 +270,12 @@ class GC3Pie(JobBackend):
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
+        if __debug__:
+            # requires GC3Pie >= 2.5.0.dev (commit 74f4b82d)
+            for task in self._engine.iter_tasks(Application):
+                datadump = StringIO()
+                gc3libs.utils.prettyprint(task, indent=2, output=datadump)
+                _log.debug("Detailed info about GC3Pie task %s", task)
+                for line in datadump.getvalue().split('\n'):
+                    _log.debug(line)
+                datadump.close()
