@@ -106,10 +106,12 @@ DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
-    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
+    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
+    'sha256': lambda p: calc_block_checksum(p, hashlib.sha256()),
+    'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
     'size': lambda p: os.path.getsize(p),
 }
 
