@@ -335,6 +335,8 @@ class EasyBuildOptions(GeneralOption):
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
+                                  None, 'store_true', False),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",

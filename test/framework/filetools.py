@@ -209,6 +209,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
         self.assertFalse(ft.verify_checksum(fp, ('md5', broken_checksums['md5'])))
 
+        # check whether missing checksums are enforced
+        build_options = {
+            'enforce_checksums': True,
+        }
+        init_config(build_options=build_options)
+
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
+
         # cleanup
         os.remove(fp)
 

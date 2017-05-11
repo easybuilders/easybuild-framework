@@ -599,9 +599,12 @@ def verify_checksum(path, checksums):
     :param file: path of file to verify checksum of
     :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
-    # if no checksum is provided, pretend checksum to be valid
+    # if no checksum is provided, pretend checksum to be valid, unless presence of checksums to verify is enforced
     if checksums is None:
-        return True
+        if build_option('enforce_checksums'):
+            raise EasyBuildError("Missing checksum for %s", os.path.basename(path))
+        else:
+            return True
 
     # make sure we have a list of checksums
     if not isinstance(checksums, list):
