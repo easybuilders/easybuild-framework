@@ -471,6 +471,11 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
+                            # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                            for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
+                                self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
+
                             if checksums:
                                 fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                                 if verify_checksum(src_fn, fn_checksum):
@@ -482,6 +487,12 @@ class EasyBlock(object):
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
+
+                                for patch in ext_patches:
+                                    # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                                    for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                        patch_checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                        self.log.info("%s checksum for %s: %s", checksum_type, patch, patch_checksum)
 
                                 if checksums:
                                     self.log.debug('Verifying checksums for extension patches...')
@@ -1512,7 +1523,7 @@ class EasyBlock(object):
                 # report both MD5 and SHA256 checksums, since both are valid default checksum types
                 for checksum_type in [CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256]:
                     fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
-                    self.log.info("%s checksum for %s: %s" % (checksum_type, fil['path'], fil[checksum_type]))
+                    self.log.info("%s checksum for %s: %s", checksum_type, fil['path'], fil[checksum_type])
 
         # fetch extensions
         if self.cfg['exts_list']:
