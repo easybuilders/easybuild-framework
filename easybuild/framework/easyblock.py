@@ -516,7 +516,7 @@ class EasyBlock(object):
         srcpaths = source_paths()
 
         # should we download or just try and find it?
-        if re.match("^(https?|ftp)://"):
+        if re.match(r"^(https?|ftp)://", filename):
             # URL detected, so let's try and download it
 
             url = filename
