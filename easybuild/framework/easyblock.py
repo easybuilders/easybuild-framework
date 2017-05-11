@@ -516,8 +516,7 @@ class EasyBlock(object):
         srcpaths = source_paths()
 
         # should we download or just try and find it?
-        if filename.startswith("http://") or filename.startswith("ftp://"):
-
+        if re.match(r"^(https?|ftp)://", filename):
             # URL detected, so let's try and download it
 
             url = filename
@@ -969,7 +968,7 @@ class EasyBlock(object):
 
         # load modules that open up the module tree before checking deps of deps (in reverse order)
         self.modules_tool.load(excluded_deps[::-1])
- 
+
         for excluded_dep in excluded_deps:
             excluded_dep_deps = dependencies_for(excluded_dep, self.modules_tool)
             self.log.debug("List of dependencies for excluded dependency %s: %s" % (excluded_dep, excluded_dep_deps))
