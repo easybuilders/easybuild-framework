@@ -200,6 +200,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
+        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
+        # providing non-matching MD5 and SHA256 checksums results in failed verification
+        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+        self.assertFalse(ft.verify_checksum(fp, '7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db'))
+        # checksum of length other than 32/64 yields an error
+        error_pattern = "Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['sha256'] + 'foo']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
+
         # make sure faulty checksums are reported
         broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
         for checksum_type, checksum in broken_checksums.items():
