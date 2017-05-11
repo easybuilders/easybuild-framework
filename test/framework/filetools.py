@@ -192,9 +192,13 @@ class FileToolsTest(EnhancedTestCase):
         for checksum_type, checksum in known_checksums.items():
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
-        # md5 is default
+
+        # default checksum type is MD5
         self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+
+        # both MD5 and SHA256 checksums can be verified without specifying type
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # make sure faulty checksums are reported
         broken_checksums = dict([(typ, val + 'foo') for (typ, val) in known_checksums.items()])
@@ -203,7 +207,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
         # md5 is default
         self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
-        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+        self.assertFalse(ft.verify_checksum(fp, ('md5', broken_checksums['md5'])))
 
         # cleanup
         os.remove(fp)

@@ -101,16 +101,17 @@ STRING_ENCODING_CHARMAP = {
 }
 
 
-# default checksum for source and patch files
-DEFAULT_CHECKSUM = 'md5'
+CHECKSUM_TYPE_MD5 = 'md5'
+CHECKSUM_TYPE_SHA256 = 'sha256'
+DEFAULT_CHECKSUM = CHECKSUM_TYPE_MD5
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
-    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, hashlib.md5()),
     'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
-    'sha256': lambda p: calc_block_checksum(p, hashlib.sha256()),
+    CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
     'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
     'size': lambda p: os.path.getsize(p),
 }
@@ -552,7 +553,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     Compute checksum of specified file.
 
     :param path: Path of file to compute checksum for
-    :param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
+    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
@@ -608,8 +609,14 @@ def verify_checksum(path, checksums):
 
     for checksum in checksums:
         if isinstance(checksum, basestring):
-            # default checksum type unless otherwise specified is MD5 (most common(?))
-            typ = DEFAULT_CHECKSUM
+            # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
+            if len(checksum) == 64:
+                typ = CHECKSUM_TYPE_SHA256
+            elif len(checksum) == 32:
+                typ = CHECKSUM_TYPE_MD5
+            else:
+                raise EasyBuildError("Length of checksum '%s' (%d) does not match with either MD5 (32) or SHA256 (64)",
+                                     checksum, len(checksum))
         elif isinstance(checksum, tuple) and len(checksum) == 2:
             typ, checksum = checksum
         else:
