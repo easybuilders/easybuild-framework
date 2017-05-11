@@ -201,13 +201,14 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
         # md5 is default
         self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
-        self.assertFalse(ft.verify_checksum(fp, ('md5', broken_checksums['md5'])))
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
 
         # check whether missing checksums are enforced
         build_options = {
