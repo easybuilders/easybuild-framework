@@ -989,7 +989,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
 
     # we ignore some errors, but if there are to many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))
-    max_fail_ratio = 0.5
+    max_fail_ratio = float(build_option('max_fail_ratio_adjust_permissions'))
     if fail_ratio > max_fail_ratio:
         raise EasyBuildError("%.2f%% of permissions/owner operations failed (more than %.2f%%), "
                              "something must be wrong...", 100 * fail_ratio, 100 * max_fail_ratio)
