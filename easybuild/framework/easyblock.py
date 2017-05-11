@@ -64,7 +64,7 @@ from easybuild.tools.build_log import print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
-from easybuild.tools.filetools import DEFAULT_CHECKSUM
+from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, derive_alt_pypi_url
 from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
@@ -1509,9 +1509,10 @@ class EasyBlock(object):
         # compute checksums for all source and patch files
         if not (skip_checksums or self.dry_run):
             for fil in self.src + self.patches:
-                check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
-                fil[DEFAULT_CHECKSUM] = check_sum
-                self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
+                # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                for checksum_type in [CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256]:
+                    fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
+                    self.log.info("%s checksum for %s: %s" % (checksum_type, fil['path'], fil[checksum_type]))
 
         # fetch extensions
         if self.cfg['exts_list']:
