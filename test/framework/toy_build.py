@@ -182,7 +182,7 @@ class ToyBuildTest(EnhancedTestCase):
         broken_toy_ec = os.path.join(tmpdir, "toy-broken.eb")
         toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         broken_toy_ec_txt = read_file(toy_ec_file)
-        broken_toy_ec_txt += "checksums = ['clearywrongchecksum']"
+        broken_toy_ec_txt += "checksums = ['clearywrongMD5checksumoflength32']"
         write_file(broken_toy_ec, broken_toy_ec_txt)
         error_regex = "Checksum verification .* failed"
         self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
