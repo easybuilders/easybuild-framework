@@ -164,7 +164,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
-        path = gh.download_repo(path=self.test_prefix)
+        path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
@@ -180,13 +180,15 @@ class GithubTest(EnhancedTestCase):
         # put 'latest-sha' fail in place, check whether repo was (re)downloaded (should not)
         shafile = os.path.join(repodir, 'latest-sha')
         write_file(shafile, latest_sha)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertEqual(os.listdir(repodir), ['latest-sha'])
 
         # remove 'latest-sha' file and verify that download was performed
         os.remove(shafile)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue('easybuild' in os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
