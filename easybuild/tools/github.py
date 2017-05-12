@@ -271,13 +271,14 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     return res
 
 
-def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
+def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None, github_user=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
     :param repo: repo to download
     :param branch: branch to download
     :param account: GitHub account to download repo from
     :param path: path to extract to
+    :param github_user: name of GitHub user to use
     """
     # make sure path exists, create it if necessary
     if path is None:
@@ -289,7 +290,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
     extracted_dir_name = '%s-%s' % (repo, branch)
     base_name = '%s.tar.gz' % branch
-    latest_commit_sha = fetch_latest_commit_sha(repo, account, branch)
+    latest_commit_sha = fetch_latest_commit_sha(repo, account, branch, github_user=github_user)
 
     expected_path = os.path.join(path, extracted_dir_name)
     latest_sha_path = os.path.join(expected_path, 'latest-sha')
@@ -353,7 +354,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if (stable or pr_data['merged']) and not closed:
         # whether merged or not, download develop
-        final_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop')
+        final_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', github_user=github_user)
 
     else:
         final_path = path
@@ -1263,11 +1264,13 @@ def validate_github_token(token, github_user):
     return sanity_check and token_test
 
 
-def find_easybuild_easyconfig():
+def find_easybuild_easyconfig(github_user=None):
     """
     Fetches the latest EasyBuild version eb file from GitHub
+
+    :param github_user: name of GitHub user to use when querying GitHub
     """
-    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN)
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN, github_user=github_user)
     eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
     files = os.listdir(eb_parent_path)
 
