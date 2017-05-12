@@ -210,7 +210,7 @@ class Mpi(Toolchain):
                     env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
                     mpd_tmpdir = os.environ['I_MPI_MPD_TMPDIR']
                     if len(mpd_tmpdir) > 20:
-                        self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s" % mpd_tmpdir)
+                        self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s", mpd_tmpdir)
 
                     # temporary location for mpdboot and nodes files
                     tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
@@ -223,26 +223,16 @@ class Mpi(Toolchain):
                     env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
 
                     # create mpdboot file
-                    fn = os.path.join(tmpdir, 'mpdboot')
-                    try:
-                        if os.path.exists(fn):
-                            os.remove(fn)
-                        write_file(fn, "localhost ifhn=localhost")
-                    except OSError, err:
-                        raise EasyBuildError("Failed to create file %s: %s", fn, err)
+                    mpdboot = os.path.join(tmpdir, 'mpdboot')
+                    write_file(mpdboot, "localhost ifhn=localhost")
 
-                    params.update({'mpdbf': "--file=%s" % fn})
+                    params.update({'mpdbf': "--file=%s" % mpdboot})
 
                     # create nodes file
-                    fn = os.path.join(tmpdir, 'nodes')
-                    try:
-                        if os.path.exists(fn):
-                            os.remove(fn)
-                        write_file(fn, "localhost\n" * nr_ranks)
-                    except OSError, err:
-                        raise EasyBuildError("Failed to create file %s: %s", fn, err)
+                    nodes = os.path.join(tmpdir, 'nodes')
+                    write_file(nodes, "localhost\n" * nr_ranks)
 
-                    params.update({'nodesfile': "-machinefile %s" % fn})
+                    params.update({'nodesfile': "-machinefile %s" % nodes})
 
             if mpi_family in mpi_cmds.keys():
                 mpi_cmd_template = mpi_cmds[mpi_family]
