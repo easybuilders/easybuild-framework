@@ -151,9 +151,10 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
             return
 
-        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
+        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent', github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
-        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
+        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', github_user=GITHUB_TEST_ACCOUNT,
+                                         branch='develop')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
 
     def test_download_repo(self):
@@ -247,7 +248,7 @@ class GithubTest(EnhancedTestCase):
         if self.github_token is None:
             print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
             return
-        path = gh.find_easybuild_easyconfig()
+        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
