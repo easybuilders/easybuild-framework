@@ -724,11 +724,13 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('gompi', version='1.3.12')
         tc.prepare()
         self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
+        self.modtool.purge()
 
         self.setup_sandbox_for_intel_fftw(self.test_prefix)
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
         self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
+        self.modtool.purge()
 
         self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
