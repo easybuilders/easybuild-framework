@@ -106,6 +106,8 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
+SOURCE_RENAME_SEPARATOR = '->'
+
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -319,22 +321,39 @@ class EasyBlock(object):
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
 
-    def fetch_sources(self, list_of_sources, checksums=None):
+    def fetch_sources(self, sources=None, checksums=None):
         """
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
-        """
 
-        for index, src_entry in enumerate(list_of_sources):
-            if isinstance(src_entry, (list, tuple)):
-                cmd = src_entry[1]
-                source = src_entry[0]
+        :param sources: list of sources to fetch (if None, use 'sources' easyconfig parameter)
+        :param checksums: list of checksums for sources
+        """
+        if sources is None:
+            sources = self.cfg['sources']
+        if checksums is None:
+            checksums = self.cfg['checksums']
+
+        for index, src_entry in enumerate(sources):
+
+            cmd, orig_source = None, None
+            if isinstance(src_entry, (list, tuple)) and len(src_entry) == 2:
+                source, cmd = src_entry
             elif isinstance(src_entry, basestring):
-                cmd = None
-                source = src_entry
+                if SOURCE_RENAME_SEPARATOR in src_entry:
+                    src_entry_parts = [x.strip() for x in src_entry.split(SOURCE_RENAME_SEPARATOR)]
+                    if len(src_entry_parts) == 2:
+                        orig_source, source = src_entry_parts
+                    else:
+                        EasyBuildError("Source spec contains more than one renaming separator '%s': %s",
+                                       SOURCE_RENAME_SEPARATOR, src_entry)
+                else:
+                    source = src_entry
+            else:
+                raise EasyBuildError("Unexpected source spec, not a string or 2-element list/tuple: %s", src_entry)
 
             # check if the sources can be located
-            path = self.obtain_file(source)
+            path = self.obtain_file(source, download_filename=orig_source)
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
                 self.src.append({
@@ -507,11 +526,16 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
+
+        :param filename: filename of source
+        :param extension: indicates whether locations for extension sources should also be considered
+        :param urls: list of source URLs where this file may be available
+        :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         """
         srcpaths = source_paths()
 
@@ -618,15 +642,17 @@ class EasyBlock(object):
                     else:
                         targetpath = os.path.join(targetdir, filename)
 
+                    url_filename = download_filename or filename
+
                     if isinstance(url, basestring):
                         if url[-1] in ['=', '/']:
-                            fullurl = "%s%s" % (url, filename)
+                            fullurl = "%s%s" % (url, url_filename)
                         else:
-                            fullurl = "%s/%s" % (url, filename)
+                            fullurl = "%s/%s" % (url, url_filename)
                     elif isinstance(url, tuple):
                         # URLs that require a suffix, e.g., SourceForge download links
                         # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
-                        fullurl = "%s/%s/%s" % (url[0], filename, url[1])
+                        fullurl = "%s/%s/%s" % (url[0], url_filename, url[1])
                     else:
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
                         continue
