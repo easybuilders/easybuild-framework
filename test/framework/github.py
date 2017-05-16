@@ -175,7 +175,7 @@ class GithubTest(EnhancedTestCase):
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
         repodir = os.path.join(self.test_prefix, account, '%s-%s' % (repo, branch))
-        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch)
+        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch, github_user=GITHUB_TEST_ACCOUNT)
 
         # put 'latest-sha' fail in place, check whether repo was (re)downloaded (should not)
         shafile = os.path.join(repodir, 'latest-sha')
