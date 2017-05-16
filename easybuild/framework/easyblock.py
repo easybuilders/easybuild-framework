@@ -65,8 +65,8 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
+from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
@@ -2574,13 +2574,15 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
 
             try:
-                # upload spec to central repository
+                # upload easyconfig (and patch files) to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                for patch in app.patches:
+                    repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
@@ -2601,6 +2603,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+
+        # copy patches
+        for patch in app.patches:
+            copy_file(patch['path'], new_log_dir)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
