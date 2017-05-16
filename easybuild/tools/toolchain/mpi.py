@@ -88,7 +88,7 @@ class Mpi(Toolchain):
 
         self.options.add_options(self.MPI_UNIQUE_OPTS, self.MPI_UNIQUE_OPTION_MAP)
 
-        self.log.debug('_set_mpi_options: all current options %s' % self.options)
+        self.log.devel('_set_mpi_options: all current options %s', self.options)
 
 
     def set_variables(self):
@@ -96,14 +96,14 @@ class Mpi(Toolchain):
         self._set_mpi_compiler_variables()
         self._set_mpi_variables()
 
-        self.log.debug('set_variables: compiler variables %s' % self.variables)
+        self.log.devel('set_variables: compiler variables %s', self.variables)
         super(Mpi, self).set_variables()
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""
         is32bit = self.options.get('32bit', None)
         if is32bit:
-            self.log.debug("_set_compiler_variables: 32bit set: changing compiler definitions")
+            self.log.debug("_set_mpi_compiler_variables: 32bit set: changing compiler definitions")
 
         for var_tuple in COMPILER_VARIABLES:
             c_var = var_tuple[0]  # [1] is the description
@@ -127,16 +127,16 @@ class Mpi(Toolchain):
 
             if self.options.get('usempi', None):
                 var_seq = SEQ_COMPILER_TEMPLATE % {'c_var': c_var}
-                self.log.debug('_set_mpi_compiler_variables: usempi set: defining %s as %s' % (var_seq, self.variables[c_var]))
+                self.log.debug("usempi set: defining %s as %s", var_seq, self.variables[c_var])
                 self.variables[var_seq] = self.variables[c_var]
-                self.log.debug("_set_mpi_compiler_variables: usempi set: switching %s value %s for %s value %s" %
-                               (c_var, self.variables[c_var], var, self.variables[var]))
+                self.log.debug("usempi set: switching %s value %s for %s value %s",
+                               c_var, self.variables[c_var], var, self.variables[var])
                 self.variables[c_var] = self.variables[var]
 
 
         if self.options.get('cciscxx', None):
-            self.log.debug("_set_mpi_compiler_variables: cciscxx set: switching MPICXX %s for MPICC value %s" %
-                           (self.variables['MPICXX'], self.variables['MPICC']))
+            self.log.debug("_set_mpi_compiler_variables: cciscxx set: switching MPICXX %s for MPICC value %s",
+                           self.variables['MPICXX'], self.variables['MPICC'])
             self.variables['MPICXX'] = self.variables['MPICC']
             if self.options.get('usempi', None):
                 # possibly/likely changed
