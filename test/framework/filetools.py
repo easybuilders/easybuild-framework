@@ -886,6 +886,12 @@ class FileToolsTest(EnhancedTestCase):
         alturl = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
         self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
 
+        # test case to ensure that '.' characters in filename are escaped using '\.'
+        # if not, the alternative URL for tornado-4.5b1.tar.gz is found...
+        url = 'https://pypi.python.org/packages/source/t/tornado/tornado-4.5.1.tar.gz'
+        alturl = url.replace('source/t/tornado', 'df/42/a180ee540e12e2ec1007ac82a42b09dd92e5461e09c98bf465e98646d187')
+        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+
         # no crash on non-existing version
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)

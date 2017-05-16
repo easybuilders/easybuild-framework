@@ -362,7 +362,8 @@ def derive_alt_pypi_url(url):
         else:
             links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
 
-        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
+        pkg_regex = pkg_source.replace('.', '\\.')
+        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_regex, re.M)
         for link in links:
             res = regex.match(link)
             if res:
