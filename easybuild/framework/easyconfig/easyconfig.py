@@ -1508,7 +1508,7 @@ def det_location_for(path, target_dir, soft_name, target_file):
     return target_path
 
 
-def cleanup_easyconfigs(paths):
+def clean_up_easyconfigs(paths):
     """
     Clean up easyconfigs (in place) by filtering out comments/buildstats included by EasyBuild in archived easyconfigs
     (cfr. FileRepository.add_easyconfig in easybuild.tools.repository.filerepo)
@@ -1561,7 +1561,7 @@ def copy_easyconfigs(paths, target_dir):
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
 
     if build_option('cleanup_easyconfigs'):
-        cleanup_easyconfigs(file_info['paths_in_repo'])
+        clean_up_easyconfigs(file_info['paths_in_repo'])
 
     return file_info
 
