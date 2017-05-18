@@ -532,6 +532,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
+            'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
