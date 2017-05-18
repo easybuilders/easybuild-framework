@@ -1526,7 +1526,7 @@ def clean_up_easyconfigs(paths):
         ectxt = read_file(path)
         for regex in regexs:
             ectxt = regex.sub('', ectxt)
-        write_file(path, ectxt)
+        write_file(path, ectxt, forced=True)
 
 
 def copy_easyconfigs(paths, target_dir):
