@@ -44,7 +44,8 @@ from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import LOADED_MODULES_ERROR, LOADED_MODULES_IGNORE, LOADED_MODULES_WARN
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
@@ -1270,6 +1271,35 @@ def invalidate_module_caches_for(path):
                                key, subcmd, path, cache[key])
                     del cache[key]
                     break
+
+
+def check_loaded_modules(modtool):
+    """
+    Check whether any (EasyBuild-generated) modules are loaded already in the current session
+    """
+    ignored_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or []]
+
+    eb_module_keys = []
+    for key in os.environ:
+        if key.startswith(ROOT_ENV_VAR_NAME_PREFIX) and key not in ignored_keys:
+            eb_module_keys.append(key)
+
+    if eb_module_keys:
+        loaded_modules = modtool.list()
+
+        msg = '\n'.join([
+            "Found %d non-ignored loaded (EasyBuild-generated) modules in current environment" % len(eb_module_keys),
+        ] + ['* %s' % x['mod_name'] for x in loaded_modules])
+
+        action = build_option('detect_loaded_modules')
+        if action == LOADED_MODULES_ERROR:
+            raise EasyBuildError(msg)
+        elif action == LOADED_MODULES_IGNORE:
+            _log.info(msg + ", but ignoring it as configured")
+        elif action == LOADED_MODULES_WARN:
+            print_warning(msg)
+        else:
+            raise EasyBuildError("Unknown action specified for --detect-loaded-modules: %s", action)
 
 
 class Modules(EnvironmentModulesC):

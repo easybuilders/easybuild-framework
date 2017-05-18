@@ -77,6 +77,11 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
+LOADED_MODULES_ERROR = 'error'
+LOADED_MODULES_IGNORE = 'ignore'
+LOADED_MODULES_WARN = 'warn'
+LOADED_MODULES_ACTIONS = [LOADED_MODULES_ERROR, LOADED_MODULES_IGNORE, LOADED_MODULES_WARN]
+
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -91,6 +96,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
+        'allow_loaded_modules',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -188,6 +194,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
+    ],
+    LOADED_MODULES_WARN: [
+        'detect_loaded_modules',
     ],
     'defaultopt': [
         'default_opt_level',

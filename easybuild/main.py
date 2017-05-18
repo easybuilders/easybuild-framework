@@ -60,7 +60,7 @@ from easybuild.tools.config import find_last_log, get_repository, get_repository
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.modules import check_loaded_modules, modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -244,6 +244,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if modtool is None:
         modtool = modules_tool(testing=testing)
+
+    # check whether any (EasyBuild-generated) modules are loaded already in the current session
+    check_loaded_modules(modtool)
 
     if options.last_log:
         # print location to last log file, and exit

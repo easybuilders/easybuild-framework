@@ -61,6 +61,7 @@ from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, 
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import LOADED_MODULES_ACTIONS, LOADED_MODULES_WARN
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -404,6 +405,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Configuration options", "Configure EasyBuild behavior.")
 
         opts = OrderedDict({
+            'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
+                                     'strlist', 'store', None),
             'avail-module-naming-schemes': ("Show all supported module naming schemes",
                                             None, 'store_true', False,),
             'avail-modules-tools': ("Show all supported module tools",
@@ -411,6 +414,9 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
+                                      "suported values: %s" % ', '.join(LOADED_MODULES_ACTIONS),
+                                      None, 'store', LOADED_MODULES_WARN),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
                                           'strlist', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
