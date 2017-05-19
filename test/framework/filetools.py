@@ -184,24 +184,50 @@ class FileToolsTest(EnhancedTestCase):
             'crc32': '0x1457143216',
             'md5': '7167b64b1ca062b9674ffef46f9325db',
             'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
+            'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
+            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733eb7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
         # make sure checksums computation/verification is correct
         for checksum_type, checksum in known_checksums.items():
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
-        # md5 is default
+
+        # default checksum type is MD5
         self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+
+        # both MD5 and SHA256 checksums can be verified without specifying type
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
+
+        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
+        # providing non-matching MD5 and SHA256 checksums results in failed verification
+        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+        self.assertFalse(ft.verify_checksum(fp, '7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db'))
+        # checksum of length other than 32/64 yields an error
+        error_pattern = "Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['sha256'] + 'foo']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
         # md5 is default
         self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
+
+        # check whether missing checksums are enforced
+        build_options = {
+            'enforce_checksums': True,
+        }
+        init_config(build_options=build_options)
+
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # cleanup
         os.remove(fp)
