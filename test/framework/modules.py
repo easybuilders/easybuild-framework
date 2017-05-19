@@ -750,6 +750,70 @@ class ModulesTest(EnhancedTestCase):
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
+    def test_check_loaded_modules(self):
+        """Test check_loaded_modules method."""
+        # try and make sure we start with a clean slate
+        self.modtool.purge()
+
+        def check_loaded_modules():
+            "Helper function to run check_loaded_modules and check on stdout/stderr."
+            # there should be no errors/warnings by default is no (EasyBuild-generated) modules are loaded
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            self.modtool.check_loaded_modules()
+            stdout, stderr = self.get_stdout(), self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, '')
+            return stderr
+
+        self.assertEqual(check_loaded_modules(), '')
+
+        # load OpenMPI module, which also loads GCC & hwloc
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+
+        # default action is to print a clear warning message
+        stderr = check_loaded_modules()
+        patterns = [
+            r"^WARNING: Found 3 non-ignored loaded \(EasyBuild-generated\) modules in current environment:",
+            r"^\* GCC/4.6.4",
+            r"^\* hwloc/1.6.2-GCC-4.6.4",
+            r"^\* OpenMPI/1.6.4-GCC-4.6.4",
+            "To make EasyBuild ignore loaded modules for some of this software, "
+                "use the --allow-loaded-modules configuration option.",
+            "Use --detect-loaded-modules to specify action to take when loaded modules are detected",
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, stderr, re.M), "Pattern '%s' found in: %s" % (pattern, stderr))
+
+        # reconfigure EasyBuild to ignore loaded modules for GCC & hwloc & error out when loaded modules are detected
+        options = init_config(args=['--allow-loaded-modules=GCC,hwloc', '--detect-loaded-modules=fail'])
+        build_options = {
+            'allow_loaded_modules': options.allow_loaded_modules,
+            'detect_loaded_modules': options.detect_loaded_modules,
+        }
+        init_config(build_options=build_options)
+
+        # error mentioning 1 non-ignored module (OpenMPI), both GCC and hwloc loaded modules are ignored
+        error_pattern = "Found 1 non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
+
+        build_options.update({'detect_loaded_modules': 'ignore'})
+        init_config(build_options=build_options)
+
+        # when loaded modules are ignored there are no warnings/errors
+        self.assertEqual(check_loaded_modules(), '')
+
+        # clear warning if any $EBROOT* environment variables are defined that don't match a loaded module
+        os.environ['EBROOTSOFTWAREWITHOUTAMATCHINGMODULE'] = '/path/to/software/without/a/matching/module'
+        stderr = check_loaded_modules()
+        warning_msg = "WARNING: Found 1 defined $EBROOT* environment variables without matching loaded module:"
+        self.assertTrue(warning_msg in stderr)
+
+        # specified action for detected loaded modules is verified early
+        error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
+        self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
+
 
 def suite():
     """ returns all the testcases in this module """
