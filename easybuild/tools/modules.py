@@ -762,10 +762,9 @@ class ModulesTool(object):
                     raise EasyBuildError(msg)
                 elif action == LOADED_MODULES_IGNORE:
                     _log.info(msg + ", but ignoring it as configured")
-                elif action == LOADED_MODULES_WARN:
-                    print_warning(msg)
                 else:
-                    raise EasyBuildError("Unknown action specified for --detect-loaded-modules: %s", action)
+                    # default behaviour is just to print out a warning and continue
+                    print_warning(msg)
 
     def read_module_file(self, mod_name):
         """

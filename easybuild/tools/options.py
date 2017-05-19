@@ -723,6 +723,11 @@ class EasyBuildOptions(GeneralOption):
             error_msg += "use --module-syntax to specify a different module syntax to use (%s)" % mod_syntaxes
             raise EasyBuildError(error_msg)
 
+        # check whether specified action --detect-loaded-modules is valid
+        if self.options.detect_loaded_modules not in LOADED_MODULES_ACTIONS:
+            raise EasyBuildError("Unknown action specified to --detect-loaded-modules: %s (known values: %s)",
+                                 self.options.detect_loaded_modules, ', '.join(LOADED_MODULES_ACTIONS))
+
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
             if not HAVE_KEYRING:
