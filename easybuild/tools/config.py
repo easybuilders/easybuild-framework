@@ -178,6 +178,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_tests',
     ],
     'warn': [
+        'detect_loaded_modules',
         'strict',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
@@ -194,9 +195,6 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
-    ],
-    LOADED_MODULES_WARN: [
-        'detect_loaded_modules',
     ],
     'defaultopt': [
         'default_opt_level',
