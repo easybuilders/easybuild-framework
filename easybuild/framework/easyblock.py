@@ -106,8 +106,6 @@ MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 # string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
 PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
-SOURCE_RENAME_SEPARATOR = '->'
-
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -334,40 +332,43 @@ class EasyBlock(object):
         if checksums is None:
             checksums = self.cfg['checksums']
 
-        for index, src_entry in enumerate(sources):
+        for index, source in enumerate(sources):
+            extract_cmd, download_filename = None, None
 
-            cmd, orig_source = None, None
-            if isinstance(src_entry, (list, tuple)) and len(src_entry) == 2:
-                source, cmd = src_entry
-            elif isinstance(src_entry, basestring):
-                if SOURCE_RENAME_SEPARATOR in src_entry:
-                    src_entry_parts = [x.strip() for x in src_entry.split(SOURCE_RENAME_SEPARATOR)]
-                    if len(src_entry_parts) == 2:
-                        orig_source, source = src_entry_parts
-                    else:
-                        EasyBuildError("Source spec contains more than one renaming separator '%s': %s",
-                                       SOURCE_RENAME_SEPARATOR, src_entry)
-                else:
-                    source = src_entry
+            if isinstance(source, basestring):
+                filename = source
+
+            elif isinstance(source, dict):
+                source = source.copy()
+                filename = source.pop('filename', None)
+                extract_cmd = source.pop('extract_cmd', None)
+                download_filename = source.pop('download_filename', None)
+                if source:
+                    raise EasyBuildError("Found one or more unexpected keys in source specification: %s", source)
+
+            elif isinstance(source, (list, tuple)) and len(source) == 2:
+                self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
+                                    "use a dictionary with 'name', 'extract_cmd' keys instead", '4.0')
+                filename, extract_cmd = source
             else:
-                raise EasyBuildError("Unexpected source spec, not a string or 2-element list/tuple: %s", src_entry)
+                raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
 
             # check if the sources can be located
-            path = self.obtain_file(source, download_filename=orig_source)
+            path = self.obtain_file(filename, download_filename=download_filename)
             if path:
-                self.log.debug('File %s found for source %s' % (path, source))
+                self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
-                    'name': source,
+                    'name': filename,
                     'path': path,
-                    'cmd': cmd,
-                    'checksum': self.get_checksum_for(checksums, filename=source, index=index),
+                    'cmd': extract_cmd,
+                    'checksum': self.get_checksum_for(checksums, filename=filename, index=index),
                     # always set a finalpath
                     'finalpath': self.builddir,
                 })
             else:
-                raise EasyBuildError('No file found for source %s', source)
+                raise EasyBuildError('No file found for source %s', filename)
 
-        self.log.info("Added sources: %s" % self.src)
+        self.log.info("Added sources: %s", self.src)
 
     def fetch_patches(self, patch_specs=None, extension=False, checksums=None):
         """

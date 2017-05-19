@@ -755,14 +755,14 @@ class EasyBlockTest(EnhancedTestCase):
         # reset and try with provided list of sources
         eb.src = []
         sources = [
-            'toy-0.0.tar.gz',
-            'toy-extra.txt -> toy-0.0-extra.txt',
-            ('toy-0.0_gzip.patch.gz', "gunzip %s"),
+            {'filename': 'toy-0.0-extra.txt', 'download_filename': 'toy-extra.txt'},
+            {'filename': 'toy-0.0_gzip.patch.gz', 'extract_cmd': "gunzip %s"},
+            {'filename': 'toy-0.0-renamed.tar.gz', 'download_filename': 'toy-0.0.tar.gz', 'extract_cmd': "tar xfz %s"},
         ]
         eb.fetch_sources(sources, checksums=[])
 
         toy_source_dir = os.path.join(self.test_prefix, 't', 'toy')
-        expected_sources = ['toy-0.0.tar.gz', 'toy-0.0-extra.txt', 'toy-0.0_gzip.patch.gz']
+        expected_sources = ['toy-0.0-extra.txt', 'toy-0.0_gzip.patch.gz', 'toy-0.0-renamed.tar.gz']
 
         # make source sources were downloaded, using correct filenames
         self.assertEqual(len(eb.src), 3)
@@ -773,8 +773,14 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(os.path.exists(source_loc))
             self.assertTrue(os.path.samefile(eb.src[idx]['path'], source_loc))
         self.assertEqual(eb.src[0]['cmd'], None)
-        self.assertEqual(eb.src[1]['cmd'], None)
-        self.assertEqual(eb.src[2]['cmd'], "gunzip %s")
+        self.assertEqual(eb.src[1]['cmd'], "gunzip %s")
+        self.assertEqual(eb.src[2]['cmd'], "tar xfz %s")
+
+        # old format for specifying source with custom extract command is deprecated
+        eb.src = []
+        error_msg = "DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
+                              [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
 
     def test_fetch_patches(self):
         """Test fetch_patches method."""
