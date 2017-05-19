@@ -151,9 +151,10 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
             return
 
-        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
+        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent', github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
-        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
+        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', github_user=GITHUB_TEST_ACCOUNT,
+                                         branch='develop')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
 
     def test_download_repo(self):
@@ -163,7 +164,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
-        path = gh.download_repo(path=self.test_prefix)
+        path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
@@ -174,18 +175,20 @@ class GithubTest(EnhancedTestCase):
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
         repodir = os.path.join(self.test_prefix, account, '%s-%s' % (repo, branch))
-        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch)
+        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch, github_user=GITHUB_TEST_ACCOUNT)
 
         # put 'latest-sha' fail in place, check whether repo was (re)downloaded (should not)
         shafile = os.path.join(repodir, 'latest-sha')
         write_file(shafile, latest_sha)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertEqual(os.listdir(repodir), ['latest-sha'])
 
         # remove 'latest-sha' file and verify that download was performed
         os.remove(shafile)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue('easybuild' in os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
@@ -247,7 +250,7 @@ class GithubTest(EnhancedTestCase):
         if self.github_token is None:
             print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
             return
-        path = gh.find_easybuild_easyconfig()
+        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))

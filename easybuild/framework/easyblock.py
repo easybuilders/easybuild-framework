@@ -65,8 +65,8 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
+from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
@@ -527,8 +527,7 @@ class EasyBlock(object):
         srcpaths = source_paths()
 
         # should we download or just try and find it?
-        if filename.startswith("http://") or filename.startswith("ftp://"):
-
+        if re.match(r"^(https?|ftp)://", filename):
             # URL detected, so let's try and download it
 
             url = filename
@@ -980,7 +979,7 @@ class EasyBlock(object):
 
         # load modules that open up the module tree before checking deps of deps (in reverse order)
         self.modules_tool.load(excluded_deps[::-1])
- 
+
         for excluded_dep in excluded_deps:
             excluded_dep_deps = dependencies_for(excluded_dep, self.modules_tool)
             self.log.debug("List of dependencies for excluded dependency %s: %s" % (excluded_dep, excluded_dep_deps))
@@ -2587,13 +2586,15 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
 
             try:
-                # upload spec to central repository
+                # upload easyconfig (and patch files) to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                for patch in app.patches:
+                    repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
@@ -2614,6 +2615,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+
+        # copy patches
+        for patch in app.patches:
+            copy_file(patch['path'], new_log_dir)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
