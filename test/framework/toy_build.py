@@ -857,6 +857,20 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-1.3.12-test')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        toy_mod_txt = read_file(toy_module)
+
+        patterns = [
+            '^setenv.*EBEXTSLISTTOY.*bar-0.0,barbar-0.0',
+            # set by ToyExtension easyblock used to install extensions
+            '^setenv.*TOY_EXT_BAR.*bar',
+            '^setenv.*TOY_EXT_BARBAR.*barbar',
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
+
     def test_toy_hidden_cmdline(self):
         """Test installing a hidden module using the '--hidden' command line option."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
