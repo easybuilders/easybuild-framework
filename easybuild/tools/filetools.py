@@ -1497,6 +1497,8 @@ def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
+
+    Additional specified named arguments are passed down to shutil.copytree
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
