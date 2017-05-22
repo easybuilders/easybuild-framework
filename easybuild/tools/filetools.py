@@ -1490,13 +1490,15 @@ def copy_file(path, target_path, force_in_dry_run=False):
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
 
-def copy_dir(path, target_path, force_in_dry_run=False):
+def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
     """
     Copy a directory from specified location to specified location
 
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
+
+    Additional specified named arguments are passed down to shutil.copytree
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
@@ -1505,7 +1507,7 @@ def copy_dir(path, target_path, force_in_dry_run=False):
             if os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            shutil.copytree(path, target_path)
+            shutil.copytree(path, target_path, **kwargs)
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)

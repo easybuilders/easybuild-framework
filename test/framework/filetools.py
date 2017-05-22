@@ -997,11 +997,14 @@ class FileToolsTest(EnhancedTestCase):
         target_dir = os.path.join(self.test_prefix, 'GCC')
         self.assertFalse(os.path.exists(target_dir))
 
-        ft.copy_dir(to_copy, target_dir)
+        self.assertTrue(os.path.exists(os.path.join(to_copy, 'GCC-4.7.2.eb')))
+
+        ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '4.7.2' in x])
         self.assertTrue(os.path.exists(target_dir))
-        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
-                    'GCC-4.9.3-2.25.eb']
-        self.assertTrue(sorted(os.listdir(target_dir)), expected)
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb']
+        self.assertEqual(sorted(os.listdir(target_dir)), expected)
+        # GCC-4.7.2.eb should not get copied, since it's specified as file too ignore
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-4.7.2.eb')))
 
         # clean error when trying to copy a file with copy_dir
         src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
