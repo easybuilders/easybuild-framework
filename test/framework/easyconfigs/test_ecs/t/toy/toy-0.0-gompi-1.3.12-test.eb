@@ -3,7 +3,7 @@ version = '0.0'
 versionsuffix = '-test'
 
 homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
+description = "Toy C program, 100% toy."
 
 toolchain = {'name': 'gompi', 'version': '1.3.12'}
 toolchainopts = {'pic': True, 'opt': True, 'optarch': True}

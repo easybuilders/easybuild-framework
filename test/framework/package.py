@@ -242,7 +242,7 @@ class PackageTest(EnhancedTestCase):
         self.assertFalse(no_logfiles_regex.search(pkgtxt), "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
         toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
-        replace_str = '''description = """Toy C program. Now with `backticks'\n'''
+        replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
         replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
         toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')

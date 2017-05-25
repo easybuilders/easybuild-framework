@@ -3055,7 +3055,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # introduce whitespace issues
         toytxt = toytxt.replace("name = 'toy'", "name\t='toy'    ")
         # introduce long line
-        toytxt = toytxt.replace('description = "Toy C program."', 'description = "%s"' % ('toy ' * 30))
+        toytxt = toytxt.replace('description = "Toy C program, 100% toy."', 'description = "%s"' % ('toy ' * 30))
         write_file(toy, toytxt)
 
         args = [
