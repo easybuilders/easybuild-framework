@@ -32,11 +32,12 @@ Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
 """
 
 from easybuild.toolchains.gompi import Gompi
+from easybuild.toolchains.gmkl import Gmkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Gomkl(Gompi, IntelMKL, IntelFFTW):
+class Gomkl(Gompi, Gmkl, IntelMKL, IntelFFTW):
     """Compiler toolchain with GCC, Open MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers."""
     NAME = 'gomkl'
-    SUBTOOLCHAIN = Gompi.NAME
+    SUBTOOLCHAIN = [Gompi.NAME, Gmkl.NAME]
