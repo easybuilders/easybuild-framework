@@ -29,7 +29,7 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers, and CUDA).
 :author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
 :author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-:author: Maxime Boissonneault (Université Laval, Calcul Québec, Calcul Canada)
+:author: Maxime Boissonneault (Universite Laval, Calcul Quebec, Calcul Canada)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA
