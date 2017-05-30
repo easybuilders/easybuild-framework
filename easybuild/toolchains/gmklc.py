@@ -40,7 +40,7 @@ from easybuild.toolchains.linalg.intelmkl import IntelMKL
 class Gmklc(GccCUDA, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with GCC, Intel Math Kernel Library (MKL)
-    and Intel FFTW wrappers.
+    and Intel FFTW wrappers and CUDA.
     """
     NAME = 'gmklc'
     SUBTOOLCHAIN = GccCUDA.NAME
