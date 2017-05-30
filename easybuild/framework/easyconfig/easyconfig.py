@@ -134,7 +134,7 @@ def toolchain_hierarchy_cache(func):
 
     return cache_aware_func
 
-def get_subtoolchain_in_deps(parsed_ec, subtoolchain_name):
+def get_subtoolchain_in_deps(parsed_ec, subtoolchain_name, current_tc_name):
     """
     search for version of the subtoolchain in dependencies
     considers deps + toolchains of deps + deps of deps + toolchains of deps of deps
@@ -234,11 +234,12 @@ def get_toolchain_hierarchy(parent_toolchain):
         if isinstance(subtoolchain_name, list):
             for name in subtoolchain_name[1:]:
                 # find secondary subtoolchains, without recursing into them
-                current_tc_name, current_tc_version = get_subtoolchain_in_deps(parsed_ec, name)
-                toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
+                sub_tc_name, sub_tc_version = get_subtoolchain_in_deps(parsed_ec, name, current_tc_name)
+                toolchain_hierarchy.insert(0, {'name': sub_tc_name, 'version': sub_tc_version})
             subtoolchain_name = subtoolchain_name[0]
 
-        current_tc_name, current_tc_version = get_subtoolchain_in_deps(parsed_ec, subtoolchain_name)
+        current_tc_name, current_tc_version = get_subtoolchain_in_deps(parsed_ec, subtoolchain_name,
+                                                                       current_tc_name)
         if current_tc_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
             # we're done
             break
