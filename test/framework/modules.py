@@ -178,6 +178,18 @@ class ModulesTest(EnhancedTestCase):
         for mod in mods:
             self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [mod])
 
+        # by default, modules are always loaded, even if they are already loaded
+        self.modtool.load(['GCC/4.7.2'])
+        del os.environ['EBROOTGCC']
+        self.assertTrue('GCC/4.7.2' in self.modtool.loaded_modules())
+        self.modtool.load(['GCC/4.7.2'])
+        self.assertTrue(os.environ.get('EBROOTGCC'))
+
+        # reloading can be disabled using allow_reload=False
+        del os.environ['EBROOTGCC']
+        self.modtool.load(['GCC/4.7.2'], allow_reload=False)
+        self.assertEqual(os.environ.get('EBROOTGCC'), None)
+
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
         test_path = tempfile.mkdtemp(prefix=self.test_prefix)
