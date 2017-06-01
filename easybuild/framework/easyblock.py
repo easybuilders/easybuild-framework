@@ -64,9 +64,9 @@ from easybuild.tools.build_log import print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
-from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
+from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
+from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
@@ -471,6 +471,11 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
+                            # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                            for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
+                                self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
+
                             if checksums:
                                 fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                                 if verify_checksum(src_fn, fn_checksum):
@@ -482,6 +487,12 @@ class EasyBlock(object):
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
+
+                                for patch in ext_patches:
+                                    # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                                    for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                        patch_checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                        self.log.info("%s checksum for %s: %s", checksum_type, patch, patch_checksum)
 
                                 if checksums:
                                     self.log.debug('Verifying checksums for extension patches...')
@@ -1508,9 +1519,10 @@ class EasyBlock(object):
         # compute checksums for all source and patch files
         if not (skip_checksums or self.dry_run):
             for fil in self.src + self.patches:
-                check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
-                fil[DEFAULT_CHECKSUM] = check_sum
-                self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
+                # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                for checksum_type in [CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256]:
+                    fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
+                    self.log.info("%s checksum for %s: %s", checksum_type, fil['path'], fil[checksum_type])
 
         # fetch extensions
         if self.cfg['exts_list']:
@@ -2574,13 +2586,15 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
 
             try:
-                # upload spec to central repository
+                # upload easyconfig (and patch files) to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                for patch in app.patches:
+                    repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
@@ -2601,6 +2615,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+
+        # copy patches
+        for patch in app.patches:
+            copy_file(patch['path'], new_log_dir)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
