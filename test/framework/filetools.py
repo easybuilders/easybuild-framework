@@ -961,6 +961,9 @@ class FileToolsTest(EnhancedTestCase):
         src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
         self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
 
+        # copying a file to its own location should fail, but nicely (i.e. with an EasyBuildError, not a traceback)
+        self.assertErrorRegex(EasyBuildError, "Failed to copy file", ft.copy_file, to_copy, to_copy)
+
         # also test behaviour of copy_file under --dry-run
         build_options = {
             'extended_dry_run': True,
