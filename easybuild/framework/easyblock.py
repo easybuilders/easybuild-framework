@@ -1823,8 +1823,8 @@ class EasyBlock(object):
                 if os.path.exists(dest_file) and not opt_force:
                     raise EasyBuildError("Unable to copy package %s to %s (already exists).", src_file, dest_file)
                 else:
+                    copy_file(src_file, pkgdir_dest)
                     self.log.info("Copied package %s to %s", src_file, pkgdir_dest)
-                    shutil.copy(src_file, pkgdir_dest)
 
         else:
             self.log.info("Skipping package step (not enabled)")
@@ -2605,20 +2605,22 @@ def build_and_install_one(ecdict, init_env):
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
 
-        try:
-            newspec = os.path.join(new_log_dir, ec_filename)
-            # only copy if the files are not the same file already (yes, it happens)
-            if os.path.exists(newspec) and os.path.samefile(spec, newspec):
-                _log.debug("Not copying easyconfig file %s to %s since files are identical" % (spec, newspec))
-            else:
-                shutil.copy(spec, newspec)
-                _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
-        except (IOError, OSError), err:
-            print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+        newspec = os.path.join(new_log_dir, ec_filename)
+        # only copy if the files are not the same file already (yes, it happens)
+        if os.path.exists(newspec) and os.path.samefile(spec, newspec):
+            _log.debug("Not copying easyconfig file %s to %s since files are identical", spec, newspec)
+        else:
+            copy_file(spec, newspec)
+            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
         # copy patches
         for patch in app.patches:
-            copy_file(patch['path'], new_log_dir)
+            target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+            if os.path.exists(target) and os.path.samefile(patch['path'], target):
+                _log.debug("Not copying patch %s to %s, since files are identical", patch['path'], target)
+            else:
+                copy_file(patch['path'], target)
+                _log.debug("Copied patch %s to %s", patch['path'], target)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)

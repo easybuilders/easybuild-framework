@@ -126,7 +126,10 @@ class FileRepository(Repository):
         :return: location of archived patch
         """
         full_path = os.path.join(self.wc, self.subdir, name, os.path.basename(patch))
-        copy_file(patch, full_path)
+        if os.path.exists(full_path) and os.path.samefile(patch, full_path):
+            self.log.debug("Not copying patch %s to %s, same file", patch, full_path)
+        else:
+            copy_file(patch, full_path)
         return full_path
 
     def get_buildstats(self, name, ec_version):

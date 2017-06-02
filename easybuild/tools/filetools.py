@@ -813,13 +813,10 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         if build_option('extended_dry_run'):
             dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
         else:
-            try:
-                shutil.copy2(patch_file, dest)
-                _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-                # early exit, work is done after copying
-                return True
-            except IOError, err:
-                raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
+            copy_file(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+            # early exit, work is done after copying
+            return True
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
