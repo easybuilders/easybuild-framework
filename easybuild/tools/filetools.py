@@ -1480,9 +1480,12 @@ def copy_file(path, target_path, force_in_dry_run=False):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
-            mkdir(os.path.dirname(target_path), parents=True)
-            shutil.copy2(path, target_path)
-            _log.info("%s copied to %s", path, target_path)
+            if os.path.exists(target_path) and os.path.samefile(path, target_path):
+                _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            else:
+                mkdir(os.path.dirname(target_path), parents=True)
+                shutil.copy2(path, target_path)
+                _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 

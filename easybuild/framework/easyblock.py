@@ -2606,21 +2606,14 @@ def build_and_install_one(ecdict, init_env):
         move_logs(app.logfile, application_log)
 
         newspec = os.path.join(new_log_dir, ec_filename)
-        # only copy if the files are not the same file already (yes, it happens)
-        if os.path.exists(newspec) and os.path.samefile(spec, newspec):
-            _log.debug("Not copying easyconfig file %s to %s since files are identical", spec, newspec)
-        else:
-            copy_file(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+        copy_file(spec, newspec)
+        _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
         # copy patches
         for patch in app.patches:
             target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-            if os.path.exists(target) and os.path.samefile(patch['path'], target):
-                _log.debug("Not copying patch %s to %s, since files are identical", patch['path'], target)
-            else:
-                copy_file(patch['path'], target)
-                _log.debug("Copied patch %s to %s", patch['path'], target)
+            copy_file(patch['path'], target)
+            _log.debug("Copied patch %s to %s", patch['path'], target)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
