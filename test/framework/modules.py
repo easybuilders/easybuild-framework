@@ -178,6 +178,36 @@ class ModulesTest(EnhancedTestCase):
         for mod in mods:
             self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [mod])
 
+        # by default, modules are always loaded, even if they are already loaded
+        self.modtool.load(['GCC/4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4'])
+
+        # unset $EBROOTGCC, it should get set again later by loading GCC again
+        del os.environ['EBROOTGCC']
+
+        # GCC should be loaded, but should not be listed last (OpenMPI was loaded last)
+        loaded_modules = self.modtool.loaded_modules()
+        self.assertTrue('GCC/4.6.4' in loaded_modules)
+        self.assertFalse(loaded_modules[-1] == 'GCC/4.6.4')
+
+        # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
+        self.modtool.load(['GCC/4.6.4'])
+        self.assertTrue(os.environ.get('EBROOTGCC'))
+        if isinstance(self.modtool, Lmod):
+            # order of loaded modules only changes with Lmod
+            self.assertTrue(self.modtool.loaded_modules()[-1] == 'GCC/4.6.4')
+
+        # set things up for checking that GCC does *not* get reloaded when requested
+        del os.environ['EBROOTGCC']
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+        if isinstance(self.modtool, Lmod):
+            # order of loaded modules only changes with Lmod
+            self.assertTrue(self.modtool.loaded_modules()[-1] == 'OpenMPI/1.6.4-GCC-4.6.4')
+
+        # reloading can be disabled using allow_reload=False
+        self.modtool.load(['GCC/4.6.4'], allow_reload=False)
+        self.assertEqual(os.environ.get('EBROOTGCC'), None)
+        self.assertFalse(loaded_modules[-1] == 'GCC/4.6.4')
+
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
         test_path = tempfile.mkdtemp(prefix=self.test_prefix)

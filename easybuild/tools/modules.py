@@ -477,7 +477,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, allow_reload=True):
         """
         Load all requested modules.
 
@@ -485,6 +485,7 @@ class ModulesTool(object):
         :param mod_paths: list of module paths to activate before loading
         :param purge: whether or not a 'module purge' should be run before loading
         :param init_env: original environment to restore after running 'module purge'
+        :param allow_reload: allow reloading an already loaded module
         """
         if mod_paths is None:
             mod_paths = []
@@ -506,8 +507,10 @@ class ModulesTool(object):
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             self.prepend_module_path(full_mod_path)
 
+        loaded_modules = self.loaded_modules()
         for mod in modules:
-            self.run_module('load', mod)
+            if allow_reload or mod not in loaded_modules:
+                self.run_module('load', mod)
 
     def unload(self, modules=None):
         """
@@ -808,7 +811,7 @@ class ModulesTool(object):
             if exts:
                 # load this module, since it may extend $MODULEPATH to make other modules available
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
-                self.load([mod_name])
+                self.load([mod_name], allow_reload=False)
 
         # restore environment (modules may have been loaded above)
         restore_env(env)
@@ -879,7 +882,8 @@ class ModulesTool(object):
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
-                self.load([dep])
+                # don't reload module if it is already loaded, since that'll mess up the order in $MODULEPATH
+                self.load([dep], allow_reload=False)
 
         # restore original environment (modules may have been loaded above)
         restore_env(env)

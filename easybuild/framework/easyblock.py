@@ -978,7 +978,7 @@ class EasyBlock(object):
         deps = [d for d in deps if d not in excluded_deps]
 
         # load modules that open up the module tree before checking deps of deps (in reverse order)
-        self.modules_tool.load(excluded_deps[::-1])
+        self.modules_tool.load(excluded_deps[::-1], allow_reload=False)
 
         for excluded_dep in excluded_deps:
             excluded_dep_deps = dependencies_for(excluded_dep, self.modules_tool)
