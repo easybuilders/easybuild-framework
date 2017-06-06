@@ -813,13 +813,10 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         if build_option('extended_dry_run'):
             dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
         else:
-            try:
-                shutil.copy2(patch_file, dest)
-                _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-                # early exit, work is done after copying
-                return True
-            except IOError, err:
-                raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
+            copy_file(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+            # early exit, work is done after copying
+            return True
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
@@ -1483,9 +1480,12 @@ def copy_file(path, target_path, force_in_dry_run=False):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
-            mkdir(os.path.dirname(target_path), parents=True)
-            shutil.copy2(path, target_path)
-            _log.info("%s copied to %s", path, target_path)
+            if os.path.exists(target_path) and os.path.samefile(path, target_path):
+                _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            else:
+                mkdir(os.path.dirname(target_path), parents=True)
+                shutil.copy2(path, target_path)
+                _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
