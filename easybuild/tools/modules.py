@@ -45,7 +45,8 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.config import LOADED_MODULES_FAIL, LOADED_MODULES_IGNORE, LOADED_MODULES_WARN
+from easybuild.tools.config import LOADED_MODULES_FAIL, LOADED_MODULES_IGNORE, LOADED_MODULES_PURGE
+from easybuild.tools.config import LOADED_MODULES_UNLOAD, LOADED_MODULES_WARN
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
@@ -749,7 +750,7 @@ class ModulesTool(object):
 
             if loaded_eb_modules:
                 cnt = len(loaded_eb_modules)
-                msg = '\n'.join([
+                verbose_msg = '\n'.join([
                     "Found %d non-ignored loaded (EasyBuild-generated) modules in current environment:" % cnt,
                 ] + ['* %s' % x for x in loaded_eb_modules] + [
                     "To make EasyBuild ignore loaded modules for some of this software, "
@@ -758,13 +759,30 @@ class ModulesTool(object):
                 ])
 
                 action = build_option('detect_loaded_modules')
+
                 if action == LOADED_MODULES_FAIL:
-                    raise EasyBuildError(msg)
+                    raise EasyBuildError(verbose_msg)
+
                 elif action == LOADED_MODULES_IGNORE:
-                    _log.info(msg + ", but ignoring it as configured")
+                    self.log.info("Found non-ignored loaded (EasyBuild-generated) modules, but ignoring it as configured")
+
+                elif action == LOADED_MODULES_PURGE:
+                    msg = "Found non-ignored loaded (EasyBuild-generated) modules, running 'module purge': %s"
+                    print_warning(msg % ', '.join(loaded_eb_modules))
+
+                    self.log.info(msg)
+                    self.purge()
+
+                elif action == LOADED_MODULES_UNLOAD:
+                    msg = "Unloading non-ignored loaded (EasyBuild-generated) modules: %s"
+                    print_warning(msg % ', '.join(loaded_eb_modules))
+
+                    self.log.info(msg)
+                    self.unload(loaded_eb_modules[::-1])
+
                 else:
                     # default behaviour is just to print out a warning and continue
-                    print_warning(msg)
+                    print_warning(verbose_msg)
 
     def read_module_file(self, mod_name):
         """

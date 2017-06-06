@@ -765,7 +765,7 @@ class ModulesTest(EnhancedTestCase):
             self.mock_stdout(False)
             self.mock_stderr(False)
             self.assertEqual(stdout, '')
-            return stderr
+            return stderr.strip()
 
         self.assertEqual(check_loaded_modules(), '')
 
@@ -798,10 +798,24 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Found 1 non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
-        build_options.update({'detect_loaded_modules': 'ignore'})
+        # check for warning message when purge is being run on loaded modules
+        build_options.update({'detect_loaded_modules': 'purge'})
         init_config(build_options=build_options)
+        expected = "WARNING: Found non-ignored loaded (EasyBuild-generated) modules, "
+        expected += "running 'module purge': OpenMPI/1.6.4-GCC-4.6.4"
+        self.assertEqual(check_loaded_modules(), expected)
+
+        # check for warning message when loaded modules are unloaded
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+        build_options.update({'detect_loaded_modules': 'unload'})
+        init_config(build_options=build_options)
+        expected = "WARNING: Unloading non-ignored loaded (EasyBuild-generated) modules: OpenMPI/1.6.4-GCC-4.6.4"
+        self.assertEqual(check_loaded_modules(), expected)
 
         # when loaded modules are ignored there are no warnings/errors
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+        build_options.update({'detect_loaded_modules': 'ignore'})
+        init_config(build_options=build_options)
         self.assertEqual(check_loaded_modules(), '')
 
         # clear warning if any $EBROOT* environment variables are defined that don't match a loaded module
