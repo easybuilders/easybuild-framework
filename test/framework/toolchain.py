@@ -295,10 +295,8 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                if opt == 'optarch':
-                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-                else:
-                    flag = '-%s' % tc.options.options_map[opt]
+                # Contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+                flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -321,8 +319,8 @@ class ToolchainTest(EnhancedTestCase):
                 if optarch_var is not None:
                     flag = '-%s' % optarch_var
                 else:
-                    # default optarch flag
-                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+                    # default optarch flag, contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+                    flag = tc.options.options_map['optarch']
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
@@ -355,33 +353,195 @@ class ToolchainTest(EnhancedTestCase):
                         else:
                             self.assertFalse(generic_flags in tc.get_variable(var))
 
-    def test_optarch_aarch64_heuristic(self):
-        """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
-        st.get_cpu_architecture = lambda: st.AARCH64
+    def test_optarch_flags(self):
+        """Test whether optimal architecture flags end up in toolchain option map."""
+
+        def test_flags(tc_list):
+            for tc_name, tc_ver, expected in tc_list:
+                # Set up toolchain
+                tc = self.get_toolchain(tc_name, version=tc_ver)
+                tc.set_options({})
+                tc.prepare()
+
+                # Check whether expected flags have been set
+                self.assertEqual(tc.options.options_map['optarch'], expected)
+                if expected:
+                    for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                        self.assertTrue("-%s" % expected in os.environ[var])
+
+                # Tear down toolchain
+                self.modtool.purge()
+
+        # Mocked ARMv7 (AArch32) CPU
+        st.get_cpu_architecture = lambda: st.AARCH32
         st.get_cpu_family = lambda: st.ARM
-        st.get_cpu_model = lambda: 'ARM Cortex-A53'
+        st.get_cpu_model = lambda: 'ARM Cortex-A7'
         st.get_cpu_vendor = lambda: st.ARM
-        tc = self.get_toolchain("GCC", version="4.7.2")
-        tc.set_options({})
-        tc.prepare()
-        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a53')
-        self.assertTrue('-mcpu=cortex-a53' in os.environ['CFLAGS'])
-        self.modtool.purge()
 
-        tc = self.get_toolchain("GCCcore", version="6.2.0")
-        tc.set_options({})
-        tc.prepare()
-        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=native')
-        self.assertTrue('-mcpu=native' in os.environ['CFLAGS'])
-        self.modtool.purge()
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=native'),
+        ]
+        test_flags(test_tcs)
 
+        # Mocked ARMv8 (AArch64) CPU
+        st.get_cpu_architecture = lambda: st.AARCH64
+        st.get_cpu_model = lambda: 'ARM Cortex-A53'
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=cortex-a53'),  # pre-GCC-6 heuristic
+            ('GCCcore', '6.2.0', 'mcpu=native'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked ARMv8 (AArch64) big.LITTLE CPU
         st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
-        tc = self.get_toolchain("GCC", version="4.7.2")
-        tc.set_options({})
-        tc.prepare()
-        self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
-        self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
-        self.modtool.purge()
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=cortex-a72.cortex-a53'),  # pre-GCC-6 heuristic
+            ('GCCcore', '6.2.0', 'mcpu=native'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked POWER CPU (big endian)
+        st.get_cpu_architecture = lambda: st.POWER
+        st.get_cpu_family = lambda: st.POWER
+        st.get_cpu_model = lambda: 'IBM,8205-E6C'
+        st.get_cpu_vendor = lambda: st.IBM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=native'),
+            ('ClangGCC', '1.1.2', 'mcpu=native'),
+            ('xlcxlf', '2015b', 'qtune=auto -qmaxmem=-1'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked POWER CPU (little endian)
+        st.get_cpu_architecture = lambda: st.POWER
+        st.get_cpu_family = lambda: st.POWER_LE
+        st.get_cpu_model = lambda: 'IBM,8205-E6C'
+        st.get_cpu_vendor = lambda: st.IBM
+
+        # Expected flags identical to POWER big endian
+        test_flags(test_tcs)
+
+        # Mocked x86_64/Intel CPU
+        st.get_cpu_architecture = lambda: st.X86_64
+        st.get_cpu_family = lambda: st.INTEL
+        st.get_cpu_model = lambda: 'Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz'
+        st.get_cpu_vendor = lambda: st.INTEL
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'march=native'),
+            ('iccifort', '2011.13.367', 'xHost'),
+            ('ClangGCC', '1.1.2', 'march=native'),
+            ('PGI', '16.7-GCC-5.4.0-2.26', ''),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked x86_64/AMD CPU
+        st.get_cpu_architecture = lambda: st.X86_64
+        st.get_cpu_family = lambda: st.AMD
+        st.get_cpu_model = lambda: 'Six-Core AMD Opteron(tm) Processor 2427'
+        st.get_cpu_vendor = lambda: st.AMD
+
+        # Expected flags identical to x86_64/Intel
+        test_flags(test_tcs)
+
+    def test_generic_optarch_flags(self):
+        """Test whether generic optimal architecture flags end up in toolchain option map."""
+
+        def test_flags(tc_list):
+            for tc_name, tc_ver, expected in tc_list:
+                # Set up toolchain
+                tc = self.get_toolchain(tc_name, version=tc_ver)
+                tc.set_options({})
+                tc.prepare()
+
+                # Check whether expected flags have been set
+                self.assertEqual(tc.options.options_map['optarch'], expected)
+                if expected:
+                    for var in ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']:
+                        self.assertTrue("-%s" % expected in os.environ[var])
+
+                # Tear down toolchain
+                self.modtool.purge()
+
+        init_config(build_options={'optarch': 'GENERIC'})
+
+        # Mocked ARMv7 (AArch32) CPU
+        st.get_cpu_architecture = lambda: st.AARCH32
+        st.get_cpu_family = lambda: st.ARM
+        st.get_cpu_model = lambda: 'ARM Cortex-A7'
+        st.get_cpu_vendor = lambda: st.ARM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=generic-armv7'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked ARMv8 (AArch64) CPU
+        st.get_cpu_architecture = lambda: st.AARCH64
+        st.get_cpu_model = lambda: 'ARM Cortex-A53'
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=generic'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked ARMv8 (AArch64) big.LITTLE CPU
+        st.get_cpu_model = lambda: 'ARM Cortex-A53 + Cortex-A72'
+
+        # Expected flags identical to AArch64
+        test_flags(test_tcs)
+
+        # Mocked POWER CPU (big endian)
+        st.get_cpu_architecture = lambda: st.POWER
+        st.get_cpu_family = lambda: st.POWER
+        st.get_cpu_model = lambda: 'IBM,8205-E6C'
+        st.get_cpu_vendor = lambda: st.IBM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=powerpc64'),
+            # Clang: Flags missing
+            # IBM XL: Flags missing
+        ]
+        test_flags(test_tcs)
+
+        # Mocked POWER CPU (little endian)
+        st.get_cpu_architecture = lambda: st.POWER
+        st.get_cpu_family = lambda: st.POWER_LE
+        st.get_cpu_model = lambda: 'IBM,8205-E6C'
+        st.get_cpu_vendor = lambda: st.IBM
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'mcpu=powerpc64le'),
+            # Clang: Flags missing
+            # IBM XL: Flags missing
+        ]
+        test_flags(test_tcs)
+
+        # Mocked x86_64/Intel CPU
+        st.get_cpu_architecture = lambda: st.X86_64
+        st.get_cpu_family = lambda: st.INTEL
+        st.get_cpu_model = lambda: 'Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz'
+        st.get_cpu_vendor = lambda: st.INTEL
+
+        test_tcs = [
+            ('GCC', '4.7.2', 'march=x86-64 -mtune=generic'),
+            ('iccifort', '2011.13.367', 'xSSE2'),
+            ('ClangGCC', '1.1.2', 'march=x86-64 -mtune=generic'),
+            ('PGI', '16.7-GCC-5.4.0-2.26', 'tp=x64'),
+        ]
+        test_flags(test_tcs)
+
+        # Mocked x86_64/AMD CPU
+        st.get_cpu_architecture = lambda: st.X86_64
+        st.get_cpu_family = lambda: st.AMD
+        st.get_cpu_model = lambda: 'Six-Core AMD Opteron(tm) Processor 2427'
+        st.get_cpu_vendor = lambda: st.AMD
+
+        # Expected flags identical to x86_64/Intel
+        test_flags(test_tcs)
 
     def test_compiler_dependent_optarch(self):
         """Test whether specifying optarch on a per compiler basis works."""
@@ -474,8 +634,10 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
+        # Contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+        optarch_flags = tc.options.options_map['optarch']
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -march=native")
+            self.assertEqual(os.getenv(var), "-O2 -%s" % optarch_flags)
 
         # check other precision flags
         prec_flags = {
@@ -492,9 +654,9 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
+                        self.assertEqual(os.getenv(var), "-O2 -%s %s" % (optarch_flags, prec_flags[prec]))
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native")
+                        self.assertEqual(os.getenv(var), "-O2 -%s" % optarch_flags)
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -574,7 +736,8 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
+            # Contents of tc.options.options_map['optarch'] checked in test_optarch_flags
+            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.options.options_map['optarch'],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),

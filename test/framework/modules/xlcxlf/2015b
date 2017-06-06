@@ -1,0 +1,26 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {
+        IBM XL C/C++ and FORTRAN (SLES11/RHEL6)
+    }
+}
+
+module-whatis {IBM XL C/C++ and FORTRAN (SLES11/RHEL6)}
+
+set root    /tmp/xlcxlf/2015b
+
+conflict    xlcxlf
+
+if { ![is-loaded xlc/13.1.0.1] } {
+    module load xlc/13.1.0.1
+}
+
+if { ![is-loaded xlf/15.1.0.1] } {
+    module load xlf/15.1.0.1
+}
+
+
+setenv	EBROOTXLCXLF		"$root"
+setenv	EBVERSIONXLCXLF		"2015b"
+setenv	EBDEVELXLCXLF		"$root/easybuild/xlcxlf-2015b-easybuild-devel"
