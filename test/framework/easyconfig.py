@@ -1315,10 +1315,10 @@ class EasyConfigTest(EnhancedTestCase):
         ec.update('description', "- just a test")
         self.assertEqual(ec['description'].strip(), "Toy C program, 100% toy. - just a test")
 
-        # spaces in between multiple updates for stirng values
+        # space in between multiple updates for string values
         ec.update('configopts', 'CC="$CC"')
         ec.update('configopts', 'CXX="$CXX"')
-        self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+        self.assertTrue(ec['configopts'].strip().endswith('CC="$CC" CXX="$CXX"'))
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
