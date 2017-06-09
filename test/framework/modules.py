@@ -767,7 +767,14 @@ class ModulesTest(EnhancedTestCase):
             self.assertEqual(stdout, '')
             return stderr.strip()
 
+
+        # by default, having an EasyBuild module loaded is allowed
+        self.modtool.load(['EasyBuild/fake'])
+
+        # no output to stderr (no warnings/errors)
         self.assertEqual(check_loaded_modules(), '')
+
+        self.modtool.unload(['EasyBuild/fake'])
 
         # load OpenMPI module, which also loads GCC & hwloc
         self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])

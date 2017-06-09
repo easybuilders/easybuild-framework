@@ -84,7 +84,7 @@ LOADED_MODULES_UNLOAD = 'unload'
 LOADED_MODULES_WARN = 'warn'
 LOADED_MODULES_ACTIONS = [LOADED_MODULES_FAIL, LOADED_MODULES_IGNORE, LOADED_MODULES_PURGE,
                           LOADED_MODULES_UNLOAD, LOADED_MODULES_WARN]
-
+DEFAULT_ALLOW_LOADED_MODULES = ('EasyBuild',)
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -99,7 +99,6 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
-        'allow_loaded_modules',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -201,7 +200,10 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     'defaultopt': [
         'default_opt_level',
-    ]
+    ],
+    DEFAULT_ALLOW_LOADED_MODULES: [
+        'allow_loaded_modules',
+    ],
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {

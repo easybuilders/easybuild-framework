@@ -724,7 +724,7 @@ class ModulesTool(object):
         """
         Check whether any (EasyBuild-generated) modules are loaded already in the current session
         """
-        ignored_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or []]
+        ignored_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or [] if x]
 
         eb_module_keys = []
         for key in os.environ:
