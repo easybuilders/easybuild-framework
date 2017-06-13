@@ -441,6 +441,49 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '1.4.10'}",
+            'dependencies = [',
+            "   ('FFTW', '3.3.3'),",
+            ']',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
+        eb.make_builddir()
+        eb.prepare_step()
+
+        # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
+        mod_dep_txt = eb.make_module_dep()
+        for mod in ['GCC/4.7.2', 'OpenMPI/1.6.4']:
+            regex = re.compile('load.*%s' % mod)
+            self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
+
+        regex = re.compile('load.*FFTW/3.3.3')
+        self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
+
+    def test_make_module_dep_of_dep_hmns(self):
+        """Test for make_module_dep under HMNS with dependencies of dependencies"""
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_path],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+
+        # GCC and OpenMPI extend $MODULEPATH; hwloc is a dependency of OpenMPI.
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
             "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
             'dependencies = [',
             "   ('GCC', '4.7.2', '', True),"
@@ -762,26 +805,27 @@ class EasyBlockTest(EnhancedTestCase):
 
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
-        file_url = "http://hpcugent.github.io/easybuild/index.html"
-        fn = os.path.basename(file_url)
-        res = None
-        try:
-            res = eb.obtain_file(file_url)
-        except EasyBuildError, err:
-            # if this fails, it should be because there's no online access
-            download_fail_regex = re.compile('socket error')
-            self.assertTrue(download_fail_regex.search(str(err)))
+        urls = ["http://hpcugent.github.io/easybuild/index.html", "https://hpcugent.github.io/easybuild/index.html"]
+        for file_url in urls:
+            fn = os.path.basename(file_url)
+            res = None
+            try:
+                res = eb.obtain_file(file_url)
+            except EasyBuildError, err:
+                # if this fails, it should be because there's no online access
+                download_fail_regex = re.compile('socket error')
+                self.assertTrue(download_fail_regex.search(str(err)))
 
-        # result may be None during offline testing
-        if res is not None:
-            loc = os.path.join(tmpdir, 't', 'toy', fn)
-            self.assertEqual(res, loc)
-            self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
-            txt = open(loc, 'r').read()
-            eb_regex = re.compile("EasyBuild: building software with ease")
-            self.assertTrue(eb_regex.search(txt))
-        else:
-            print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
+            # result may be None during offline testing
+            if res is not None:
+                loc = os.path.join(tmpdir, 't', 'toy', fn)
+                self.assertEqual(res, loc)
+                self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
+                txt = open(loc, 'r').read()
+                eb_regex = re.compile("EasyBuild: building software with ease")
+                self.assertTrue(eb_regex.search(txt))
+            else:
+                print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
 
         shutil.rmtree(tmpdir)
 

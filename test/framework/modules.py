@@ -44,7 +44,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
 from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
@@ -81,7 +81,7 @@ class ModulesTest(EnhancedTestCase):
         gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
         os.makedirs(gcc_mod_dir)
         gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
-        shutil.copy2(gcc_mod_path, gcc_mod_dir)
+        copy_file(gcc_mod_path, gcc_mod_dir)
 
         # try and use long modules path
         self.init_testmods(test_modules_paths=[long_mod_path])
@@ -177,6 +177,36 @@ class ModulesTest(EnhancedTestCase):
         ]
         for mod in mods:
             self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [mod])
+
+        # by default, modules are always loaded, even if they are already loaded
+        self.modtool.load(['GCC/4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4'])
+
+        # unset $EBROOTGCC, it should get set again later by loading GCC again
+        del os.environ['EBROOTGCC']
+
+        # GCC should be loaded, but should not be listed last (OpenMPI was loaded last)
+        loaded_modules = self.modtool.loaded_modules()
+        self.assertTrue('GCC/4.6.4' in loaded_modules)
+        self.assertFalse(loaded_modules[-1] == 'GCC/4.6.4')
+
+        # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
+        self.modtool.load(['GCC/4.6.4'])
+        self.assertTrue(os.environ.get('EBROOTGCC'))
+        if isinstance(self.modtool, Lmod):
+            # order of loaded modules only changes with Lmod
+            self.assertTrue(self.modtool.loaded_modules()[-1] == 'GCC/4.6.4')
+
+        # set things up for checking that GCC does *not* get reloaded when requested
+        del os.environ['EBROOTGCC']
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+        if isinstance(self.modtool, Lmod):
+            # order of loaded modules only changes with Lmod
+            self.assertTrue(self.modtool.loaded_modules()[-1] == 'OpenMPI/1.6.4-GCC-4.6.4')
+
+        # reloading can be disabled using allow_reload=False
+        self.modtool.load(['GCC/4.6.4'], allow_reload=False)
+        self.assertEqual(os.environ.get('EBROOTGCC'), None)
+        self.assertFalse(loaded_modules[-1] == 'GCC/4.6.4')
 
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
@@ -380,6 +410,40 @@ class ModulesTest(EnhancedTestCase):
         else:
             print "Skipping test_path_to_top_of_module_tree_lua, required Lmod as modules tool"
 
+    def test_interpret_raw_path_lua(self):
+        """Test interpret_raw_path_lua method"""
+
+        self.assertEqual(self.modtool.interpret_raw_path_lua('"test"'), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_lua('"just/a/path"'), "just/a/path")
+
+        os.environ['TEST_VAR'] = 'test123'
+        self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("TEST_VAR")'), 'test123')
+        self.assertEqual(self.modtool.interpret_raw_path_lua('os.getenv("NO_SUCH_ENVIRONMENT_VARIABLE")'), '')
+
+        lua_str = 'pathJoin(os.getenv("TEST_VAR"), "bar")'
+        self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'test123/bar')
+
+        lua_str = 'pathJoin("foo", os.getenv("TEST_VAR"), "bar", os.getenv("TEST_VAR"))'
+        self.assertEqual(self.modtool.interpret_raw_path_lua(lua_str), 'foo/test123/bar/test123')
+
+    def test_interpret_raw_path_tcl(self):
+        """Test interpret_raw_path_tcl method"""
+
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('"test"'), "test")
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('"just/a/path"'), "just/a/path")
+
+        os.environ['TEST_VAR'] = 'test123'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)'), 'test123')
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(NO_SUCH_ENVIRONMENT_VARIABLE)'), '')
+
+        self.assertEqual(self.modtool.interpret_raw_path_tcl('$env(TEST_VAR)/bar'), 'test123/bar')
+
+        tcl_str = 'foo/$env(TEST_VAR)/bar/$env(TEST_VAR)'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'foo/test123/bar/test123')
+
+        tcl_str = '[ file join $env(TEST_VAR) "foo/bar" ]'
+        self.assertEqual(self.modtool.interpret_raw_path_tcl(tcl_str), 'test123/foo/bar')
+
     def test_modpath_extensions_for(self):
         """Test modpath_extensions_for method."""
         self.setup_hierarchical_modules()
@@ -404,20 +468,33 @@ class ModulesTest(EnhancedTestCase):
         error_pattern = "Can't get value from a non-existing module"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
+        # make sure $HOME/$USER is set to something we can easily check
+        os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
+        os.environ['USER'] = 'testuser'
+
+        mkdir(os.path.join(self.test_prefix, os.environ['USER'], 'test'), parents=True)
+
         # test result in case conditional loads are used
         test_mod = 'test-modpaths/1.2.3.4'
         test_modfile = os.path.join(mod_dir, test_mod)
+
+        # only prepend-path entries for MODULEPATH and 'module use' statements are really relevant
         test_modtxt = '\n'.join([
             '#%Module',
+            'prepend-path PATH /example/bin',
             "    module use %s/Compiler/intel/2013.5.192-GCC-4.8.3" % mod_dir,  # indented without guard
             # quoted path
             'module use "%s/Compiler/GCC/4.7.2"' % mod_dir,
             # using prepend-path & quoted
-            ' prepend-path MODULEPATH "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4"' % mod_dir,
+            ' prepend-path MODULEPATH [ file join %s "MPI/GCC/4.7.2/OpenMPI/1.6.4" ]' % mod_dir,
             # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-            "if { [ file isdirectory %s/modules/Compiler/GCC/4.7.2 ] } {" % os.environ['HOME'],
-            "    module use %s/modules/Compiler/GCC/4.7.2" % os.environ['HOME'],
+            "if { [ file isdirectory $env(HOME)/modules/Compiler/GCC/4.7.2 ] } {",
+            '    module use [ file join $env(HOME) "modules/Compiler/GCC/4.7.2" ]',
             "}",
+            "setenv EXAMPLE example",
+            # more (fictional) extensions that use os.getenv
+            'prepend-path   MODULEPATH    "$env(HOME)"',
+            'module use  "%s/$env(USER)/test"' % self.test_prefix,
         ])
         write_file(test_modfile, test_modtxt)
 
@@ -427,6 +504,8 @@ class ModulesTest(EnhancedTestCase):
                 os.path.join(mod_dir, 'Compiler', 'GCC', '4.7.2'),
                 os.path.join(mod_dir, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
                 os.path.join(os.environ['HOME'], 'modules', 'Compiler', 'GCC', '4.7.2'),
+                os.environ['HOME'],
+                os.path.join(self.test_prefix, os.environ['USER'], 'test'),
             ]
         }
         self.assertEqual(self.modtool.modpath_extensions_for([test_mod]), expected)
@@ -437,15 +516,21 @@ class ModulesTest(EnhancedTestCase):
             test_mod = 'test-modpaths-lua/1.2.3.4'
             test_modfile = os.path.join(mod_dir, test_mod + '.lua')
 
+            # only prepend_path entries for MODULEPATH are really relevant
             test_modtxt = '\n'.join([
+                'prepend_path("PATH", "/example/bin")',
                 # indented without guard
                 '   prepend_path("MODULEPATH", "%s/Compiler/intel/2013.5.192-GCC-4.8.3")' % mod_dir,
                 'prepend_path("MODULEPATH","%s/Compiler/GCC/4.7.2")' % mod_dir,
                 'prepend_path("MODULEPATH", "%s/MPI/GCC/4.7.2/OpenMPI/1.6.4")' % mod_dir,
                 # conditional 'use' on subdirectory in $HOME, e.g. when --subdir-user-modules is used
-                'if isDir("%s/modules/Compiler/GCC/4.7.2") then' % os.environ['HOME'],
-                '    prepend_path("MODULEPATH", "%s/modules/Compiler/GCC/4.7.2")' % os.environ['HOME'],
+                'if isDir(pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2")) then',
+                '    prepend_path("MODULEPATH", pathJoin(os.getenv("HOME"), "modules/Compiler/GCC/4.7.2"))',
                 'end',
+                'setenv("EXAMPLE", "example")',
+                # more (fictional) extensions that use os.getenv
+                'prepend_path("MODULEPATH", os.getenv("HOME"))',
+                'prepend_path("MODULEPATH", pathJoin("%s", os.getenv("USER"), "test"))' % self.test_prefix,
             ])
             write_file(test_modfile, test_modtxt)
 
@@ -494,8 +579,8 @@ class ModulesTest(EnhancedTestCase):
         test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
 
         # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
-        shutil.copytree(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
-        shutil.copytree(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
+        copy_dir(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
+        copy_dir(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '4.7.2'))
         modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '4.7.2')
@@ -685,6 +770,15 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(os.environ['EBROOTGCC'], '/tmp/software/Core/GCC/4.7.2')
         self.modtool.load(['hwloc/1.6.2'])
         self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
+
+    def test_exit_code_check(self):
+        """Verify that EasyBuild checks exit code of executed module commands"""
+        if isinstance(self.modtool, Lmod):
+            error_pattern = "Module command 'module load nosuchmoduleavailableanywhere' failed with exit code"
+        else:
+            # Tcl implementations exit with 0 even when a non-existing module is loaded...
+            error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
 
 def suite():

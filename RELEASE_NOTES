@@ -3,6 +3,87 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.2.1 (May 12th 2017)
+----------------------
+
+bugfix release
+- various enhancements, including:
+  - make hardcoded max ratio for failures in adjust_permissions configurable (#2213)
+  - allow https on direct download in sources (#2214)
+- various bug fixes, including:
+  - bump version bootstrap script to sync with latest update (#2208)
+  - fix crash during module generation when '%' character is used in description (#2209)
+
+
+v3.2.0 (May 5th 2017)
+---------------------
+
+feature release
+- various enhancements, including:
+  - add support for marking installed module file as new default version using --set-default-module (#2110)
+  - additional easyconfig parameters for documentation: docpaths, examples, site_contacts, upstream_contacts, usage (#2113)
+  - add support for --allow-use-as-root-and-accept-consequences (#2123)
+  - enable extraction of patches from compressed files before applying them (#2128)
+  - alphabetically sort functions and methods in module_generator module (#2132)
+  - introduce function ensure_iterable_license_specs (#2157)
+  - bump Travis config to use Lmod 7.4 (#2176)
+  - implement copy_dir function in filetools (#2177)
+  - clarify error message when no software-specific easyblock was found (#2178)
+  - make log.deprecated more verbose by also printing deprecation warnings to stderr (#2179)
+  - add copy function to filetools for easy copying of lists of files/directories (#2180)
+  - add support for --verify-easyconfig-filenames (#2185)
+  - add support for --package-tool-options (#2187)
+  - take into account inline trailing comments in fetch_parameters_from_easyconfig (#2192)
+  - add support for customising easyconfig parameters on a per-extension basis (#2194)
+  - perform sanity check after stage 2 of EasyBuild bootstrap script, module file should be in place (#2199)
+  - change order in which module commands are checked, consider Lmod first (#2201)
+- various bug fixes, including:
+  - fix use of compiler-specific --optarch value in combination with --job (#2183)
+  - call run_all_steps in regtest mode rather than running steps individually (#2203)
+
+
+v3.1.2 (March 20th 2017)
+------------------------
+
+bugfix release
+- fix broken packaging support by fixing ``run_cmd`` bug with ``shell=False`` (#2153)
+- minor enhancements, including:
+  - implement change_dir function in filetools module (#2155)
+  - use checker_state in trailing whitespace style check + add dedicated test (#2160, #2169)
+  - consider both pycodestyle and pep8 Python modules in style checks (#2161)
+  - make bootstrap script aware various modules-related $EASYBUILD_* environment variables (#2170)
+- various bug fixes, including:
+  - interpret statements that extend $MODULEPATH in modpath_extensions_for method (#2104)
+    - also fixes inclusion of superfluous load statements in modules installed in user HMNS module tree (cfr. #2172)
+  - take into account that $PATH or $PYTHONPATH may be empty when running tests (#2149)
+  - handle duplicates in --include-* (#2151)
+  - exclude dependencies of dependencies that extend $MODULEPATH (#2152)
+  - add ld.bfd to RPATH wrappers (#2156)
+  - fix test_vsc_location, vsc.__file__ may not be available when vsc is installed as a namespace package (#2159)
+  - fix reported problems with scripts & docs tests (#2164)
+  - fix --try-software-version using non-greedy matching + lookahead assertion, add test for tweak_one (#2166)
+  - avoid creating empty modulefile directories when using modaltsoftname (#2168)
+  - fix fftw_libs for MKL without interface libraries (#2171)
+
+
+v3.1.1 (March 7th 2017)
+-----------------------
+
+bugfix release
+- minor enhancements, including:
+  - print more useful error message when no compiler-specific optarch flag is defined (#1950)
+  - add ec parameter to expand_toolchain_load() (#2103)
+  - clarify unstable/closed PR warning message (#2129)
+- various bug fixes, including:
+  - ensure that $EBEXTSLIST* is also included in generated module under --module-only (#2112)
+  - fix formatting issues in generated documentation for --list-software and --avail-easyconfig-licenses (#2121)
+  - fix problem with backticks in description breaking 'fpm' packaging command (#2124)
+  - replace --enable-new-dtags with --disable-new-dtags instead of removing it in RPATH wrapper script (#2131)
+  - only perform is_short_modname_for sanity check in det_short_module_name if modaltsoftname is available (#2138)
+  - fix logic in make_module_dep w.r.t. excluding loads for toolchain & toolchain components (#2140)
+  - skip test_check_style if pep8 is not available (#2142)
+
+
 v3.1.0 (February 3rd 2017)
 --------------------------
 

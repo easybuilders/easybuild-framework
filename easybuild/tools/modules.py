@@ -37,6 +37,7 @@ This python module implements the environment modules functionality:
 """
 import os
 import re
+import shlex
 import subprocess
 from distutils.version import StrictVersion
 from subprocess import PIPE
@@ -213,7 +214,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False, check_exit_code=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -476,7 +477,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, allow_reload=True):
         """
         Load all requested modules.
 
@@ -484,6 +485,7 @@ class ModulesTool(object):
         :param mod_paths: list of module paths to activate before loading
         :param purge: whether or not a 'module purge' should be run before loading
         :param init_env: original environment to restore after running 'module purge'
+        :param allow_reload: allow reloading an already loaded module
         """
         if mod_paths is None:
             mod_paths = []
@@ -505,8 +507,10 @@ class ModulesTool(object):
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             self.prepend_module_path(full_mod_path)
 
+        loaded_modules = self.loaded_modules()
         for mod in modules:
-            self.run_module('load', mod)
+            if allow_reload or mod not in loaded_modules:
+                self.run_module('load', mod)
 
     def unload(self, modules=None):
         """
@@ -650,6 +654,12 @@ class ModulesTool(object):
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
 
+        # also catch and check exit code
+        exit_code = proc.returncode
+        if kwargs.get('check_exit_code', True) and exit_code != 0:
+            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
+
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
 
@@ -720,6 +730,41 @@ class ModulesTool(object):
 
         return read_file(modfilepath)
 
+    def interpret_raw_path_lua(self, txt):
+        """Interpret raw path (Lua syntax): resolve environment variables, join paths where `pathJoin` is specified"""
+
+        if txt.startswith('"') and txt.endswith('"'):
+            # don't touch a raw string
+            res = txt
+        else:
+            # first, replace all 'os.getenv(...)' occurences with the values of the environment variables
+            res = re.sub(r'os.getenv\("(?P<key>[^"]*)"\)', lambda res: '"%s"' % os.getenv(res.group('key'), ''), txt)
+
+            # interpret (outer) 'pathJoin' statement if found
+            path_join_prefix = 'pathJoin('
+            if res.startswith(path_join_prefix):
+                res = res[len(path_join_prefix):].rstrip(')')
+
+                # split the string at ',' and whitespace, and unquotes like the shell
+                lexer = shlex.shlex(res, posix=True)
+                lexer.whitespace += ','
+                res = os.path.join(*lexer)
+
+        return res.strip('"')
+
+    def interpret_raw_path_tcl(self, txt):
+        """Interpret raw path (TCL syntax): resolve environment variables"""
+        res = txt.strip('"')
+
+        # first interpret (outer) 'file join' statement (if any)
+        file_join = lambda res: os.path.join(*[x.strip('"') for x in res.groups()])
+        res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
+
+        # also interpret all $env(...) parts
+        res = re.sub(r'\$env\((?P<key>[^)]*)\)', lambda res: os.getenv(res.group('key'), ''), res)
+
+        return res
+
     def modpath_extensions_for(self, mod_names):
         """
         Determine dictionary with $MODULEPATH extensions for specified modules.
@@ -737,25 +782,36 @@ class ModulesTool(object):
 
         # regex for $MODULEPATH extensions;
         # via 'module use ...' or 'prepend-path MODULEPATH' in Tcl modules,
-        # or 'prepend_path("MODULEPATH", "...") in Lua modules
+        # or 'prepend_path("MODULEPATH", ...) in Lua modules
         modpath_ext_regex = r'|'.join([
-            r'^\s*module\s+use\s+"?([^"\s]+)"?',  # 'module use' in Tcl module files
-            r'^\s*prepend-path\s+MODULEPATH\s+"?([^"\s]+)"?',  # prepend to $MODULEPATH in Tcl modules
-            r'^\s*prepend_path\(\"MODULEPATH\",\s*\"(\S+)\"',  # prepend to $MODULEPATH in Lua modules
+            r'^\s*module\s+use\s+(?P<tcl_use>.+)',                         # 'module use' in Tcl module files
+            r'^\s*prepend-path\s+MODULEPATH\s+(?P<tcl_prepend>.+)',        # prepend to $MODULEPATH in Tcl modules
+            r'^\s*prepend_path\(\"MODULEPATH\",\s*(?P<lua_prepend>.+)\)',  # prepend to $MODULEPATH in Lua modules
         ])
         modpath_ext_regex = re.compile(modpath_ext_regex, re.M)
 
         modpath_exts = {}
         for mod_name in mod_names:
             modtxt = self.read_module_file(mod_name)
-            exts = [ext for tup in modpath_ext_regex.findall(modtxt) for ext in tup if ext]
+
+            exts = []
+            for modpath_ext in modpath_ext_regex.finditer(modtxt):
+                for key, raw_ext in modpath_ext.groupdict().iteritems():
+                    if raw_ext is not None:
+                        # need to expand environment variables and join paths, e.g. when --subdir-user-modules is used
+                        if key in ['tcl_prepend', 'tcl_use']:
+                            ext = self.interpret_raw_path_tcl(raw_ext)
+                        else:
+                            ext = self.interpret_raw_path_lua(raw_ext)
+                        exts.append(ext)
+
             self.log.debug("Found $MODULEPATH extensions for %s: %s", mod_name, exts)
             modpath_exts.update({mod_name: exts})
 
             if exts:
                 # load this module, since it may extend $MODULEPATH to make other modules available
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
-                self.load([mod_name])
+                self.load([mod_name], allow_reload=False)
 
         # restore environment (modules may have been loaded above)
         restore_env(env)
@@ -826,7 +882,8 @@ class ModulesTool(object):
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
-                self.load([dep])
+                # don't reload module if it is already loaded, since that'll mess up the order in $MODULEPATH
+                self.load([dep], allow_reload=False)
 
         # restore original environment (modules may have been loaded above)
         restore_env(env)

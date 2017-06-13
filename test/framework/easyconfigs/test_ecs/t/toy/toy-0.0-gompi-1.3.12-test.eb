@@ -3,7 +3,7 @@ version = '0.0'
 versionsuffix = '-test'
 
 homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
+description = "Toy C program, 100% toy."
 
 toolchain = {'name': 'gompi', 'version': '1.3.12'}
 toolchainopts = {'pic': True, 'opt': True, 'optarch': True}
@@ -20,12 +20,17 @@ checksums = [[
 patches = ['toy-0.0_typo.patch']
 
 exts_list = [
-    ('bar', '0.0'),
+    ('bar', '0.0', {
+        'buildopts': " && gcc bar.c -o anotherbar",
+        'patches': ['bar-0.0_typo.patch'],
+        'toy_ext_param': "mv anotherbar bar_bis",
+        'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+    }),
     ('barbar', '0.0'),
 ]
 
 sanity_check_paths = {
-    'files': [('bin/yot', 'bin/toy'), 'bin/bar', 'lib/libtoy.a', 'lib/libbar.a'],
+    'files': [('bin/yot', 'bin/toy'), 'bin/bar', 'bin/bar_bis', 'lib/libtoy.a', 'lib/libbar.a'],
     'dirs': [],
 }
 

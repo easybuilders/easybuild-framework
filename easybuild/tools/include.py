@@ -162,7 +162,8 @@ def include_easyblocks(tmpdir, paths):
         else:
             target_path = os.path.join(easyblocks_dir, filename)
 
-        symlink(easyblock_module, target_path)
+        if not os.path.exists(target_path):
+            symlink(easyblock_module, target_path)
 
     included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
     included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
@@ -204,7 +205,8 @@ def include_module_naming_schemes(tmpdir, paths):
     for mns_module in allpaths:
         filename = os.path.basename(mns_module)
         target_path = os.path.join(mns_dir, filename)
-        symlink(mns_module, target_path)
+        if not os.path.exists(target_path):
+            symlink(mns_module, target_path)
 
     included_mns = [x for x in os.listdir(mns_dir) if x not in ['__init__.py']]
     _log.debug("Included module naming schemes: %s", included_mns)
@@ -244,7 +246,8 @@ def include_toolchains(tmpdir, paths):
         else:
             target_path = os.path.join(tcs_dir, filename)
 
-        symlink(toolchain_module, target_path)
+        if not os.path.exists(target_path):
+            symlink(toolchain_module, target_path)
 
     included_toolchains = [x for x in os.listdir(tcs_dir) if x not in ['__init__.py'] + toolchain_subpkgs]
     _log.debug("Included toolchains: %s", included_toolchains)

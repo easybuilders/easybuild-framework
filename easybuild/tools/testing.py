@@ -169,7 +169,8 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 if isinstance(ec_res['err'], EasyBuildError):
                     test_result += '(build issue)'
                 else:
-                    test_result += '(unhandled exception: %s)' % ec_res['err'].__class__.__name__
+                    test_result += '(unhandled exception: %s)' % ec_res['err']
+                    test_result += ec_res['traceback']
             else:
                 test_result += '(unknown cause, not an exception?!)'
 

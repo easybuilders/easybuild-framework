@@ -128,7 +128,7 @@ for root, subfolders, files in walk(options.path):
                 log.info("found new software package %s" % ec.name)
                 ec.easyblock = None
                 # check if an easyblock exists
-                ebclass = get_easyblock_class(None, name=ec.name, default_fallback=False)
+                ebclass = get_easyblock_class(None, name=ec.name, error_on_missing_easyblock=False)
                 if ebclass is not None:
                     module = ebclass.__module__.split('.')[-1]
                     if module != "configuremake":

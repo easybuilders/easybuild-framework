@@ -382,7 +382,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.options.options_map['optarch'], 'mcpu=cortex-a72.cortex-a53')
         self.assertTrue('-mcpu=cortex-a72.cortex-a53' in os.environ['CFLAGS'])
         self.modtool.purge()
-  
+
     def test_compiler_dependent_optarch(self):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
@@ -394,7 +394,7 @@ class ToolchainTest(EnhancedTestCase):
         test_cases = product(intel_options, gcc_options, toolchains, enabled)
 
         for (intel_flags, intel_flags_exp), (gcc_flags, gcc_flags_exp), (toolchain, toolchain_ver), enable in test_cases:
-            optarch_var = {} 
+            optarch_var = {}
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             build_options = {'optarch': optarch_var}
@@ -406,16 +406,16 @@ class ToolchainTest(EnhancedTestCase):
             if toolchain == 'iccifort':
                 flags = intel_flags_exp
             elif toolchain == 'GCC':
-                flags = gcc_flags_exp 
+                flags = gcc_flags_exp
             else: # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
                 # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
                 flags = ''
-            
+
             optarch_flags = tc.options.options_map['optarch']
 
             self.assertEquals(flags, optarch_flags)
-            
+
             # Also check that it is correctly passed to xFLAGS, honoring 'enable'
             if flags == '':
                 blacklist = [
@@ -431,7 +431,7 @@ class ToolchainTest(EnhancedTestCase):
 
             for var in flag_vars:
                  set_flags = tc.get_variable(var)
-                
+
                  # Check that the correct flags are there
                  if enable and flags != '':
                      error_msg = "optarch: True means '%s' in '%s'" % (flags, set_flags)
@@ -719,15 +719,27 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_mpi_cmd_for(self):
         """Test mpi_cmd_for function."""
-        self.setup_sandbox_for_intel_fftw(self.test_prefix)
         self.modtool.prepend_module_path(self.test_prefix)
 
+        tc = self.get_toolchain('gompi', version='1.3.12')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix)
         tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+        self.assertEqual(tc.mpi_cmd_for('test123', 2), "mpirun -n 2 test123")
+        self.modtool.purge()
+
+        self.setup_sandbox_for_intel_fftw(self.test_prefix, imklver='10.2.6.038')
+        tc = self.get_toolchain('ictce', version='3.2.2.u3')
         tc.prepare()
 
         mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
         self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
 
+        # test specifying custom template for MPI commands
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s"})
         self.assertEqual(tc.mpi_cmd_for('test123', '7'), "mpiexec -np 7 -- test123")
 
@@ -1016,6 +1028,7 @@ class ToolchainTest(EnhancedTestCase):
             regex = re.compile(pattern)
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
+        # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
         for comp in ['gcc', 'g++', 'gfortran']:
             self.assertTrue(os.path.samefile(which(comp), os.path.join(self.test_prefix, 'scripts', 'ccache')))
@@ -1055,7 +1068,7 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
-        # linker command, --enable-new-dtags should be filtered out
+        # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
         out, ec = run_cmd("%s ld '' --enable-new-dtags foo.o" % script, simple=False)
         self.assertEqual(ec, 0)
         expected = '\n'.join([
@@ -1066,6 +1079,7 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = [
             "'-rpath=$ORIGIN/../lib'",
             "'-rpath=$ORIGIN/../lib64'",
+            "'--disable-new-dtags'",
             "'--disable-new-dtags'",
             "'foo.o'",
         ]

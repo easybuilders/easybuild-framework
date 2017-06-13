@@ -57,6 +57,7 @@ PKG_TYPE_RPM = 'rpm'
 
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
@@ -119,6 +120,7 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_cmd_template',
         'only_blocks',
         'optarch',
+        'package_tool_options',
         'parallel',
         'rpath_filter',
         'regtest_output_dir',
@@ -137,6 +139,7 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'enforce_checksums',
         'extended_dry_run',
         'experimental',
         'fixed_installdir_naming_scheme',
@@ -160,15 +163,20 @@ BUILD_OPTIONS_CMDLINE = {
         'use_ccache',
         'use_f90cache',
         'use_existing_modules',
+        'set_default_module',
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',
     ],
     'warn': [
         'strict',
+    ],
+    DEFAULT_MAX_FAIL_RATIO_PERMS: [
+        'max_fail_ratio_adjust_permissions',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',

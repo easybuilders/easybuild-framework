@@ -1,0 +1,12 @@
+diff --git a/bar-0.0/bar.source.orig b/bar-0.0/bar.source
+index 0e0c6a74..36880e71 100644
+--- a/bar-0.0/bar.source.orig
++++ b/bar-0.0/bar.source
+@@ -2,6 +2,6 @@
+ 
+ int main(int argc, char* argv[]){
+ 
+-    printf("I'm a toy, and proud of it.\n");
++    printf("I'm a bar, and very proud of it.\n");
+     return 0;
+ }

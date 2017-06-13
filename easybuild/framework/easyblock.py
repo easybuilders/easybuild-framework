@@ -65,9 +65,9 @@ from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
-from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, derive_alt_pypi_url
-from easybuild.tools.filetools import compute_checksum, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
+from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
+from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
@@ -196,6 +196,7 @@ class EasyBlock(object):
         self.logfile = None
         self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
+        self.current_step = None
 
         # list of loaded modules
         self.loaded_modules = []
@@ -471,6 +472,11 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
+                            # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                            for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
+                                self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
+
                             if checksums:
                                 fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                                 if verify_checksum(src_fn, fn_checksum):
@@ -482,6 +488,12 @@ class EasyBlock(object):
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
+
+                                for patch in ext_patches:
+                                    # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                                    for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                        patch_checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                        self.log.info("%s checksum for %s: %s", checksum_type, patch, patch_checksum)
 
                                 if checksums:
                                     self.log.debug('Verifying checksums for extension patches...')
@@ -516,8 +528,7 @@ class EasyBlock(object):
         srcpaths = source_paths()
 
         # should we download or just try and find it?
-        if filename.startswith("http://") or filename.startswith("ftp://"):
-
+        if re.match(r"^(https?|ftp)://", filename):
             # URL detected, so let's try and download it
 
             url = filename
@@ -913,21 +924,23 @@ class EasyBlock(object):
 
         :param unload_info: dictionary with full module names as keys and module name to unload first as corr. value
         """
-        deps = []
         mns = ActiveMNS()
         unload_info = unload_info or {}
 
-        # include load statements for toolchain, either directly or for toolchain dependencies
+        # include toolchain as first dependency to load
+        tc_mod = None
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if mns.expand_toolchain_load():
-                mod_names = self.toolchain.toolchain_dep_mods
-                deps.extend(mod_names)
-                self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
-            else:
-                deps.append(self.toolchain.det_short_module_name())
-                self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
+            tc_mod = self.toolchain.det_short_module_name()
+            self.log.debug("Toolchain to load in generated module (before excluding any deps): %s", tc_mod)
+
+        # expand toolchain into toolchain components if desired
+        tc_dep_mods = None
+        if mns.expand_toolchain_load(ec=self.cfg):
+            tc_dep_mods = self.toolchain.toolchain_dep_mods
+            self.log.debug("Toolchain components to load in generated module (before excluding any): %s", tc_dep_mods)
 
         # include load/unload statements for dependencies
+        deps = []
         self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
         for dep in self.toolchain.dependencies:
             if dep['build_only']:
@@ -936,35 +949,52 @@ class EasyBlock(object):
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
-
         self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         full_mod_subdir = os.path.join(self.installdir_mod, self.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [self.installdir_mod] + [os.path.join(self.installdir_mod, p) for p in init_modpaths]
+
+        all_deps = [d for d in [tc_mod] + (tc_dep_mods or []) + deps if d is not None]
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
-                                                                     full_mod_subdir, deps)
+                                                                     full_mod_subdir, all_deps)
+
+        # if the toolchain is excluded, so should the toolchain components
+        if tc_mod in excluded_deps and tc_dep_mods:
+            excluded_deps.extend(tc_dep_mods)
+
         self.log.debug("List of excluded deps: %s", excluded_deps)
 
-        # load modules that open up the module tree before checking deps of deps (in reverse order)
-        self.modules_tool.load(excluded_deps[::-1])
+        # expand toolchain into toolchain components if desired
+        if tc_dep_mods is not None:
+            deps = tc_dep_mods + deps
+        elif tc_mod is not None:
+            deps = [tc_mod] + deps
 
+        # filter dependencies to avoid including loads for toolchain or toolchain components that extend $MODULEPATH
+        # with location to where this module is being installed (full_mod_subdir);
+        # if the modules that extend $MODULEPATH are not loaded this module is not available, so there is not
+        # point in loading them again (in fact, it may cause problems when reloading this module due to a load storm)
         deps = [d for d in deps if d not in excluded_deps]
-        for dep in excluded_deps:
-            excluded_dep_deps = dependencies_for(dep, self.modules_tool)
-            self.log.debug("List of dependencies for excluded dependency %s: %s" % (dep, excluded_dep_deps))
+
+        # load modules that open up the module tree before checking deps of deps (in reverse order)
+        self.modules_tool.load(excluded_deps[::-1], allow_reload=False)
+
+        for excluded_dep in excluded_deps:
+            excluded_dep_deps = dependencies_for(excluded_dep, self.modules_tool)
+            self.log.debug("List of dependencies for excluded dependency %s: %s" % (excluded_dep, excluded_dep_deps))
             deps = [d for d in deps if d not in excluded_dep_deps]
 
-        self.log.debug("List of retained deps to load in generated module: %s" % deps)
-        recursive_unload = self.cfg['recursive_module_unload']
+        self.log.debug("List of retained deps to load in generated module: %s", deps)
 
+        # include load statements for retained dependencies
         loads = []
         for dep in deps:
             unload_modules = []
             if dep in unload_info:
                 unload_modules.append(unload_info[dep])
-            loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload,
+            loads.append(self.module_generator.load_module(dep, recursive_unload=self.cfg['recursive_module_unload'],
                                                            unload_modules=unload_modules))
 
         # Force unloading any other modules
@@ -1112,10 +1142,7 @@ class EasyBlock(object):
 
         lines = []
         if os.path.isdir(self.installdir):
-            try:
-                os.chdir(self.installdir)
-            except OSError, err:
-                raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
+            change_dir(self.installdir)
 
             lines.append('\n')
 
@@ -1144,10 +1171,7 @@ class EasyBlock(object):
                     lines.append(self.module_generator.prepend_paths(key, paths))
             if self.dry_run:
                 self.dry_run_msg('')
-            try:
-                os.chdir(self.orig_workdir)
-            except OSError, err:
-                raise EasyBuildError("Failed to change back to %s: %s", self.orig_workdir, err)
+            change_dir(self.orig_workdir)
 
         return ''.join(lines)
 
@@ -1333,11 +1357,8 @@ class EasyBlock(object):
 
         self.log.info("Using %s as start dir", self.cfg['start_dir'])
 
-        try:
-            os.chdir(self.cfg['start_dir'])
-            self.log.debug("Changed to real build directory %s (start_dir)" % self.cfg['start_dir'])
-        except OSError, err:
-            raise EasyBuildError("Can't change to real build directory %s: %s", self.cfg['start_dir'], err)
+        change_dir(self.cfg['start_dir'])
+        self.log.debug("Changed to real build directory %s (start_dir)", self.cfg['start_dir'])
 
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
@@ -1499,9 +1520,10 @@ class EasyBlock(object):
         # compute checksums for all source and patch files
         if not (skip_checksums or self.dry_run):
             for fil in self.src + self.patches:
-                check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
-                fil[DEFAULT_CHECKSUM] = check_sum
-                self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
+                # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                for checksum_type in [CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256]:
+                    fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
+                    self.log.info("%s checksum for %s: %s", checksum_type, fil['path'], fil[checksum_type])
 
         # fetch extensions
         if self.cfg['exts_list']:
@@ -1510,13 +1532,13 @@ class EasyBlock(object):
         # create parent dirs in install and modules path already
         # this is required when building in parallel
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        parent_subdir = os.path.dirname(self.install_subdir)
+        mod_subdir = os.path.dirname(ActiveMNS().det_full_module_name(self.cfg))
         pardirs = [
             self.installdir,
-            os.path.join(self.installdir_mod, parent_subdir),
+            os.path.join(self.installdir_mod, mod_subdir),
         ]
         for mod_symlink_path in mod_symlink_paths:
-            pardirs.append(os.path.join(install_path('mod'), mod_symlink_path, parent_subdir))
+            pardirs.append(os.path.join(install_path('mod'), mod_symlink_path, mod_subdir))
 
         self.log.info("Checking dirs that need to be created: %s" % pardirs)
         for pardir in pardirs:
@@ -1708,7 +1730,7 @@ class EasyBlock(object):
             print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent)
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
-            os.chdir(self.orig_workdir)
+            change_dir(self.orig_workdir)
 
             cls, inst = None, None
             class_name = encode_class_name(ext['name'])
@@ -1718,7 +1740,8 @@ class EasyBlock(object):
             try:
                 # no error when importing class fails, in case we run into an existing easyblock
                 # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
-                cls = get_easyblock_class(None, name=ext['name'], default_fallback=False, error_on_failed_import=False)
+                cls = get_easyblock_class(None, name=ext['name'], error_on_failed_import=False,
+                                          error_on_missing_easyblock=False)
                 self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
                 if cls is not None:
                     inst = cls(self, ext)
@@ -1801,8 +1824,8 @@ class EasyBlock(object):
                 if os.path.exists(dest_file) and not opt_force:
                     raise EasyBuildError("Unable to copy package %s to %s (already exists).", src_file, dest_file)
                 else:
+                    copy_file(src_file, pkgdir_dest)
                     self.log.info("Copied package %s to %s", src_file, pkgdir_dest)
-                    shutil.copy(src_file, pkgdir_dest)
 
         else:
             self.log.info("Skipping package step (not enabled)")
@@ -2034,10 +2057,7 @@ class EasyBlock(object):
 
         # chdir to installdir (better environment for running tests)
         if os.path.isdir(self.installdir):
-            try:
-                os.chdir(self.installdir)
-            except OSError, err:
-                raise EasyBuildError("Failed to move to installdir %s: %s", self.installdir, err)
+            change_dir(self.installdir)
 
         # run sanity check commands
         for command in commands:
@@ -2075,6 +2095,18 @@ class EasyBlock(object):
         else:
             self.log.debug("Sanity check passed!")
 
+    def _set_module_as_default(self):
+        """
+        Defining default module Version
+
+        sets the default module version except if we are in dry run.
+        """
+        if self.dry_run:
+            dry_run_msg("Marked %s v%s as default version" % (self.name, self.version))
+        else:
+            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath())
+            self.module_generator.set_as_default(mod_folderpath, self.version)
+
     def cleanup_step(self):
         """
         Cleanup leftover mess: remove/clean build directory
@@ -2083,11 +2115,12 @@ class EasyBlock(object):
         cleanup_builddir is False, otherwise we remove the installation
         """
         if not self.build_in_installdir and build_option('cleanup_builddir'):
+
+            # make sure we're out of the dir we're removing
+            change_dir(self.orig_workdir)
+            self.log.info("Cleaning up builddir %s (in %s)", self.builddir, os.getcwd())
+
             try:
-                os.chdir(self.orig_workdir)  # make sure we're out of the dir we're removing
-
-                self.log.info("Cleaning up builddir %s (in %s)" % (self.builddir, os.getcwd()))
-
                 rmtree2(self.builddir)
                 base = os.path.dirname(self.builddir)
 
@@ -2138,7 +2171,6 @@ class EasyBlock(object):
                 self.dry_run_msg("Generating module file %s, with contents:\n", mod_filepath)
                 for line in txt.split('\n'):
                     self.dry_run_msg(' ' * 4 + line)
-
         else:
             module_only = build_option('module_only')
             if module_only and os.path.exists(mod_filepath):
@@ -2170,6 +2202,9 @@ class EasyBlock(object):
 
             if not fake:
                 self.make_devel_module()
+
+        if build_option('set_default_module'):
+            self._set_module_as_default()
 
         return modpath
 
@@ -2227,7 +2262,7 @@ class EasyBlock(object):
         Run provided test cases.
         """
         for test in self.cfg['tests']:
-            os.chdir(self.orig_workdir)
+            change_dir(self.orig_workdir)
             if os.path.isabs(test):
                 path = test
             else:
@@ -2428,6 +2463,7 @@ class EasyBlock(object):
                         self.dry_run_msg("%s... [DRY RUN]\n", descr)
                     else:
                         print_msg("%s..." % descr, log=self.log, silent=self.silent)
+                    self.current_step = step_name
                     self.run_step(step_name, step_methods)
 
         except StopException:
@@ -2523,7 +2559,7 @@ def build_and_install_one(ecdict, init_env):
     ended = 'ended'
 
     # make sure we're back in original directory before we finish up
-    os.chdir(cwd)
+    change_dir(cwd)
 
     application_log = None
 
@@ -2559,13 +2595,15 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Dumped easyconfig tweaked via --minimal-toolchains to %s", reprod_spec)
 
             try:
-                # upload spec to central repository
+                # upload easyconfig (and patch files) to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                for patch in app.patches:
+                    repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
@@ -2576,16 +2614,15 @@ def build_and_install_one(ecdict, init_env):
         application_log = os.path.join(new_log_dir, log_fn)
         move_logs(app.logfile, application_log)
 
-        try:
-            newspec = os.path.join(new_log_dir, ec_filename)
-            # only copy if the files are not the same file already (yes, it happens)
-            if os.path.exists(newspec) and os.path.samefile(spec, newspec):
-                _log.debug("Not copying easyconfig file %s to %s since files are identical" % (spec, newspec))
-            else:
-                shutil.copy(spec, newspec)
-                _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
-        except (IOError, OSError), err:
-            print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
+        newspec = os.path.join(new_log_dir, ec_filename)
+        copy_file(spec, newspec)
+        _log.debug("Copied easyconfig file %s to %s", spec, newspec)
+
+        # copy patches
+        for patch in app.patches:
+            target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+            copy_file(patch['path'], target)
+            _log.debug("Copied patch %s to %s", patch['path'], target)
 
         if build_option('read_only_installdir'):
             # take away user write permissions (again)
@@ -2661,43 +2698,15 @@ def get_easyblock_instance(ecdict):
 def build_easyconfigs(easyconfigs, output_dir, test_results):
     """Build the list of easyconfigs."""
 
-    build_stopped = {}
-    apploginfo = lambda x, y: x.log.info(y)
+    build_stopped = []
 
     # sanitize environment before initialising easyblocks
     sanitize_env()
 
-    def perform_step(step, obj, method, logfile):
-        """Perform method on object if it can be built."""
-        if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
-
-            # update templates before every step (except for initialization)
-            if isinstance(obj, EasyBlock):
-                obj.update_config_template_run_step()
-
-            try:
-                if step == 'initialization':
-                    _log.info("Running %s step" % step)
-                    return get_easyblock_instance(obj)
-                else:
-                    apploginfo(obj, "Running %s step" % step)
-                    method(obj)()
-            except Exception, err:  # catch all possible errors, also crashes in EasyBuild code itself
-                fullerr = str(err)
-                if not isinstance(err, EasyBuildError):
-                    tb = traceback.format_exc()
-                    fullerr = '\n'.join([tb, str(err)])
-                # we cannot continue building it
-                if step == 'initialization':
-                    obj = obj['spec']
-                test_results.append((obj, step, fullerr, logfile))
-                # keep a dict of so we can check in O(1) if objects can still be build
-                build_stopped[obj] = step
-
     # initialize all instances
     apps = []
     for ec in easyconfigs:
-        instance = perform_step('initialization', ec, None, _log)
+        instance = get_easyblock_instance(ec)
         apps.append(instance)
 
     base_dir = os.getcwd()
@@ -2712,25 +2721,28 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
         # if initialisation step failed, app will be None
         if app:
-
             applog = os.path.join(output_dir, "%s-%s.log" % (app.name, det_full_ec_version(app.cfg)))
 
             start_time = time.time()
 
             # start with a clean slate
-            os.chdir(base_dir)
+            change_dir(base_dir)
             restore_env(base_env)
             sanitize_env()
 
-            steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
+            run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
 
-            for (step_name, _, step_methods, skippable) in steps:
-                if skippable and step_name in app.cfg['skipsteps']:
-                    _log.info("Skipping step %s" % step_name)
-                else:
-                    for step_method in step_methods:
-                        method_name = step_method(app).__name__
-                        perform_step('_'.join([step_name, method_name]), app, step_method, applog)
+            try:
+                result = app.run_all_steps(run_test_cases=run_test_cases)
+            # catch all possible errors, also crashes in EasyBuild code itself
+            except Exception as err:
+                fullerr = str(err)
+                if not isinstance(err, EasyBuildError):
+                    tb = traceback.format_exc()
+                    fullerr = '\n'.join([tb, str(err)])
+                test_results.append((app, app.current_step, fullerr, applog))
+                # keep a dict of so we can check in O(1) if objects can still be build
+                build_stopped.append(app)
 
             # close log and move it
             app.close_log()

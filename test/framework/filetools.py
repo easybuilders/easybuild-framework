@@ -184,24 +184,50 @@ class FileToolsTest(EnhancedTestCase):
             'crc32': '0x1457143216',
             'md5': '7167b64b1ca062b9674ffef46f9325db',
             'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
+            'sha256': '1c49562c4b404f3120a3fa0926c8d09c99ef80e470f7de03ffdfa14047960ea5',
+            'sha512': '7610f6ce5e91e56e350d25c917490e4815f7986469fafa41056698aec256733eb7297da8b547d5e74b851d7c4e475900cec4744df0f887ae5c05bf1757c224b4',
         }
 
         # make sure checksums computation/verification is correct
         for checksum_type, checksum in known_checksums.items():
             self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
-        # md5 is default
+
+        # default checksum type is MD5
         self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+
+        # both MD5 and SHA256 checksums can be verified without specifying type
         self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
+
+        # checksum of length 32 is assumed to be MD5, length 64 to be SHA256, other lengths not allowed
+        # providing non-matching MD5 and SHA256 checksums results in failed verification
+        self.assertFalse(ft.verify_checksum(fp, '1c49562c4b404f3120a3fa0926c8d09c'))
+        self.assertFalse(ft.verify_checksum(fp, '7167b64b1ca062b9674ffef46f9325db7167b64b1ca062b9674ffef46f9325db'))
+        # checksum of length other than 32/64 yields an error
+        error_pattern = "Length of checksum '.*' \(\d+\) does not match with either MD5 \(32\) or SHA256 \(64\)"
+        for checksum in ['tooshort', 'inbetween32and64charactersisnotgoodeither', known_checksums['sha256'] + 'foo']:
+            self.assertErrorRegex(EasyBuildError, error_pattern, ft.verify_checksum, fp, checksum)
 
         # make sure faulty checksums are reported
-        broken_checksums = dict([(typ, val + 'foo') for (typ, val) in known_checksums.items()])
+        broken_checksums = dict([(typ, val[:-3] + 'foo') for (typ, val) in known_checksums.items()])
         for checksum_type, checksum in broken_checksums.items():
             self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
         # md5 is default
         self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
+
+        # check whether missing checksums are enforced
+        build_options = {
+            'enforce_checksums': True,
+        }
+        init_config(build_options=build_options)
+
+        self.assertErrorRegex(EasyBuildError, "Missing checksum for", ft.verify_checksum, fp, None)
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['sha256']))
 
         # cleanup
         os.remove(fp)
@@ -355,6 +381,62 @@ class FileToolsTest(EnhancedTestCase):
         os.chmod(test_file, 0)
         self.assertFalse(ft.is_readable(test_file))
 
+    def test_symlink_resolve_path(self):
+        """Test symlink and resolve_path function"""
+
+        # write_file and read_file tests are elsewhere. so not getting their states
+        test_dir = os.path.join(os.path.realpath(self.test_prefix), 'test')
+        ft.mkdir(test_dir)
+
+        link_dir = os.path.join(self.test_prefix, 'linkdir')
+        ft.symlink(test_dir, link_dir)
+        self.assertTrue(os.path.islink(link_dir))
+        self.assertTrue(os.path.exists(link_dir))
+
+        test_file = os.path.join(link_dir, 'test.txt')
+        ft.write_file(test_file, "test123")
+
+        # creating the link file
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(test_file, link)
+
+        # checking if file is symlink
+        self.assertTrue(os.path.islink(link))
+        self.assertTrue(os.path.exists(link_dir))
+
+        self.assertTrue(os.path.samefile(os.path.join(self.test_prefix, 'test', 'test.txt'), link))
+
+        # test resolve_path
+        self.assertEqual(test_dir, ft.resolve_path(link_dir))
+        self.assertEqual(os.path.join(os.path.realpath(self.test_prefix), 'test', 'test.txt'), ft.resolve_path(link))
+        self.assertEqual(ft.read_file(link), "test123")
+
+    def test_remove_symlinks(self):
+        """Test remove valid and invalid symlinks"""
+
+        # creating test file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        txt = "test_my_link_file"
+        ft.write_file(fp, txt)
+
+        # creating the symlink
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.symlink(fp, link) # test if is symlink is valid is done elsewhere
+
+        # Attempting to remove a valid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
+        # Testing the removal of invalid symlinks
+        # Restoring the symlink and removing the file, this way the symlink is invalid
+        ft.symlink(fp, link)
+        ft.remove_file(fp)
+        # attempting to remove the invalid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertFalse(os.path.exists(link))
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 
@@ -387,6 +469,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(foo, 'bar', forced=True)
         self.assertTrue(os.path.exists(foo))
         self.assertEqual(ft.read_file(foo), 'bar')
+
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -633,6 +716,62 @@ class FileToolsTest(EnhancedTestCase):
         # restore original umask
         os.umask(orig_umask)
 
+    def test_adjust_permissions_max_fail_ratio(self):
+        """Test ratio of allowed failures when adjusting permissions"""
+        # set up symlinks in test directory that can be broken to test allowed failure ratio of adjust_permissions
+        testdir = os.path.join(self.test_prefix, 'test123')
+        test_files = []
+        for idx in range(0, 3):
+            test_files.append(os.path.join(testdir, 'tmp%s' % idx))
+            ft.write_file(test_files[-1], '')
+            ft.symlink(test_files[-1], os.path.join(testdir, 'symlink%s' % idx))
+
+        # by default, 50% of failures are allowed (to be robust against broken symlinks)
+        perms = stat.S_IRUSR|stat.S_IWUSR|stat.S_IXUSR
+
+        # one file remove, 1 dir + 2 files + 3 symlinks (of which 1 broken) left => 1/6 (16%) fail ratio is OK
+        ft.remove_file(test_files[0])
+        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+        # 2 files removed, 1 dir + 1 file + 3 symlinks (of which 2 broken) left => 2/5 (40%) fail ratio is OK
+        ft.remove_file(test_files[1])
+        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+        # 3 files removed, 1 dir + 3 broken symlinks => 75% fail ratio is too high, so error is raised
+        ft.remove_file(test_files[2])
+        error_pattern = r"75.00% of permissions/owner operations failed \(more than 50.00%\), something must be wrong"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
+                              recursive=True, skip_symlinks=False, ignore_errors=True)
+
+        # reconfigure EasyBuild to allow even higher fail ratio (80%)
+        build_options = {
+            'max_fail_ratio_adjust_permissions': 0.8,
+        }
+        init_config(build_options=build_options)
+
+        # 75% < 80%, so OK
+        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+
+        # reconfigure to allow less failures (10%)
+        build_options = {
+            'max_fail_ratio_adjust_permissions': 0.1,
+        }
+        init_config(build_options=build_options)
+
+        # way too many failures with 3 broken symlinks
+        error_pattern = r"75.00% of permissions/owner operations failed \(more than 10.00%\), something must be wrong"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
+                              recursive=True, skip_symlinks=False, ignore_errors=True)
+
+        # one broken symlink is still too much with max fail ratio of 10%
+        ft.write_file(test_files[0], '')
+        ft.write_file(test_files[1], '')
+        error_pattern = r"16.67% of permissions/owner operations failed \(more than 10.00%\), something must be wrong"
+        self.assertErrorRegex(EasyBuildError, error_pattern, ft.adjust_permissions, testdir, perms,
+                              recursive=True, skip_symlinks=False, ignore_errors=True)
+
+        # all files restored, no more broken symlinks, so OK
+        ft.write_file(test_files[2], '')
+        ft.adjust_permissions(testdir, perms, recursive=True, skip_symlinks=False, ignore_errors=True)
+
     def test_apply_regex_substitutions(self):
         """Test apply_regex_substitutions function."""
         testfile = os.path.join(self.test_prefix, 'test.txt')
@@ -773,6 +912,12 @@ class FileToolsTest(EnhancedTestCase):
         alturl = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
         self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
 
+        # test case to ensure that '.' characters in filename are escaped using '\.'
+        # if not, the alternative URL for tornado-4.5b1.tar.gz is found...
+        url = 'https://pypi.python.org/packages/source/t/tornado/tornado-4.5.1.tar.gz'
+        alturl = url.replace('source/t/tornado', 'df/42/a180ee540e12e2ec1007ac82a42b09dd92e5461e09c98bf465e98646d187')
+        self.assertEqual(ft.derive_alt_pypi_url(url), alturl)
+
         # no crash on non-existing version
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-0.0.0.tar.gz'
         self.assertEqual(ft.derive_alt_pypi_url(url), None)
@@ -793,18 +938,28 @@ class FileToolsTest(EnhancedTestCase):
         pattern = "I'm a toy, and very proud of it"
         self.assertTrue(pattern in patched)
 
+        # This patch is dependent on the previous one
+        toy_patch_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
+        self.assertTrue(ft.apply_patch(toy_patch_gz, path))
+        patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        pattern = "I'm a toy, and very very proud of it"
+        self.assertTrue(pattern in patched_gz)
+
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
     def test_copy_file(self):
         """ Test copy_file """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        tmpdir = self.test_prefix
         to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        target_path = os.path.join(tmpdir, 'toy.eb')
+        target_path = os.path.join(self.test_prefix, 'toy.eb')
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
+        # clean error when trying to copy a directory with copy_file
+        src, target = os.path.dirname(to_copy), os.path.join(self.test_prefix, 'toy')
+        self.assertErrorRegex(EasyBuildError, "Failed to copy file.*Is a directory", ft.copy_file, src, target)
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -833,6 +988,134 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
         self.assertEqual(txt, '')
+
+    def test_copy_dir(self):
+        """Test copy_file"""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
+
+        target_dir = os.path.join(self.test_prefix, 'GCC')
+        self.assertFalse(os.path.exists(target_dir))
+
+        self.assertTrue(os.path.exists(os.path.join(to_copy, 'GCC-4.7.2.eb')))
+
+        ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '4.7.2' in x])
+        self.assertTrue(os.path.exists(target_dir))
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb']
+        self.assertEqual(sorted(os.listdir(target_dir)), expected)
+        # GCC-4.7.2.eb should not get copied, since it's specified as file too ignore
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-4.7.2.eb')))
+
+        # clean error when trying to copy a file with copy_dir
+        src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
+        self.assertErrorRegex(EasyBuildError, "Failed to copy directory.*Not a directory", ft.copy_dir, src, target)
+
+        # if directory already exists, we expect a clean error
+        testdir = os.path.join(self.test_prefix, 'thisdirexists')
+        ft.mkdir(testdir)
+        self.assertErrorRegex(EasyBuildError, "Target location .* already exists", ft.copy_dir, to_copy, testdir)
+
+        # also test behaviour of copy_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        shutil.rmtree(target_dir)
+        self.assertFalse(os.path.exists(target_dir))
+
+        # no actual copying in dry run mode, unless forced
+        self.mock_stdout(True)
+        ft.copy_dir(to_copy, target_dir)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(target_dir))
+        self.assertTrue(re.search("^copied directory .*/GCC to .*/GCC", txt))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy_dir(to_copy, target_dir, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.exists(target_dir))
+        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(target_dir)))
+        self.assertEqual(txt, '')
+
+    def test_copy(self):
+        """Test copy function."""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+
+        toy_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        gcc_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
+
+        ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
+
+        self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'GCC')))
+        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', 'toy-0.0_typo.patch']:
+            self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, filepath)))
+
+        # test copying of a single file, to a non-existing directory
+        ft.copy(toy_file, os.path.join(self.test_prefix, 'foo'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', 'toy-0.0.eb')))
+
+        # also test behaviour of copy under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        # no actual copying in dry run mode, unless forced
+        self.mock_stdout(True)
+        to_copy = [os.path.dirname(toy_file), os.path.join(gcc_dir, 'GCC-4.6.3.eb')]
+        ft.copy(to_copy, self.test_prefix)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy')))
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
+        self.assertTrue(re.search("^copied directory .*/toy to .*/toy", txt, re.M))
+        self.assertTrue(re.search("^copied file .*/GCC-4.6.3.eb to .*/GCC-4.6.3.eb", txt, re.M))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy(to_copy, self.test_prefix, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'toy')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
+        self.assertEqual(txt, '')
+
+    def test_change_dir(self):
+        """Test change_dir"""
+
+        prev_dir = ft.change_dir(self.test_prefix)
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertNotEqual(prev_dir, None)
+
+        # prepare another directory to play around with
+        test_path = os.path.join(self.test_prefix, 'anotherdir')
+        ft.mkdir(test_path)
+
+        # check return value (previous location)
+        prev_dir = ft.change_dir(test_path)
+        self.assertTrue(os.path.samefile(os.getcwd(), test_path))
+        self.assertTrue(os.path.samefile(prev_dir, self.test_prefix))
+
+        # check behaviour when current working directory does not exist anymore
+        shutil.rmtree(test_path)
+        prev_dir = ft.change_dir(self.test_prefix)
+        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertEqual(prev_dir, None)
+
+        foo = os.path.join(self.test_prefix, 'foo')
+        self.assertErrorRegex(EasyBuildError, "Failed to change from .* to %s" % foo, ft.change_dir, foo)
 
     def test_extract_file(self):
         """Test extract_file"""

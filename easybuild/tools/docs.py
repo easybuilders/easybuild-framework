@@ -275,7 +275,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
 
     # include list of extra parameters (if any)
     extra_params = {}
-    app = get_easyblock_class(easyblock, default_fallback=False)
+    app = get_easyblock_class(easyblock, error_on_missing_easyblock=False)
     if app is not None:
         extra_params = app.extra_options()
     params.update(extra_params)
