@@ -1103,18 +1103,12 @@ def find_backup_name_candidate(src_file):
 def back_up_file(src_file, backup_extension=""):
     """Backs up a file appending a backup extension and a number to it. Returns the name of the backup"""
 
-    backup_msg = "File %s backed up in %s"
-    backup_file = src_file
     if backup_extension:
-        backup_file = "%s.%s" % (backup_file, backup_extension)
-
-    # find suitable name
-    if os.path.exists(backup_file):
-        candidate = find_backup_name_candidate(backup_file)
-        if backup_file == src_file:
-            backup_file = candidate
-        else:
-            move_file(backup_file, candidate)
+        backup_file = "%s.%s" % (src_file, backup_extension)
+        if os.path.exists(backup_file):
+            backup_file = find_backup_name_candidate(backup_file)
+    else:
+        backup_file = find_backup_name_candidate(src_file)
 
     copy_file(src_file, backup_file)
     _log.info("File %s backed up in %s" % (src_file, backup_file))

@@ -61,7 +61,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg
+from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -2142,8 +2142,11 @@ class EasyBlock(object):
         else:
             module_only = build_option('module_only')
             if module_only and os.path.exists(mod_filepath):
+               warning_msg = "Old module file found. Backing it up in %s. Diff is:\n%s"
                mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck")
-               self.log.info("Old module file found. Backing it up in %s", mod_bck_filepath)
+               (mod_diff, _) = run_cmd("diff %s %s" % (mod_bck_filepath, mod_filepath))
+               self.log.info(warning_msg, mod_bck_filepath, mod_diff)
+               print_warning(warning_msg % (mod_bck_filepath, mod_diff))
 
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
