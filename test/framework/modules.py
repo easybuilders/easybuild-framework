@@ -782,13 +782,14 @@ class ModulesTest(EnhancedTestCase):
         # default action is to print a clear warning message
         stderr = check_loaded_modules()
         patterns = [
-            r"^WARNING: Found 3 non-ignored loaded \(EasyBuild-generated\) modules in current environment:",
+            r"^WARNING: Found one or more non-ignored loaded \(EasyBuild-generated\) modules in current environment:",
             r"^\* GCC/4.6.4",
             r"^\* hwloc/1.6.2-GCC-4.6.4",
             r"^\* OpenMPI/1.6.4-GCC-4.6.4",
-            "To make EasyBuild ignore loaded modules for some of this software, "
-                "use the --allow-loaded-modules configuration option.",
-            "Use --detect-loaded-modules to specify action to take when loaded modules are detected",
+            "This is not recommended since it may affect the installation procedure\(s\) performed by EasyBuild.",
+            "To make EasyBuild allow particular loaded modules, use the --allow-loaded-modules configuration option.",
+            "To specify action to take when loaded modules are detected, use "
+                "--detect-loaded-modules={fail,ignore,purge,unload,warn}",
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stderr, re.M), "Pattern '%s' found in: %s" % (pattern, stderr))
@@ -802,7 +803,7 @@ class ModulesTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         # error mentioning 1 non-ignored module (OpenMPI), both GCC and hwloc loaded modules are ignored
-        error_pattern = "Found 1 non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4"
+        error_pattern = "Found one or more non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
         # check for warning message when purge is being run on loaded modules
