@@ -51,6 +51,13 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 _log = fancylogger.getLogger('config', fname=False)
 
 
+ERROR = 'error'
+IGNORE = 'ignore'
+PURGE = 'purge'
+UNLOAD = 'unload'
+UNSET = 'unset'
+WARN = 'warn'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -77,13 +84,8 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
-LOADED_MODULES_FAIL = 'fail'
-LOADED_MODULES_IGNORE = 'ignore'
-LOADED_MODULES_PURGE = 'purge'
-LOADED_MODULES_UNLOAD = 'unload'
-LOADED_MODULES_WARN = 'warn'
-LOADED_MODULES_ACTIONS = [LOADED_MODULES_FAIL, LOADED_MODULES_IGNORE, LOADED_MODULES_PURGE,
-                          LOADED_MODULES_UNLOAD, LOADED_MODULES_WARN]
+EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
+LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
 DEFAULT_ALLOW_LOADED_MODULES = ('EasyBuild',)
 
 # utility function for obtaining default paths
@@ -179,7 +181,10 @@ BUILD_OPTIONS_CMDLINE = {
         'extended_dry_run_ignore_errors',
         'mpi_tests',
     ],
-    'warn': [
+    ERROR: [
+        'check_ebroot_env_vars',
+    ],
+    WARN: [
         'detect_loaded_modules',
         'strict',
     ],

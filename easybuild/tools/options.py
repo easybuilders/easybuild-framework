@@ -61,7 +61,8 @@ from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, 
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
-from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, LOADED_MODULES_ACTIONS, LOADED_MODULES_WARN
+from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import ERROR, IGNORE, WARN
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -243,7 +244,7 @@ class EasyBuildOptions(GeneralOption):
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
-        strictness_options = [run.IGNORE, run.WARN, run.ERROR]
+        strictness_options = [IGNORE, WARN, ERROR]
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -268,7 +269,7 @@ class EasyBuildOptions(GeneralOption):
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
-            'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
+            'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -317,10 +318,15 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
+            'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
+                                     'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
+            'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
+                                      "for which there is no matching loaded module; "
+                                      "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', ERROR),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -331,6 +337,8 @@ class EasyBuildOptions(GeneralOption):
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
+            'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
+                                      "supported values: %s" % ', '.join(LOADED_MODULES_ACTIONS), None, 'store', WARN),
             'devel': ("Enable including of development log messages", None, 'store_true', False),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
@@ -405,8 +413,6 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Configuration options", "Configure EasyBuild behavior.")
 
         opts = OrderedDict({
-            'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
-                                     'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'avail-module-naming-schemes': ("Show all supported module naming schemes",
                                             None, 'store_true', False,),
             'avail-modules-tools': ("Show all supported module tools",
@@ -414,9 +420,6 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
-            'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
-                                      "suported values: %s" % ', '.join(LOADED_MODULES_ACTIONS),
-                                      None, 'store', LOADED_MODULES_WARN),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
                                           'strlist', 'store', None),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",

@@ -789,13 +789,13 @@ class ModulesTest(EnhancedTestCase):
             "This is not recommended since it may affect the installation procedure\(s\) performed by EasyBuild.",
             "To make EasyBuild allow particular loaded modules, use the --allow-loaded-modules configuration option.",
             "To specify action to take when loaded modules are detected, use "
-                "--detect-loaded-modules={fail,ignore,purge,unload,warn}",
+                "--detect-loaded-modules={error,ignore,purge,unload,warn}",
         ]
         for pattern in patterns:
             self.assertTrue(re.search(pattern, stderr, re.M), "Pattern '%s' found in: %s" % (pattern, stderr))
 
         # reconfigure EasyBuild to ignore loaded modules for GCC & hwloc & error out when loaded modules are detected
-        options = init_config(args=['--allow-loaded-modules=GCC,hwloc', '--detect-loaded-modules=fail'])
+        options = init_config(args=['--allow-loaded-modules=GCC,hwloc', '--detect-loaded-modules=error'])
         build_options = {
             'allow_loaded_modules': options.allow_loaded_modules,
             'detect_loaded_modules': options.detect_loaded_modules,
@@ -826,11 +826,29 @@ class ModulesTest(EnhancedTestCase):
         init_config(build_options=build_options)
         self.assertEqual(check_loaded_modules(), '')
 
-        # clear warning if any $EBROOT* environment variables are defined that don't match a loaded module
+        # error if any $EBROOT* environment variables are defined that don't match a loaded module
         os.environ['EBROOTSOFTWAREWITHOUTAMATCHINGMODULE'] = '/path/to/software/without/a/matching/module'
+        error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: \$"
+        self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
+
+        build_options.update({'check_ebroot_env_vars': 'warn'})
+        init_config(build_options=build_options)
         stderr = check_loaded_modules()
-        warning_msg = "WARNING: Found 1 defined $EBROOT* environment variables without matching loaded module:"
+        warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: $"
         self.assertTrue(warning_msg in stderr)
+
+        build_options.update({'check_ebroot_env_vars': 'ignore'})
+        init_config(build_options=build_options)
+        stderr = check_loaded_modules()
+        self.assertEqual(stderr, '')
+
+        build_options.update({'check_ebroot_env_vars': 'unset'})
+        init_config(build_options=build_options)
+        stderr = check_loaded_modules()
+        warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: "
+        warning_msg += "$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE; unsetting them"
+        self.assertEqual(stderr, warning_msg)
+        self.assertTrue(os.environ.get('EBROOTSOFTWAREWITHOUTAMATCHINGMODULE') is None)
 
         # specified action for detected loaded modules is verified early
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"

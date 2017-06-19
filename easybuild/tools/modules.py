@@ -45,10 +45,10 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.config import LOADED_MODULES_ACTIONS, LOADED_MODULES_FAIL, LOADED_MODULES_IGNORE
-from easybuild.tools.config import LOADED_MODULES_PURGE, LOADED_MODULES_UNLOAD, LOADED_MODULES_WARN
+from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET, WARN
+from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -745,8 +745,19 @@ class ModulesTool(object):
 
             # warn about $EBROOT* environment variables without matching loaded module
             if eb_module_keys:
-                tup = (len(eb_module_keys), ROOT_ENV_VAR_NAME_PREFIX, '$' + ', $'.join(eb_module_keys))
-                print_warning("Found %d defined $%s* environment variables without matching loaded module: %s" % tup)
+                tup = (ROOT_ENV_VAR_NAME_PREFIX, '$' + ', $'.join(eb_module_keys))
+                msg = "Found defined $%s* environment variables without matching loaded module: %s" % tup
+                msg_control = "\n(control action via --check-ebroot-env-vars={%s})" % ','.join(EBROOT_ENV_VAR_ACTIONS)
+                action = build_option('check_ebroot_env_vars')
+                if action == ERROR:
+                    raise EasyBuildError(msg + msg_control)
+                elif action == IGNORE:
+                    self.log.info(msg + ", but ignoring as configured")
+                elif action == UNSET:
+                    print_warning(msg + "; unsetting them")
+                    unset_env_vars(eb_module_keys)
+                else:
+                    print_warning(msg + msg_control)
 
             if loaded_eb_modules:
                 opt = '--detect-loaded-modules={%s}' % ','.join(LOADED_MODULES_ACTIONS)
@@ -758,27 +769,27 @@ class ModulesTool(object):
                     '',
                     "To make EasyBuild allow particular loaded modules, "
                     "use the --allow-loaded-modules configuration option.",
-                    "To specify action to take when loaded modules are detected, use %s" % opt,
+                    "To specify action to take when loaded modules are detected, use %s." % opt,
                     '',
                     "See http://easybuild.readthedocs.io/en/latest/Detecting_loaded_modules.html for more information.",
                 ])
 
                 action = build_option('detect_loaded_modules')
 
-                if action == LOADED_MODULES_FAIL:
+                if action == ERROR:
                     raise EasyBuildError(verbose_msg)
 
-                elif action == LOADED_MODULES_IGNORE:
+                elif action == IGNORE:
                     self.log.info("Found non-ignored loaded (EasyBuild-generated) modules, but ignoring it as configured")
 
-                elif action == LOADED_MODULES_PURGE:
+                elif action == PURGE:
                     msg = "Found non-ignored loaded (EasyBuild-generated) modules, running 'module purge': %s"
                     print_warning(msg % ', '.join(loaded_eb_modules))
 
                     self.log.info(msg)
                     self.purge()
 
-                elif action == LOADED_MODULES_UNLOAD:
+                elif action == UNLOAD:
                     msg = "Unloading non-ignored loaded (EasyBuild-generated) modules: %s"
                     print_warning(msg % ', '.join(loaded_eb_modules))
 
