@@ -828,14 +828,14 @@ class ModulesTest(EnhancedTestCase):
 
         # error if any $EBROOT* environment variables are defined that don't match a loaded module
         os.environ['EBROOTSOFTWAREWITHOUTAMATCHINGMODULE'] = '/path/to/software/without/a/matching/module'
-        error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: \$"
-        self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
-
-        build_options.update({'check_ebroot_env_vars': 'warn'})
-        init_config(build_options=build_options)
         stderr = check_loaded_modules()
         warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: $"
         self.assertTrue(warning_msg in stderr)
+
+        build_options.update({'check_ebroot_env_vars': 'error'})
+        init_config(build_options=build_options)
+        error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: \$"
+        self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
 
         build_options.update({'check_ebroot_env_vars': 'ignore'})
         init_config(build_options=build_options)

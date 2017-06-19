@@ -181,10 +181,8 @@ BUILD_OPTIONS_CMDLINE = {
         'extended_dry_run_ignore_errors',
         'mpi_tests',
     ],
-    ERROR: [
-        'check_ebroot_env_vars',
-    ],
     WARN: [
+        'check_ebroot_env_vars',
         'detect_loaded_modules',
         'strict',
     ],

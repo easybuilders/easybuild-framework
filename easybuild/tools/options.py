@@ -326,7 +326,7 @@ class EasyBuildOptions(GeneralOption):
                                                           None, 'store_true', False),
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
-                                      "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', ERROR),
+                                      "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
