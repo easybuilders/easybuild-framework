@@ -139,6 +139,7 @@ BUILD_OPTIONS_CMDLINE = {
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'enforce_checksums',
         'extended_dry_run',
         'experimental',
         'fixed_installdir_naming_scheme',
@@ -166,6 +167,7 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',

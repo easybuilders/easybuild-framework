@@ -22,6 +22,7 @@ patches = ['toy-0.0_typo.patch']
 exts_list = [
     ('bar', '0.0', {
         'buildopts': " && gcc bar.c -o anotherbar",
+        'patches': ['bar-0.0_typo.patch'],
         'toy_ext_param': "mv anotherbar bar_bis",
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
     }),

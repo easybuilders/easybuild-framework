@@ -93,7 +93,7 @@ TEMPLATE_CONSTANTS = [
      'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/gnu/%(namelower)s',
      'gnu.org source url'),
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),

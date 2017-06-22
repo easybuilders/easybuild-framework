@@ -335,6 +335,8 @@ class EasyBuildOptions(GeneralOption):
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
+                                  None, 'store_true', False),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
@@ -532,6 +534,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
+            'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),

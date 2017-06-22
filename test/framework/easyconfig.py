@@ -58,7 +58,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -1794,7 +1794,7 @@ class EasyConfigTest(EnhancedTestCase):
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
         self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
-        self.assertEqual(os.listdir(os.path.join(target_dir, 'easybuild', 'easyconfigs')), [])
+        self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
         test_ecs = [
@@ -1815,6 +1815,40 @@ class EasyConfigTest(EnhancedTestCase):
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
             self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+
+        # create test easyconfig that includes comments & build stats, just like an archived easyconfig
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'), toy_ec)
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt = '\n'.join([
+            "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
+            toy_ec_txt,
+            "# Build statistics",
+            "buildstats = [{",
+            '   "build_time": 8.34,',
+            '   "os_type": "Linux",',
+            "}]",
+        ])
+        write_file(toy_ec, toy_ec_txt)
+
+        # verify whether copied easyconfig gets cleaned up
+        copy_easyconfigs([toy_ec], target_dir)
+        copied_toy_ec = os.path.join(ecs_target_dir, 't', 'toy', 'toy-0.0.eb')
+
+        txt = read_file(copied_toy_ec)
+        regexs = [
+            "# Built with EasyBuild",
+            "# Build statistics",
+            "buildstats\s*=",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
+
+        # make sure copied easyconfig still parses
+        ec = EasyConfig(copied_toy_ec)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec['buildstats'], None)
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
