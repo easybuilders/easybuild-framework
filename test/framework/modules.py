@@ -782,7 +782,7 @@ class ModulesTest(EnhancedTestCase):
         # default action is to print a clear warning message
         stderr = check_loaded_modules()
         patterns = [
-            r"^WARNING: Found one or more non-ignored loaded \(EasyBuild-generated\) modules in current environment:",
+            r"^WARNING: Found one or more non-allowed loaded \(EasyBuild-generated\) modules in current environment:",
             r"^\* GCC/4.6.4",
             r"^\* hwloc/1.6.2-GCC-4.6.4",
             r"^\* OpenMPI/1.6.4-GCC-4.6.4",
@@ -802,14 +802,14 @@ class ModulesTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        # error mentioning 1 non-ignored module (OpenMPI), both GCC and hwloc loaded modules are ignored
-        error_pattern = r"Found one or more non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4\n\nThis is not"
+        # error mentioning 1 non-allowed module (OpenMPI), both GCC and hwloc loaded modules are allowed
+        error_pattern = r"Found one or more non-allowed loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4\n\nThis is not"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
         # check for warning message when purge is being run on loaded modules
         build_options.update({'detect_loaded_modules': 'purge'})
         init_config(build_options=build_options)
-        expected = "WARNING: Found non-ignored loaded (EasyBuild-generated) modules (OpenMPI/1.6.4-GCC-4.6.4), "
+        expected = "WARNING: Found non-allowed loaded (EasyBuild-generated) modules (OpenMPI/1.6.4-GCC-4.6.4), "
         expected += "running 'module purge'"
         self.assertEqual(check_loaded_modules(), expected)
 
@@ -817,10 +817,10 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
         build_options.update({'detect_loaded_modules': 'unload'})
         init_config(build_options=build_options)
-        expected = "WARNING: Unloading non-ignored loaded (EasyBuild-generated) modules: OpenMPI/1.6.4-GCC-4.6.4"
+        expected = "WARNING: Unloading non-allowed loaded (EasyBuild-generated) modules: OpenMPI/1.6.4-GCC-4.6.4"
         self.assertEqual(check_loaded_modules(), expected)
 
-        # when loaded modules are ignored there are no warnings/errors
+        # when loaded modules are allowed there are no warnings/errors
         self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
         build_options.update({'detect_loaded_modules': 'ignore'})
         init_config(build_options=build_options)

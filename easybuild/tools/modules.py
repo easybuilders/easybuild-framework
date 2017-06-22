@@ -724,11 +724,11 @@ class ModulesTool(object):
         """
         Check whether any (EasyBuild-generated) modules are loaded already in the current session
         """
-        ignored_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or [] if x]
+        allowed_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or [] if x]
 
         eb_module_keys = []
         for key in os.environ:
-            if key.startswith(ROOT_ENV_VAR_NAME_PREFIX) and key not in ignored_keys:
+            if key.startswith(ROOT_ENV_VAR_NAME_PREFIX) and key not in allowed_keys:
                 eb_module_keys.append(key)
 
         if eb_module_keys:
@@ -762,7 +762,7 @@ class ModulesTool(object):
             if loaded_eb_modules:
                 opt = '--detect-loaded-modules={%s}' % ','.join(LOADED_MODULES_ACTIONS)
                 verbose_msg = '\n'.join([
-                    "Found one or more non-ignored loaded (EasyBuild-generated) modules in current environment:",
+                    "Found one or more non-allowed loaded (EasyBuild-generated) modules in current environment:",
                 ] + ['* %s' % x for x in loaded_eb_modules] + [
                     '',
                     "This is not recommended since it may affect the installation procedure(s) performed by EasyBuild.",
@@ -780,18 +780,18 @@ class ModulesTool(object):
                     raise EasyBuildError(verbose_msg)
 
                 elif action == IGNORE:
-                    msg = "Found non-ignored loaded (EasyBuild-generated) modules, but ignoring it as configured"
+                    msg = "Found non-allowed loaded (EasyBuild-generated) modules, but ignoring it as configured"
                     self.log.info(msg)
 
                 elif action == PURGE:
-                    msg = "Found non-ignored loaded (EasyBuild-generated) modules (%s), running 'module purge'"
+                    msg = "Found non-allowed loaded (EasyBuild-generated) modules (%s), running 'module purge'"
                     print_warning(msg % ', '.join(loaded_eb_modules))
 
                     self.log.info(msg)
                     self.purge()
 
                 elif action == UNLOAD:
-                    msg = "Unloading non-ignored loaded (EasyBuild-generated) modules: %s"
+                    msg = "Unloading non-allowed loaded (EasyBuild-generated) modules: %s"
                     print_warning(msg % ', '.join(loaded_eb_modules))
 
                     self.log.info(msg)
