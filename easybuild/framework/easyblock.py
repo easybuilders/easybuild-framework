@@ -348,7 +348,7 @@ class EasyBlock(object):
 
             elif isinstance(source, (list, tuple)) and len(source) == 2:
                 self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
-                                    "use a dictionary with 'name', 'extract_cmd' keys instead", '4.0')
+                                    "use a dictionary with 'filename', 'extract_cmd' keys instead", '4.0')
                 filename, extract_cmd = source
             else:
                 raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
