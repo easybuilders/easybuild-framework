@@ -3160,6 +3160,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
         self.assertTrue('module: toy/0.0' in logtxt)
 
+    def test_set_default_module(self):
+        """Test use of --set-default-module"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
+
+        self.eb_main([toy_ec, '--set-default-module'], do_build=True, raise_error=True)
+
+        toy_mod_dir = os.path.join(self.test_installpath, 'modules', 'all', 'toy')
+        toy_mod = os.path.join(toy_mod_dir, '0.0-deps')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+
+        self.assertTrue(os.path.exists(toy_mod))
+
+        if get_module_syntax() == 'Lua':
+            self.assertTrue(os.path.islink(os.path.join(toy_mod_dir, 'default')))
+            toy_mod_filename = '0.0-deps.lua'
+            self.assertEqual(os.readlink(os.path.join(toy_mod_dir, 'default')), '0.0-deps.lua')
+        elif get_module_syntax() == 'Tcl':
+            toy_dot_version = os.path.join(toy_mod_dir, '.version')
+            self.assertTrue(os.path.exists(toy_dot_version))
+            toy_dot_version_txt = read_file(toy_dot_version)
+            self.assertTrue("set ModulesVersion 0.0-deps" in toy_dot_version_txt)
+        else:
+            self.assertTrue(False, "Uknown module syntax: %s" % get_module_syntax())
+
 
 def suite():
     """ returns all the testcases in this module """
