@@ -809,8 +809,8 @@ class ModulesTest(EnhancedTestCase):
         # check for warning message when purge is being run on loaded modules
         build_options.update({'detect_loaded_modules': 'purge'})
         init_config(build_options=build_options)
-        expected = "WARNING: Found non-ignored loaded (EasyBuild-generated) modules, "
-        expected += "running 'module purge': OpenMPI/1.6.4-GCC-4.6.4"
+        expected = "WARNING: Found non-ignored loaded (EasyBuild-generated) modules (OpenMPI/1.6.4-GCC-4.6.4), "
+        expected += "running 'module purge'"
         self.assertEqual(check_loaded_modules(), expected)
 
         # check for warning message when loaded modules are unloaded

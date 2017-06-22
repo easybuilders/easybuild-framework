@@ -780,10 +780,11 @@ class ModulesTool(object):
                     raise EasyBuildError(verbose_msg)
 
                 elif action == IGNORE:
-                    self.log.info("Found non-ignored loaded (EasyBuild-generated) modules, but ignoring it as configured")
+                    msg = "Found non-ignored loaded (EasyBuild-generated) modules, but ignoring it as configured"
+                    self.log.info(msg)
 
                 elif action == PURGE:
-                    msg = "Found non-ignored loaded (EasyBuild-generated) modules, running 'module purge': %s"
+                    msg = "Found non-ignored loaded (EasyBuild-generated) modules (%s), running 'module purge'"
                     print_warning(msg % ', '.join(loaded_eb_modules))
 
                     self.log.info(msg)
