@@ -757,7 +757,7 @@ class ModulesTest(EnhancedTestCase):
 
         def check_loaded_modules():
             "Helper function to run check_loaded_modules and check on stdout/stderr."
-            # there should be no errors/warnings by default is no (EasyBuild-generated) modules are loaded
+            # there should be no errors/warnings by default if no (EasyBuild-generated) modules are loaded
             self.mock_stdout(True)
             self.mock_stderr(True)
             self.modtool.check_loaded_modules()
@@ -803,7 +803,7 @@ class ModulesTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         # error mentioning 1 non-ignored module (OpenMPI), both GCC and hwloc loaded modules are ignored
-        error_pattern = "Found one or more non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4"
+        error_pattern = r"Found one or more non-ignored loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4\n\nThis is not"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
         # check for warning message when purge is being run on loaded modules
@@ -829,12 +829,14 @@ class ModulesTest(EnhancedTestCase):
         # error if any $EBROOT* environment variables are defined that don't match a loaded module
         os.environ['EBROOTSOFTWAREWITHOUTAMATCHINGMODULE'] = '/path/to/software/without/a/matching/module'
         stderr = check_loaded_modules()
-        warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: $"
+        warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: "
+        warning_msg = "$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
         self.assertTrue(warning_msg in stderr)
 
         build_options.update({'check_ebroot_env_vars': 'error'})
         init_config(build_options=build_options)
-        error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: \$"
+        error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: "
+        error_msg += r"\$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
         self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
 
         build_options.update({'check_ebroot_env_vars': 'ignore'})
