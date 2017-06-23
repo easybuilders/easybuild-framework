@@ -3,6 +3,34 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v3.3.0 (June 23rd 2017)
+-----------------------
+
+feature release
+- various enhancements, including:
+  - clean up easyconfigs that are copied for inclusion in pull request (#2197)
+  - use devel logging where relevant in easybuild.tools.toolchain (#2198)
+  - check exit code for executed module commands (#2200)
+  - also copy patches to installation directory & easyconfigs archive along with easyconfig file (#2202)
+  - work towards enforcing availability of SHA256 checksums for all sources/patches (#2215)
+  - make sure test account & accompanying token is used in tests for github.py (#2220)
+  - only use MPD for old versions of Intel MPI (<4.1) in mpi_cmd_for (#2221)
+  - add support for renaming sources on download (#2223)
+  - also pass GitHub user to fetch_latest_commit_sha in test_download_repo (#2224)
+  - escape dots in package filename to ensure correct match in derive_alt_pypi_url (#2225)
+  - add support for --detect-loaded-modules (#2228)
+  - give extensions access to module_generator of parent (#2229)
+  - pass down additional arguments to copy_dir down to shutil.copytree (#2230)
+  - avoid reloading already loaded modules that extend $MODULEPATH (#2232)
+  - catch exception shutil.Error (#2239)
+  - report full error and traceback on unhandled exception in test report (#2240)
+  - avoid copying patch to itself, replace use of shutil.copy/copy2 with copy_file (#2241)
+- various bug fixes, including:
+  - fix cleanup of easyconfigs for --new-pr and --update-pr under --extended-dry-run (#2227)
+  - fix GNU_SOURCE template by adding missing /gnu/ (#2235)
+  - fix --set-default-module flag (#2243)
+
+
 v3.2.1 (May 12th 2017)
 ----------------------
 
