@@ -3,7 +3,7 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
-v3.3.0 (June 24th 2017)
+v3.3.0 (June 26th 2017)
 -----------------------
 
 feature release
@@ -15,6 +15,7 @@ feature release
   - add support for SHA256 checksums (#2215)
     - also auto-detect whether provided checksum is MD5 or SHA256 based on length (if not checksum type is specified)
     - add support for --enforce-checksums, to require availability of checksums for sources/patches
+    - see http://easybuild.readthedocs.io/en/latest/Writing_easyconfig_files.html#source-files-patches-and-checksums
   - add support for renaming sources on download (#2223)
     - also involves deprecating use of 2-tuple elements in list of sources, see http://easybuild.readthedocs.io/en/latest/Deprecated-functionality.html#depr-sources-2-element-tuple
   - add support for --detect-loaded-modules (#2228)
