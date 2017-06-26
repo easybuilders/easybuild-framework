@@ -86,12 +86,34 @@ class Repository(object):
         """
         raise NotImplementedError
 
+    def stage_file(self, path):
+        """
+        Stage file at specified location in repository for commit
+
+        :param path: location of file to stage
+        """
+        raise NotImplementedError
+
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add easyconfig to repository.
-        cfg is the filename of the eb file
-        Stats contains some build stats, this should be a list of dictionaries.
-        previous is the list of previous buildstats
+        Add easyconfig to repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
+        """
+        raise NotImplementedError
+
+    def add_patch(self, patch):
+        """
+        Add patch file to repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
         """
         raise NotImplementedError
 

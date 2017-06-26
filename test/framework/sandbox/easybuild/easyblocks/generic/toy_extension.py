@@ -56,6 +56,8 @@ class Toy_Extension(ExtensionEasyBlock):
 
         EB_toy.install_step(self.master, name=self.name)
 
+        return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper(), self.name)
+
     def sanity_check_step(self, *args, **kwargs):
         """Custom sanity check for toy extensions."""
         self.log.info("Loaded modules: %s", self.modules_tool.list())

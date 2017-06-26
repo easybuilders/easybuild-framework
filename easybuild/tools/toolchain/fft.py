@@ -79,6 +79,6 @@ class Fft(Toolchain):
         ## TODO is link order fully preserved with this order ?
         self._set_fft_variables()
 
-        self.log.debug('set_variables: FFT variables %s' % self.variables)
+        self.log.devel('set_variables: FFT variables %s', self.variables)
 
         super(Fft, self).set_variables()

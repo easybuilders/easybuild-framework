@@ -245,6 +245,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if modtool is None:
         modtool = modules_tool(testing=testing)
 
+    # check whether any (EasyBuild-generated) modules are loaded already in the current session
+    modtool.check_loaded_modules()
+
     if options.last_log:
         # print location to last log file, and exit
         last_log = find_last_log(logfile) or '(none)'
