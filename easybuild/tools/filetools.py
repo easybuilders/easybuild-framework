@@ -544,7 +544,16 @@ def find_eb_script(script_name):
 
     script_loc = os.path.join(eb_dir, 'scripts', script_name)
     if not os.path.exists(script_loc):
-        raise EasyBuildError("Script '%s' not found at expected location: %s", script_name, script_loc)
+        # fallback mechanism: check in location relative to location of 'eb'
+        eb_path = resolve_path(which('eb'))
+        if eb_path is None:
+            _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+        else:
+            install_prefix = os.path.dirname(os.path.dirname(eb_path))
+            script_loc = os.path.join(install_prefix, 'easybuild', 'scripts', script_name)
+
+        if not os.path.exists(script_loc):
+            raise EasyBuildError("Script '%s' not found at expected location: %s", script_name, script_loc)
 
     return script_loc
 
