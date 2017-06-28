@@ -53,6 +53,8 @@ COMP_NAME_VERSION_TEMPLATES = {
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     # required for use of gcccuda toolchain, and for CUDA installed with GCC toolchain
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+    # required for CUDA installed with GCCcore toolchain
+    'CUDA,GCCcore': ('GCCcore-CUDA', '%(GCCcore)s-%(CUDA)s'),
     # required for use of iccifortcuda toolchain
     'CUDA,icc,ifort': ('intel-CUDA', '%(icc)s-%(CUDA)s'),
     # required for CUDA installed with iccifort toolchain
