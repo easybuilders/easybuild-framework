@@ -183,8 +183,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
         self.assertEqual(eb.make_module_extend_modpath(), '')
-
-        usermodsdir = 'my/own/modules'
+        # include /all since this is the default for mod_path_suffix
+        usermodsdir = 'my/own/modules/all'
         modclasses = ['compiler', 'tools']
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         build_options = {
