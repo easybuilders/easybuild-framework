@@ -34,6 +34,7 @@ import glob
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -51,14 +52,14 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template, verify_e
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, find_related_easyconfigs
-from easybuild.framework.easyconfig.tools import parse_easyconfigs
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, get_paths_for
+from easybuild.framework.easyconfig.tools import find_related_easyconfigs, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -2066,6 +2067,41 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(toy_ec, toy_txt)
         error_pattern = "Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+
+    def test_get_paths_for(self):
+        """Test for get_paths_for"""
+        orig_path = os.getenv('PATH', '')
+
+        top_dir = os.path.dirname(os.path.abspath(__file__))
+        mkdir(os.path.join(self.test_prefix, 'easybuild'))
+        test_ecs = os.path.join(top_dir, 'easyconfigs')
+        symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
+
+        # locations listed in 'robot_path' named argument are taken into account
+        res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # easyconfigs location can also be derived from location of 'eb'
+        write_file(os.path.join(self.test_prefix, 'bin', 'eb'), "#!/bin/bash; echo 'This is a fake eb'")
+        adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # also works when 'eb' resides in a symlinked location
+        altbin = os.path.join(self.test_prefix, 'some', 'other', 'symlinked', 'bin')
+        mkdir(os.path.dirname(altbin), parents=True)
+        symlink(os.path.join(self.test_prefix, 'bin'), altbin)
+        os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # also locations in sys.path are considered
+        os.environ['PATH'] = orig_path
+        sys.path.insert(0, self.test_prefix)
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
 
 def suite():
