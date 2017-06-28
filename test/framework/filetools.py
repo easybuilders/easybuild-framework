@@ -1228,6 +1228,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
         self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
+        # put test script in place relative to location of 'eb'
+        ft.write_file(os.path.join(self.test_prefix, 'bin', 'eb'), '#!/bin/bash\necho "fake eb"')
+        ft.adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH', ''))
+
+        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'justatest.sh')
+        ft.write_file(justatest, '#!/bin/bash')
+
+        self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
+
 
 def suite():
     """ returns all the testcases in this module """
