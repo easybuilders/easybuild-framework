@@ -339,6 +339,44 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
 
+        installver = '3.14-gompi-1.1.0-no-OFED'
+
+        # also check how absolute paths specified in modexself.contents = '\n'.join([
+        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
+        eb.check_readiness_step()
+
+        # absolute paths are not allowed by default
+        error_pattern = "Absolute path .* passed to prepend_paths which only expects relative paths"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
+
+        # allow use of absolute paths, and verify contents of module
+        self.contents += "\nallow_prepend_abs_path = True"
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
+        eb.check_readiness_step()
+
+        modrootpath = eb.make_module_step()
+
+        modpath = os.path.join(modrootpath, 'pi', installver)
+        if get_module_syntax() == 'Lua':
+            modpath += '.lua'
+
+        self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
+        txt = read_file(modpath)
+        patterns = [
+            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
+            r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
+            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
+
     def test_make_module_dep(self):
         """Test for make_module_dep"""
         self.contents = '\n'.join([
