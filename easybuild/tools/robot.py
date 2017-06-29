@@ -356,7 +356,7 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False):
 
 def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     """Search for easyconfigs, if a query is provided."""
-    search_path = build_option('robot_path')
+    search_path = build_option('search_paths')
     if not search_path:
         search_path = [os.getcwd()]
 
