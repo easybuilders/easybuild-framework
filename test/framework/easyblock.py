@@ -183,13 +183,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
         self.assertEqual(eb.make_module_extend_modpath(), '')
-
         usermodsdir = 'my/own/modules'
         modclasses = ['compiler', 'tools']
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         build_options = {
             'subdir_user_modules': usermodsdir,
             'valid_module_classes': modclasses,
+            'suffix_modules_path': 'funky',
         }
         init_config(build_options=build_options)
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -197,22 +197,22 @@ class EasyBlockTest(EnhancedTestCase):
 
         txt = eb.make_module_extend_modpath()
         if get_module_syntax() == 'Tcl':
-            regexs = [r'^module use ".*/modules/all/Compiler/pi/3.14/%s"$' % c for c in modclasses]
+            regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
             home = r'\$env\(HOME\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if { \[ file isdirectory \[ file join %s "%s/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
+                r'if { \[ file isdirectory \[ file join %s "%s/funky/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'^\s+module use \[ file join %s "%s/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
+                r'^\s+module use \[ file join %s "%s/funky/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
             ])
         elif get_module_syntax() == 'Lua':
-            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/all/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
+            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
             home = r'os.getenv\("HOME"\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if isDir\(pathJoin\(%s, "%s/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
+                r'if isDir\(pathJoin\(%s, "%s/funky/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
+                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/funky/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
