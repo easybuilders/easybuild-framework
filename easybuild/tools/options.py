@@ -218,6 +218,7 @@ class EasyBuildOptions(GeneralOption):
 
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
+        self.default_search_paths = self.default_robot_paths
 
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
@@ -226,6 +227,8 @@ class EasyBuildOptions(GeneralOption):
                                            "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
+                'DEFAULT_SEARCH_PATHS': (os.pathsep.join(self.default_search_paths),
+                                        "List of default search paths ('%s'-separated)" % os.pathsep),
                 'USER': (pwd.getpwuid(os.geteuid()).pw_name,
                          "Current username, translated uid from password file"),
                 'HOME': (os.path.expanduser('~'),
@@ -265,6 +268,9 @@ class EasyBuildOptions(GeneralOption):
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+            'search-paths': ("Additional paths to consider in search for easyconfigs (--robot and --robot-paths paths "
+                             "get priority)",
+                            'pathlist', 'add_flex', self.default_search_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
@@ -823,11 +829,17 @@ class EasyBuildOptions(GeneralOption):
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
 
+
         if self.options.robot is not None:
             # paths specified to --robot have preference over --robot-paths
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
             self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
             self.options.robot = self.options.robot_paths
+
+        # Update the search_paths keeping it in sync with robot_paths
+        self.options.search_paths = [os.path.abspath(path) for path in
+                                     self.options.robot_paths + self.options.search_paths]
+
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
@@ -957,7 +969,7 @@ class EasyBuildOptions(GeneralOption):
 
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
-        include_opts = ['buildpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
+        include_opts = ['buildpath', 'installpath', 'repositorypath', 'robot_paths', 'search_paths', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
 
         def reparse_cfg(args=None, withcfg=True):
