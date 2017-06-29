@@ -189,7 +189,7 @@ class EasyBlockTest(EnhancedTestCase):
         build_options = {
             'subdir_user_modules': usermodsdir,
             'valid_module_classes': modclasses,
-            'suffix_modules_path': funky,
+            'suffix_modules_path': 'funky',
         }
         init_config(build_options=build_options)
         eb = EasyBlock(EasyConfig(self.eb_file))
