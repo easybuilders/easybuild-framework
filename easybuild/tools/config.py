@@ -217,6 +217,7 @@ BUILD_OPTIONS_OTHER = {
         'external_modules_metadata',
         'pr_path',
         'robot_path',
+        'search_paths',
         'valid_module_classes',
         'valid_stops',
     ],
