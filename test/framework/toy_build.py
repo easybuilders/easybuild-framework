@@ -182,7 +182,7 @@ class ToyBuildTest(EnhancedTestCase):
         broken_toy_ec = os.path.join(tmpdir, "toy-broken.eb")
         toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         broken_toy_ec_txt = read_file(toy_ec_file)
-        broken_toy_ec_txt += "checksums = ['clearywrongchecksum']"
+        broken_toy_ec_txt += "checksums = ['clearywrongMD5checksumoflength32']"
         write_file(broken_toy_ec, broken_toy_ec_txt)
         error_regex = "Checksum verification .* failed"
         self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
@@ -857,6 +857,20 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test')
 
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-1.3.12-test')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        toy_mod_txt = read_file(toy_module)
+
+        patterns = [
+            '^setenv.*EBEXTSLISTTOY.*bar-0.0,barbar-0.0',
+            # set by ToyExtension easyblock used to install extensions
+            '^setenv.*TOY_EXT_BAR.*bar',
+            '^setenv.*TOY_EXT_BARBAR.*barbar',
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
+
     def test_toy_hidden_cmdline(self):
         """Test installing a hidden module using the '--hidden' command line option."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -932,6 +946,23 @@ class ToyBuildTest(EnhancedTestCase):
         ec = EasyConfig(archived_ec)
         self.assertEqual(ec.name, 'toy')
         self.assertEqual(ec.version, '0.0')
+
+    def test_toy_patches(self):
+        """Test whether patches are being copied to install directory and easyconfigs archive"""
+        repositorypath = os.path.join(self.test_installpath, 'easyconfigs_archive')
+        extra_args = [
+            '--repository=FileRepository',
+            '--repositorypath=%s' % repositorypath,
+        ]
+        self.test_toy_build(raise_error=True, extra_args=extra_args)
+
+        installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+
+        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_typo.patch')
+        self.assertTrue(os.path.exists(patch_file))
+
+        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_typo.patch')
+        self.assertTrue(os.path.isfile(archived_patch_file))
 
     def test_toy_module_fulltxt(self):
         """Strict text comparison of generated module file."""

@@ -84,6 +84,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
+            self.module_generator = self.master.module_generator
             self.is_extension = True
             self.unpack_options = None
         else:

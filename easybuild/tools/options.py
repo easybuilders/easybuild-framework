@@ -61,6 +61,8 @@ from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, 
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import ERROR, IGNORE, WARN
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -242,7 +244,7 @@ class EasyBuildOptions(GeneralOption):
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
-        strictness_options = [run.IGNORE, run.WARN, run.ERROR]
+        strictness_options = [IGNORE, WARN, ERROR]
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -267,7 +269,7 @@ class EasyBuildOptions(GeneralOption):
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
-            'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
+            'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -316,10 +318,15 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
+            'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
+                                     'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
+            'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
+                                      "for which there is no matching loaded module; "
+                                      "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -330,11 +337,15 @@ class EasyBuildOptions(GeneralOption):
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
+            'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
+                                      "supported values: %s" % ', '.join(LOADED_MODULES_ACTIONS), None, 'store', WARN),
             'devel': ("Enable including of development log messages", None, 'store_true', False),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
+                                  None, 'store_true', False),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
@@ -532,6 +543,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
+            'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
@@ -715,6 +727,11 @@ class EasyBuildOptions(GeneralOption):
             mod_syntaxes = ', '.join(sorted(avail_module_generators().keys()))
             error_msg += "use --module-syntax to specify a different module syntax to use (%s)" % mod_syntaxes
             raise EasyBuildError(error_msg)
+
+        # check whether specified action --detect-loaded-modules is valid
+        if self.options.detect_loaded_modules not in LOADED_MODULES_ACTIONS:
+            raise EasyBuildError("Unknown action specified to --detect-loaded-modules: %s (known values: %s)",
+                                 self.options.detect_loaded_modules, ', '.join(LOADED_MODULES_ACTIONS))
 
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:

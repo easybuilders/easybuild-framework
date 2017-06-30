@@ -121,17 +121,43 @@ class GitRepository(FileRepository):
         except (git.GitCommandError, OSError), err:
             raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
-    def add_easyconfig(self, cfg, name, version, stats, append):
+    def stage_file(self, path):
         """
-        Add easyconfig to git repository.
+        Stage file at specified location in repository for commit
+
+        :param path: location of file to stage
         """
-        dest = FileRepository.add_easyconfig(self, cfg, name, version, stats, append)
-        # add it to version control
-        if dest:
-            try:
-                self.client.add(dest)
-            except GitCommandError, err:
-                self.log.warning("adding %s to git failed: %s" % (dest, err))
+        try:
+            self.client.add(path)
+        except GitCommandError as err:
+            self.log.warning("adding %s to git failed: %s", path, err)
+
+    def add_easyconfig(self, cfg, name, version, stats, previous_stats):
+        """
+        Add easyconfig to git repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
+        """
+        path = super(GitRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        self.stage_file(path)
+        return path
+
+    def add_patch(self, patch, name):
+        """
+        Add patch to git repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
+        """
+        path = super(GitRepository, self).add_patch(patch, name)
+        self.stage_file(path)
+        return path
 
     def commit(self, msg=None):
         """

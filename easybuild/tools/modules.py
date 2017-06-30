@@ -44,9 +44,11 @@ from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET, WARN
+from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -214,7 +216,7 @@ class ModulesTool(object):
             raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
-            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False)
+            txt = self.run_module(self.VERSION_OPTION, return_output=True, check_output=False, check_exit_code=False)
 
             ver_re = re.compile(self.VERSION_REGEXP, re.M)
             res = ver_re.search(txt)
@@ -477,7 +479,7 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, init_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None, allow_reload=True):
         """
         Load all requested modules.
 
@@ -485,6 +487,7 @@ class ModulesTool(object):
         :param mod_paths: list of module paths to activate before loading
         :param purge: whether or not a 'module purge' should be run before loading
         :param init_env: original environment to restore after running 'module purge'
+        :param allow_reload: allow reloading an already loaded module
         """
         if mod_paths is None:
             mod_paths = []
@@ -506,8 +509,10 @@ class ModulesTool(object):
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             self.prepend_module_path(full_mod_path)
 
+        loaded_modules = self.loaded_modules()
         for mod in modules:
-            self.run_module('load', mod)
+            if allow_reload or mod not in loaded_modules:
+                self.run_module('load', mod)
 
     def unload(self, modules=None):
         """
@@ -651,6 +656,12 @@ class ModulesTool(object):
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
 
+        # also catch and check exit code
+        exit_code = proc.returncode
+        if kwargs.get('check_exit_code', True) and exit_code != 0:
+            raise EasyBuildError("Module command 'module %s' failed with exit code %s; stderr: %s; stdout: %s",
+                                 ' '.join(cmd_list[2:]), exit_code, stderr, stdout)
+
         if kwargs.get('check_output', True):
             self.check_module_output(full_cmd, stdout, stderr)
 
@@ -711,6 +722,87 @@ class ModulesTool(object):
         loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]
 
         return loaded_modules
+
+    def check_loaded_modules(self):
+        """
+        Check whether any (EasyBuild-generated) modules are loaded already in the current session
+        """
+        allowed_keys = [get_software_root_env_var_name(x) for x in build_option('allow_loaded_modules') or [] if x]
+
+        eb_module_keys = []
+        for key in os.environ:
+            if key.startswith(ROOT_ENV_VAR_NAME_PREFIX) and key not in allowed_keys:
+                eb_module_keys.append(key)
+
+        if eb_module_keys:
+            loaded_modules = self.loaded_modules()
+
+            # try to track down modules that define the $EBROOT* environment variables that were found
+            loaded_eb_modules = []
+            for loaded_module in loaded_modules:
+                out = self.show(loaded_module)
+                for key in eb_module_keys[:]:
+                    if key in out:
+                        loaded_eb_modules.append(loaded_module)
+                        eb_module_keys.remove(key)
+
+            # warn about $EBROOT* environment variables without matching loaded module
+            if eb_module_keys:
+                tup = (ROOT_ENV_VAR_NAME_PREFIX, '$' + ', $'.join(eb_module_keys))
+                msg = "Found defined $%s* environment variables without matching loaded module: %s" % tup
+                msg_control = "\n(control action via --check-ebroot-env-vars={%s})" % ','.join(EBROOT_ENV_VAR_ACTIONS)
+                action = build_option('check_ebroot_env_vars')
+                if action == ERROR:
+                    raise EasyBuildError(msg + msg_control)
+                elif action == IGNORE:
+                    self.log.info(msg + ", but ignoring as configured")
+                elif action == UNSET:
+                    print_warning(msg + "; unsetting them")
+                    unset_env_vars(eb_module_keys)
+                else:
+                    print_warning(msg + msg_control)
+
+            if loaded_eb_modules:
+                opt = '--detect-loaded-modules={%s}' % ','.join(LOADED_MODULES_ACTIONS)
+                verbose_msg = '\n'.join([
+                    "Found one or more non-allowed loaded (EasyBuild-generated) modules in current environment:",
+                ] + ['* %s' % x for x in loaded_eb_modules] + [
+                    '',
+                    "This is not recommended since it may affect the installation procedure(s) performed by EasyBuild.",
+                    '',
+                    "To make EasyBuild allow particular loaded modules, "
+                    "use the --allow-loaded-modules configuration option.",
+                    "To specify action to take when loaded modules are detected, use %s." % opt,
+                    '',
+                    "See http://easybuild.readthedocs.io/en/latest/Detecting_loaded_modules.html for more information.",
+                ])
+
+                action = build_option('detect_loaded_modules')
+
+                if action == ERROR:
+                    raise EasyBuildError(verbose_msg)
+
+                elif action == IGNORE:
+                    msg = "Found non-allowed loaded (EasyBuild-generated) modules, but ignoring it as configured"
+                    self.log.info(msg)
+
+                elif action == PURGE:
+                    msg = "Found non-allowed loaded (EasyBuild-generated) modules (%s), running 'module purge'"
+                    print_warning(msg % ', '.join(loaded_eb_modules))
+
+                    self.log.info(msg)
+                    self.purge()
+
+                elif action == UNLOAD:
+                    msg = "Unloading non-allowed loaded (EasyBuild-generated) modules: %s"
+                    print_warning(msg % ', '.join(loaded_eb_modules))
+
+                    self.log.info(msg)
+                    self.unload(loaded_eb_modules[::-1])
+
+                else:
+                    # default behaviour is just to print out a warning and continue
+                    print_warning(verbose_msg)
 
     def read_module_file(self, mod_name):
         """
@@ -802,7 +894,7 @@ class ModulesTool(object):
             if exts:
                 # load this module, since it may extend $MODULEPATH to make other modules available
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
-                self.load([mod_name])
+                self.load([mod_name], allow_reload=False)
 
         # restore environment (modules may have been loaded above)
         restore_env(env)
@@ -873,7 +965,8 @@ class ModulesTool(object):
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
-                self.load([dep])
+                # don't reload module if it is already loaded, since that'll mess up the order in $MODULEPATH
+                self.load([dep], allow_reload=False)
 
         # restore original environment (modules may have been loaded above)
         restore_env(env)

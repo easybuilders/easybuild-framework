@@ -730,9 +730,60 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
+    def test_fetch_sources(self):
+        """Test fetch_sources method."""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
+        eb = get_easyblock_instance(ec)
+
+        toy_source = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+
+        eb.fetch_sources()
+        self.assertEqual(len(eb.src), 1)
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
+        self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
+        self.assertEqual(eb.src[0]['cmd'], None)
+        self.assertEqual(len(eb.src[0]['checksum']), 6)
+        self.assertEqual(eb.src[0]['checksum'][0], 'be662daa971a640e40be5c804d9d7d10')
+
+        # reconfigure EasyBuild so we can check 'downloaded' sources
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config()
+
+        eb.cfg['source_urls'] = ['file://%s' % os.path.dirname(toy_source)]
+
+        # reset and try with provided list of sources
+        eb.src = []
+        sources = [
+            {'filename': 'toy-0.0-extra.txt', 'download_filename': 'toy-extra.txt'},
+            {'filename': 'toy-0.0_gzip.patch.gz', 'extract_cmd': "gunzip %s"},
+            {'filename': 'toy-0.0-renamed.tar.gz', 'download_filename': 'toy-0.0.tar.gz', 'extract_cmd': "tar xfz %s"},
+        ]
+        eb.fetch_sources(sources, checksums=[])
+
+        toy_source_dir = os.path.join(self.test_prefix, 't', 'toy')
+        expected_sources = ['toy-0.0-extra.txt', 'toy-0.0_gzip.patch.gz', 'toy-0.0-renamed.tar.gz']
+
+        # make source sources were downloaded, using correct filenames
+        self.assertEqual(len(eb.src), 3)
+        for idx in range(3):
+            self.assertEqual(eb.src[idx]['name'], expected_sources[idx])
+            self.assertTrue(os.path.exists(eb.src[idx]['path']))
+            source_loc = os.path.join(toy_source_dir, expected_sources[idx])
+            self.assertTrue(os.path.exists(source_loc))
+            self.assertTrue(os.path.samefile(eb.src[idx]['path'], source_loc))
+        self.assertEqual(eb.src[0]['cmd'], None)
+        self.assertEqual(eb.src[1]['cmd'], "gunzip %s")
+        self.assertEqual(eb.src[2]['cmd'], "tar xfz %s")
+
+        # old format for specifying source with custom extract command is deprecated
+        eb.src = []
+        error_msg = "DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
+                              [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
+
     def test_fetch_patches(self):
         """Test fetch_patches method."""
-        # adjust PYTHONPATH such that test easyblocks are found
         testdir = os.path.abspath(os.path.dirname(__file__))
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)

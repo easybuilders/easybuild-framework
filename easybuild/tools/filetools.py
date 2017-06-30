@@ -101,15 +101,18 @@ STRING_ENCODING_CHARMAP = {
 }
 
 
-# default checksum for source and patch files
-DEFAULT_CHECKSUM = 'md5'
+CHECKSUM_TYPE_MD5 = 'md5'
+CHECKSUM_TYPE_SHA256 = 'sha256'
+DEFAULT_CHECKSUM = CHECKSUM_TYPE_MD5
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
-    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
+    CHECKSUM_TYPE_MD5: lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
+    CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
+    'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
     'size': lambda p: os.path.getsize(p),
 }
 
@@ -362,7 +365,8 @@ def derive_alt_pypi_url(url):
         else:
             links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
 
-        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_source, re.M)
+        pkg_regex = pkg_source.replace('.', '\\.')
+        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_regex, re.M)
         for link in links:
             res = regex.match(link)
             if res:
@@ -550,7 +554,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     Compute checksum of specified file.
 
     :param path: Path of file to compute checksum for
-    :param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
+    :param checksum_type: type(s) of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'sha256', 'sha512', 'size')
     """
     if checksum_type not in CHECKSUM_FUNCTIONS:
         raise EasyBuildError("Unknown checksum type (%s), supported types are: %s",
@@ -596,9 +600,12 @@ def verify_checksum(path, checksums):
     :param file: path of file to verify checksum of
     :param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
-    # if no checksum is provided, pretend checksum to be valid
+    # if no checksum is provided, pretend checksum to be valid, unless presence of checksums to verify is enforced
     if checksums is None:
-        return True
+        if build_option('enforce_checksums'):
+            raise EasyBuildError("Missing checksum for %s", os.path.basename(path))
+        else:
+            return True
 
     # make sure we have a list of checksums
     if not isinstance(checksums, list):
@@ -606,8 +613,14 @@ def verify_checksum(path, checksums):
 
     for checksum in checksums:
         if isinstance(checksum, basestring):
-            # default checksum type unless otherwise specified is MD5 (most common(?))
-            typ = DEFAULT_CHECKSUM
+            # if no checksum type is specified, it is assumed to be MD5 (32 characters) or SHA256 (64 characters)
+            if len(checksum) == 64:
+                typ = CHECKSUM_TYPE_SHA256
+            elif len(checksum) == 32:
+                typ = CHECKSUM_TYPE_MD5
+            else:
+                raise EasyBuildError("Length of checksum '%s' (%d) does not match with either MD5 (32) or SHA256 (64)",
+                                     checksum, len(checksum))
         elif isinstance(checksum, tuple) and len(checksum) == 2:
             typ, checksum = checksum
         else:
@@ -800,13 +813,10 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
         if build_option('extended_dry_run'):
             dry_run_msg("  %s copied to %s" % (patch_file, dest), silent=build_option('silent'))
         else:
-            try:
-                shutil.copy2(patch_file, dest)
-                _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
-                # early exit, work is done after copying
-                return True
-            except IOError, err:
-                raise EasyBuildError("Failed to copy %s to dir %s: %s", patch_file, dest, err)
+            copy_file(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
+            # early exit, work is done after copying
+            return True
 
     # use absolute paths
     apatch = os.path.abspath(patch_file)
@@ -1470,20 +1480,25 @@ def copy_file(path, target_path, force_in_dry_run=False):
         dry_run_msg("copied file %s to %s" % (path, target_path))
     else:
         try:
-            mkdir(os.path.dirname(target_path), parents=True)
-            shutil.copy2(path, target_path)
-            _log.info("%s copied to %s", path, target_path)
-        except (IOError, OSError) as err:
+            if os.path.exists(target_path) and os.path.samefile(path, target_path):
+                _log.debug("Not copying %s to %s since files are identical", path, target_path)
+            else:
+                mkdir(os.path.dirname(target_path), parents=True)
+                shutil.copy2(path, target_path)
+                _log.info("%s copied to %s", path, target_path)
+        except (IOError, OSError, shutil.Error) as err:
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
 
-def copy_dir(path, target_path, force_in_dry_run=False):
+def copy_dir(path, target_path, force_in_dry_run=False, **kwargs):
     """
     Copy a directory from specified location to specified location
 
     :param path: the original directory path
     :param target_path: path to copy the directory to
     :param force_in_dry_run: force running the command during dry run
+
+    Additional specified named arguments are passed down to shutil.copytree
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("copied directory %s to %s" % (path, target_path))
@@ -1492,7 +1507,7 @@ def copy_dir(path, target_path, force_in_dry_run=False):
             if os.path.exists(target_path):
                 raise EasyBuildError("Target location %s to copy %s to already exists", target_path, path)
 
-            shutil.copytree(path, target_path)
+            shutil.copytree(path, target_path, **kwargs)
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError) as err:
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)

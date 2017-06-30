@@ -153,7 +153,7 @@ class Compiler(Toolchain):
     def set_options(self, options):
         """Process compiler toolchain options."""
         self._set_compiler_toolchainoptions()
-        self.log.debug('_compiler_set_options: compiler toolchain options %s' % self.options)
+        self.log.devel('_compiler_set_options: compiler toolchain options %s', self.options)
         super(Compiler, self).set_options(options)
 
     def set_variables(self):
@@ -162,7 +162,7 @@ class Compiler(Toolchain):
         self._set_optimal_architecture()
         self._set_compiler_flags()
 
-        self.log.debug('set_variables: compiler variables %s' % self.variables)
+        self.log.devel('set_variables: compiler variables %s', self.variables)
         super(Compiler, self).set_variables()
 
     def _set_compiler_toolchainoptions(self):
@@ -231,7 +231,6 @@ class Compiler(Toolchain):
         if self.options.get('cciscxx', None):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
                            (self.variables['CXX'], self.variables['CC']))
-            # FIXME (stdweird): shouldn't this be the other way around??
             self.variables['CXX'] = self.variables['CC']
 
     def _set_compiler_flags(self):
