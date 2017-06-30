@@ -360,7 +360,6 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     if not search_path:
         search_path = [os.getcwd()]
     extra_search_paths = build_option('search_paths')
-    print extra_search_paths
     if extra_search_paths:
         search_path.extend(extra_search_paths)
 
