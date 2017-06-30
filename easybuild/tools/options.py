@@ -836,10 +836,9 @@ class EasyBuildOptions(GeneralOption):
             self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
             self.options.robot = self.options.robot_paths
 
-        # Update the search_paths keeping it in sync with robot_paths
-        self.options.search_paths = [os.path.abspath(path) for path in
-                                     self.options.robot_paths + self.options.search_paths]
-
+        # Update the search_paths keeping it in sync with robot_paths (who have priority) and removing duplicates
+        self.options.search_paths = list(set([os.path.abspath(path) for path in
+                                     self.options.robot_paths + self.options.search_paths]))
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
