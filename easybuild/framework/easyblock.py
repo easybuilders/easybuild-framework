@@ -1074,7 +1074,7 @@ class EasyBlock(object):
             elif not isinstance(value, (tuple, list)):
                 raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
                                      value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value))
+            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
         if self.cfg['modloadmsg']:
             lines.append(self.module_generator.msg_on_load(self.cfg['modloadmsg']))
