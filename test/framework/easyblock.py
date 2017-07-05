@@ -894,7 +894,10 @@ class EasyBlockTest(EnhancedTestCase):
 
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
-        urls = ["http://hpcugent.github.io/easybuild/index.html", "https://hpcugent.github.io/easybuild/index.html"]
+        urls = [
+            "http://easybuilders.github.io/easybuild/index.html",
+            "https://easybuilders.github.io/easybuild/index.html",
+        ]
         for file_url in urls:
             fn = os.path.basename(file_url)
             res = None
@@ -912,7 +915,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
                 txt = open(loc, 'r').read()
                 eb_regex = re.compile("EasyBuild: building software with ease")
-                self.assertTrue(eb_regex.search(txt))
+                self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))
             else:
                 print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
 

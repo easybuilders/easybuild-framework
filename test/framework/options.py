@@ -914,7 +914,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
@@ -978,7 +978,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'toy-0.0.eb',
             'gompi-2015a.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc and numactl)
             'GCC-4.6.3.eb',
-            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
@@ -1021,7 +1021,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            # PR for foss/2015a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
             'FFTW-3.3.4-gompi-2015a.eb',  # required ConfigureMake easyblock, which is available in test easyblocks
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
@@ -2191,7 +2191,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         self.mock_stdout(True)
-        # PR for zlib 1.2.8 easyconfig, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1484
+        # PR for zlib 1.2.8 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/1484
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -2437,9 +2437,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(False, "Failed to find temporary git working dir: %s" % dirs)
 
         regexs = [
-            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r"^Opening pull request \[DRY RUN\]",
-            r"^\* target: hpcugent/easybuild-easyconfigs:develop",
+            r"^\* target: easybuilders/easybuild-easyconfigs:develop",
             r"^\* from: %s/easybuild-easyconfigs:.*_new_pr_toy00" % GITHUB_TEST_ACCOUNT,
             r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"",
             r"\(created using `eb --new-pr`\)",  # description
@@ -2531,11 +2531,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         regexs = [
-            r"^== Determined branch name corresponding to hpcugent/easybuild-easyconfigs PR #2237: develop",
-            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r"^== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #2237: develop",
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
             r"^\s*1 file changed",
-            r"^Updated hpcugent/easybuild-easyconfigs PR #2237 by pushing to branch hpcugent/develop \[DRY RUN\]",
+            r"^Updated easybuilders/easybuild-easyconfigs PR #2237 by pushing to branch easybuilders/develop \[DRY RUN\]",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -2592,7 +2592,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
 
         regexs = [
-            r"^== fetching branch 'develop' from https://github.com/hpcugent/easybuild-easyconfigs.git...",
+            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r'title: "delete bzip2-1.6.0"',
             r"1 file changed, [0-9]+ deletions\(-\)",
         ]
