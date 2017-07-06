@@ -163,9 +163,9 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_download_repo, no GitHub token available?"
             return
 
-        # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
+        # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
+        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
         shafile = os.path.join(repodir, 'latest-sha')
