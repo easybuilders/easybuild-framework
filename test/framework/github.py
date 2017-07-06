@@ -55,9 +55,8 @@ except ImportError, err:
 
 # test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
-# the user who's repo to test
-GITHUB_USER = "easybuilders"
-# the repo of this user to use in this test
+# the user & repo to use in this test (https://github.com/hpcugent/testrepository)
+GITHUB_USER = "hpcugent"
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
