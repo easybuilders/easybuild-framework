@@ -1552,10 +1552,11 @@ def copy_easyconfigs(paths, target_dir):
             ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
+
+            file_info['new'].append(not os.path.exists(target_path))
             copy_file(path, target_path, force_in_dry_run=True)
 
             file_info['paths_in_repo'].append(target_path)
-            file_info['new'].append(os.path.exists(target_path))
 
         else:
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
