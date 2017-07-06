@@ -1839,12 +1839,10 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(toy_ec, toy_ec_txt)
 
-        # verify whether copied easyconfig gets cleaned up
+        # copy single easyconfig with buildstats included for running further tests
         res = copy_easyconfigs([toy_ec], target_dir)
 
         self.assertEqual([len(x) for x in res.values()], [1, 1, 1])
-
-        self.assertTrue(isinstance(res['ecs'][0], EasyConfig))
         self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
 
         # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
@@ -1853,7 +1851,7 @@ class EasyConfigTest(EnhancedTestCase):
         copied_toy_ec = os.path.join(ecs_target_dir, 't', 'toy', 'toy-0.0.eb')
         self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_toy_ec))
 
-
+        # verify whether copied easyconfig gets cleaned up (stripping out 'Built with' comment + build stats)
         txt = read_file(copied_toy_ec)
         regexs = [
             "# Built with EasyBuild",
