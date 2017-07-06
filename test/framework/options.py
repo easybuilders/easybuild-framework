@@ -2508,6 +2508,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+        # modifying an existing easyconfig requires a custom PR title
+        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb')
+        self.assertTrue(os.path.exists(gcc_ec))
+
+        args = [
+            '--new-pr',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            toy_ec,
+            gcc_ec,
+            '-D',
+        ]
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
+
+        # also specifying commit message is sufficient; PR title is inherited from commit message
+        args.append('--pr-commit-msg=this is just a test')
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile('^\* title: "this is just a test"', re.M)
+        self.assertTrue(regex.search(txt), "Pattern '%s' is found in: %s" % (regex.pattern, txt))
+
         args = [
             # PR for EasyBuild v2.5.0 release
             # we need a PR where the base branch is still available ('develop', in this case)
