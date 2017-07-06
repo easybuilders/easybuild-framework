@@ -2698,6 +2698,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec,
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+            '--pr-commit-msg=blabla',
         ]
 
         self.mock_stdout(True)
