@@ -3,7 +3,7 @@ version = '0.0'
 # required to fool test in modulegenerator, but will never be used (overwritten later)
 versionsuffix = '-multiple'
 
-homepage = 'http://hpcugent.github.com/easybuild'
+homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
 
 toolchain = {'name': 'dummy', 'version': 'dummy'}

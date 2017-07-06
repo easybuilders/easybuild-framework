@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -225,7 +225,7 @@ class ToyBuildTest(EnhancedTestCase):
             "usage = 'This toy is easy to use, 100%!'",
             "examples = 'No example available, 0% complete'",
             "docpaths = ['share/doc/toy/readme.txt', 'share/doc/toy/html/index.html']",
-            "docurls = ['http://hpcugent.github.com/easybuild/toy/docs.html']",
+            "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
             "site_contacts = ['Jim Admin', 'Jane Admin']",
         ])
@@ -1000,11 +1000,11 @@ class ToyBuildTest(EnhancedTestCase):
             r'',
             r'More information',
             r'================',
-            r' - Homepage: http://hpcugent.github.com/easybuild',
+            r' - Homepage: https://easybuilders.github.io/easybuild',
             r' - Documentation:',
             r'    - \$EBROOTTOY/share/doc/toy/readme.txt',
             r'    - \$EBROOTTOY/share/doc/toy/html/index.html',
-            r'    - http://hpcugent.github.com/easybuild/toy/docs.html',
+            r'    - https://easybuilders.github.io/easybuild/toy/docs.html',
             r' - Upstream contact: support@toy.org',
             r' - Site contacts:',
             r'    - Jim Admin',
@@ -1018,7 +1018,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'\]\]\)',
                 r'',
                 r'whatis\(\[\[Description: Toy C program, 100% toy.\]\]\)',
-                r'whatis\(\[\[Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'whatis\(\[\[Homepage: https://easybuilders.github.io/easybuild\]\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -1054,7 +1054,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r'}',
                 r'',
                 r'module-whatis {Description: Toy C program, 100% toy.}',
-                r'module-whatis {Homepage: http://hpcugent.github.com/easybuild}',
+                r'module-whatis {Homepage: https://easybuilders.github.io/easybuild}',
                 r'',
                 r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
                 r'',
@@ -1323,7 +1323,7 @@ class ToyBuildTest(EnhancedTestCase):
             "toolchain = {'name': 'goolf', 'version': '1.4.10'}",
             # specially construct (sort of senseless) sanity check commands,
             # that will fail if the corresponding modules are not loaded
-            # cfr. https://github.com/hpcugent/easybuild-framework/pull/1754
+            # cfr. https://github.com/easybuilders/easybuild-framework/pull/1754
             "sanity_check_commands = [",
             "   'env | grep EBROOTFFTW',",
             "   'env | grep EBROOTGCC',",

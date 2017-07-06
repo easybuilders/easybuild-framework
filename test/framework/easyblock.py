@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -895,7 +895,7 @@ class EasyBlockTest(EnhancedTestCase):
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
         urls = [
-            "http://easybuilders.github.io/easybuild/index.html",
+            "https://easybuilders.github.io/easybuild/index.html",
             "https://easybuilders.github.io/easybuild/index.html",
         ]
         for file_url in urls:

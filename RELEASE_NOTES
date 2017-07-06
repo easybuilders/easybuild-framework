@@ -635,7 +635,7 @@ feature + bugfix release
 - add support for using external modules as dependencies, and to provide metadata for external modules (#1230, #1265, #1267)
     - see http://easybuild.readthedocs.org/en/latest/Using_external_modules.html
 - add experimental support for Cray toolchains on top of PrgEnv modules: CrayGNU, CrayIntel, CrayCCE (#1234, #1268)
-    - see https://github.com/hpcugent/easybuild/wiki/EasyBuild-on-Cray for more information
+    - see http://easybuild.readthedocs.io/en/latest/Cray-support.html for more information
 - various other enhancements, including:
     - clear list of checksums when using --try-software-version (#1169)
     - sort the results of searching for files (e.g., --search output) (#1214)
@@ -905,7 +905,7 @@ feature + bugfix release
     - add --upload-test-report command line option for uploading a detailed test report to GitHub as a gist
         - this requires specifying a GitHub username for which a GitHub token is available, using --github-user
         - with --dump-test-report, the test report can simply be dumped to file rather than being uploaded to GitHub
-        - see also https://github.com/hpcugent/easybuild/wiki/Review-process-for-contributions#testing-result
+        - see also http://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html#uploading-test-reports-upload-test-report
 - the 'makeopts' and 'premakeopts' easyconfig parameter are deprecated, and replaced by 'buildopts' and 'prebuildopts' (#918)
     - both 'makeopts' and 'premakeopts' will still be honored in future EasyBuild v1.x versions, but should no longer be used
 - various other enhancements, including:
@@ -1015,7 +1015,7 @@ feature + bugfix release
         - cfr. 'checksums' easyconfig parameter
     - add support for `eb --confighelp`, which prints out an example configuration file (#775)
     - add initial support for `eb` tab completion in bash shells (#775, #797, #798)
-        - see also https://github.com/hpcugent/easybuild/wiki/Setting-up-tab-completion-for-bash
+        - see also https://github.com/easybuilders/easybuild/wiki/Setting-up-tab-completion-for-bash
         - note: may be quite slow for now
     - enhancements for using Lmod as modules tool (#780, #795, #796):
         - ignore Lmod spider cache by setting $LMOD_IGNORE_CACHE (requires Lmod 5.2)
@@ -1047,7 +1047,7 @@ feature + bugfix release
     - this prepares the codebase for supporting easyconfig format v2.0
     - some initial work on adding support for the new easyconfig format is included, but it's by no means complete yet
     - the current easyconfig format (now dubbed v1.0) is still the default and only supported format, for now
-    - for more details, see https://github.com/hpcugent/easybuild/wiki/Easyconfig-format-two
+    - for more details, see https://github.com/easybuilders/easybuild/wiki/Easyconfig-format-two
 - various other enhancements, including:
     - include a full version of vsc-base (see the 'vsc' subdirectory) (#740)
         - this is a first step towards switching to using vsc-base as a proper dependency
@@ -1091,7 +1091,7 @@ v1.8.0 (October 4th 2013)
 
 feature + bugfix release
 - add support for using alternative module naming schemes (#679, #696, #705, #706, #707)
-    - see https://github.com/hpcugent/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
+    - see https://github.com/easybuilders/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
     - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be provided to EasyBuild
         - the Python module providing the class must be available in the easybuild.tools.module_naming_scheme namespace
         - a function named 'det_full_module_name' must be implemented, that determines the module name
@@ -1107,7 +1107,7 @@ feature + bugfix release
         - the format for specifying dependencies was extended, to allow for specifying a custom toolchain
             - this allows to fix inaccurate dependency specifications,
               like "('OpenMPI', '1.6.4-GCC-4.7.2')" to "('OpenMPI', '1.6.4', '', ('GCC', '4.7.2'))"
-            - see also https://github.com/hpcugent/easybuild-easyconfigs/pull/431
+            - see also https://github.com/easybuilders/easybuild-easyconfigs/pull/431
         - the recommended version for Lmod was bumped to v5.1.5
             - using earlier 5.x version still works, but may be very slow when 'available' is used,
               due to bugs and a missing feature in Lmod versions prior to v5.1.5 on which we rely
@@ -1122,7 +1122,7 @@ feature + bugfix release
     - restore original environment after running 'module purge' (#698)
         - important sidenote: this results in resetting the entire environment, and has impact on the sanity check step;
           any environment variables that are set before the EasyBlock.sanity_check_step method fires, are no longer there
-          when the sanity check commands are run (cfr. https://github.com/hpcugent/easybuild-easyblocks/pull/268)
+          when the sanity check commands are run (cfr. https://github.com/easybuilders/easybuild-easyblocks/pull/268)
 
 v1.7.0 (September 2nd 2013)
 ---------------------------
@@ -1200,7 +1200,7 @@ v1.3.0 (April 1st 2013)
 -----------------------
 
 feature + bugfix release
-- added script to bootstrap EasyBuild with EasyBuild, see https://github.com/hpcugent/easybuild/wiki/Bootstrapping-EasyBuild (#531)
+- added script to bootstrap EasyBuild with EasyBuild, see http://easybuild.readthedocs.io/en/latest/Installation.html#bootstrapping-easybuild (#531)
 - reorganize framework/easyconfig.py module into framework/easyconfig package with modules (#574, #580)
 - support EasyBuild configuration via command line, environment variables and configuration files (#529, #552, #556, #558, #559)
 - various other enhancements, including:

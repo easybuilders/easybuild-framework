@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ class Githubfs(object):
         """Read the contents of a file and return it
         Or, if api=False it will download the file and return the location of the downloaded file"""
         # we don't need use the api for this, but can also use raw.github.com
-        # https://raw.github.com/hpcugent/easybuild/master/README.rst
+        # https://raw.github.com/easybuilders/easybuild/master/README.rst
         if not api:
             outfile = tempfile.mkstemp()[1]
             url = '/'.join([GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path])
@@ -1252,7 +1252,7 @@ def validate_github_token(token, github_user):
     else:
         _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", sha_regex.pattern)
 
-    # try and determine sha of latest commit in hpcugent/easybuild-easyconfigs repo through authenticated access
+    # try and determine sha of latest commit in easybuilders/easybuild-easyconfigs repo through authenticated access
     sha = None
     try:
         sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user, token=token)

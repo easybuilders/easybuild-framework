@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ class RepositoryTest(EnhancedTestCase):
             print "(skipping GitRepository test)"
             return
 
-        test_repo_url = 'https://github.com/hpcugent/testrepository'
+        test_repo_url = 'https://github.com/easybuilders/testrepository'
 
         # URL
         repo = GitRepository(test_repo_url)
@@ -122,7 +122,7 @@ class RepositoryTest(EnhancedTestCase):
             return
 
         # GitHub also supports SVN
-        test_repo_url = 'https://github.com/hpcugent/testrepository'
+        test_repo_url = 'https://github.com/easybuilders/testrepository'
 
         repo = SvnRepository(test_repo_url)
         repo.init()

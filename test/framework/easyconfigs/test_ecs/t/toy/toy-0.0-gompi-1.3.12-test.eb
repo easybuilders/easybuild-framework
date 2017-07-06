@@ -2,7 +2,7 @@ name = 'toy'
 version = '0.0'
 versionsuffix = '-test'
 
-homepage = 'http://hpcugent.github.com/easybuild'
+homepage = 'https://easybuilders.github.io/easybuild'
 description = "Toy C program, 100% toy."
 
 toolchain = {'name': 'gompi', 'version': '1.3.12'}

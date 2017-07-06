@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -717,7 +717,7 @@ class ModulesTest(EnhancedTestCase):
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
         # this test is here as check for a nasty bug in how the modules tool is deployed
-        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1756,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/1756,
         # https://bugzilla.redhat.com/show_bug.cgi?id=1326075
         modules_dir = os.path.abspath(os.path.join(self.test_prefix, 'modules'))
         self.assertFalse(modules_dir in os.environ['MODULEPATH'])
@@ -763,7 +763,7 @@ class ModulesTest(EnhancedTestCase):
 
         # ensure that correct module is loaded when hierarchy is defined by loading the GCC module
         # (side-effect is that ModulesTool instance doesn't track the change being made to $MODULEPATH)
-        # verifies bug fixed in https://github.com/hpcugent/easybuild-framework/pull/1795
+        # verifies bug fixed in https://github.com/easybuilders/easybuild-framework/pull/1795
         self.modtool.purge()
         self.modtool.unuse(gcc_mod_dir)
         self.modtool.load(['GCC/4.7.2'])
