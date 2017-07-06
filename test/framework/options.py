@@ -2463,13 +2463,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.mock_stdout(False)
 
         # add required commit message, try again
-        args.append('--pr-commit-msg="just a test"')
+        args.append('--pr-commit-msg=just a test')
         self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
 
         regexs[-1] = r"^\s*2 files changed"
+        regexs.remove(r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"")
+        regexs.append(r"^\* title: \"just a test\"")
         regexs.append(r".*/toy-0.0_typo.patch\s*\|")
         for regex in regexs:
             regex = re.compile(regex, re.M)

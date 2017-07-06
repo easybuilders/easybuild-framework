@@ -879,7 +879,9 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
+        if commit_msg:
+            title = commit_msg
+        elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
@@ -888,8 +890,6 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 main_title = ', '.join(names_and_versions[:3] + ['...'])
 
             title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
-        elif commit_msg:
-            title = commit_msg
         else:
             raise EasyBuildError("Don't know how to make a PR title for this PR. "
                                  "Please include a title (use --pr-title)")
