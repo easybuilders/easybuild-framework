@@ -84,10 +84,10 @@ script:
     # run test suite
     - python -O -m test.framework.suite
     # check bootstrap script version
-    # version and MD5 are hardcoded below to avoid forgetting to update the version in the script along with contents
+    # version and SHA256 checksum are hardcoded below to avoid forgetting to update the version in the script along with contents
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
-    - EB_BOOTSTRAP_MD5SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
-    - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_MD5SUM"
+    - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
+    - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
     - EB_BOOTSTRAP_EXPECTED="20170705.01 25fcfc58064367d496797ae8d563544dc9ffb284ef19ace20882aff63aa406c3"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
