@@ -888,6 +888,8 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 main_title = ', '.join(names_and_versions[:3] + ['...'])
 
             title = "{%s}[%s] %s" % (class_label, toolchain_label, main_title)
+        elif commit_msg:
+            title = commit_msg
         else:
             raise EasyBuildError("Don't know how to make a PR title for this PR. "
                                  "Please include a title (use --pr-title)")
