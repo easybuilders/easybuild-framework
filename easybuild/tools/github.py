@@ -48,7 +48,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, which, write_file
@@ -833,6 +833,79 @@ def find_software_name_for_patch(patch_name):
 
     sys.stdout.write('\n')
     return soft_name
+
+
+def check_pr_eligible_to_merge(pr_data, account, repo):
+    """Check whether PR is eligible for merging."""
+    res = True
+
+    def not_eligible(msg):
+        """Helper function to warn about PR not being eligible for merging"""
+        print_msg("%s => not eligible for merging!" % msg, stderr=True, prefix=False)
+        return False
+
+    print_msg("Checking eligibility of %s/%s PR #%s for merging..." % (account, repo, pr_data['number']), prefix=False)
+
+    # check target branch, must be 'develop'
+    msg_tmpl = "* targets develop branch: %s"
+    if pr_data['base']['ref'] == 'develop':
+        print_msg(msg_tmpl % 'OK', prefix=False)
+    else:
+        res = not_eligible(msg_tmpl % "FAILED; found '%s'" % pr_data['base']['ref'])
+
+    # check test suite result, Travis must give green light
+    msg_tmpl = "* test suite passes: %s"
+    if pr_data['combined_status'] == 'success':
+        print_msg(msg_tmpl % 'OK', prefix=False)
+    elif pr_data['combined_status'] == 'pending':
+        res = not_eligible(msg_tmpl % "pending...")
+    elif pr_data['combined_status'] in ['error', 'failure']:
+        res = not_eligible(msg_tmpl % "FAILED")
+    else:
+        res = not_eligible(msg_tmpl % "(result unknown)")
+
+    # check for successful test report (checked in reverse order)
+    msg_tmpl = "* last test report is successful: %s"
+    test_report_regex = re.compile(r"^Test report by @\S+")
+    test_report_found = False
+    for comment in pr_data['issue_comments']['bodies'][::-1]:
+        if test_report_regex.search(comment):
+            if 'SUCCESS' in comment:
+                print_msg(msg_tmpl % 'OK', prefix=False)
+                test_report_found = True
+                break
+            elif 'FAILED' in comment:
+                res = not_eligible(msg_tmpl % 'FAILED')
+                test_report_found = True
+            else:
+                print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
+
+        if 'lgtm' in comment:
+            found_lgtm = True
+
+    if not test_report_found:
+        res = not_eligible(msg_tmpl % "(no test reports found)")
+
+    # check for style review by a human
+    found_lgtm = False
+    for comment in pr_data['issue_comments']['bodies']:
+        if 'lgtm' in comment:
+            found_lgtm = True
+
+    msg_tmpl = "* approved style review by a human ('lgtm'): %s"
+    if found_lgtm:
+        print_msg(msg_tmpl % 'OK', prefix=False)
+    else:
+        res = not_eligible(msg_tmpl % 'FAILED')
+
+    # check whether a milestone is set
+    msg_tmpl = "* milestone is set: %s"
+    if pr_data['milestone']:
+        print_msg(msg_tmpl % "OK (%s)" % pr_data['milestone']['title'], prefix=False)
+    else:
+        res = not_eligible(msg_tmpl % 'no milestone found')
+
+    return res
 
 
 def merge_pr(pr):
