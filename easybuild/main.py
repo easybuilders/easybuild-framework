@@ -273,7 +273,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.merge_pr:
-        print merge_pr(options.merge_pr)
+        merge_pr(options.merge_pr)
 
     elif options.review_pr:
         print review_pr(options.review_pr, colored=use_color(options.color))

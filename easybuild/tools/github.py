@@ -233,10 +233,43 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     try:
         status, data = url.get(**kwargs)
     except socket.gaierror, err:
-        _log.warning("Error occured while performing get request: %s" % err)
+        _log.warning("Error occured while performing get request: %s", err)
         status, data = 0, None
 
-    _log.debug("get request result for %s: status: %d, data: %s" % (url, status, data))
+    _log.debug("get request result for %s: status: %d, data: %s", url, status, data)
+    return (status, data)
+
+
+def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
+    """
+    Helper method, for performing put requests to GitHub API.
+    :param request_f: function that should be called to compose request, providing a RestClient instance
+    :param github_user: GitHub user name (to try and obtain matching GitHub token if none is provided)
+    :param token: GitHub token to use
+    :return: tuple with return status and data
+    """
+    if github_user is None:
+        github_user = build_option('github_user')
+
+    if token is None:
+        token = fetch_github_token(github_user)
+
+    url = request_f(RestClient(GITHUB_API_URL, username=github_user, token=token))
+
+    try:
+        status, data = url.put(**kwargs)
+    except socket.gaierror, err:
+        _log.warning("Error occured while performing put request: %s", err)
+        status, data = 0, {'message': err}
+
+    if status == 200:
+        _log.info("Put request successful: %s", data['message'])
+    elif status in [405, 409]:
+        raise EasyBuildError("FAILED: %s", data['message'])
+    else:
+        raise EasyBuildError("FAILED: %s", data.get('message', "(unknown reason)"))
+
+    _log.debug("get request result for %s: status: %d, data: %s", url, status, data)
     return (status, data)
 
 
@@ -444,14 +477,23 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
             issue = int(issue)
         except ValueError, err:
             raise EasyBuildError("Failed to parse specified pull request number '%s' as an int: %s; ", issue, err)
-    github_token = fetch_github_token(github_user)
 
-    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-    pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    status, data = pr_url.comments.post(body={'body': txt})
-    if not status == HTTP_STATUS_CREATED:
-        raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
+    msg = "Adding comment to %s issue #%s: '%s'" % (repo, issue, txt)
+    if dry_run:
+        msg = "[DRY RUN] " + msg
+    print_msg(msg, log=_log, prefix=False)
+
+    if not dry_run:
+        github_token = fetch_github_token(github_user)
+
+        g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+        pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
+
+        status, data = pr_url.comments.post(body={'body': txt})
+        if not status == HTTP_STATUS_CREATED:
+            raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
 def init_repo(path, repo_name, silent=False):
@@ -835,8 +877,13 @@ def find_software_name_for_patch(patch_name):
     return soft_name
 
 
-def check_pr_eligible_to_merge(pr_data, account, repo):
-    """Check whether PR is eligible for merging."""
+def check_pr_eligible_to_merge(pr_data):
+    """
+    Check whether PR is eligible for merging.
+
+    :param pr_data: PR data obtained through GitHub API
+    :return: boolean value indicates whether PR is eligible
+    """
     res = True
 
     def not_eligible(msg):
@@ -844,7 +891,8 @@ def check_pr_eligible_to_merge(pr_data, account, repo):
         print_msg("%s => not eligible for merging!" % msg, stderr=True, prefix=False)
         return False
 
-    print_msg("Checking eligibility of %s/%s PR #%s for merging..." % (account, repo, pr_data['number']), prefix=False)
+    target = '%s/%s' % (pr_data['base']['repo']['owner']['login'], pr_data['base']['repo']['name'])
+    print_msg("Checking eligibility of %s PR #%s for merging..." % (target, pr_data['number']), prefix=False)
 
     # check target branch, must be 'develop'
     msg_tmpl = "* targets develop branch: %s"
@@ -855,11 +903,11 @@ def check_pr_eligible_to_merge(pr_data, account, repo):
 
     # check test suite result, Travis must give green light
     msg_tmpl = "* test suite passes: %s"
-    if pr_data['combined_status'] == 'success':
+    if pr_data['status_last_commit'] == 'success':
         print_msg(msg_tmpl % 'OK', prefix=False)
-    elif pr_data['combined_status'] == 'pending':
+    elif pr_data['status_last_commit'] == 'pending':
         res = not_eligible(msg_tmpl % "pending...")
-    elif pr_data['combined_status'] in ['error', 'failure']:
+    elif pr_data['status_last_commit'] in ['error', 'failure']:
         res = not_eligible(msg_tmpl % "FAILED")
     else:
         res = not_eligible(msg_tmpl % "(result unknown)")
@@ -912,7 +960,51 @@ def merge_pr(pr):
     """
     Merge specified pull request
     """
-    raise NotImplementedError
+    github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to use --merge-pr")
+
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
+
+    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
+    status, pr_data = github_api_get_request(pr_url, github_user)
+    if not status == HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, pr_data)
+
+    # also fetch status of last commit
+    pr_head_sha = pr_data['head']['sha']
+    status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
+    status, status_data = github_api_get_request(status_url, github_user)
+    pr_data['status_last_commit'] = status_data['state']
+
+    # also fetch comments
+    comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
+    comments, comments_data = github_api_get_request(comments_url, github_user)
+    pr_data['issue_comments'] = {'bodies': [c['body'] for c in comments_data]}
+
+    force = build_option('force')
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    if check_pr_eligible_to_merge(pr_data) or force:
+        print_msg("\nReview %s merging pull request!\n" % ("OK,", "FAILed, yet forcibly")[force], prefix=False)
+
+        if pr_data['user']['login'] != github_user:
+            comment = "Going in, thanks @%s!" % pr_data['user']['login']
+            post_comment_in_issue(pr, comment, repo=pr_target_repo, github_user=github_user)
+
+        if dry_run:
+            print_msg("[DRY RUN] Merged %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
+        else:
+            body = {
+                'commit_message': pr_data['title'],
+                'sha': pr_head_sha,
+            }
+            merge_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].merge
+            github_api_put_request(merge_url, github_user, body=body)
+    else:
+        print_warning("Review indicates this PR should not be merged (use -f/--force to do so anyway)")
 
 
 @only_if_module_is_available('git', pkgname='GitPython')

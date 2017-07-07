@@ -284,7 +284,7 @@ class GithubTest(EnhancedTestCase):
             """Helper function to check result of check_pr_eligible_to_merge"""
             self.mock_stdout(True)
             self.mock_stderr(True)
-            res = gh.check_pr_eligible_to_merge(pr_data, 'easybuilders', 'easybuild-easyconfigs')
+            res = gh.check_pr_eligible_to_merge(pr_data)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
             self.mock_stdout(False)
@@ -297,13 +297,13 @@ class GithubTest(EnhancedTestCase):
         pr_data = {
             'base': {
                 'ref': 'master',
+                'repo': {
+                    'name': 'easybuild-easyconfigs',
+                    'owner': {'login': 'easybuilders'},
+                },
             },
-            'combined_status': {
-            },
-            'issue_comments': {
-                'bodies': [
-                ],
-            },
+            'status_last_commit': None,
+            'issue_comments': {'bodies': []},
             'milestone': None,
             'number': '1234',
         }
@@ -328,11 +328,11 @@ class GithubTest(EnhancedTestCase):
             ('failure', 'FAILED'),
         ]
         for status, test_result in tests:
-            pr_data['combined_status'] = status
+            pr_data['status_last_commit'] = status
             expected_warning = test_result_warning_template % test_result
             run_check()
 
-        pr_data['combined_status'] = 'success'
+        pr_data['status_last_commit'] = 'success'
         expected_stdout += "* test suite passes: OK\n"
         expected_warning = ''
         run_check()
