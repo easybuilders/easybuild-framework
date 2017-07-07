@@ -2681,6 +2681,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_merge_pr(self):
+        """
+        Test use of --merge-pr (dry run)"""
+        if self.github_token is None:
+            print "Skipping test_merge_pr, no GitHub token available?"
+            return
+
+        args = [
+            '--merge-pr',
+            '4781',  # PR for easyconfig for EasyBuild-3.3.0.eb
+            '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* last test report is successful: OK",
+            "* approved style review by a human ('lgtm'): OK",
+            "* milestone is set: OK (3.3.1)",
+            '',
+            "Review OK, merging pull request!",
+            '',
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #4781: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #4781",
+        ])
+        self.assertTrue(stdout.strip().endswith(expected_stdout))
+        self.assertEqual(stderr, '')
 
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
