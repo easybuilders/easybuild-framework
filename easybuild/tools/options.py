@@ -100,8 +100,8 @@ except ImportError:
             return False
 
 # monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
-# to fix known issue, cfr. https://github.com/easybuilders/vsc-base/issues/152;
-# inspired by https://github.com/easybuilders/vsc-base/pull/151
+# to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
+# inspired by https://github.com/hpcugent/vsc-base/pull/151
 # this fixes https://github.com/easybuilders/easybuild-framework/issues/1438
 # proper fix would be to implement a serialiser for command line options
 def eb_shell_quote(token):
