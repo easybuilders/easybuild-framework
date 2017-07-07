@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -313,8 +313,10 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "9e9485921c6afe15f62aedfead2c8f6e",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "8ebc2c32692be9ee61eadc5d650cd288",',  # MD5 checksum for patch (toy-0.0.eb)
+                        # SHA256 checksum for source (gzip-1.4.eb)
+            '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
+                        # SHA256 checksum for 'patch' (toy-0.0.eb)
+            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
             '       ],',
             '   }),',
             ']',
@@ -786,7 +788,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
-            "github_account = 'hpcugent'",
+            "github_account = 'easybuilders'",
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -804,7 +806,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
         self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
         self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
-        self.assertEqual(eb['source_urls'][1], 'https://github.com/hpcugent/PI/archive')
+        self.assertEqual(eb['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')

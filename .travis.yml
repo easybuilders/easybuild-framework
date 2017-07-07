@@ -88,7 +88,7 @@ script:
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20170705.01 25fcfc58064367d496797ae8d563544dc9ffb284ef19ace20882aff63aa406c3"
+    - EB_BOOTSTRAP_EXPECTED="20170706.01 484b3ae32ca7057de2ccc83820927bdaf0f4e3d3be6cda1747ec80449509a0e9"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap

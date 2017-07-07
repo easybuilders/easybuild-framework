@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,9 +55,8 @@ except ImportError, err:
 
 # test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
-# the user who's repo to test
+# the user & repo to use in this test (https://github.com/hpcugent/testrepository)
 GITHUB_USER = "hpcugent"
-# the repo of this user to use in this test
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
@@ -122,7 +121,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         tmpdir = tempfile.mkdtemp()
-        # PR for rename of ffmpeg to FFmpeg, see https://github.com/hpcugent/easybuild-easyconfigs/pull/2481/files
+        # PR for rename of ffmpeg to FFmpeg, see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
         all_ecs = [
             'FFmpeg-2.4-intel-2014.06.eb',
             'FFmpeg-2.4-intel-2014b.eb',
@@ -151,9 +150,9 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
             return
 
-        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent', github_user=GITHUB_TEST_ACCOUNT)
+        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
-        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', github_user=GITHUB_TEST_ACCOUNT,
+        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT,
                                          branch='develop')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
 
