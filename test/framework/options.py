@@ -3024,7 +3024,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         expected = '\n'.join([
-            "== Processed 5/5 easyconfigs... ",
+            "== Processed 5/5 easyconfigs...",
             "== Found 2 different software packages",
             '',
             "* GCC",
