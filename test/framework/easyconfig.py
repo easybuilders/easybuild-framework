@@ -316,7 +316,7 @@ class EasyConfigTest(EnhancedTestCase):
                         # SHA256 checksum for source (gzip-1.4.eb)
             '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
-            '           "b1875ce33955bc6f15dc44de28f3bdf2658323e8321ed20bf6b88a33836feb6c",',
+            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
             '       ],',
             '   }),',
             ']',
