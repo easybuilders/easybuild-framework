@@ -59,7 +59,8 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
-from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token, new_pr, update_pr
+from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
+from easybuild.tools.github import new_pr, merge_pr, update_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -271,6 +272,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.install_github_token:
         install_github_token(options.github_user, silent=build_option('silent'))
 
+    elif options.merge_pr:
+        print merge_pr(options.merge_pr)
+
     elif options.review_pr:
         print review_pr(options.review_pr, colored=use_color(options.color))
 
@@ -287,6 +291,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.install_github_token,
         options.list_installed_software,
         options.list_software,
+        options.merge_pr,
         options.review_pr,
         options.terse,
         search_query,

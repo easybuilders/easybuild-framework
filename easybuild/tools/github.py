@@ -835,6 +835,13 @@ def find_software_name_for_patch(patch_name):
     return soft_name
 
 
+def merge_pr(pr):
+    """
+    Merge specified pull request
+    """
+    raise NotImplementedError
+
+
 @only_if_module_is_available('git', pkgname='GitPython')
 def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     """
