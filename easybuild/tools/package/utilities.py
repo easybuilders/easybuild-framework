@@ -40,7 +40,9 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.config import PKG_TOOL_FPM, PKG_TYPE_RPM, build_option, get_package_naming_scheme, log_path
+from easybuild.tools.config import PKG_TOOL_DOCKER, PKG_TOOL_FPM, PKG_TOOL_SINGULARITY
+from easybuild.tools.config import PKG_TYPE_DEF, PKG_TYPE_IMG, PKG_TYPE_RPM
+from easybuild.tools.config import build_option, get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
@@ -66,12 +68,35 @@ def package(easyblock):
     Package installed software, according to active packaging configuration settings."""
     pkgtool = build_option('package_tool')
 
-    if pkgtool == PKG_TOOL_FPM:
+    if pkgtool == PKG_TOOL_DOCKER:
+        pkgdir = package_with_docker(easyblock)
+    elif pkgtool == PKG_TOOL_FPM:
         pkgdir = package_with_fpm(easyblock)
+    elif pkgtool == PKG_TOOL_SINGULARITY:
+        pkgdir = package_with_singularity(easyblock)
     else:
         raise EasyBuildError("Unknown packaging tool specified: %s", pkgtool)
 
     return pkgdir
+
+
+def package_with_docker(easyblock):
+    """
+    Package software with Docker,
+    i.e. either generate a container definition file, or build an actual Docker container image
+    (depending on the value for --package-type, 'def' or 'img')
+    """
+    workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
+    pkgtype = build_option('package_type')
+
+    if pkgtype == PKG_TYPE_DEF:
+        raise NotImplementedError
+    elif pkgtype == PKG_TYPE_IMG:
+        raise NotImplementedError
+    else:
+        raise EasyBuildError("Unknown package type '%s' for Docker", pkgtype)
+
+    return workdir
 
 
 def package_with_fpm(easyblock):
@@ -149,6 +174,25 @@ def package_with_fpm(easyblock):
     _log.info("Created %s package(s) in %s", pkgtype, workdir)
 
     change_dir(origdir)
+
+    return workdir
+
+
+def package_with_singularity(easyblock):
+    """
+    Package software with Singularity,
+    i.e. either generate a container definition file, or build an actual Singularity container image
+    (depending on the value for --package-type, 'def' or 'img')
+    """
+    workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
+    pkgtype = build_option('package_type')
+
+    if pkgtype == PKG_TYPE_DEF:
+        raise NotImplementedError
+    elif pkgtype == PKG_TYPE_IMG:
+        raise NotImplementedError
+    else:
+        raise EasyBuildError("Unknown package type '%s' for Singularity", pkgtype)
 
     return workdir
 
