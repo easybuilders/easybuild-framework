@@ -233,7 +233,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
     try:
         status, data = url.get(**kwargs)
     except socket.gaierror, err:
-        _log.warning("Error occured while performing get request: %s", err)
+        _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
     _log.debug("get request result for %s: status: %d, data: %s", url, status, data)
@@ -259,7 +259,7 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
     try:
         status, data = url.put(**kwargs)
     except socket.gaierror, err:
-        _log.warning("Error occured while performing put request: %s", err)
+        _log.warning("Error occurred while performing put request: %s", err)
         status, data = 0, {'message': err}
 
     if status == 200:
@@ -1260,8 +1260,8 @@ def check_github():
 
     if res:
         if res[0].flags & res[0].ERROR:
-            _log.warning("Error occured when pushing test branch to GitHub: %s", res[0].summary)
-            check_res = "FAIL (error occured)"
+            _log.warning("Error occurred when pushing test branch to GitHub: %s", res[0].summary)
+            check_res = "FAIL (error occurred)"
         else:
             check_res = "OK"
     elif github_user:
@@ -1295,7 +1295,7 @@ def check_github():
     try:
         res = create_gist("This is just a test", 'test.txt', descr='test123', github_user=github_user)
     except Exception as err:
-        _log.warning("Exception occured when trying to create gist: %s", err)
+        _log.warning("Exception occurred when trying to create gist: %s", err)
 
     if res and re.match('https://gist.github.com/[0-9a-f]+$', res):
         check_res = "OK"

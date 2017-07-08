@@ -1163,7 +1163,7 @@ class Lmod(ModulesTool):
             (stdout, stderr) = proc.communicate()
 
             if stderr:
-                raise EasyBuildError("An error occured when running '%s': %s", ' '.join(cmd), stderr)
+                raise EasyBuildError("An error occurred when running '%s': %s", ' '.join(cmd), stderr)
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents

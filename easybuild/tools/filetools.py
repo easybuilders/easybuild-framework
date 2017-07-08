@@ -418,7 +418,7 @@ def download_file(filename, url, path, forced=False):
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
                 break
             else:
-                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
+                _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
                 attempt_cnt += 1
         except IOError as err:
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
@@ -577,7 +577,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     except IOError, err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
     except MemoryError, err:
-        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        _log.warning("A memory error occurred when computing the checksum for %s: %s" % (path, err))
         checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum
