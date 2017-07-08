@@ -916,7 +916,8 @@ def check_pr_eligible_to_merge(pr_data):
     msg_tmpl = "* last test report is successful: %s"
     test_report_regex = re.compile(r"^Test report by @\S+")
     test_report_found = False
-    for comment in pr_data['issue_comments']['bodies'][::-1]:
+    for comment in pr_data['issue_comments'][::-1]:
+        comment = comment['body']
         if test_report_regex.search(comment):
             if 'SUCCESS' in comment:
                 print_msg(msg_tmpl % 'OK', prefix=False)
@@ -934,17 +935,17 @@ def check_pr_eligible_to_merge(pr_data):
     if not test_report_found:
         res = not_eligible(msg_tmpl % "(no test reports found)")
 
-    # check for style review by a human
-    found_lgtm = False
-    for comment in pr_data['issue_comments']['bodies']:
-        if 'lgtm' in comment:
-            found_lgtm = True
+    # check for approved review
+    approved_review_by = []
+    for review in pr_data['reviews']:
+        if review['state'] == 'APPROVED':
+            approved_review_by.append(review['user']['login'])
 
-    msg_tmpl = "* approved style review by a human ('lgtm'): %s"
-    if found_lgtm:
-        print_msg(msg_tmpl % 'OK', prefix=False)
+    msg_tmpl = "* approved review: %s"
+    if approved_review_by:
+        print_msg(msg_tmpl % 'OK (by %s)' % ', '.join(approved_review_by), prefix=False)
     else:
-        res = not_eligible(msg_tmpl % 'FAILED')
+        res = not_eligible(msg_tmpl % 'MISSING')
 
     # check whether a milestone is set
     msg_tmpl = "* milestone is set: %s"
@@ -973,6 +974,12 @@ def merge_pr(pr):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
 
+    msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
+    msg += "you are using GitHub account '%s'\n" % github_user
+    print_msg(msg, prefix=False)
+    if pr_data['user']['login'] == github_user:
+        raise EasyBuildError("Please do not merge your own PRs!")
+
     # also fetch status of last commit
     pr_head_sha = pr_data['head']['sha']
     status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
@@ -981,8 +988,13 @@ def merge_pr(pr):
 
     # also fetch comments
     comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
-    comments, comments_data = github_api_get_request(comments_url, github_user)
-    pr_data['issue_comments'] = {'bodies': [c['body'] for c in comments_data]}
+    status, comments_data = github_api_get_request(comments_url, github_user)
+    pr_data['issue_comments'] = comments_data
+
+    # also fetch reviews
+    reviews_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
+    status, reviews_data = github_api_get_request(reviews_url, github_user)
+    pr_data['reviews'] = reviews_data
 
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -990,9 +1002,8 @@ def merge_pr(pr):
     if check_pr_eligible_to_merge(pr_data) or force:
         print_msg("\nReview %s merging pull request!\n" % ("OK,", "FAILed, yet forcibly")[force], prefix=False)
 
-        if pr_data['user']['login'] != github_user:
-            comment = "Going in, thanks @%s!" % pr_data['user']['login']
-            post_comment_in_issue(pr, comment, repo=pr_target_repo, github_user=github_user)
+        comment = "Going in, thanks @%s!" % pr_data['user']['login']
+        post_comment_in_issue(pr, comment, repo=pr_target_repo, github_user=github_user)
 
         if dry_run:
             print_msg("[DRY RUN] Merged %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)

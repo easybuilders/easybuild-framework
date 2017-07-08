@@ -2695,6 +2695,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
 
+        # merged PR for EasyBuild-3.3.0.eb, is missing approved review
         self.mock_stdout(True)
         self.mock_stderr(True)
         self.eb_main(args, do_build=True, raise_error=True, testing=False)
@@ -2708,16 +2709,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
-            "* approved style review by a human ('lgtm'): OK",
+            "* milestone is set: OK (3.3.1)",
+        ])
+        expected_stderr = '\n'.join([
+            "* approved review: MISSING => not eligible for merging!",
+            '',
+            "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
+        ])
+        self.assertEqual(stderr.strip(), expected_stderr)
+        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
+
+        # full eligible merged PR
+        args[1] = '4832'
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4832 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* last test report is successful: OK",
+            "* approved review: OK (by wpoely86)",
             "* milestone is set: OK (3.3.1)",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #4781: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #4781",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #4832: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #4832",
         ])
-        self.assertTrue(stdout.strip().endswith(expected_stdout))
-        self.assertEqual(stderr, '')
+        expected_stderr = ''
+        self.assertEqual(stderr.strip(), expected_stderr)
+        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""

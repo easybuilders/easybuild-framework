@@ -303,9 +303,10 @@ class GithubTest(EnhancedTestCase):
                 },
             },
             'status_last_commit': None,
-            'issue_comments': {'bodies': []},
+            'issue_comments': [],
             'milestone': None,
             'number': '1234',
+            'reviews': [],
         }
 
         test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
@@ -341,28 +342,34 @@ class GithubTest(EnhancedTestCase):
         expected_warning = "* last test report is successful: (no test reports found) => not eligible for merging!"
         run_check()
 
-        pr_data['issue_comments']['bodies'] = [
-            "@easybuild-easyconfigs/maintainers: please review/merge?",
-            "Test report by @boegel\n**FAILED**\nnothing ever works...",
-            "this is just a regular comment",
+        pr_data['issue_comments'] = [
+            {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
+            {'body': "this is just a regular comment"},
         ]
         expected_warning = "* last test report is successful: FAILED => not eligible for merging!"
         run_check()
 
-        pr_data['issue_comments']['bodies'].extend([
-            "yet another comment",
-            "Test report by @boegel\n**SUCCESS**\nit's all good!",
+        pr_data['issue_comments'].extend([
+            {'body': "yet another comment"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
         ])
         expected_stdout += "* last test report is successful: OK\n"
         expected_warning = ''
         run_check()
 
         # approved style review by a human is required
-        expected_warning = "* approved style review by a human ('lgtm'): FAILED => not eligible for merging!"
+        expected_warning = "* approved review: MISSING => not eligible for merging!"
         run_check()
 
-        pr_data['issue_comments']['bodies'].insert(2, 'lgtm')
-        expected_stdout += "* approved style review by a human ('lgtm'): OK\n"
+        pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        expected_stdout += "* approved review: OK (by boegel)\n"
         expected_warning = ''
         run_check()
 
