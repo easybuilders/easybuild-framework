@@ -225,7 +225,7 @@ def print_msg(msg, log=None, silent=False, prefix=True, newline=True, stderr=Fal
     :param silent: be silent (only log, don't print)
     :param prefix: include message prefix characters ('== ')
     :param newline: end message with newline
-    :param stderr: print to stderr rather than stderr
+    :param stderr: print to stderr rather than stdout
     """
     if log:
         log.info(msg)
