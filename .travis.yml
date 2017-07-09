@@ -96,3 +96,9 @@ script:
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
     - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version
+notifications:
+  email:
+    recipients:
+      - easybuild-maintainers@lists.ugent.be
+    on_success: change
+    on_failure: always
