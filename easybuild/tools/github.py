@@ -285,7 +285,7 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches,
                                           github_user=github_user, token=token, per_page=GITHUB_MAX_PER_PAGE)
-    if not status == HTTP_STATUS_OK:
+    if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)",
                              branch, account, repo, status, data)
 
@@ -372,7 +372,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
 
     status, pr_data = github_api_get_request(pr_url, github_user)
-    if not status == HTTP_STATUS_OK:
+    if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
@@ -410,6 +410,9 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         raise EasyBuildError("PR #%s contains more than %s commits, can't obtain last commit", pr, GITHUB_MAX_PER_PAGE)
     status, commits_data = github_api_get_request(lambda g: pr_url(g).commits, github_user,
                                                   per_page=GITHUB_MAX_PER_PAGE)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, commits_data)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
@@ -929,9 +932,6 @@ def check_pr_eligible_to_merge(pr_data):
             else:
                 print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
 
-        if 'lgtm' in comment:
-            found_lgtm = True
-
     if not test_report_found:
         res = not_eligible(msg_tmpl % "(no test reports found)")
 
@@ -970,7 +970,7 @@ def merge_pr(pr):
 
     pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
     status, pr_data = github_api_get_request(pr_url, github_user)
-    if not status == HTTP_STATUS_OK:
+    if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
 
@@ -984,16 +984,25 @@ def merge_pr(pr):
     pr_head_sha = pr_data['head']['sha']
     status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
     status, status_data = github_api_get_request(status_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, status_data)
     pr_data['status_last_commit'] = status_data['state']
 
     # also fetch comments
     comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
     status, comments_data = github_api_get_request(comments_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, comments_data)
     pr_data['issue_comments'] = comments_data
 
     # also fetch reviews
     reviews_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
     status, reviews_data = github_api_get_request(reviews_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, reviews_data)
     pr_data['reviews'] = reviews_data
 
     force = build_option('force')
@@ -1137,7 +1146,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
 
     pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
     status, pr_data = github_api_get_request(pr_url, github_user)
-    if not status == HTTP_STATUS_OK:
+    if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
 
