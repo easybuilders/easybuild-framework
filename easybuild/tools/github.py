@@ -915,25 +915,26 @@ def check_pr_eligible_to_merge(pr_data):
     else:
         res = not_eligible(msg_tmpl % "(result unknown)")
 
-    # check for successful test report (checked in reverse order)
-    msg_tmpl = "* last test report is successful: %s"
-    test_report_regex = re.compile(r"^Test report by @\S+")
-    test_report_found = False
-    for comment in pr_data['issue_comments'][::-1]:
-        comment = comment['body']
-        if test_report_regex.search(comment):
-            if 'SUCCESS' in comment:
-                print_msg(msg_tmpl % 'OK', prefix=False)
-                test_report_found = True
-                break
-            elif 'FAILED' in comment:
-                res = not_eligible(msg_tmpl % 'FAILED')
-                test_report_found = True
-            else:
-                print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
+    if pr_data['base']['repo']['name'] == GITHUB_EASYCONFIGS_REPO:
+        # check for successful test report (checked in reverse order)
+        msg_tmpl = "* last test report is successful: %s"
+        test_report_regex = re.compile(r"^Test report by @\S+")
+        test_report_found = False
+        for comment in pr_data['issue_comments'][::-1]:
+            comment = comment['body']
+            if test_report_regex.search(comment):
+                if 'SUCCESS' in comment:
+                    print_msg(msg_tmpl % 'OK', prefix=False)
+                    test_report_found = True
+                    break
+                elif 'FAILED' in comment:
+                    res = not_eligible(msg_tmpl % 'FAILED')
+                    test_report_found = True
+                else:
+                    print_warning("Failed to determine outcome of test report for comment:\n%s" % comment)
 
-    if not test_report_found:
-        res = not_eligible(msg_tmpl % "(no test reports found)")
+        if not test_report_found:
+            res = not_eligible(msg_tmpl % "(no test reports found)")
 
     # check for approved review
     approved_review_by = []
