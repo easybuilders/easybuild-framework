@@ -2681,6 +2681,98 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_merge_pr(self):
+        """
+        Test use of --merge-pr (dry run)"""
+        if self.github_token is None:
+            print "Skipping test_merge_pr, no GitHub token available?"
+            return
+
+        args = [
+            '--merge-pr',
+            '4781',  # PR for easyconfig for EasyBuild-3.3.0.eb
+            '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+
+        # merged PR for EasyBuild-3.3.0.eb, is missing approved review
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* last test report is successful: OK",
+            "* milestone is set: OK (3.3.1)",
+        ])
+        expected_stderr = '\n'.join([
+            "* approved review: MISSING => not eligible for merging!",
+            '',
+            "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
+        ])
+        self.assertEqual(stderr.strip(), expected_stderr)
+        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
+
+        # full eligible merged PR
+        args[1] = '4832'
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4832 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* last test report is successful: OK",
+            "* approved review: OK (by wpoely86)",
+            "* milestone is set: OK (3.3.1)",
+            '',
+            "Review OK, merging pull request!",
+            '',
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #4832: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #4832",
+        ])
+        expected_stderr = ''
+        self.assertEqual(stderr.strip(), expected_stderr)
+        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
+
+        # --merge-pr also works on easyblocks (& framework) PRs
+        args = [
+            '--merge-pr',
+            '1206',
+            '--pr-target-repo=easybuild-easyblocks',
+            '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr.strip(), '')
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* approved review: OK (by migueldiascosta)",
+            "* milestone is set: OK (3.3.1)",
+            '',
+            "Review OK, merging pull request!",
+        ])
+        self.assertTrue(expected_stdout in stdout)
 
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
@@ -2987,7 +3079,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
         expected = '\n'.join([
-            "== Processed 5/5 easyconfigs... ",
+            "== Processed 5/5 easyconfigs...",
             "== Found 2 different software packages",
             '',
             "* GCC",
