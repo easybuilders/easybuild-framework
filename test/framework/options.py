@@ -2747,6 +2747,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr.strip(), expected_stderr)
         self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
 
+        # --merge-pr also works on easyblocks (& framework) PRs
+        args = [
+            '--merge-pr',
+            '1206',
+            '--pr-target-repo=easybuild-easyblocks',
+            '-D',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+        ]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr.strip(), '')
+        expected_stdout = '\n'.join([
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
+            "* targets develop branch: OK",
+            "* test suite passes: OK",
+            "* approved review: OK (by migueldiascosta)",
+            "* milestone is set: OK (3.3.1)",
+            '',
+            "Review OK, merging pull request!",
+        ])
+        self.assertTrue(expected_stdout in stdout)
+
     def test_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
         if self.github_token is None:
