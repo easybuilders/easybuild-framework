@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ import shutil
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.run import run_cmd
@@ -62,14 +63,20 @@ class EB_toy(EasyBlock):
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
 
-    def build_step(self, name=None):
+        setvar('TOY', '%s-%s' % (self.name, self.version))
+
+    def build_step(self, name=None, buildopts=None):
         """Build toy."""
+
+        if buildopts is None:
+            buildopts = self.cfg['buildopts']
+
         if name is None:
             name = self.name
         run_cmd('%(prebuildopts)s gcc %(name)s.c -o %(name)s %(buildopts)s' % {
             'name': name,
             'prebuildopts': self.cfg['prebuildopts'],
-            'buildopts': self.cfg['buildopts'],
+            'buildopts': buildopts,
         })
 
     def install_step(self, name=None):
@@ -87,3 +94,9 @@ class EB_toy(EasyBlock):
         f = open(os.path.join(libdir, 'lib%s.a' % name), 'w')
         f.write(name.upper())
         f.close()
+
+    def make_module_extra(self):
+        """Extra stuff for toy module"""
+        txt = super(EB_toy, self).make_module_extra()
+        txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
+        return txt

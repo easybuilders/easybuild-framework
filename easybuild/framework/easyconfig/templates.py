@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ TEMPLATE_CONSTANTS = [
      'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/gnu/%(namelower)s',
      'gnu.org source url'),
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),

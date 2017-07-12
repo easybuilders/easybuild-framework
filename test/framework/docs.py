@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,14 +41,14 @@ class DocsTest(EnhancedTestCase):
 
     def test_gen_easyblocks(self):
         """ Test gen_easyblocks_overview_rst function """
-        module = 'easybuild.easyblocks.generic'
-        modules = import_available_modules(module)
+        gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
+        modules = import_available_modules(gen_easyblocks_pkg)
         common_params = {
             'ConfigureMake' : ['configopts', 'buildopts', 'installopts'],
         }
         doc_functions = ['build_step', 'configure_step', 'test_step']
 
-        eb_overview = gen_easyblocks_overview_rst(module, 'easyconfigs', common_params, doc_functions)
+        eb_overview = gen_easyblocks_overview_rst(gen_easyblocks_pkg, 'easyconfigs', common_params, doc_functions)
         ebdoc = '\n'.join(eb_overview)
 
         # extensive check for ConfigureMake easyblock
@@ -81,11 +81,11 @@ class DocsTest(EnhancedTestCase):
             for name, obj in inspect.getmembers(mod, inspect.isclass):
                 eb_class = getattr(mod, name)
                 # skip imported classes that are not easyblocks
-                if eb_class.__module__.startswith(module):
+                if eb_class.__module__.startswith(gen_easyblocks_pkg):
                     self.assertTrue(name in ebdoc)
                     names.append(name)
 
-        toc = [":ref:`" + n + "`" for n in sorted(names)]
+        toc = [":ref:`" + n + "`" for n in sorted(set(names))]
         pattern = " - ".join(toc)
 
         regex = re.compile(pattern)
@@ -237,9 +237,9 @@ class DocsTest(EnhancedTestCase):
         expected = [
             '* toy',
             '',
-            'Toy C program.',
+            'Toy C program, 100% toy.',
             '',
-            'homepage: http://hpcugent.github.com/easybuild',
+            'homepage: https://easybuilders.github.io/easybuild',
             '',
             "  * toy v0.0: dummy",
             "  * toy v0.0 (versionsuffix: '-deps'): dummy",
@@ -256,9 +256,9 @@ class DocsTest(EnhancedTestCase):
             '*toy*',
             '+++++',
             '',
-            'Toy C program.',
+            'Toy C program, 100% toy.',
             '',
-            '*homepage*: http://hpcugent.github.com/easybuild',
+            '*homepage*: https://easybuilders.github.io/easybuild',
             '',
             '=======    =============    ================',
             'version    versionsuffix    toolchain       ',

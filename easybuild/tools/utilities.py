@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@ def import_available_modules(namespace):
             if not module.endswith('__init__.py'):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])
-                _log.debug("importing module %s" % modpath)
+                _log.debug("importing module %s", modpath)
                 try:
                     mod = __import__(modpath, globals(), locals(), [''])
                 except ImportError as err:
@@ -124,16 +124,30 @@ def import_available_modules(namespace):
     return modules
 
 
-def only_if_module_is_available(modname, pkgname=None, url=None):
+def only_if_module_is_available(modnames, pkgname=None, url=None):
     """Decorator to guard functions/methods against missing required module with specified name."""
     if pkgname and url is None:
         url = 'https://pypi.python.org/pypi/%s' % pkgname
 
+    if isinstance(modnames, basestring):
+        modnames = (modnames,)
+
     def wrap(orig):
         """Decorated function, raises ImportError if specified module is not available."""
         try:
-            __import__(modname)
-            return orig
+            imported = None
+            for modname in modnames:
+                try:
+                    __import__(modname)
+                    imported = modname
+                    break
+                except ImportError:
+                    pass
+
+            if imported is None:
+                raise ImportError("None of the specified modules %s is available" % ', '.join(modnames))
+            else:
+                return orig
 
         except ImportError as err:
             def error(*args, **kwargs):

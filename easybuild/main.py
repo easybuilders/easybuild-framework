@@ -9,7 +9,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,12 +44,13 @@ import traceback
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, init_logging, print_msg, print_error, stop_logging
+from easybuild.tools.build_log import EasyBuildError, init_logging, print_error, print_msg, print_warning, stop_logging
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
@@ -155,6 +156,23 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     return res
 
 
+def check_root_usage(allow_use_as_root=False):
+    """
+    Check whether we are running as root, and act accordingly
+
+    :param allow_use_as_root: allow use of EasyBuild as root (but do print a warning when doing so)
+    """
+    if os.getuid() == 0:
+        if allow_use_as_root:
+            msg = "Using EasyBuild as root is NOT recommended, please proceed with care!\n"
+            msg += "(this is only allowed because EasyBuild was configured with "
+            msg += "--allow-use-as-root-and-accept-consequences)"
+            print_warning(msg)
+        else:
+            raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
+                                 "so let's end this here.")
+
+
 def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     """
     Main function: parse command line options, and act accordingly.
@@ -186,10 +204,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     _log, logfile = init_logging(logfile, logtostdout=options.logtostdout,
                                  silent=(testing or options.terse or search_query), colorize=options.color)
 
-    # disallow running EasyBuild as root
-    if os.getuid() == 0:
-        raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
-                             "so let's end this here.")
+    # disallow running EasyBuild as root (by default)
+    check_root_usage(allow_use_as_root=options.allow_use_as_root_and_accept_consequences)
 
     # log startup info
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
@@ -228,6 +244,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if modtool is None:
         modtool = modules_tool(testing=testing)
+
+    # check whether any (EasyBuild-generated) modules are loaded already in the current session
+    modtool.check_loaded_modules()
 
     if options.last_log:
         # print location to last log file, and exit
@@ -336,6 +355,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # read easyconfig files
     easyconfigs, generated_ecs = parse_easyconfigs(paths)
+
+    # verify easyconfig filenames, if desired
+    if options.verify_easyconfig_filenames:
+        _log.info("Verifying easyconfig filenames...")
+        for easyconfig in easyconfigs:
+            verify_easyconfig_filename(easyconfig['spec'], easyconfig['ec'], parsed_ec=easyconfig['ec'])
 
     # tweak obtained easyconfig files, if requested
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail

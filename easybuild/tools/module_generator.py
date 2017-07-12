@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,13 +37,14 @@ import os
 import re
 import sys
 import tempfile
+from textwrap import wrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir, read_file
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -266,6 +267,15 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Set generated module as default module
+
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        raise NotImplementedError
+
     def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
@@ -302,6 +312,83 @@ class ModuleGenerator(object):
         :param guarded: use statements will be guarded to only apply if path exists
         """
         raise NotImplementedError
+
+    def _generate_extension_list(self):
+        """
+        Generate a string with a comma-separated list of extensions.
+        """
+        exts_list = self.app.cfg['exts_list']
+        extensions = ', '.join(sorted(['-'.join(ext[:2]) for ext in exts_list], key=str.lower))
+
+        return extensions
+
+    def _generate_help_text(self):
+        """
+        Generate syntax-independent help text used for `module help`.
+        """
+
+        # General package description (mandatory)
+        lines = self._generate_section('Description', self.app.cfg['description'], strip=True)
+
+        # Package usage instructions (optional)
+        lines.extend(self._generate_section('Usage', self.app.cfg['usage'], strip=True))
+
+        # Examples (optional)
+        lines.extend(self._generate_section('Examples', self.app.cfg['examples'], strip=True))
+
+        # Additional information: homepage + (if available) doc paths/urls, upstream/site contact
+        lines.extend(self._generate_section("More information", " - Homepage: %s" % self.app.cfg['homepage']))
+
+        docpaths = self.app.cfg['docpaths'] or []
+        docurls = self.app.cfg['docurls'] or []
+        if docpaths or docurls:
+            root_envvar = ROOT_ENV_VAR_NAME_PREFIX + convert_name(self.app.name, upper=True)
+            lines.extend([" - Documentation:"])
+            lines.extend(["    - $%s/%s" % (root_envvar, path) for path in docpaths])
+            lines.extend(["    - %s" % url for url in docurls])
+
+        for contacts_type in ['upstream', 'site']:
+            contacts = self.app.cfg['%s_contacts' % contacts_type]
+            if contacts:
+                if isinstance(contacts, list):
+                    lines.append(" - %s contacts:" % contacts_type.capitalize())
+                    lines.extend(["    - %s" % contact for contact in contacts])
+                else:
+                    lines.append(" - %s contact: %s" % (contacts_type.capitalize(), contacts))
+
+        # Extensions (if any)
+        extensions = self._generate_extension_list()
+        lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
+
+        return '\n'.join(lines)
+
+    def _generate_section(self, sec_name, sec_txt, strip=False):
+        """
+        Generate section with given name and contents.
+        """
+        res = []
+        if sec_txt:
+            if strip:
+                sec_txt = sec_txt.strip()
+            res = ['', '', sec_name, '=' * len(sec_name), sec_txt]
+        return res
+
+    def _generate_whatis_lines(self):
+        """
+        Generate a list of entries used for `module whatis`.
+        """
+        whatis = self.app.cfg['whatis']
+        if whatis is None:
+            # default: include 'whatis' statements with description, homepage, and extensions (if any)
+            whatis = [
+                "Description: %s" % self.app.cfg['description'],
+                "Homepage: %s" % self.app.cfg['homepage']
+            ]
+            extensions = self._generate_extension_list()
+            if extensions:
+                whatis.append("Extensions: %s" % extensions)
+
+        return whatis
 
 
 class ModuleGeneratorTcl(ModuleGenerator):
@@ -361,19 +448,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
-
-        whatis = self.app.cfg['whatis']
-        if whatis is None:
-            # default: include single 'whatis' statement with description as contents
-            whatis = ["Description: %s" % description]
-
-        lines = [
+        txt = '\n'.join([
             "proc ModulesHelp { } {",
-            "    puts stderr { %(description)s",
+            "    puts stderr {%s" % self._generate_help_text(),
             "    }",
             '}',
             '',
+        ])
+
+        lines = [
             '%(whatis_lines)s',
             '',
             "set root %(installdir)s",
@@ -391,11 +474,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        txt = '\n'.join(lines + ['']) % {
+        txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'description': description,
-            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in whatis]),
+            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in self._generate_whatis_lines()]),
             'installdir': self.app.installdir,
         }
 
@@ -482,6 +564,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
+
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create a .version file inside the package module folder in order to set the default version for TMod
+
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        txt = self.MODULE_SHEBANG + '\n'
+        txt += 'set ModulesVersion %s\n' % module_version
+
+        # write the file no matter what
+        write_file(os.path.join(module_folder_path, '.version'), txt)
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -613,17 +708,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate a description.
         """
-
-        description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
-
-        whatis = self.app.cfg['whatis']
-        if whatis is None:
-            # default: include single 'whatis' statement with description as contents
-            whatis = ["Description: %s" % description]
+        txt = '\n'.join([
+            'help([[%s' % self._generate_help_text(),
+            ']])',
+            '',
+        ])
 
         lines = [
-            "help([[%(description)s]])",
-            '',
             "%(whatis_lines)s",
             '',
             'local root = "%(installdir)s"',
@@ -636,11 +727,10 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
-        txt = '\n'.join(lines + ['']) % {
+        txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'description': description,
-            'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in whatis]),
+            'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in self._generate_whatis_lines()]),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
         }
@@ -730,6 +820,25 @@ class ModuleGeneratorLua(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'set_alias("%s", %s)\n' % (key, quote_str(value))
 
+    def set_as_default(self, module_folder_path, module_version):
+        """
+        Create a symlink named 'default' inside the package's module folder in order to set the default module version
+
+        :param module_folder_path: module folder path, e.g. $HOME/easybuild/modules/all/Bison
+        :param module_version: module version, e.g. 3.0.4
+        """
+        default_filepath = os.path.join(module_folder_path, 'default')
+
+        if os.path.islink(default_filepath):
+            link_target = resolve_path(default_filepath)
+            remove_file(default_filepath)
+            self.log.info("Removed default version marking from %s.", link_target)
+        elif os.path.exists(default_filepath):
+            raise EasyBuildError('Found an unexpected file named default in dir %s' % module_folder_path)
+
+        symlink(module_version + self.MODULE_FILE_EXTENSION, default_filepath, use_abspath_source=False)
+        self.log.info("Module default version file written to point to %s", default_filepath)
+
     def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
@@ -797,5 +906,3 @@ class ModuleGeneratorLua(ModuleGenerator):
             else:
                 use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
         return ''.join(use_statements)
-
-

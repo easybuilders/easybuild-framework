@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,19 +72,21 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         self.is_extension = False
 
         if isinstance(args[0], EasyBlock):
+            # make sure that extra custom easyconfig parameters are known
+            extra_params = self.__class__.extra_options()
+            kwargs['extra_params'] = extra_params
+
             Extension.__init__(self, *args, **kwargs)
+
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
+            self.module_generator = self.master.module_generator
             self.is_extension = True
             self.unpack_options = None
-
-            # make sure that extra custom easyconfig parameters are known
-            extra_params = self.__class__.extra_options()
-            self.cfg.extend_params(extra_params, overwrite=False)
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step

@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -186,7 +186,7 @@ class Toolchain(object):
                 else:
                     raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
 
-            self.log.debug("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
+            self.log.devel("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
 
     def _restore_class_constants(self):
         """Restored class constants that need to be restored when a new instance is created."""
@@ -194,9 +194,9 @@ class Toolchain(object):
         for cst in self.CLASS_CONSTANT_COPIES[key]:
             newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
             if hasattr(self, cst):
-                self.log.debug("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
+                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
             else:
-                self.log.debug("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+                self.log.devel("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
 
             setattr(self, cst, newval)
 
@@ -222,9 +222,9 @@ class Toolchain(object):
             Needs to be defined for super() relations
         """
         if self.options.option('packed-linker-options'):
-            self.log.debug("set_variables: toolchain variables. packed-linker-options.")
+            self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')
-        self.log.debug("set_variables: toolchain variables. Do nothing.")
+        self.log.devel("set_variables: toolchain variables. Do nothing.")
 
     def generate_vars(self):
         """Convert the variables in simple vars"""
@@ -250,7 +250,7 @@ class Toolchain(object):
         if offset is None:
             offset = ''
         txt = sep.join(["%s%s" % (offset, x) for x in res])
-        self.log.debug("show_variables:\n%s" % txt)
+        self.log.debug("show_variables:\n%s", txt)
         return txt
 
     def get_software_root(self, names):
@@ -319,7 +319,7 @@ class Toolchain(object):
         """
         # short-circuit to returning module name for this (non-dummy) toolchain
         if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
+            self.log.devel("_toolchain_exists: %s toolchain always exists, returning True", DUMMY_TOOLCHAIN_NAME)
             return True
         else:
             if self.mod_short_name is None:
@@ -355,16 +355,16 @@ class Toolchain(object):
         suffix = dependency.get('versionsuffix', '')
 
         if 'version' in dependency:
-            version = "".join([dependency['version'], toolchain, suffix])
-            self.log.debug("get_dependency_version: version in dependency return %s", version)
+            version = ''.join([dependency['version'], toolchain, suffix])
+            self.log.devel("get_dependency_version: version in dependency return %s", version)
             return version
         else:
-            toolchain_suffix = "".join([toolchain, suffix])
+            toolchain_suffix = ''.join([toolchain, suffix])
             matches = self.modules_tool.available(dependency['name'], toolchain_suffix)
             # Find the most recent (or default) one
             if len(matches) > 0:
                 version = matches[-1][-1]
-                self.log.debug("get_dependency_version: version not in dependency return %s", version)
+                self.log.devel("get_dependency_version: version not in dependency return %s", version)
                 return
             else:
                 raise EasyBuildError("No toolchain version for dependency name %s (suffix %s) found",
@@ -372,7 +372,7 @@ class Toolchain(object):
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
-        self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
+        self.log.debug("add_dependencies: adding toolchain dependencies %s", dependencies)
 
         # use *full* module name to check existence of dependencies, since the modules may not be available in the
         # current $MODULEPATH without loading the prior dependencies in a module hierarchy
@@ -382,6 +382,7 @@ class Toolchain(object):
         dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
 
         # check whether modules exist
+        self.log.debug("add_dependencies: MODULEPATH: %s", os.environ['MODULEPATH'])
         if self.dry_run:
             deps_exist = [True] * len(dep_mod_names)
         else:
@@ -389,10 +390,9 @@ class Toolchain(object):
 
         missing_dep_mods = []
         for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
-            self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
             if dep_exists:
                 self.dependencies.append(dep)
-                self.log.debug('add_dependencies: added toolchain dependency %s' % str(dep))
+                self.log.devel("add_dependencies: added toolchain dependency %s", str(dep))
             else:
                 missing_dep_mods.append(dep_mod_name)
 
@@ -414,7 +414,7 @@ class Toolchain(object):
             if var.endswith(var_suff):
                 tc_elems.update({var[:-len(var_suff)]: getattr(self, var)})
 
-        _log.debug("Toolchain definition for %s: %s" % (self.as_dict(), tc_elems))
+        self.log.debug("Toolchain definition for %s: %s", self.as_dict(), tc_elems)
         return tc_elems
 
     def is_dep_in_toolchain_module(self, name):
@@ -491,7 +491,7 @@ class Toolchain(object):
                     self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
 
             # load modules for all dependencies
-            self.log.debug("Loading module for toolchain: %s" % tc_mod)
+            self.log.debug("Loading module for toolchain: %s", tc_mod)
             self.modules_tool.load([tc_mod])
 
         # append toolchain module to list of modules
@@ -520,7 +520,7 @@ class Toolchain(object):
                         self._simulated_load_dependency_module(dep['name'], dep['version'], {'prefix': deproot})
         else:
             # load modules for all dependencies
-            self.log.debug("Loading modules for dependencies: %s" % dep_mods)
+            self.log.debug("Loading modules for dependencies: %s", dep_mods)
             self.modules_tool.load(dep_mods)
 
         # append dependency modules to list of modules
@@ -578,7 +578,7 @@ class Toolchain(object):
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
         self.toolchain_dep_mods = dependencies_for(mod_name, self.modules_tool, depth=0)
-        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
+        self.log.debug("List of toolchain dependencies from toolchain module: %s", self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name
         toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
@@ -588,11 +588,10 @@ class Toolchain(object):
             if self.is_required(elem_name) or self.is_dep_in_toolchain_module(elem_name):
                 continue
             # not required and missing: remove from toolchain definition
-            self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
+            self.log.debug("Removing %s from list of optional toolchain elements.", elem_name)
             toolchain_definition.remove(elem_name)
 
-        self.log.debug("List of toolchain dependencies from toolchain module: %s" % self.toolchain_dep_mods)
-        self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
+        self.log.debug("List of toolchain elements from toolchain definition: %s", toolchain_definition)
 
         if all(map(self.is_dep_in_toolchain_module, toolchain_definition)):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
@@ -665,10 +664,10 @@ class Toolchain(object):
             # set the variables
             # onlymod can be comma-separated string of variables not to be set
             if onlymod == True:
-                self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
+                self.log.debug("prepare: do not set additional variables onlymod=%s", onlymod)
                 self.generate_vars()
             else:
-                self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
+                self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
                 # add LDFLAGS and CPPFLAGS from dependencies to self.vars
                 self._add_dependency_variables()
@@ -774,10 +773,10 @@ class Toolchain(object):
             rpath_filter = ['/lib.*', '/usr.*']
             self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
         rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
-        self.log.debug("Combined RPATH filter: '%s'" % rpath_filter)
+        self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
 
         # create wrappers
-        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
             orig_cmd = which(cmd)
 
             if orig_cmd:
@@ -853,7 +852,7 @@ class Toolchain(object):
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
 
-        self.log.debug("_setenv_variables: setting variables: donotset=%s" % donotset)
+        self.log.devel("_setenv_variables: setting variables: donotset=%s", donotset)
         if self.dry_run:
             dry_run_msg("Defining build environment...\n", silent=not verbose)
 
@@ -866,10 +865,10 @@ class Toolchain(object):
 
         for key, val in sorted(self.vars.items()):
             if key in donotsetlist:
-                self.log.debug("_setenv_variables: not setting environment variable %s (value: %s)." % (key, val))
+                self.log.debug("_setenv_variables: not setting environment variable %s (value: %s).", key, val)
                 continue
 
-            self.log.debug("_setenv_variables: setting environment variable %s to %s" % (key, val))
+            self.log.debug("_setenv_variables: setting environment variable %s to %s", key, val)
             setvar(key, val, verbose=verbose)
 
             # also set unique named variables that can be used in Makefiles

@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1058,10 +1058,19 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
+    if 'default_fallback' in kwargs:
+        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
+        msg += "use 'error_on_missing_easyblock' instead"
+        _log.deprecated(msg, '4.0')
+        if error_on_missing_easyblock is None:
+            error_on_missing_easyblock = kwargs['default_fallback']
+    elif error_on_missing_easyblock is None:
+        error_on_missing_easyblock = True
+
     cls = None
     try:
         if easyblock:
@@ -1120,26 +1129,18 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
                 _log.debug("error regexp: %s" % error_re.pattern)
                 if error_re.match(str(err)):
-                    if default_fallback:
-                        # no easyblock could be found, so fall back to ConfigureMake (NO LONGER SUPPORTED)
-                        legacy_fallback_easyblock = 'ConfigureMake'
-                        def_mod_path = get_module_path(legacy_fallback_easyblock, generic=True)
-                        depr_msg = "Fallback to default easyblock %s (from %s)" % (legacy_fallback_easyblock, def_mod_path)
-                        depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % legacy_fallback_easyblock
-                        _log.nosupport(depr_msg, '2.0')
+                    if error_on_missing_easyblock:
+                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name)
+                elif error_on_failed_import:
+                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err)
                 else:
-                    if error_on_failed_import:
-                        raise EasyBuildError("Failed to import easyblock for %s because of module issue: %s",
-                                             class_name, err)
-                    else:
-                        _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
                       cls.__name__, easyblock, name)
         else:
-            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s",
-                       easyblock, name, default_fallback)
+            _log.debug("No class found for easyblock '%s' (software name '%s')", easyblock, name)
 
         return cls
 
@@ -1388,7 +1389,7 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
     :param parsed_ec: (list of) EasyConfig instance(s) corresponding to easyconfig file
     """
     if isinstance(parsed_ec, EasyConfig):
-        ecs = [parsed_ec]
+        ecs = [{'ec': parsed_ec}]
     elif isinstance(parsed_ec, (list, tuple)):
         ecs = parsed_ec
     elif parsed_ec is None:
@@ -1400,7 +1401,19 @@ def verify_easyconfig_filename(path, specs, parsed_ec=None):
 
     expected_filename = '%s-%s.eb' % (specs['name'], fullver)
     if os.path.basename(path) != expected_filename:
-        raise EasyBuildError("Easyconfig filename %s does not match provided specs %s", os.path.basename(path), specs)
+        # only retain relevant specs to produce a more useful error message
+        specstr = ''
+        for key in ['name', 'version', 'versionsuffix']:
+            specstr += "%s: %s; " % (key, quote_py_str(specs.get(key)))
+        toolchain = specs.get('toolchain')
+        if toolchain:
+            tcname, tcver = quote_py_str(toolchain.get('name')), quote_py_str(toolchain.get('version'))
+            specstr += "toolchain name, version: %s, %s" % (tcname, tcver)
+        else:
+            specstr += "toolchain: None"
+
+        raise EasyBuildError("Easyconfig filename '%s' does not match with expected filename '%s' (specs: %s)",
+                             os.path.basename(path), expected_filename, specstr)
 
     for ec in ecs:
         found_fullver = det_full_ec_version(ec['ec'])
@@ -1495,6 +1508,27 @@ def det_location_for(path, target_dir, soft_name, target_file):
     return target_path
 
 
+def clean_up_easyconfigs(paths):
+    """
+    Clean up easyconfigs (in place) by filtering out comments/buildstats included by EasyBuild in archived easyconfigs
+    (cfr. FileRepository.add_easyconfig in easybuild.tools.repository.filerepo)
+
+    :param paths: list of paths to easyconfigs to clean up
+    """
+    regexs = [
+        re.compile(r"^# Built with EasyBuild.*\n", re.M),
+        re.compile(r"^# Build statistics.*\n", re.M),
+        # consume buildstats as a whole, i.e. all lines until closing '}]'
+        re.compile(r"\n*buildstats\s*=(.|\n)*\n}\]\s*\n?", re.M),
+    ]
+
+    for path in paths:
+        ectxt = read_file(path)
+        for regex in regexs:
+            ectxt = regex.sub('', ectxt)
+        write_file(path, ectxt, forced=True)
+
+
 def copy_easyconfigs(paths, target_dir):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
@@ -1519,12 +1553,16 @@ def copy_easyconfigs(paths, target_dir):
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
+            file_info['new'].append(not os.path.exists(target_path))
             copy_file(path, target_path, force_in_dry_run=True)
+
             file_info['paths_in_repo'].append(target_path)
-            file_info['new'].append(os.path.exists(target_path))
 
         else:
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+
+    if build_option('cleanup_easyconfigs'):
+        clean_up_easyconfigs(file_info['paths_in_repo'])
 
     return file_info
 
@@ -1668,7 +1706,7 @@ class ActiveMNS(object):
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
-        if not self.is_short_modname_for(mod_name, ec.get('modaltsoftname', None) or ec['name']):
+        if 'modaltsoftname' in ec and not self.is_short_modname_for(mod_name, ec['modaltsoftname'] or ec['name']):
             raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
                                  mod_name, ec['name'])
         return mod_name
@@ -1707,12 +1745,12 @@ class ActiveMNS(object):
         self.log.debug("Obtained initial module paths: %s" % init_modpaths)
         return init_modpaths
 
-    def expand_toolchain_load(self):
+    def expand_toolchain_load(self, ec=None):
         """
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
         """
-        return self.mns.expand_toolchain_load()
+        return self.mns.expand_toolchain_load(ec=ec)
 
     def is_short_modname_for(self, short_modname, name):
         """

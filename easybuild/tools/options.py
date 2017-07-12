@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -57,10 +57,12 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyco
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
-from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX
-from easybuild.tools.config import DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS
-from easybuild.tools.config import DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX
-from easybuild.tools.config import DEFAULT_REPOSITORY
+from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
+from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
+from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
+from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
+from easybuild.tools.config import ERROR, IGNORE, WARN
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
@@ -100,15 +102,18 @@ except ImportError:
 # monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
 # to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
 # inspired by https://github.com/hpcugent/vsc-base/pull/151
-# this fixes https://github.com/hpcugent/easybuild-framework/issues/1438
+# this fixes https://github.com/easybuilders/easybuild-framework/issues/1438
 # proper fix would be to implement a serialiser for command line options
 def eb_shell_quote(token):
     """
     Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
     so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
     """
+    # first, strip off double quotes that may wrap the entire value,
+    # we don't want to wrap single quotes around a double-quoted value
+    token = str(token).strip('"')
     # escape any non-escaped single quotes, and wrap entire token in single quotes
-    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", str(token))
+    return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
 
 vsc.utils.generaloption.shell_quote = eb_shell_quote
 
@@ -217,13 +222,13 @@ class EasyBuildOptions(GeneralOption):
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
-                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], 
+                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0],
                                            "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
                 'USER': (pwd.getpwuid(os.geteuid()).pw_name,
                          "Current username, translated uid from password file"),
-                'HOME': (os.path.expanduser('~'), 
+                'HOME': (os.path.expanduser('~'),
                          "Current user's home directory, expanded '~'")
             }
         }
@@ -239,7 +244,7 @@ class EasyBuildOptions(GeneralOption):
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
-        strictness_options = [run.IGNORE, run.WARN, run.ERROR]
+        strictness_options = [IGNORE, WARN, ERROR]
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -264,7 +269,7 @@ class EasyBuildOptions(GeneralOption):
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', SOURCE_STEP, 's', all_stops),
-            'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
+            'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -313,8 +318,15 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
+            'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
+                                     'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
+            'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
+                                                          None, 'store_true', False),
+            'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
+                                      "for which there is no matching loaded module; "
+                                      "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
@@ -325,11 +337,15 @@ class EasyBuildOptions(GeneralOption):
                                   Compiler.COMPILER_OPT_FLAGS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
+            'detect-loaded-modules': ("Detect loaded EasyBuild-generated modules, act accordingly; "
+                                      "supported values: %s" % ', '.join(LOADED_MODULES_ACTIONS), None, 'store', WARN),
             'devel': ("Enable including of development log messages", None, 'store_true', False),
             'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'dump-autopep8': ("Reformat easyconfigs using autopep8 when dumping them", None, 'store_true', False),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'enforce-checksums': ("Enforce availability of checksums for all sources/patches, so they can be verified",
+                                  None, 'store_true', False),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
@@ -351,6 +367,8 @@ class EasyBuildOptions(GeneralOption):
                                 "(e.g. --hide-toolchains=GCCcore)", 'strlist', 'extend', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
+                                                  'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
             'module-only': ("Only generate module file(s); skip all steps except for %s" % ', '.join(MODULE_ONLY_STEPS),
                             None, 'store_true', False),
@@ -368,6 +386,7 @@ class EasyBuildOptions(GeneralOption):
                                      None, 'store_true', False),
             'rpath': ("Enable use of RPATH for linking with libraries", None, 'store_true', False),
             'rpath-filter': ("List of regex patterns to use for filtering out RPATH paths", 'strlist', 'store', None),
+            'set-default-module': ("Set the generated module as default", None, 'store_true', False),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
@@ -381,8 +400,11 @@ class EasyBuildOptions(GeneralOption):
                              str, 'store', False, {'metavar': "PATH"}),
             'use-existing-modules': ("Use existing modules when resolving dependencies with minimal toolchains",
                                      None, 'store_true', False),
+            'verify-easyconfig-filenames': ("Verify whether filename of specified easyconfigs matches with contents",
+                                            None, 'store_true', False),
             'zip-logs': ("Zip logs that are copied to install directory, using specified command",
                          None, 'store_or_None', 'gzip'),
+
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -521,6 +543,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'check-github': ("Check status of GitHub integration, and report back", None, 'store_true', False),
             'check-style': ("Run a style check on the given easyconfigs", None, 'store_true', False),
+            'cleanup-easyconfigs': ("Clean up easyconfig files for pull request", None, 'store_true', True),
             'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'git-working-dirs-path': ("Path to Git working directories for EasyBuild repositories", str, 'store', None),
@@ -571,6 +594,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'package': ("Enabling packaging", None, 'store_true', False),
             'package-tool': ("Packaging tool to use", None, 'store', DEFAULT_PKG_TOOL),
+            'package-tool-options': ("Extra options for packaging tool", None, 'store', ''),
             'package-type': ("Type of package to generate", None, 'store', DEFAULT_PKG_TYPE),
             'package-release': ("Package release iteration number", None, 'store', DEFAULT_PKG_RELEASE),
         })
@@ -704,6 +728,11 @@ class EasyBuildOptions(GeneralOption):
             error_msg += "use --module-syntax to specify a different module syntax to use (%s)" % mod_syntaxes
             raise EasyBuildError(error_msg)
 
+        # check whether specified action --detect-loaded-modules is valid
+        if self.options.detect_loaded_modules not in LOADED_MODULES_ACTIONS:
+            raise EasyBuildError("Unknown action specified to --detect-loaded-modules: %s (known values: %s)",
+                                 self.options.detect_loaded_modules, ', '.join(LOADED_MODULES_ACTIONS))
+
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
             if not HAVE_KEYRING:
@@ -723,8 +752,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.last_log:
             self.options.terse = True
 
-        # make sure --optarch has a valid format
-        if self.options.optarch:
+        # make sure --optarch has a valid format, but do it only if we are not going to submit jobs. Otherwise it gets
+        # processed twice and fails when trying to parse a dictionary as if it was a string
+        if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
         # handle configuration options that affect other configuration options
@@ -738,7 +768,7 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_optarch(self):
         """Postprocess --optarch option."""
         optarch_parts = self.options.optarch.split(OPTARCH_SEP)
-        
+
         # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
         n_parts = len(optarch_parts)
         map_char_cnts = [p.count(OPTARCH_MAP_CHAR) for p in optarch_parts]
@@ -754,7 +784,7 @@ class EasyBuildOptions(GeneralOption):
                                              compiler, self.options.optarch)
                     else:
                         optarch_dict[compiler] = compiler_opt
-                self.options.optarch = optarch_dict 
+                self.options.optarch = optarch_dict
                 self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:

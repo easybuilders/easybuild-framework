@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ import os
 import random
 import re
 import socket
-import shutil
 import string
 import sys
 import tempfile
@@ -51,7 +50,7 @@ from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import apply_patch, det_patched_files, download_file, extract_file
+from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import mkdir, read_file, which, write_file
 from easybuild.tools.systemtools import UNKNOWN, get_tool_version
 from easybuild.tools.utilities import only_if_module_is_available
@@ -84,7 +83,7 @@ except ImportError as err:
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
-GITHUB_EB_MAIN = 'hpcugent'
+GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
 GITHUB_MAX_PER_PAGE = 100
@@ -196,7 +195,7 @@ class Githubfs(object):
         """Read the contents of a file and return it
         Or, if api=False it will download the file and return the location of the downloaded file"""
         # we don't need use the api for this, but can also use raw.github.com
-        # https://raw.github.com/hpcugent/easybuild/master/README.rst
+        # https://raw.github.com/easybuilders/easybuild/master/README.rst
         if not api:
             outfile = tempfile.mkstemp()[1]
             url = '/'.join([GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path])
@@ -272,13 +271,14 @@ def fetch_latest_commit_sha(repo, account, branch='master', github_user=None, to
     return res
 
 
-def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
+def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None, github_user=None):
     """
     Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
     :param repo: repo to download
     :param branch: branch to download
     :param account: GitHub account to download repo from
     :param path: path to extract to
+    :param github_user: name of GitHub user to use
     """
     # make sure path exists, create it if necessary
     if path is None:
@@ -290,7 +290,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
     extracted_dir_name = '%s-%s' % (repo, branch)
     base_name = '%s.tar.gz' % branch
-    latest_commit_sha = fetch_latest_commit_sha(repo, account, branch)
+    latest_commit_sha = fetch_latest_commit_sha(repo, account, branch, github_user=github_user)
 
     expected_path = os.path.join(path, extracted_dir_name)
     latest_sha_path = os.path.join(expected_path, 'latest-sha')
@@ -354,7 +354,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     if (stable or pr_data['merged']) and not closed:
         # whether merged or not, download develop
-        final_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop')
+        final_path = download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='develop', github_user=github_user)
 
     else:
         final_path = path
@@ -469,11 +469,8 @@ def init_repo(path, repo_name, silent=False):
     if git_working_dirs_path:
         workdir = os.path.join(git_working_dirs_path, repo_name)
         if os.path.exists(workdir):
-            try:
-                print_msg("copying %s..." % workdir, silent=silent)
-                shutil.copytree(workdir, repo_path)
-            except OSError as err:
-                raise EasyBuildError("Failed to copy git working dir %s to %s: %s", workdir, repo_path, err)
+            print_msg("copying %s..." % workdir, silent=silent)
+            copy_dir(workdir, repo_path)
 
     if not os.path.exists(repo_path):
         mkdir(repo_path, parents=True)
@@ -882,7 +879,9 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
+        if commit_msg:
+            title = commit_msg
+        elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
@@ -1253,7 +1252,7 @@ def validate_github_token(token, github_user):
     else:
         _log.warning("Sanity check on token failed; token doesn't match pattern '%s'", sha_regex.pattern)
 
-    # try and determine sha of latest commit in hpcugent/easybuild-easyconfigs repo through authenticated access
+    # try and determine sha of latest commit in easybuilders/easybuild-easyconfigs repo through authenticated access
     sha = None
     try:
         sha = fetch_latest_commit_sha(GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, github_user=github_user, token=token)
@@ -1267,11 +1266,13 @@ def validate_github_token(token, github_user):
     return sanity_check and token_test
 
 
-def find_easybuild_easyconfig():
+def find_easybuild_easyconfig(github_user=None):
     """
     Fetches the latest EasyBuild version eb file from GitHub
+
+    :param github_user: name of GitHub user to use when querying GitHub
     """
-    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN)
+    dev_repo = download_repo(GITHUB_EASYCONFIGS_REPO, branch='develop', account=GITHUB_EB_MAIN, github_user=github_user)
     eb_parent_path = os.path.join(dev_repo, 'easybuild', 'easyconfigs', 'e', 'EasyBuild')
     files = os.listdir(eb_parent_path)
 

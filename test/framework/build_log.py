@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_warning
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -112,8 +112,15 @@ class BuildLogTest(EnhancedTestCase):
         log.error("err: %s", 'msg: %s')
         stderr = self.get_stderr()
         self.mock_stderr(False)
-        # no output to stderr (should all go to log file)
-        self.assertEqual(stderr, '')
+
+        more_info = "see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        expected_stderr = '\n'.join([
+            "Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
+            "Deprecated functionality, will no longer work in v2.0: onemorewarning",
+            "Deprecated functionality, will no longer work in v2.0: lastwarning",
+        ]) + '\n'
+        self.assertEqual(stderr, expected_stderr)
+
         try:
             log.exception("oops")
         except EasyBuildError:
@@ -208,6 +215,19 @@ class BuildLogTest(EnhancedTestCase):
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+
+    def test_print_warning(self):
+        """Test print_warning"""
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        print_warning('You have been warned.')
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertEqual(stderr, "\nWARNING: You have been warned.\n\n")
+        self.assertEqual(stdout, '')
 
 
 def suite():

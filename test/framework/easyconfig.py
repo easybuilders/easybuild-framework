@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ import glob
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -51,14 +52,14 @@ from easybuild.framework.easyconfig.easyconfig import resolve_template, verify_e
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, find_related_easyconfigs
-from easybuild.framework.easyconfig.tools import parse_easyconfigs
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, get_paths_for
+from easybuild.framework.easyconfig.tools import find_related_easyconfigs, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -312,8 +313,10 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "9e9485921c6afe15f62aedfead2c8f6e",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "fad34da3432ee2fd4d6554b86c8df4bf",',  # MD5 checksum for patch (toy-0.0.eb)
+                        # SHA256 checksum for source (gzip-1.4.eb)
+            '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
+                        # SHA256 checksum for 'patch' (toy-0.0.eb)
+            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
             '       ],',
             '   }),',
             ']',
@@ -785,7 +788,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
-            "github_account = 'hpcugent'",
+            "github_account = 'easybuilders'",
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -803,7 +806,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
         self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
         self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
-        self.assertEqual(eb['source_urls'][1], 'https://github.com/hpcugent/PI/archive')
+        self.assertEqual(eb['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
@@ -979,7 +982,10 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(name, correct_name)
             self.assertEqual(easyblock, correct_easyblock)
 
-        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program.")
+        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program, 100% toy.")
+
+        res = fetch_parameters_from_easyconfig("easyblock = 'ConfigureMake'  # test comment", ['easyblock'])
+        self.assertEqual(res, ['ConfigureMake'])
 
     def test_get_easyblock_class(self):
         """Test get_easyblock_class function."""
@@ -994,10 +1000,21 @@ class EasyConfigTest(EnhancedTestCase):
         ]:
             self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
 
-        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
+        error_pattern = "No software-specific easyblock 'EB_gzip' found"
+        self.assertErrorRegex(EasyBuildError, error_pattern, get_easyblock_class, None, name='gzip')
+        self.assertEqual(get_easyblock_class(None, name='gzip', error_on_missing_easyblock=False), None)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
+
+        # also test deprecated default_fallback named argument
+        self.assertErrorRegex(EasyBuildError, "DEPRECATED", get_easyblock_class, None, name='gzip',
+                                                                                 default_fallback=False)
+
+        orig_value = easybuild.tools.build_log.CURRENT_VERSION
+        easybuild.tools.build_log.CURRENT_VERSION = '3.9'
+        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
+        easybuild.tools.build_log.CURRENT_VERSION = orig_value
 
     def test_letter_dir(self):
         """Test letter_dir_for function."""
@@ -1299,7 +1316,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['unpack_options'].strip(), '--strip-components=1')
 
         ec.update('description', "- just a test")
-        self.assertEqual(ec['description'].strip(), "Toy C program. - just a test")
+        self.assertEqual(ec['description'].strip(), "Toy C program, 100% toy. - just a test")
 
         # spaces in between multiple updates for stirng values
         ec.update('configopts', 'CC="$CC"')
@@ -1780,20 +1797,27 @@ class EasyConfigTest(EnhancedTestCase):
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
         self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
-        self.assertEqual(os.listdir(os.path.join(target_dir, 'easybuild', 'easyconfigs')), [])
+        self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
         test_ecs = [
             ('g/GCC/GCC-4.6.3.eb', 'GCC.eb'),
             ('o/OpenMPI/OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
             ('t/toy/toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+            ('t/toy/toy-0.0.eb', 'TOY.eb'),
         ]
         ecs_to_copy = []
         for (src_ec, target_ec) in test_ecs:
             ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
             shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
 
-        copy_easyconfigs(ecs_to_copy, target_dir)
+        res = copy_easyconfigs(ecs_to_copy, target_dir)
+        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'paths_in_repo'])
+        self.assertEqual(len(res['ecs']), len(test_ecs))
+        self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
+        self.assertTrue(all(res['new']))
+        expected = os.path.join(target_dir, 'easybuild', 'easyconfigs', 'g', 'GCC', 'GCC-4.6.3.eb')
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], expected))
 
         # check whether easyconfigs were copied (unmodified) to correct location
         for orig_ec, src_ec in test_ecs:
@@ -1801,6 +1825,49 @@ class EasyConfigTest(EnhancedTestCase):
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
             self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+
+        # create test easyconfig that includes comments & build stats, just like an archived easyconfig
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'), toy_ec)
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt = '\n'.join([
+            "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
+            toy_ec_txt,
+            "# Build statistics",
+            "buildstats = [{",
+            '   "build_time": 8.34,',
+            '   "os_type": "Linux",',
+            "}]",
+        ])
+        write_file(toy_ec, toy_ec_txt)
+
+        # copy single easyconfig with buildstats included for running further tests
+        res = copy_easyconfigs([toy_ec], target_dir)
+
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1])
+        self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
+
+        # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
+        self.assertFalse(res['new'][0])
+
+        copied_toy_ec = os.path.join(ecs_target_dir, 't', 'toy', 'toy-0.0.eb')
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_toy_ec))
+
+        # verify whether copied easyconfig gets cleaned up (stripping out 'Built with' comment + build stats)
+        txt = read_file(copied_toy_ec)
+        regexs = [
+            "# Built with EasyBuild",
+            "# Build statistics",
+            "buildstats\s*=",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
+
+        # make sure copied easyconfig still parses
+        ec = EasyConfig(copied_toy_ec)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec['buildstats'], None)
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
@@ -1978,6 +2045,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test verify_easyconfig_filename function"""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec_name = os.path.basename(toy_ec)
         specs = {
             'name': 'toy',
             'toolchain': {'name': 'gompi', 'version': '1.3.12'},
@@ -1989,11 +2057,15 @@ class EasyConfigTest(EnhancedTestCase):
         verify_easyconfig_filename(toy_ec, specs)
 
         # pass parsed easyconfig
-        verify_easyconfig_filename(toy_ec, specs, parsed_ec=process_easyconfig(toy_ec))
+        parsed_ecs = process_easyconfig(toy_ec)
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=parsed_ecs)
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=parsed_ecs[0]['ec'])
 
         # incorrect spec
         specs['versionsuffix'] = ''
-        error_pattern = "filename %s does not match provided specs" % os.path.basename(toy_ec)
+        error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-1.3.12.eb' " % toy_ec_name
+        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
         specs['versionsuffix'] = '-test'
 
@@ -2001,7 +2073,9 @@ class EasyConfigTest(EnhancedTestCase):
         toy_txt = read_file(toy_ec)
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         write_file(toy_ec, toy_txt)
-        error_pattern = "filename toy.eb does not match provided specs"
+        error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-1.3.12-test.eb' "
+        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
+        error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
         # incorrect file contents
@@ -2011,6 +2085,41 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(toy_ec, toy_txt)
         error_pattern = "Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
         self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+
+    def test_get_paths_for(self):
+        """Test for get_paths_for"""
+        orig_path = os.getenv('PATH', '')
+
+        top_dir = os.path.dirname(os.path.abspath(__file__))
+        mkdir(os.path.join(self.test_prefix, 'easybuild'))
+        test_ecs = os.path.join(top_dir, 'easyconfigs')
+        symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
+
+        # locations listed in 'robot_path' named argument are taken into account
+        res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # easyconfigs location can also be derived from location of 'eb'
+        write_file(os.path.join(self.test_prefix, 'bin', 'eb'), "#!/bin/bash; echo 'This is a fake eb'")
+        adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # also works when 'eb' resides in a symlinked location
+        altbin = os.path.join(self.test_prefix, 'some', 'other', 'symlinked', 'bin')
+        mkdir(os.path.dirname(altbin), parents=True)
+        symlink(os.path.join(self.test_prefix, 'bin'), altbin)
+        os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # also locations in sys.path are considered
+        os.environ['PATH'] = orig_path
+        sys.path.insert(0, self.test_prefix)
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
 
 def suite():

@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -275,7 +275,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
 
     # include list of extra parameters (if any)
     extra_params = {}
-    app = get_easyblock_class(easyblock, default_fallback=False)
+    app = get_easyblock_class(easyblock, error_on_missing_easyblock=False)
     if app is not None:
         extra_params = app.extra_options()
     params.update(extra_params)

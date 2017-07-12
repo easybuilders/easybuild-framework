@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import setuptools
-import vsc
+import vsc.utils.generaloption
 
 import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -53,7 +53,8 @@ class ScriptsTest(EnhancedTestCase):
 
         # make sure setuptools, vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
         setuptools_loc = os.path.dirname(os.path.dirname(setuptools.__file__))
-        vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+        generaloption_loc = os.path.abspath(vsc.utils.generaloption.__file__)
+        vsc_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(generaloption_loc))))
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
         pythonpath = os.environ.get('PYTHONPATH', '')
         os.environ['PYTHONPATH'] = os.pathsep.join([setuptools_loc, vsc_loc, framework_loc, pythonpath])

@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ from easybuild.tools import config
 from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
 from easybuild.tools.job import pbs_python
 from easybuild.tools.job.pbs_python import PbsPython
+from easybuild.tools.options import parse_options
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, submit_jobs
 from easybuild.tools.robot import resolve_dependencies
 
@@ -218,6 +219,46 @@ class ParallelBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0'))
         self.assertTrue(os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy'))
+
+    def test_submit_jobs(self):
+        """Test submit_jobs"""
+        test_easyconfigs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            '--debug',
+            '--tmpdir', '/tmp',
+            '--optarch="GCC:O3 -mtune=generic;Intel:O3 -xHost"',
+            '--parallel=2',
+            '--try-toolchain=intel,2016a',  # should be excluded in job script
+            '--robot', self.test_prefix,  # should be excluded in job script
+            '--job',  # should be excluded in job script
+        ]
+        eb_go = parse_options(args=args)
+        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+
+        # these patterns must be found
+        regexs = [
+            ' --debug ',
+            # values got wrapped in single quotes (to avoid interpretation by shell)
+            " --tmpdir='/tmp' ",
+            " --parallel='2' ",
+            # (unparsed) optarch value got wrapped in single quotes, double quotes got stripped
+            " --optarch='GCC:O3 -mtune=generic;Intel:O3 -xHost' ",
+            # templates to be completed via build_easyconfigs_in_parallel -> create_job
+            ' eb %\(spec\)s ',
+            ' %\(add_opts\)s ',
+            ' --testoutput=%\(output_dir\)s',
+        ]
+        for regex in regexs:
+            regex = re.compile(regex)
+            self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
+
+        # these patterns should NOT be found, these options get filtered out
+        # (self.test_prefix was argument to --robot)
+        for regex in ['--job', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
+            regex = re.compile(regex)
+            self.assertFalse(regex.search(cmd), "Pattern '%s' *not* found in: %s" % (regex.pattern, cmd))
 
 
 def suite():
