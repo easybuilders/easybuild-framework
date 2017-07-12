@@ -3,6 +3,24 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.3.1 (July 12th 2017)
+-----------------------
+
+bugfix release
+- various enhancements, including:
+  - add support for 'allow_prepend_abs_path' easyconfig parameter (#2254)
+  - support for --merge-pr (#2266)
+- various bug fixes, including:
+  - resolve symlinks to location of 'eb' in get_paths_for (#2248)
+  - fall back to checking location relative to 'eb' location in find_eb_script (#2249)
+  - respect --suffix-modules-path value for user-specific module path extensions (#2250)
+  - update EasyBuild bootstrap script to download distribute tarball from http://easybuilders.github.io/easybuild/files (#2256)
+  - fix default target GitHub account/organisation for --new-pr & co + fix tests that got broken by migration to github.com/easybuilders (#2258)
+  - fix checking for new easyconfigs in copy_easyconfigs, pick up specified commit message as PR title if none was provided (#2259)
+  - get rid of references to hpcugent after move to github.com/easybuilders (#2261)
+  - automatically enable --ignore-osdeps under --new-pr and --update-pr (#2262)
+
+
 v3.3.0 (June 26th 2017)
 -----------------------
 

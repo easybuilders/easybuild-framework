@@ -277,6 +277,112 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+    def test_check_pr_eligible_to_merge(self):
+        """Test check_pr_eligible_to_merge function"""
+        def run_check(expected_result=False):
+            """Helper function to check result of check_pr_eligible_to_merge"""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            res = gh.check_pr_eligible_to_merge(pr_data)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(res, expected_result)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertTrue(expected_warning in stderr, "Found '%s' in: %s" % (expected_warning, stderr))
+            return stderr
+
+        pr_data = {
+            'base': {
+                'ref': 'master',
+                'repo': {
+                    'name': 'easybuild-easyconfigs',
+                    'owner': {'login': 'easybuilders'},
+                },
+            },
+            'status_last_commit': None,
+            'issue_comments': [],
+            'milestone': None,
+            'number': '1234',
+            'reviews': [],
+        }
+
+        test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
+
+        expected_stdout = "Checking eligibility of easybuilders/easybuild-easyconfigs PR #1234 for merging...\n"
+
+        # target branch for PR must be develop
+        expected_warning = "* targets develop branch: FAILED; found 'master' => not eligible for merging!\n"
+        run_check()
+
+        pr_data['base']['ref'] = 'develop'
+        expected_stdout += "* targets develop branch: OK\n"
+
+        # test suite must PASS (not failed, pending or unknown) in Travis
+        tests = [
+            ('', '(result unknown)'),
+            ('foobar', '(result unknown)'),
+            ('pending', 'pending...'),
+            ('error', 'FAILED'),
+            ('failure', 'FAILED'),
+        ]
+        for status, test_result in tests:
+            pr_data['status_last_commit'] = status
+            expected_warning = test_result_warning_template % test_result
+            run_check()
+
+        pr_data['status_last_commit'] = 'success'
+        expected_stdout += "* test suite passes: OK\n"
+        expected_warning = ''
+        run_check()
+
+        # at least the last test report must be successful (and there must be one)
+        expected_warning = "* last test report is successful: (no test reports found) => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'] = [
+            {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
+            {'body': "this is just a regular comment"},
+        ]
+        expected_warning = "* last test report is successful: FAILED => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'].extend([
+            {'body': "yet another comment"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
+        ])
+        expected_stdout += "* last test report is successful: OK\n"
+        expected_warning = ''
+        run_check()
+
+        # approved style review by a human is required
+        expected_warning = "* approved review: MISSING => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        expected_stdout += "* approved review: OK (by boegel)\n"
+        expected_warning = ''
+        run_check()
+
+        # milestone must be set
+        expected_warning = "* milestone is set: no milestone found => not eligible for merging!"
+        run_check()
+
+        pr_data['milestone'] = {'title': '3.3.1'}
+        expected_stdout += "* milestone is set: OK (3.3.1)\n"
+
+        # all checks pass, PR is eligible for merging
+        expected_warning = ''
+        self.assertEqual(run_check(True), '')
+
 
 def suite():
     """ returns all the testcases in this module """

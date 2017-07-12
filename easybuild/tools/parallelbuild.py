@@ -213,4 +213,4 @@ def prepare_easyconfig(ec):
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
-        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)
+        raise EasyBuildError("An error occurred while preparing %s: %s", ec, err)
