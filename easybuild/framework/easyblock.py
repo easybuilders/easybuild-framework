@@ -1103,6 +1103,16 @@ class EasyBlock(object):
             self.log.debug("Not including module path extensions, as specified.")
         return txt
 
+    def make_module_group_check(self):
+        """
+        Create the necessary group check.
+        """
+        group_name = self.cfg['group']
+        if group_name:
+            return self.module_generator.check_group(group_name)
+        else:
+            return ""
+
     def make_module_req(self):
         """
         Generate the environment-variables to run the module.
@@ -2125,6 +2135,7 @@ class EasyBlock(object):
             txt += self.modules_header + '\n'
 
         txt += self.make_module_description()
+        txt += self.make_module_group_check()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()

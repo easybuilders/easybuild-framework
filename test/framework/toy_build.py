@@ -556,6 +556,10 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
             self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
 
+    def test_toy_group_check(self):
+        """Test the userInGroup function with lua modules"""
+        raise EasyBuildError("TODO")
+
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
         tmpdir = tempfile.mkdtemp()
