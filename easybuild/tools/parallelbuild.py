@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -213,4 +213,4 @@ def prepare_easyconfig(ec):
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
-        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)
+        raise EasyBuildError("An error occurred while preparing %s: %s", ec, err)

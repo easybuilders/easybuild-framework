@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -180,7 +180,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
         # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
-        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/1685
         self.env_path = os.environ.get('PATH')
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
