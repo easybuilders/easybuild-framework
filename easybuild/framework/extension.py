@@ -174,7 +174,7 @@ class Extension(object):
             if inp:
                 stdin = inp % template
             # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
 
             if ec:
                 msg = "%s failed to install, cmd '%s' (stdin: %s) output: %s" % (self.name, cmd, stdin, output)
