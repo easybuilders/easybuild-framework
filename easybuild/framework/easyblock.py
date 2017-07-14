@@ -74,9 +74,9 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
+from easybuild.tools.modules import Lmod, ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name
+from easybuild.tools.modules import get_software_version_env_var_name, modules_tool
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -2173,10 +2173,17 @@ class EasyBlock(object):
                     self.dry_run_msg(' ' * 4 + line)
         else:
             module_only = build_option('module_only')
-            if module_only and os.path.exists(mod_filepath):
+            backup_module = build_option('backup_module')
+            if module_only and os.path.exists(mod_filepath) and backup_module:
                warning_msg = "Old module file found. Backing it up in %s. Diff is:\n%s"
-               mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck")
-               (mod_diff, _) = run_cmd("diff %s %s" % (mod_bck_filepath, mod_filepath))
+               hidden = False
+               if isinstance(self.module_generator, ModuleGeneratorTcl) and \
+                  isinstance(modules_tool, Lmod):
+                   hidden = True
+               else:
+                   hidden = False
+               mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck", hidden=hidden)
+               (mod_diff, _) = run_cmd("diff -u %s %s" % (mod_bck_filepath, mod_filepath))
                self.log.info(warning_msg, mod_bck_filepath, mod_diff)
                print_warning(warning_msg % (mod_bck_filepath, mod_diff))
 

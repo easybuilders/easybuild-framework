@@ -1165,15 +1165,26 @@ def find_backup_name_candidate(src_file):
     return dst_file
 
 
-def back_up_file(src_file, backup_extension=""):
-    """Backs up a file appending a backup extension and a number to it. Returns the name of the backup"""
+def back_up_file(src_file, backup_extension="", hidden=False):
+    """
+    Backs up a file appending a backup extension and a number to it (if there is already an existing backup). Returns
+    the name of the backup
+
+    :param src_file: file to be back up
+    :param backup_extension: optional extension of the backup
+    :param hidden: make a hidden (leading dot) backup
+    """
+    if hidden:
+        leading_string = "."
+    else:
+        leading_string = ""
 
     if backup_extension:
-        backup_file = "%s.%s" % (src_file, backup_extension)
-        if os.path.exists(backup_file):
-            backup_file = find_backup_name_candidate(backup_file)
+        trailing_string = ".%s" % backup_extension
     else:
-        backup_file = find_backup_name_candidate(src_file)
+        trailing_string = ""
+
+    backup_file = find_backup_name_candidate("%s%s%s" % (leading_string, src_file, trailing_string))
 
     copy_file(src_file, backup_file)
     _log.info("File %s backed up in %s" % (src_file, backup_file))
@@ -1200,7 +1211,7 @@ def move_logs(src_logfile, target_logfile):
             if os.path.exists(new_log_path):
                 back_up_file(new_log_path)
 
-            # remove first to ensure portability
+            # remove first to ensure portability (shutil.move might fail when overwriting files in some systems)
             remove_file(new_log_path)
             # move log to target path
             move_file(app_log, new_log_path)
@@ -1567,6 +1578,7 @@ def copy(paths, target_path, force_in_dry_run=False):
 def move_file(path, target_path, force_in_dry_run=False):
     """
     Move a file from path to target_path
+
     :param path: the original filepath
     :param target_path: path to copy the file to
     :param force_in_dry_run: force running the command during dry run

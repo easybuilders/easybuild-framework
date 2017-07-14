@@ -166,6 +166,7 @@ BUILD_OPTIONS_CMDLINE = {
         'set_default_module',
     ],
     True: [
+        'backup_module',
         'cleanup_builddir',
         'cleanup_easyconfigs',
         'cleanup_tmpdir',
