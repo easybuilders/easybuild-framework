@@ -494,6 +494,53 @@ class FileToolsTest(EnhancedTestCase):
         ]:
             self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
 
+    def test_back_up_file(self):
+        """Test back_up_file function."""
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+
+        ft.write_file(fp, 'foobar')
+
+        # Test simple file backup
+        ft.back_up_file(fp)
+        self.assertEqual(ft.read_file(fp+'_0'), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar')
+        # Test hidden simple file backup
+        ft.back_up_file(fp, hidden=True)
+        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar')
+        # Test simple file backup with extension
+        ft.back_up_file(fp, backup_extension="bck")
+        self.assertEqual(ft.read_file(fp+'.bck'), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar')
+        # Test hidden simple file backup with extension
+        ft.back_up_file(fp, backup_extension="bck", hidden=True)
+        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'.bck'), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar')
+
+        ft.write_file(fp, 'foobar2')
+
+        # Test file backup with existing backup
+        ft.back_up_file(fp)
+        self.assertEqual(ft.read_file(fp+'_0'), 'foobar')
+        self.assertEqual(ft.read_file(fp+'_1'), 'foobar2')
+        self.assertEqual(ft.read_file(fp), 'foobar2')
+        # Test hidden file backup with existing backup
+        ft.back_up_file(fp, hidden=True)
+        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'_0'), 'foobar2')
+        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar2')
+        # Test file backup with extension and existing backup
+        ft.back_up_file(fp, backup_extension="bck")
+        self.assertEqual(ft.read_file(fp+'.bck_0'), 'foobar2')
+        self.assertEqual(ft.read_file(fp+'.bck'), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar2')
+        # Test hidden file backup with extension and existing backup
+        ft.back_up_file(fp, backup_extension="bck", hidden=True)
+        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'.bck_0'), 'foobar2')
+        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'.bck'), 'foobar')
+        self.assertEqual(ft.read_file(fp), 'foobar2')
+
     def test_move_logs(self):
         """Test move_logs function."""
         fh, fp = tempfile.mkstemp()

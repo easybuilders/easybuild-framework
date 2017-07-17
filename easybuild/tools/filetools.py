@@ -1184,7 +1184,11 @@ def back_up_file(src_file, backup_extension="", hidden=False):
     else:
         trailing_string = ""
 
-    backup_file = find_backup_name_candidate("%s%s%s" % (leading_string, src_file, trailing_string))
+    backup_file = find_backup_name_candidate("%s/%s%s%s" % \
+            (os.path.dirname(src_file),\
+            leading_string,\
+            os.path.basename(src_file),\
+            trailing_string))
 
     copy_file(src_file, backup_file)
     _log.info("File %s backed up in %s" % (src_file, backup_file))
