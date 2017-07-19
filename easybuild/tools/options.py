@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
+from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, print_warning, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
@@ -320,7 +320,7 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
-            'backup-module': ("Back up an existing module file, if any. Only works when using --module-only",
+            'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
@@ -709,6 +709,10 @@ class EasyBuildOptions(GeneralOption):
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
+
+        # if --backup-modules is used without --module-only print a warning
+        if self.options.backup_modules and not self.options.module_only:
+            print_warning("--backup-modules can be used just together with --module-only. Ignoring it...")
 
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.upload_test_report:

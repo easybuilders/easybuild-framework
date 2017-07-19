@@ -32,6 +32,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import glob
@@ -166,7 +167,7 @@ BUILD_OPTIONS_CMDLINE = {
         'set_default_module',
     ],
     True: [
-        'backup_module',
+        'backup_modules',
         'cleanup_builddir',
         'cleanup_easyconfigs',
         'cleanup_tmpdir',

@@ -66,9 +66,10 @@ from easybuild.tools.config import build_option, build_path, get_log_filename, g
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
-from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
-from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
+from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, download_file
+from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
+from easybuild.tools.filetools import remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -1140,11 +1141,9 @@ class EasyBlock(object):
         """
         requirements = self.make_module_req_guess()
 
-        lines = []
+        lines = ['\n']
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
-
-            lines.append('\n')
 
             if self.dry_run:
                 self.dry_run_msg("List of paths that would be searched and added to module file:\n")
@@ -1460,9 +1459,9 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
-        # remove existing module file under --force (but only if --skip is not used)
+        # remove existing module file under --force (but only if --skip and --backup-modules are not used)
         elif build_option('force') or build_option('rebuild'):
-            if os.path.exists(self.mod_filepath):
+            if os.path.exists(self.mod_filepath) and not build_option('backup_modules'):
                 self.log.info("Removing existing module file %s", self.mod_filepath)
                 remove_file(self.mod_filepath)
 
@@ -2173,22 +2172,29 @@ class EasyBlock(object):
                     self.dry_run_msg(' ' * 4 + line)
         else:
             module_only = build_option('module_only')
-            backup_module = build_option('backup_module')
-            if module_only and os.path.exists(mod_filepath) and backup_module:
-               warning_msg = "Old module file found. Backing it up in %s. Diff is:\n%s"
-               hidden = False
-               if isinstance(self.module_generator, ModuleGeneratorTcl) and \
-                  isinstance(modules_tool, Lmod):
-                   hidden = True
-               else:
-                   hidden = False
-               mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck", hidden=hidden)
-               (mod_diff, _) = run_cmd("diff -u %s %s" % (mod_bck_filepath, mod_filepath))
-               self.log.info(warning_msg, mod_bck_filepath, mod_diff)
-               print_warning(warning_msg % (mod_bck_filepath, mod_diff))
-
-            write_file(mod_filepath, txt)
-            self.log.info("Module file %s written: %s", mod_filepath, txt)
+            backup_modules = build_option('backup_modules')
+            if module_only and os.path.exists(mod_filepath) and backup_modules and not fake:
+                warning_msg = "Old module file found. Backing it up in %s."
+                hidden = False
+                if isinstance(self.module_generator, ModuleGeneratorTcl):
+                     hidden = True
+                else:
+                    hidden = False
+                mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck", hidden=hidden)
+                write_file(mod_filepath, txt)
+                # diff will return 1 if there are differences. We have to set log_ok and log_all to False to ignore the
+                # return code
+                (mod_diff, _) = run_cmd("diff -u %s %s" % (mod_bck_filepath, mod_filepath), log_ok=False, log_all=False)
+                if mod_diff:
+                    self.log.info(warning_msg + ' Diff is:\n%s', mod_bck_filepath, mod_diff)
+                    print_warning(warning_msg % mod_bck_filepath + ' Diff is:\n%s' % mod_diff)
+                else:
+                    self.log.info(warning_msg + ' No differences found.', mod_bck_filepath)
+                    print_warning(warning_msg % mod_bck_filepath + ' No differences found.')
+                self.log.info("Module file %s written: %s", mod_filepath, txt)
+            else:
+                write_file(mod_filepath, txt)
+                self.log.info("Module file %s written: %s", mod_filepath, txt)
 
             # invalidate relevant 'module avail'/'module show' cache entries
             modpath = self.module_generator.get_modules_path(fake=fake)

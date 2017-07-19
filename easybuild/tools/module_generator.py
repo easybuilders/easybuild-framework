@@ -31,6 +31,7 @@ Generating module files.
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import os
 import re
@@ -185,7 +186,8 @@ class ModuleGenerator(object):
         mkdir(os.path.dirname(mod_filepath), parents=True)
 
         # remove module file if it's there (it'll be recreated), see EasyBlock.make_module
-        if os.path.exists(mod_filepath) and not build_option('extended_dry_run'):
+        if os.path.exists(mod_filepath) and not build_option('extended_dry_run') and \
+                (not build_option('backup_modules') or fake):
             self.log.debug("Removing existing module file %s", mod_filepath)
             os.remove(mod_filepath)
 

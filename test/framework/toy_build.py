@@ -26,6 +26,7 @@
 Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
+@author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import glob
 import grp
@@ -1222,6 +1223,100 @@ class ToyBuildTest(EnhancedTestCase):
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+
+    def test_backup_modules(self):
+        """Test use of --backup-modules."""
+        args = ['--backup-modules']
+
+        # See if a warning is displayed when not used with --module-only
+        warning = "WARNING: --backup-modules can be used just together with --module-only. Ignoring it..."
+        self.mock_stderr(True)
+        self.eb_main(args, testing=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue(re.search(warning, stderr, re.M))
+
+        # See if a warning is NOT displayed when used with --module-only
+        args += ['--module-only']
+        self.mock_stderr(True)
+        self.eb_main(args, testing=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertFalse(re.search(warning, stderr, re.M))
+
+        # Prepare for the real test
+        ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(ec_files_path, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+
+        # only consider provided test modules
+        self.reset_modulepath([os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')])
+
+        common_args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--robot=%s' % ec_files_path,
+            '--module-only',
+            '--force',
+            '--disable-cleanup-tmpdir'
+        ]
+        args = common_args + ['--module-syntax=Tcl']
+
+        warning = "WARNING: Old module file found. Backing it up in .* No differences found"
+
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        self.mock_stderr(True)
+        self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.exists(toy_mod))
+        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), '.'+os.path.basename(toy_mod)+'.bck')))
+        self.assertTrue(re.search(warning, stderr, re.M))
+
+        warning = "WARNING: Old module file found. Backing it up in .* Diff is:"
+        diff = "some difference\n"
+        with open(toy_mod, "a") as fh:
+            fh.write(diff)
+        self.mock_stderr(True)
+        self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True, verbose=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), '.'+os.path.basename(toy_mod)+'.bck_0')))
+        self.assertTrue(re.search(warning, stderr, re.M))
+        self.assertTrue(re.search(diff, stderr, re.M))
+
+        # Test also with lua syntax. In particular, that the backup is not hidden
+        args = common_args + ['--module-syntax=Lua']
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps.lua')
+        warning = "WARNING: Old module file found. Backing it up in .* No differences found"
+
+        self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        self.mock_stderr(True)
+        self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.exists(toy_mod))
+        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), os.path.basename(toy_mod)+'.bck')))
+        self.assertTrue(re.search(warning, stderr, re.M))
+
+        warning = "WARNING: Old module file found. Backing it up in .* Diff is:"
+        diff = "some difference\n"
+        with open(toy_mod, "a") as fh:
+            fh.write(diff)
+        self.mock_stderr(True)
+        self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True, verbose=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), os.path.basename(toy_mod)+'.bck_0')))
+        self.assertTrue(re.search(warning, stderr, re.M))
+        self.assertTrue(re.search(diff, stderr, re.M))
 
     def test_package(self):
         """Test use of --package and accompanying package configuration settings."""
