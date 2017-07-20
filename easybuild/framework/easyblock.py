@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -321,36 +321,56 @@ class EasyBlock(object):
         else:
             raise EasyBuildError("Invalid type for checksums (%s), should be list, tuple or None.", type(checksums))
 
-    def fetch_sources(self, list_of_sources, checksums=None):
+    def fetch_sources(self, sources=None, checksums=None):
         """
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
-        """
 
-        for index, src_entry in enumerate(list_of_sources):
-            if isinstance(src_entry, (list, tuple)):
-                cmd = src_entry[1]
-                source = src_entry[0]
-            elif isinstance(src_entry, basestring):
-                cmd = None
-                source = src_entry
+        :param sources: list of sources to fetch (if None, use 'sources' easyconfig parameter)
+        :param checksums: list of checksums for sources
+        """
+        if sources is None:
+            sources = self.cfg['sources']
+        if checksums is None:
+            checksums = self.cfg['checksums']
+
+        for index, source in enumerate(sources):
+            extract_cmd, download_filename = None, None
+
+            if isinstance(source, basestring):
+                filename = source
+
+            elif isinstance(source, dict):
+                source = source.copy()
+                filename = source.pop('filename', None)
+                extract_cmd = source.pop('extract_cmd', None)
+                download_filename = source.pop('download_filename', None)
+                if source:
+                    raise EasyBuildError("Found one or more unexpected keys in source specification: %s", source)
+
+            elif isinstance(source, (list, tuple)) and len(source) == 2:
+                self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
+                                    "use a dictionary with 'filename', 'extract_cmd' keys instead", '4.0')
+                filename, extract_cmd = source
+            else:
+                raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
 
             # check if the sources can be located
-            path = self.obtain_file(source)
+            path = self.obtain_file(filename, download_filename=download_filename)
             if path:
-                self.log.debug('File %s found for source %s' % (path, source))
+                self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
-                    'name': source,
+                    'name': filename,
                     'path': path,
-                    'cmd': cmd,
-                    'checksum': self.get_checksum_for(checksums, filename=source, index=index),
+                    'cmd': extract_cmd,
+                    'checksum': self.get_checksum_for(checksums, filename=filename, index=index),
                     # always set a finalpath
                     'finalpath': self.builddir,
                 })
             else:
-                raise EasyBuildError('No file found for source %s', source)
+                raise EasyBuildError('No file found for source %s', filename)
 
-        self.log.info("Added sources: %s" % self.src)
+        self.log.info("Added sources: %s", self.src)
 
     def fetch_patches(self, patch_specs=None, extension=False, checksums=None):
         """
@@ -520,11 +540,16 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
+
+        :param filename: filename of source
+        :param extension: indicates whether locations for extension sources should also be considered
+        :param urls: list of source URLs where this file may be available
+        :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         """
         srcpaths = source_paths()
 
@@ -631,15 +656,17 @@ class EasyBlock(object):
                     else:
                         targetpath = os.path.join(targetdir, filename)
 
+                    url_filename = download_filename or filename
+
                     if isinstance(url, basestring):
                         if url[-1] in ['=', '/']:
-                            fullurl = "%s%s" % (url, filename)
+                            fullurl = "%s%s" % (url, url_filename)
                         else:
-                            fullurl = "%s/%s" % (url, filename)
+                            fullurl = "%s/%s" % (url, url_filename)
                     elif isinstance(url, tuple):
                         # URLs that require a suffix, e.g., SourceForge download links
                         # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
-                        fullurl = "%s/%s/%s" % (url[0], filename, url[1])
+                        fullurl = "%s/%s/%s" % (url[0], url_filename, url[1])
                     else:
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
                         continue
@@ -1049,7 +1076,7 @@ class EasyBlock(object):
             elif not isinstance(value, (tuple, list)):
                 raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
                                      value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value))
+            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
         if self.cfg['modloadmsg']:
             lines.append(self.module_generator.msg_on_load(self.cfg['modloadmsg']))
@@ -1126,6 +1153,9 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
+                # If a mod_path_suffix is being used, we should respect it
+                mod_path_suffix = build_option('suffix_modules_path')
+                user_modpath = os.path.join(user_modpath, mod_path_suffix)
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
@@ -1296,7 +1326,7 @@ class EasyBlock(object):
             try:
                 cmd = cmdtmpl % tmpldict
             except KeyError, err:
-                msg = "KeyError occured on completing extension filter template: %s; "
+                msg = "KeyError occurred on completing extension filter template: %s; "
                 msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
                 self.log.nosupport(msg, '2.0')
 
@@ -2100,11 +2130,12 @@ class EasyBlock(object):
 
         sets the default module version except if we are in dry run.
         """
+        version = self.full_mod_name.split('/')[-1]
         if self.dry_run:
-            dry_run_msg("Marked %s v%s as default version" % (self.name, self.version))
+            dry_run_msg("Marked %s v%s as default version" % (self.name, version))
         else:
             mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath())
-            self.module_generator.set_as_default(mod_folderpath, self.version)
+            self.module_generator.set_as_default(mod_folderpath, version)
 
     def cleanup_step(self):
         """

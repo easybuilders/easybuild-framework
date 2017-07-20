@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -419,7 +419,7 @@ def download_file(filename, url, path, forced=False):
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
                 break
             else:
-                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
+                _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
                 attempt_cnt += 1
         except IOError as err:
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
@@ -545,7 +545,19 @@ def find_eb_script(script_name):
 
     script_loc = os.path.join(eb_dir, 'scripts', script_name)
     if not os.path.exists(script_loc):
-        raise EasyBuildError("Script '%s' not found at expected location: %s", script_name, script_loc)
+        prev_script_loc = script_loc
+
+        # fallback mechanism: check in location relative to location of 'eb'
+        eb_path = resolve_path(which('eb'))
+        if eb_path is None:
+            _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
+        else:
+            install_prefix = os.path.dirname(os.path.dirname(eb_path))
+            script_loc = os.path.join(install_prefix, 'easybuild', 'scripts', script_name)
+
+        if not os.path.exists(script_loc):
+            raise EasyBuildError("Script '%s' not found at expected location: %s or %s",
+                                 script_name, prev_script_loc, script_loc)
 
     return script_loc
 
@@ -566,7 +578,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     except IOError, err:
         raise EasyBuildError("Failed to read %s: %s", path, err)
     except MemoryError, err:
-        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        _log.warning("A memory error occurred when computing the checksum for %s: %s" % (path, err))
         checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum

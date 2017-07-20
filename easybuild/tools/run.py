@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-from easybuild.tools.config import build_option
+from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 
 
@@ -52,11 +52,6 @@ _log = fancylogger.getLogger('run', fname=False)
 
 
 errors_found_in_log = 0
-
-# constants for strictness levels
-IGNORE = 'ignore'
-WARN = 'warn'
-ERROR = 'error'
 
 # default strictness level
 strictness = WARN

@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ from easybuild.tools.run import run_cmd
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 78
+TEST_MODULES_COUNT = 79
 
 
 class ModulesTest(EnhancedTestCase):
@@ -717,7 +717,7 @@ class ModulesTest(EnhancedTestCase):
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
         # this test is here as check for a nasty bug in how the modules tool is deployed
-        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1756,
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/1756,
         # https://bugzilla.redhat.com/show_bug.cgi?id=1326075
         modules_dir = os.path.abspath(os.path.join(self.test_prefix, 'modules'))
         self.assertFalse(modules_dir in os.environ['MODULEPATH'])
@@ -763,7 +763,7 @@ class ModulesTest(EnhancedTestCase):
 
         # ensure that correct module is loaded when hierarchy is defined by loading the GCC module
         # (side-effect is that ModulesTool instance doesn't track the change being made to $MODULEPATH)
-        # verifies bug fixed in https://github.com/hpcugent/easybuild-framework/pull/1795
+        # verifies bug fixed in https://github.com/easybuilders/easybuild-framework/pull/1795
         self.modtool.purge()
         self.modtool.unuse(gcc_mod_dir)
         self.modtool.load(['GCC/4.7.2'])
@@ -779,6 +779,112 @@ class ModulesTest(EnhancedTestCase):
             # Tcl implementations exit with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
+
+    def test_check_loaded_modules(self):
+        """Test check_loaded_modules method."""
+        # try and make sure we start with a clean slate
+        self.modtool.purge()
+
+        def check_loaded_modules():
+            "Helper function to run check_loaded_modules and check on stdout/stderr."
+            # there should be no errors/warnings by default if no (EasyBuild-generated) modules are loaded
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            self.modtool.check_loaded_modules()
+            stdout, stderr = self.get_stdout(), self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, '')
+            return stderr.strip()
+
+
+        # by default, having an EasyBuild module loaded is allowed
+        self.modtool.load(['EasyBuild/fake'])
+
+        # no output to stderr (no warnings/errors)
+        self.assertEqual(check_loaded_modules(), '')
+
+        self.modtool.unload(['EasyBuild/fake'])
+
+        # load OpenMPI module, which also loads GCC & hwloc
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+
+        # default action is to print a clear warning message
+        stderr = check_loaded_modules()
+        patterns = [
+            r"^WARNING: Found one or more non-allowed loaded \(EasyBuild-generated\) modules in current environment:",
+            r"^\* GCC/4.6.4",
+            r"^\* hwloc/1.6.2-GCC-4.6.4",
+            r"^\* OpenMPI/1.6.4-GCC-4.6.4",
+            "This is not recommended since it may affect the installation procedure\(s\) performed by EasyBuild.",
+            "To make EasyBuild allow particular loaded modules, use the --allow-loaded-modules configuration option.",
+            "To specify action to take when loaded modules are detected, use "
+                "--detect-loaded-modules={error,ignore,purge,unload,warn}",
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, stderr, re.M), "Pattern '%s' found in: %s" % (pattern, stderr))
+
+        # reconfigure EasyBuild to ignore loaded modules for GCC & hwloc & error out when loaded modules are detected
+        options = init_config(args=['--allow-loaded-modules=GCC,hwloc', '--detect-loaded-modules=error'])
+        build_options = {
+            'allow_loaded_modules': options.allow_loaded_modules,
+            'detect_loaded_modules': options.detect_loaded_modules,
+        }
+        init_config(build_options=build_options)
+
+        # error mentioning 1 non-allowed module (OpenMPI), both GCC and hwloc loaded modules are allowed
+        error_pattern = r"Found one or more non-allowed loaded .* module.*\n\* OpenMPI/1.6.4-GCC-4.6.4\n\nThis is not"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
+
+        # check for warning message when purge is being run on loaded modules
+        build_options.update({'detect_loaded_modules': 'purge'})
+        init_config(build_options=build_options)
+        expected = "WARNING: Found non-allowed loaded (EasyBuild-generated) modules (OpenMPI/1.6.4-GCC-4.6.4), "
+        expected += "running 'module purge'"
+        self.assertEqual(check_loaded_modules(), expected)
+
+        # check for warning message when loaded modules are unloaded
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+        build_options.update({'detect_loaded_modules': 'unload'})
+        init_config(build_options=build_options)
+        expected = "WARNING: Unloading non-allowed loaded (EasyBuild-generated) modules: OpenMPI/1.6.4-GCC-4.6.4"
+        self.assertEqual(check_loaded_modules(), expected)
+
+        # when loaded modules are allowed there are no warnings/errors
+        self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
+        build_options.update({'detect_loaded_modules': 'ignore'})
+        init_config(build_options=build_options)
+        self.assertEqual(check_loaded_modules(), '')
+
+        # error if any $EBROOT* environment variables are defined that don't match a loaded module
+        os.environ['EBROOTSOFTWAREWITHOUTAMATCHINGMODULE'] = '/path/to/software/without/a/matching/module'
+        stderr = check_loaded_modules()
+        warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: "
+        warning_msg = "$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
+        self.assertTrue(warning_msg in stderr)
+
+        build_options.update({'check_ebroot_env_vars': 'error'})
+        init_config(build_options=build_options)
+        error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: "
+        error_msg += r"\$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
+        self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
+
+        build_options.update({'check_ebroot_env_vars': 'ignore'})
+        init_config(build_options=build_options)
+        stderr = check_loaded_modules()
+        self.assertEqual(stderr, '')
+
+        build_options.update({'check_ebroot_env_vars': 'unset'})
+        init_config(build_options=build_options)
+        stderr = check_loaded_modules()
+        warning_msg = "WARNING: Found defined $EBROOT* environment variables without matching loaded module: "
+        warning_msg += "$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE; unsetting them"
+        self.assertEqual(stderr, warning_msg)
+        self.assertTrue(os.environ.get('EBROOTSOFTWAREWITHOUTAMATCHINGMODULE') is None)
+
+        # specified action for detected loaded modules is verified early
+        error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
+        self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
 
 def suite():

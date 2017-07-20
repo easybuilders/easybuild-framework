@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ class DocsTest(EnhancedTestCase):
             '',
             'Toy C program, 100% toy.',
             '',
-            'homepage: http://hpcugent.github.com/easybuild',
+            'homepage: https://easybuilders.github.io/easybuild',
             '',
             "  * toy v0.0: dummy",
             "  * toy v0.0 (versionsuffix: '-deps'): dummy",
@@ -258,7 +258,7 @@ class DocsTest(EnhancedTestCase):
             '',
             'Toy C program, 100% toy.',
             '',
-            '*homepage*: http://hpcugent.github.com/easybuild',
+            '*homepage*: https://easybuilders.github.io/easybuild',
             '',
             '=======    =============    ================',
             'version    versionsuffix    toolchain       ',

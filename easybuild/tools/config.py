@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,6 +52,13 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 _log = fancylogger.getLogger('config', fname=False)
 
 
+ERROR = 'error'
+IGNORE = 'ignore'
+PURGE = 'purge'
+UNLOAD = 'unload'
+UNSET = 'unset'
+WARN = 'warn'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -78,6 +85,9 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
+EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
+LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
+DEFAULT_ALLOW_LOADED_MODULES = ('EasyBuild',)
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -174,7 +184,9 @@ BUILD_OPTIONS_CMDLINE = {
         'extended_dry_run_ignore_errors',
         'mpi_tests',
     ],
-    'warn': [
+    WARN: [
+        'check_ebroot_env_vars',
+        'detect_loaded_modules',
         'strict',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
@@ -194,7 +206,10 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     'defaultopt': [
         'default_opt_level',
-    ]
+    ],
+    DEFAULT_ALLOW_LOADED_MODULES: [
+        'allow_loaded_modules',
+    ],
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -347,9 +362,10 @@ def init_build_options(build_options=None, cmdline_options=None):
 
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
                                       cmdline_options.dry_run, cmdline_options.dry_run_short,
-                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
+                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script,
+                                      cmdline_options.new_pr, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
-            _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
+            _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]

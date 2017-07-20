@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -183,13 +183,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         # no $MODULEPATH extensions for default module naming scheme (EasyBuildMNS)
         self.assertEqual(eb.make_module_extend_modpath(), '')
-
         usermodsdir = 'my/own/modules'
         modclasses = ['compiler', 'tools']
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         build_options = {
             'subdir_user_modules': usermodsdir,
             'valid_module_classes': modclasses,
+            'suffix_modules_path': 'funky',
         }
         init_config(build_options=build_options)
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -197,22 +197,22 @@ class EasyBlockTest(EnhancedTestCase):
 
         txt = eb.make_module_extend_modpath()
         if get_module_syntax() == 'Tcl':
-            regexs = [r'^module use ".*/modules/all/Compiler/pi/3.14/%s"$' % c for c in modclasses]
+            regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
             home = r'\$env\(HOME\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if { \[ file isdirectory \[ file join %s "%s/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
+                r'if { \[ file isdirectory \[ file join %s "%s/funky/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'^\s+module use \[ file join %s "%s/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
+                r'^\s+module use \[ file join %s "%s/funky/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
             ])
         elif get_module_syntax() == 'Lua':
-            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/all/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
+            regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
             home = r'os.getenv\("HOME"\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if isDir\(pathJoin\(%s, "%s/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
+                r'if isDir\(pathJoin\(%s, "%s/funky/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
+                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/funky/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
@@ -338,6 +338,44 @@ class EasyBlockTest(EnhancedTestCase):
         alttxt = eb.make_module_extra(altroot='/opt/software/tau/6.28', altversion='6.28').strip()
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
+
+        installver = '3.14-gompi-1.1.0-no-OFED'
+
+        # also check how absolute paths specified in modexself.contents = '\n'.join([
+        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
+        eb.check_readiness_step()
+
+        # absolute paths are not allowed by default
+        error_pattern = "Absolute path .* passed to prepend_paths which only expects relative paths"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
+
+        # allow use of absolute paths, and verify contents of module
+        self.contents += "\nallow_prepend_abs_path = True"
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
+        eb.check_readiness_step()
+
+        modrootpath = eb.make_module_step()
+
+        modpath = os.path.join(modrootpath, 'pi', installver)
+        if get_module_syntax() == 'Lua':
+            modpath += '.lua'
+
+        self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
+        txt = read_file(modpath)
+        patterns = [
+            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
+            r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
+            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
+        ]
+        for pattern in patterns:
+            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
     def test_make_module_dep(self):
         """Test for make_module_dep"""
@@ -730,9 +768,61 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
+    def test_fetch_sources(self):
+        """Test fetch_sources method."""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
+        eb = get_easyblock_instance(ec)
+
+        toy_source = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+
+        eb.fetch_sources()
+        self.assertEqual(len(eb.src), 1)
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
+        self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
+        self.assertEqual(eb.src[0]['cmd'], None)
+        self.assertEqual(len(eb.src[0]['checksum']), 7)
+        self.assertEqual(eb.src[0]['checksum'][0], 'be662daa971a640e40be5c804d9d7d10')
+        self.assertEqual(eb.src[0]['checksum'][1], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
+
+        # reconfigure EasyBuild so we can check 'downloaded' sources
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config()
+
+        eb.cfg['source_urls'] = ['file://%s' % os.path.dirname(toy_source)]
+
+        # reset and try with provided list of sources
+        eb.src = []
+        sources = [
+            {'filename': 'toy-0.0-extra.txt', 'download_filename': 'toy-extra.txt'},
+            {'filename': 'toy-0.0_gzip.patch.gz', 'extract_cmd': "gunzip %s"},
+            {'filename': 'toy-0.0-renamed.tar.gz', 'download_filename': 'toy-0.0.tar.gz', 'extract_cmd': "tar xfz %s"},
+        ]
+        eb.fetch_sources(sources, checksums=[])
+
+        toy_source_dir = os.path.join(self.test_prefix, 't', 'toy')
+        expected_sources = ['toy-0.0-extra.txt', 'toy-0.0_gzip.patch.gz', 'toy-0.0-renamed.tar.gz']
+
+        # make source sources were downloaded, using correct filenames
+        self.assertEqual(len(eb.src), 3)
+        for idx in range(3):
+            self.assertEqual(eb.src[idx]['name'], expected_sources[idx])
+            self.assertTrue(os.path.exists(eb.src[idx]['path']))
+            source_loc = os.path.join(toy_source_dir, expected_sources[idx])
+            self.assertTrue(os.path.exists(source_loc))
+            self.assertTrue(os.path.samefile(eb.src[idx]['path'], source_loc))
+        self.assertEqual(eb.src[0]['cmd'], None)
+        self.assertEqual(eb.src[1]['cmd'], "gunzip %s")
+        self.assertEqual(eb.src[2]['cmd'], "tar xfz %s")
+
+        # old format for specifying source with custom extract command is deprecated
+        eb.src = []
+        error_msg = "DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
+                              [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
+
     def test_fetch_patches(self):
         """Test fetch_patches method."""
-        # adjust PYTHONPATH such that test easyblocks are found
         testdir = os.path.abspath(os.path.dirname(__file__))
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
@@ -805,7 +895,10 @@ class EasyBlockTest(EnhancedTestCase):
 
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
-        urls = ["http://hpcugent.github.io/easybuild/index.html", "https://hpcugent.github.io/easybuild/index.html"]
+        urls = [
+            "https://easybuilders.github.io/easybuild/index.html",
+            "https://easybuilders.github.io/easybuild/index.html",
+        ]
         for file_url in urls:
             fn = os.path.basename(file_url)
             res = None
@@ -823,7 +916,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
                 txt = open(loc, 'r').read()
                 eb_regex = re.compile("EasyBuild: building software with ease")
-                self.assertTrue(eb_regex.search(txt))
+                self.assertTrue(eb_regex.search(txt), "Pattern '%s' found in: %s" % (eb_regex.pattern, txt))
             else:
                 print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
 

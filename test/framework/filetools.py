@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -606,9 +606,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[8].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "28 %s+ postinstallcmds = " % green
+        expected = "29 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        expected = "29 %s+%s (1/2) toy-0.0" % (green, endcol)
+        expected = "30 %s+%s (1/2) toy-0.0" % (green, endcol)
         self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
@@ -632,9 +632,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(lines[10].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "28 + postinstallcmds = "
+        expected = "29 + postinstallcmds = "
         self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
-        expected = "29 + (1/2) toy-0.0-"
+        expected = "30 + (1/2) toy-0.0-"
         self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
@@ -1274,6 +1274,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
         self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
         self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
+
+        # put test script in place relative to location of 'eb'
+        ft.write_file(os.path.join(self.test_prefix, 'bin', 'eb'), '#!/bin/bash\necho "fake eb"')
+        ft.adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH', ''))
+
+        justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'justatest.sh')
+        ft.write_file(justatest, '#!/bin/bash')
+
+        self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
 
 
 def suite():
