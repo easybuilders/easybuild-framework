@@ -1348,7 +1348,7 @@ class EasyBlock(object):
             try:
                 cmd = cmdtmpl % tmpldict
             except KeyError, err:
-                msg = "KeyError occured on completing extension filter template: %s; "
+                msg = "KeyError occurred on completing extension filter template: %s; "
                 msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
                 self.log.nosupport(msg, '2.0')
 
