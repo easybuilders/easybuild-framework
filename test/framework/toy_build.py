@@ -564,7 +564,22 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_group_check(self):
         """Test the userInGroup function with lua modules"""
-        raise EasyBuildError("TODO")
+        toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-group.eb')
+        args = [
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--module-only',
+        ]
+
+        # test specifying a Tcl module syntax
+        allargs = [toy_ec_file] + args + ['--module-syntax=Tcl']
+        outtxt, err = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, return_error=True)
+        err_regex = re.compile("Can't generate robust check in TCL modules for users belonging to group randomgroup.")
+        self.assertTrue(err_regex.search(outtxt), "Pattern '%s' found in '%s'" % (err_regex.pattern, self.dummylogfn))
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
