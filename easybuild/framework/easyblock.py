@@ -227,9 +227,12 @@ class EasyBlock(object):
 
         # try and use the specified group (if any)
         group_name = build_option('group')
-        if self.cfg['group'] is not None:
-            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group_name))
-            group_name = self.cfg['group']
+        ec_group = self.cfg['group']
+        if ec_group is not None:
+            if isinstance(ec_group, tuple):
+                ec_group = ec_group[0]
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (ec_group, group_name))
+            group_name = ec_group
 
         self.group = None
         if group_name is not None:
@@ -1167,9 +1170,18 @@ class EasyBlock(object):
         """
         Create the necessary group check.
         """
-        group_name = self.cfg['group']
+        group_name = None
+        group_error_msg = None
+        ec_group = self.cfg['group']
+        if ec_group is not None:
+            if isinstance(ec_group, tuple):
+                group_name = ec_group[0]
+                group_error_msg = ec_group[1]
+            else:
+                group_name = ec_group
+
         if group_name:
-            return self.module_generator.check_group(group_name)
+            return self.module_generator.check_group(group_name, error_msg=group_error_msg)
         else:
             return ""
 

@@ -663,14 +663,15 @@ class ModuleGeneratorLua(ModuleGenerator):
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
 
-    def check_group(self, group):
+    def check_group(self, group, error_msg=""):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
         belong to the group
 
         :param group: string with the group name
         """
-        error_msg = 'LmodError("' + self.NOT_IN_GROUP_MESSAGE % group + '")'
+        if not error_msg:
+            error_msg = 'LmodError("' + self.NOT_IN_GROUP_MESSAGE % group + '")'
         return self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
 
     def comment(self, msg):
