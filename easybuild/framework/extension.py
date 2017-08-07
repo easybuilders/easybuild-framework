@@ -141,7 +141,7 @@ class Extension(object):
         exts_filter = self.cfg['exts_filter']
         self.cfg.enable_templating = True
 
-        if not exts_filter is None:
+        if exts_filter is not None:
             cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
