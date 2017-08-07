@@ -87,8 +87,9 @@ def run_cmd_cache(func):
                 cache[key] = res
             return res
 
-    # expose clear method of cache to wrapped function
+    # expose clear/update methods of cache to wrapped function
     cache_aware_func.clear_cache = cache.clear
+    cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
 
