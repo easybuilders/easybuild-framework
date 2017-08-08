@@ -672,14 +672,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
 
         lmod_version = os.environ['LMOD_VERSION']
+        min_lmod_version = '6.0.8'
 
-        if LooseVersion(lmod_version) > LooseVersion(6.0.8):
+        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
             if not error_msg:
                 error_msg = 'LmodError("' + self.NOT_IN_GROUP_MESSAGE % group + '")'
             return self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
         else:
             self.log.warning("Can't generate robust check in Lua modules for users belonging to group %s. Lmod's " \
-                    "version not recent enough (%s). It needs to be > 6.0.8 ", group, lmod_version)
+                    "version not recent enough (%s). It needs to be >= %s", group, lmod_version, min_lmod_version)
             return ""
 
     def comment(self, msg):
