@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1163,7 +1163,7 @@ class Lmod(ModulesTool):
             (stdout, stderr) = proc.communicate()
 
             if stderr:
-                raise EasyBuildError("An error occured when running '%s': %s", ' '.join(cmd), stderr)
+                raise EasyBuildError("An error occurred when running '%s': %s", ' '.join(cmd), stderr)
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents

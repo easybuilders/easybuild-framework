@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_warning
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_msg, print_warning
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -228,6 +228,31 @@ class BuildLogTest(EnhancedTestCase):
 
         self.assertEqual(stderr, "\nWARNING: You have been warned.\n\n")
         self.assertEqual(stdout, '')
+
+    def test_print_msg(self):
+        """Test print_msg"""
+        def run_check(msg, expected_stdout='', expected_stderr='', **kwargs):
+            """Helper function to check stdout/stderr produced via print_msg"""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            print_msg(msg, **kwargs)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertEqual(stderr, expected_stderr)
+
+        run_check("testing, 1, 2, 3", expected_stdout="== testing, 1, 2, 3\n")
+        run_check("testing, 1, 2, 3", expected_stdout="== testing, 1, 2, 3", newline=False)
+        run_check("testing, 1, 2, 3", expected_stdout="testing, 1, 2, 3\n", prefix=False)
+        run_check("testing, 1, 2, 3", expected_stdout="testing, 1, 2, 3", prefix=False, newline=False)
+        run_check("testing, 1, 2, 3", expected_stderr="== testing, 1, 2, 3\n", stderr=True)
+        run_check("testing, 1, 2, 3", expected_stderr="== testing, 1, 2, 3", stderr=True, newline=False)
+        run_check("testing, 1, 2, 3", expected_stderr="testing, 1, 2, 3\n", stderr=True, prefix=False)
+        run_check("testing, 1, 2, 3", expected_stderr="testing, 1, 2, 3", stderr=True, prefix=False, newline=False)
+        run_check("testing, 1, 2, 3", silent=True)
+        run_check("testing, 1, 2, 3", silent=True, stderr=True)
 
 
 def suite():

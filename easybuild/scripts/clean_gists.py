@@ -2,7 +2,7 @@
 ##
 # Copyright 2014 Ward Poelmans
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
