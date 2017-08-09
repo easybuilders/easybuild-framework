@@ -37,6 +37,7 @@ import os
 import re
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from textwrap import wrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
