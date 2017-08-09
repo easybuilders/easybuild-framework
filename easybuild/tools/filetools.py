@@ -180,13 +180,10 @@ def resolve_path(path):
 
     :param path: path that (maybe) contains symlinks
     """
-    if path is None:
-        resolved_path = None
-    else:
-        try:
-            resolved_path = os.path.realpath(path)
-        except OSError as err:
-            raise EasyBuildError("Resolving path %s failed: %s", path, err)
+    try:
+        resolved_path = os.path.realpath(path)
+    except OSError as err:
+        raise EasyBuildError("Resolving path %s failed: %s", path, err)
 
     return resolved_path
 
