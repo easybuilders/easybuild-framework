@@ -59,7 +59,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -2089,6 +2089,13 @@ class EasyConfigTest(EnhancedTestCase):
     def test_get_paths_for(self):
         """Test for get_paths_for"""
         orig_path = os.getenv('PATH', '')
+
+        # get_paths_for should be robust against not having any 'eb' command available through $PATH
+        path = []
+        for subdir in orig_path.split(os.pathsep):
+            if not os.path.exists(os.path.join(subdir, 'eb')):
+                path.append(subdir)
+        os.environ['PATH'] = os.pathsep.join(path)
 
         top_dir = os.path.dirname(os.path.abspath(__file__))
         mkdir(os.path.join(self.test_prefix, 'easybuild'))
