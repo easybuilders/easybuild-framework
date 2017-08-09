@@ -1276,13 +1276,34 @@ class ToolchainTest(EnhancedTestCase):
         fake_gcc = os.path.join(self.test_prefix, 'fake', 'gcc')
         write_file(fake_gcc, '#!/bin/bash\necho "$@"')
         adjust_permissions(fake_gcc, stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+        path = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+        os.environ['PATH'] = path
+
+        tc = self.get_toolchain('gompi', version='1.3.12')
+
+        # preparing RPATH wrappers requires --experimental, need to bypass that here
+        tc.log.experimental = lambda x: x
+
+        # by default, RPATH linking is not enabled
+        tc.prepare()
+        res = which('gcc', retain_all=True)
+        self.assertTrue(len(res) >= 1)
+        self.assertFalse(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[0], fake_gcc))
+
+        # use of RPATH wrapper can be enabled regardless of configuration (via 'rpath' easyconfig parameter)
+        os.environ['PATH'] = path
+        tc.prepare(rpath=True)
+        res = which('gcc', retain_all=True)
+        self.assertTrue(len(res) >= 2)
+        self.assertTrue(tc.is_rpath_wrapper(res[0]))
+        self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
+        self.assertTrue(os.path.samefile(res[1], fake_gcc))
 
         # enable --rpath and prepare toolchain
         init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*']})
         tc = self.get_toolchain('gompi', version='1.3.12')
-
-        # preparing RPATH wrappers requires --experimental, need to bypass that here
         tc.log.experimental = lambda x: x
 
         # 'rpath' toolchain option gives control to disable use of RPATH wrappers
@@ -1291,6 +1312,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # setting 'rpath' toolchain option to false implies no RPATH wrappers being used
         tc.set_options({'rpath': False})
+        os.environ['PATH'] = path
         tc.prepare()
         res = which('gcc', retain_all=True)
         self.assertTrue(len(res) >= 1)
@@ -1300,6 +1322,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # enable 'rpath' toolchain option again (equivalent to the default setting)
         tc.set_options({'rpath': True})
+        os.environ['PATH'] = path
         tc.prepare()
 
         # check that wrapper is indeed in place
