@@ -410,6 +410,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(test_dir, ft.resolve_path(link_dir))
         self.assertEqual(os.path.join(os.path.realpath(self.test_prefix), 'test', 'test.txt'), ft.resolve_path(link))
         self.assertEqual(ft.read_file(link), "test123")
+        self.assertErrorRegex(EasyBuildError, "Resolving path .* failed", ft.resolve_path, None)
 
     def test_remove_symlinks(self):
         """Test remove valid and invalid symlinks"""
