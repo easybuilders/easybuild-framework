@@ -116,7 +116,6 @@ implement support for installing particular (groups of) software packages.""",
         "Topic :: Software Development :: Build Tools",
     ],
     platforms="Linux",
-    provides=["eb"] + easybuild_packages,
     test_suite="test.framework.suite",
     zip_safe=False,
     install_requires=[
