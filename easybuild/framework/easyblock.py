@@ -60,7 +60,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg
+from easybuild.tools.build_log import print_error, print_msg, trace_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -819,6 +819,9 @@ class EasyBlock(object):
         # always make build dir
         self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
 
+        if build_option('trace'):
+            trace_msg("build dir: %s" % self.builddir)
+
     def gen_installdir(self):
         """
         Generate the name of the installation directory.
@@ -1554,6 +1557,17 @@ class EasyBlock(object):
                     fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
                     self.log.info("%s checksum for %s: %s", checksum_type, fil['path'], fil[checksum_type])
 
+        # trace output for sources & patches
+        if build_option('trace'):
+            if self.src:
+                trace_msg("sources:")
+                for src in self.src:
+                    trace_msg("%s [SHA256: %s]" % (src['path'], src[CHECKSUM_TYPE_SHA256]))
+            if self.patches:
+                trace_msg("patches:")
+                for patch in self.patches:
+                    trace_msg("%s [SHA256: %s]" % (patch['path'], patch[CHECKSUM_TYPE_SHA256]))
+
         # fetch extensions
         if self.cfg['exts_list']:
             self.exts = self.fetch_extension_sources()
@@ -1605,6 +1619,8 @@ class EasyBlock(object):
         """
         for patch in self.patches:
             self.log.info("Applying patch %s" % patch['name'])
+            if build_option('trace'):
+                trace_msg("applying patch %s..." % patch['name'])
 
             # patch source at specified index (first source if not specified)
             srcind = patch.get('source', 0)
@@ -2073,6 +2089,10 @@ class EasyBlock(object):
                     self.sanity_check_fail_msgs.append("no %s of %s in %s" % (typ, xs, self.installdir))
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
+                if build_option('trace'):
+                    cand_paths = ' or '.join(["'%s'" % x for x in xs])
+                    trace_msg("%s %s found: %s" % (typ, cand_paths, ('FAILED', 'OK')[found]))
+
         fake_mod_data = None
         # only load fake module for non-extensions, and not during dry run
         if not (extension or self.dry_run):
@@ -2091,13 +2111,16 @@ class EasyBlock(object):
         # run sanity check commands
         for command in commands:
 
-            out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
                 self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
                 self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
+
+            if build_option('trace'):
+                trace_msg("running command '%s'... %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
@@ -2180,6 +2203,8 @@ class EasyBlock(object):
         mod_filepath = self.mod_filepath
         if fake:
             mod_filepath = self.module_generator.get_module_filepath(fake=fake)
+        elif build_option('trace'):
+            trace_msg("generating module file @ %s..." % self.mod_filepath)
 
         txt = self.module_generator.MODULE_SHEBANG
         if txt:
@@ -2476,6 +2501,8 @@ class EasyBlock(object):
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
+        if build_option('trace'):
+            trace_msg("installation prefix: %s" % self.installdir)
         try:
             for (step_name, descr, step_methods, skippable) in steps:
                 if self._skip_step(step_name, skippable):
