@@ -168,6 +168,7 @@ BUILD_OPTIONS_CMDLINE = {
         'set_gid_bit',
         'skip_test_cases',
         'sticky_bit',
+        'trace',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
