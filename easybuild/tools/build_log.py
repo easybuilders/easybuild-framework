@@ -298,3 +298,8 @@ def print_warning(message, silent=False):
     """
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % message)
+
+
+def trace_msg(message, silent=False):
+    """Print trace message."""
+    print_msg('  >> ' + message, prefix=False)

@@ -45,7 +45,7 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, trace_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -93,7 +93,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True):
+            force_in_dry_run=False, verbose=True, shell=True, trace=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -107,8 +107,12 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param force_in_dry_run: force running the command during dry run
     :param verbose: include message on running the command in dry run output
     :param shell: allow commands to not run in a shell (especially useful for cmd lists)
+    :param trace: print command being executed as part of trace output
     """
     cwd = os.getcwd()
+
+    if trace and build_option('trace'):
+        trace_msg("running command '%s'..." % cmd.strip())
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
     if not force_in_dry_run and build_option('extended_dry_run'):
