@@ -48,7 +48,7 @@ from easybuild.tools.build_log import EasyBuildError, init_logging, print_error,
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
-from easybuild.framework.easyblock import EasyBlock, build_and_install_one
+from easybuild.framework.easyblock import EasyBlock, build_and_install_one, inject_checksums
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
@@ -359,7 +359,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             raise EasyBuildError("One or more style checks FAILED!")
 
     # read easyconfig files
-    easyconfigs, generated_ecs = parse_easyconfigs(paths)
+    easyconfigs, generated_ecs = parse_easyconfigs(paths, validate=not options.inject_checksums)
 
     # verify easyconfig filenames, if desired
     if options.verify_easyconfig_filenames:
@@ -373,11 +373,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
+    forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
     new_update_pr = options.new_pr or options.update_pr
 
-    # skip modules that are already installed unless forced
-    if not (options.force or options.rebuild or dry_run_mode or options.extended_dry_run or new_update_pr):
+    # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
+    if not (forced or dry_run_mode or options.extended_dry_run or new_update_pr or options.inject_checksums):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -407,9 +408,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         else:
             update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
 
-        cleanup(logfile, eb_tmpdir, testing, silent=True)
-        sys.exit(0)
-
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     elif dry_run_mode:
         txt = dry_run(easyconfigs, modtool, short=not options.dry_run)
@@ -426,8 +424,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.dump_env_script:
         dump_env_script(easyconfigs)
 
+    elif options.inject_checksums:
+        inject_checksums(ordered_ecs, options.inject_checksums)
+
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.check_conflicts, dry_run_mode, options.dump_env_script]):
+    if any(no_ec_opts + [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

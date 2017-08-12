@@ -70,7 +70,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import mkdir
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -607,9 +607,12 @@ class EasyBuildOptions(GeneralOption):
         # easyconfig options (to be passed to easyconfig instance)
         descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
 
-        opts = None
+        opts = OrderedDict({
+            'inject-checksums': ("Inject checksums for sources/patches into easyconfig file(s), SHA256 by default",
+                                None, 'store_or_None', CHECKSUM_TYPE_SHA256, {'metavar': 'CHECKSUM_TYPE'}),
+        })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
-        self.add_group_parser(opts, descr, prefix='easyconfig')
+        self.add_group_parser(opts, descr, prefix='')
 
     def job_options(self):
         """Option related to --job."""

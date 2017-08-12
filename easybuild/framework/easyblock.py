@@ -60,7 +60,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg
+from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -80,7 +80,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import quote_str, remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
@@ -152,7 +152,7 @@ class EasyBlock(object):
         self.installdir_mod = None  # module file
 
         # extensions
-        self.exts = None
+        self.exts = []
         self.exts_all = None
         self.ext_instances = []
         self.skip = None
@@ -1307,8 +1307,6 @@ class EasyBlock(object):
             raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = exts_filter[0]
         cmdinputtmpl = exts_filter[1]
-        if not self.exts:
-            self.exts = []
 
         res = []
         for ext in self.exts:
@@ -2795,3 +2793,91 @@ class StopException(Exception):
     StopException class definition.
     """
     pass
+
+
+def inject_checksums(ecs, checksum_type):
+    """
+    Inject checksums of given type in specified easyconfig files
+
+    :param ecs: list of EasyConfig instances to inject checksums into corresponding files
+    :param checksum_type: type of checksum to use
+    """
+    for ec in ecs:
+        ec_fn = os.path.basename(ec['spec'])
+        print_msg("injecting %s checksums in %s" % (checksum_type, ec['spec']))
+
+        # get easyblock instance and make sure all sources/patches are available by running fetch_step
+        print_msg("fetching sources & patches for %s..." % ec_fn)
+        app = get_easyblock_instance(ec)
+        app.update_config_template_run_step()
+        app.fetch_step()
+
+        # check for any existing checksums, require --force to overwrite them
+        found_checksums = bool(app.cfg['checksums'])
+        for ext in app.exts:
+            found_checksums |= bool(ext.get('checksums'))
+        if found_checksums:
+            if build_option('force'):
+                print_warning("Found existing checksums in %s, overwriting them (due to use of --force)..." % ec_fn)
+            else:
+                raise EasyBuildError("Found existing checksums, use --force to overwrite them")
+
+        # back up easyconfig file before injecting checksums
+        ectxt = read_file(ec['spec'])
+        ec_backup = os.path.join(ec['spec'] + '.bck')
+        write_file(ec_backup, ectxt)
+        print_msg("backup of easyconfig file saved to %s..." % ec_backup)
+
+        # compute & inject checksums for sources/patches
+        print_msg("computing & injecting %s checksums for sources & patches for %s..." % (checksum_type, ec_fn))
+        checksum_lines = ['checksums = [']
+        for entry in app.src + app.patches:
+            checksum = compute_checksum(entry['path'], checksum_type)
+            checksum_lines.append("    '%s',  # %s" % (checksum, os.path.basename(entry['path'])))
+        checksum_lines.append(']\n')
+
+        checksums_txt = '\n'.join(checksum_lines)
+
+        if app.cfg['checksums']:
+            regex = re.compile(r'^checksums[^]]*\]\s*$', re.M)
+            ectxt = regex.sub(checksums_txt, ectxt)
+        else:
+            # FIXME: injects 'checksums = ...' lines after 'sources = '?
+            raise NotImplementedError
+
+        # compute & inject checksums for extension sources/patches
+        if app.exts:
+            print_msg("computing & injecting %s checksums for extensions in %s..." % (checksum_type, ec_fn))
+
+            exts_list_lines = ['exts_list = [']
+            for ext in app.exts:
+
+                if ext.keys() == ['name']:
+                    exts_list_lines.append("%s'%s'," % (' ' * 4, ext['name']))
+
+                else:
+                    exts_list_lines.append("%s('%s', '%s', {" % (' ' * 4, ext['name'], ext['version']))
+                    for key, val in ext['options'].items():
+                        exts_list_lines.append("%s'%s': '%s'," % (' ' * 8, key, quote_str(val, prefer_single_quotes=True)))
+
+                    ext_checksums = []
+                    if 'src' in ext:
+                        ext_checksums.append((os.path.basename(ext['src']), compute_checksum(ext['src'], checksum_type)))
+                    for ext_patch in ext.get('patches', []):
+                        ext_checksums.append((os.path.basename(ext_patch), compute_checksum(ext_patch, checksum_type)))
+
+                    if ext_checksums:
+                        exts_list_lines.append("%s'checksums': {" % (' ' * 8))
+                        for fn, checksum in ext_checksums:
+                            exts_list_lines.append("%s'%s',  # %s" % (' ' * 12, checksum, fn))
+                        exts_list_lines.append("%s}," % (' ' * 8))
+
+                    exts_list_lines.append("    }),")
+
+            exts_list_lines.append(']\n')
+            exts_list_txt = '\n'.join(exts_list_lines)
+
+            regex = re.compile(r'^exts_list(.|\n)*?\n\]\s*$', re.M)
+            ectxt = regex.sub(exts_list_txt, ectxt)
+
+        write_file(ec['spec'], ectxt)
