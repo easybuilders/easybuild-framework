@@ -115,6 +115,7 @@ CHECKSUM_FUNCTIONS = {
     'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
     'size': lambda p: os.path.getsize(p),
 }
+CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
 
 class ZlibChecksum(object):
