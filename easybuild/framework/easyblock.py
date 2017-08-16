@@ -2850,7 +2850,7 @@ def inject_checksums(ecs, checksum_type):
         checksums_txt = '\n'.join(checksum_lines)
 
         if app.cfg['checksums']:
-            regex = re.compile(r'^checksums[^]]*\]\s*$', re.M)
+            regex = re.compile(r'^checksums(?:.|\n)*?\]\s*$', re.M)
             ectxt = regex.sub(checksums_txt, ectxt)
         elif app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
@@ -2889,8 +2889,8 @@ def inject_checksums(ecs, checksum_type):
 
                 else:
                     exts_list_lines.append("%s('%s', '%s', {" % (' ' * 4, ext['name'], ext['version']))
-                    for key, val in ext['options'].items():
-                        exts_list_lines.append("%s'%s': '%s'," % (' ' * 8, key, quote_str(val, prefer_single_quotes=True)))
+                    for key, val in sorted(ext['options'].items()):
+                        exts_list_lines.append("%s'%s': %s," % (' ' * 8, key, quote_str(val, prefer_single_quotes=True)))
 
                     ext_checksums = []
                     if 'src' in ext:
@@ -2903,10 +2903,10 @@ def inject_checksums(ecs, checksum_type):
                         ext_checksums.append((os.path.basename(ext_patch), checksum))
 
                     if ext_checksums:
-                        exts_list_lines.append("%s'checksums': {" % (' ' * 8))
+                        exts_list_lines.append("%s'checksums': [" % (' ' * 8))
                         for fn, checksum in ext_checksums:
                             exts_list_lines.append("%s'%s',  # %s" % (' ' * 12, checksum, fn))
-                        exts_list_lines.append("%s}," % (' ' * 8))
+                        exts_list_lines.append("%s]," % (' ' * 8))
 
                     exts_list_lines.append("    }),")
 
