@@ -2842,8 +2842,8 @@ def inject_checksums(ecs, checksum_type):
             regex = re.compile(r'^checksums[^]]*\]\s*$', re.M)
             ectxt = regex.sub(checksums_txt, ectxt)
         else:
-            # FIXME: injects 'checksums = ...' lines after 'sources = '?
-            raise NotImplementedError
+            regex = re.compile(r'^(sources(?:.|\n)*?\]\s*)$', re.M)
+            ectxt = regex.sub(r'\1' + checksums_txt, ectxt)
 
         # compute & inject checksums for extension sources/patches
         if app.exts:
