@@ -2833,12 +2833,19 @@ def inject_checksums(ecs, checksum_type):
 
         # compute & inject checksums for sources/patches
         print_msg("computing & injecting %s checksums for sources & patches for %s..." % (checksum_type, ec_fn))
-        checksum_lines = ['checksums = [']
+        checksums = []
         for entry in app.src + app.patches:
             checksum = compute_checksum(entry['path'], checksum_type)
             print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum))
-            checksum_lines.append("    '%s',  # %s" % (checksum, os.path.basename(entry['path'])))
-        checksum_lines.append(']\n')
+            checksums.append((os.path.basename(entry['path']), checksum))
+
+        if len(checksums) == 1:
+            checksum_lines = ["checksums = ['%s']\n" % checksums[0][1]]
+        else:
+            checksum_lines = ['checksums = [']
+            for fn, checksum in checksums:
+                checksum_lines.append("    '%s',  # %s" % (checksum, fn))
+            checksum_lines.append(']\n')
 
         checksums_txt = '\n'.join(checksum_lines)
 
