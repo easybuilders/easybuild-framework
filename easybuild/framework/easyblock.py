@@ -2845,9 +2845,30 @@ def inject_checksums(ecs, checksum_type):
         if app.cfg['checksums']:
             regex = re.compile(r'^checksums[^]]*\]\s*$', re.M)
             ectxt = regex.sub(checksums_txt, ectxt)
-        else:
-            regex = re.compile(r'^(sources(?:.|\n)*?\]\s*)$', re.M)
-            ectxt = regex.sub(r'\1' + checksums_txt, ectxt)
+        elif app.src:
+            placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
+
+            # grab raw lines for source_urls, sources, patches
+            raw = {}
+            for key in ['patches', 'source_urls', 'sources']:
+                regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
+                res = regex.search(ectxt)
+                if res:
+                    raw[key] = res.group(0).strip() + '\n'
+                    ectxt = regex.sub(placeholder, ectxt)
+
+            if 'sources' not in raw:
+                raise EasyBuildError("Failed to extract raw lines for 'sources' parameter from easyconfig file!")
+
+            # inject combination of source_urls/sources/patches/checksums into easyconfig
+            # by replacing first occurence of placeholder that was put in place
+            source_urls_raw = raw.get('source_urls', '')
+            patches_raw = raw.get('patches', '')
+            regex = re.compile(placeholder + '\n', re.M)
+            ectxt = regex.sub(source_urls_raw + raw['sources'] + patches_raw + checksums_txt + '\n', ectxt, count=1)
+
+            # get rid of potential remaining placeholders
+            ectxt = regex.sub('', ectxt)
 
         # compute & inject checksums for extension sources/patches
         if app.exts:
