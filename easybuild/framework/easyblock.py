@@ -2825,7 +2825,10 @@ def inject_checksums(ecs, checksum_type):
         # back up easyconfig file before injecting checksums
         ectxt = read_file(ec['spec'])
         ec_backup = os.path.join(ec['spec'] + '.bck')
-        write_file(ec_backup, ectxt)
+        if os.path.exists(ec_backup):
+            raise EasyBuildError("Backup of easyconfig already exists, please (re)move it first: %s", ec_backup)
+        else:
+            write_file(ec_backup, ectxt)
         print_msg("backup of easyconfig file saved to %s..." % ec_backup)
 
         # compute & inject checksums for sources/patches
@@ -2833,6 +2836,7 @@ def inject_checksums(ecs, checksum_type):
         checksum_lines = ['checksums = [']
         for entry in app.src + app.patches:
             checksum = compute_checksum(entry['path'], checksum_type)
+            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum))
             checksum_lines.append("    '%s',  # %s" % (checksum, os.path.basename(entry['path'])))
         checksum_lines.append(']\n')
 
@@ -2862,9 +2866,13 @@ def inject_checksums(ecs, checksum_type):
 
                     ext_checksums = []
                     if 'src' in ext:
-                        ext_checksums.append((os.path.basename(ext['src']), compute_checksum(ext['src'], checksum_type)))
+                        checksum = compute_checksum(ext['src'], checksum_type)
+                        print_msg(" * %s: %s" % (os.path.basename(ext['src']), checksum))
+                        ext_checksums.append((os.path.basename(ext['src']), checksum))
                     for ext_patch in ext.get('patches', []):
-                        ext_checksums.append((os.path.basename(ext_patch), compute_checksum(ext_patch, checksum_type)))
+                        checksum = compute_checksum(ext_patch, checksum_type)
+                        print_msg(" * %s: %s" % (os.path.basename(ext_patch), checksum))
+                        ext_checksums.append((os.path.basename(ext_patch), checksum))
 
                     if ext_checksums:
                         exts_list_lines.append("%s'checksums': {" % (' ' * 8))
