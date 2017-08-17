@@ -1177,35 +1177,28 @@ def find_backup_name_candidate(src_file):
     return dst_file
 
 
-def back_up_file(src_file, backup_extension="", hidden=False):
+def back_up_file(src_file, backup_extension='', hidden=False):
     """
     Backs up a file appending a backup extension and a number to it (if there is already an existing backup). Returns
     the name of the backup
 
     :param src_file: file to be back up
-    :param backup_extension: optional extension of the backup
-    :param hidden: make a hidden (leading dot) backup
+    :param backup_extension: optional extension to use for the backup file
+    :param hidden: make backup hidden (leading dot in filename)
     """
+    fn_prefix, fn_suffix = '', ''
     if hidden:
-        leading_string = "."
-    else:
-        leading_string = ""
-
+        fn_prefix = '.'
     if backup_extension:
-        trailing_string = ".%s" % backup_extension
-    else:
-        trailing_string = ""
+        fn_suffix = '.%s' % backup_extension
 
-    backup_file = find_backup_name_candidate("%s/%s%s%s" % \
-            (os.path.dirname(src_file),\
-            leading_string,\
-            os.path.basename(src_file),\
-            trailing_string))
+    src_dir, src_fn = os.path.split(src_file)
+    backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 
-    copy_file(src_file, backup_file)
-    _log.info("File %s backed up in %s" % (src_file, backup_file))
+    copy_file(src_file, backup_fp)
+    _log.info("File %s backed up in %s", src_file, backup_fp)
 
-    return backup_file
+    return backup_fp
 
 
 def move_logs(src_logfile, target_logfile):

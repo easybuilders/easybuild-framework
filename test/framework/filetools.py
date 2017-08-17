@@ -496,50 +496,76 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_back_up_file(self):
         """Test back_up_file function."""
-        fh, fp = tempfile.mkstemp()
-        os.close(fh)
+        fp = os.path.join(self.test_prefix, 'sandbox', 'test.txt')
+        txt = 'foobar'
+        ft.write_file(fp, txt)
 
-        ft.write_file(fp, 'foobar')
+        test_files = ['test.txt']
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
 
         # Test simple file backup
         ft.back_up_file(fp)
-        self.assertEqual(ft.read_file(fp+'_0'), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar')
+        test_files.append('test.txt_0')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), 'test.txt_0')), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
         # Test hidden simple file backup
         ft.back_up_file(fp, hidden=True)
-        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar')
-        # Test simple file backup with extension
-        ft.back_up_file(fp, backup_extension="bck")
-        self.assertEqual(ft.read_file(fp+'.bck'), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar')
-        # Test hidden simple file backup with extension
-        ft.back_up_file(fp, backup_extension="bck", hidden=True)
-        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'.bck'), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar')
+        test_files.insert(0, '.test.txt')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), '.test.txt')), txt)
+        self.assertEqual(ft.read_file(fp), txt)
 
-        ft.write_file(fp, 'foobar2')
+        # Test simple file backup with extension
+        ft.back_up_file(fp, backup_extension='bck')
+        test_files.insert(2, 'test.txt.bck')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), 'test.txt.bck')), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test hidden simple file backup with extension
+        ft.back_up_file(fp, backup_extension='bck', hidden=True)
+        test_files.insert(1, '.test.txt.bck')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), '.test.txt.bck')), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        new_txt = 'barfoo'
+        ft.write_file(fp, new_txt)
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
 
         # Test file backup with existing backup
         ft.back_up_file(fp)
-        self.assertEqual(ft.read_file(fp+'_0'), 'foobar')
-        self.assertEqual(ft.read_file(fp+'_1'), 'foobar2')
-        self.assertEqual(ft.read_file(fp), 'foobar2')
+        test_files.append('test.txt_1')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), 'test.txt_0')), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), 'test.txt_1')), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
         # Test hidden file backup with existing backup
         ft.back_up_file(fp, hidden=True)
-        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'_0'), 'foobar2')
-        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar2')
+        test_files.insert(2, '.test.txt_0')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), '.test.txt')), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), '.test.txt_0')), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
         # Test file backup with extension and existing backup
-        ft.back_up_file(fp, backup_extension="bck")
-        self.assertEqual(ft.read_file(fp+'.bck_0'), 'foobar2')
-        self.assertEqual(ft.read_file(fp+'.bck'), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar2')
+        ft.back_up_file(fp, backup_extension='bck')
+        test_files.insert(5, 'test.txt.bck_0')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(fp+'.bck_0'), new_txt)
+        self.assertEqual(ft.read_file(fp+'.bck'), txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
         # Test hidden file backup with extension and existing backup
-        ft.back_up_file(fp, backup_extension="bck", hidden=True)
-        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'.bck_0'), 'foobar2')
-        self.assertEqual(ft.read_file(os.path.dirname(fp)+'/.'+os.path.basename(fp)+'.bck'), 'foobar')
-        self.assertEqual(ft.read_file(fp), 'foobar2')
+        ft.back_up_file(fp, backup_extension='bck', hidden=True)
+        test_files.insert(2, '.test.txt.bck_0')
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), test_files)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), '.test.txt.bck')), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), '.test.txt.bck_0')), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
 
     def test_move_logs(self):
         """Test move_logs function."""
