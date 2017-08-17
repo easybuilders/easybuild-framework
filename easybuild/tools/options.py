@@ -720,10 +720,6 @@ class EasyBuildOptions(GeneralOption):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
-        # if --backup-modules is used without --module-only print a warning
-        if self.options.backup_modules and not self.options.module_only:
-            print_warning("--backup-modules can be used just together with --module-only. Ignoring it...")
-
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
