@@ -598,8 +598,8 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_move_logs(self):
         """Test move_logs function."""
-        fh, fp = tempfile.mkstemp()
-        os.close(fh)
+        fp = os.path.join(self.test_prefix, 'test.txt')
+
         ft.write_file(fp, 'foobar')
         ft.write_file(fp + '.1', 'moarfoobar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'foo.log'))
@@ -610,20 +610,22 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(self.test_prefix, 'bar.log'), 'bar')
         ft.write_file(os.path.join(self.test_prefix, 'bar.log_1'), 'barbar')
 
-        fh, fp = tempfile.mkstemp()
-        os.close(fh)
+        fp = os.path.join(self.test_prefix, 'test2.txt')
         ft.write_file(fp, 'moarbar')
         ft.write_file(fp + '.1', 'evenmoarbar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
 
-        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1',
-                os.path.basename(self.logfile),
-                'foo.log', 'foo.log.1']
-        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if 'log' in f]), logs)
-        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
+        logs = sorted([f for f in os.listdir(self.test_prefix) if 'log' in f])
+        self.assertEqual(len(logs), 7)
+        self.assertEqual(len([x for x in logs if x.startswith('eb-test-')]), 1)
+        self.assertEqual(len([x for x in logs if x.startswith('foo')]), 2)
+        self.assertEqual(len([x for x in logs if x.startswith('bar')]), 4)
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+        # one more 'bar' log, the rotated copy of bar.log
+        other_bar = [x for x in logs if x.startswith('bar') and x not in ['bar.log', 'bar.log.1', 'bar.log_1']][0]
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, other_bar)), 'bar')
 
     def test_multidiff(self):
         """Test multidiff function."""
