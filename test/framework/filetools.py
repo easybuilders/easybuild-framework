@@ -1408,6 +1408,41 @@ class FileToolsTest(EnhancedTestCase):
         fn = os.path.basename(res)
         self.assertTrue(regex.match(fn), "'%s' matches pattern '%s'" % (fn, regex.pattern))
 
+    def test_diff_files(self):
+        """Test for diff_files function"""
+        foo = os.path.join(self.test_prefix, 'foo')
+        ft.write_file(foo, '\n'.join([
+            'one',
+            'two',
+            'three',
+            'four',
+            'five',
+        ]))
+        bar = os.path.join(self.test_prefix, 'bar')
+        ft.write_file(bar, '\n'.join([
+            'zero',
+            '1',
+            'two',
+            'tree',
+            'four',
+            'five',
+        ]))
+        expected = '\n'.join([
+            "--- %s" % foo,
+            "+++ %s" % bar,
+            "@@ -1,5 +1,6 @@",
+            "-one",
+            "+zero",
+            "+1",
+            " two",
+            "-three",
+            "+tree",
+            " four",
+            " five",
+            '',
+        ])
+        self.assertEqual(ft.diff_files(foo, bar), expected)
+
 
 def suite():
     """ returns all the testcases in this module """
