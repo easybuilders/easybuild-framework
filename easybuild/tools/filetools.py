@@ -1186,14 +1186,14 @@ def back_up_file(src_file, backup_extension='', hidden=False):
     :param backup_extension: optional extension to use for the backup file
     :param hidden: make backup hidden (leading dot in filename)
     """
-    fn_pref, fn_suff = '', ''
+    fn_prefix, fn_suffix = '', ''
     if hidden:
-        fn_pref = '.'
+        fn_prefix = '.'
     if backup_extension:
-        fn_suff = '.%s' % backup_extension
+        fn_suffix = '.%s' % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
-    backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_pref + src_fn + fn_suff))
+    backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 
     copy_file(src_file, backup_fp)
     _log.info("File %s backed up in %s", src_file, backup_fp)
