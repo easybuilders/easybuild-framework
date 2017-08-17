@@ -1355,6 +1355,28 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(test_file), 'test123')
         self.assertFalse(os.path.exists(new_test_file))
 
+    def test_find_backup_name_candidate(self):
+        """Test find_backup_name_candidate"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(test_file, 'foo')
+
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        self.assertEqual(os.path.basename(res), 'test.txt_0')
+
+        ft.write_file(os.path.join(self.test_prefix, 'test.txt_0'), '')
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        self.assertEqual(os.path.basename(res), 'test.txt_1')
+
+        # generate backup files until test.txt_122
+        for idx in range(1, 123):
+            ft.write_file(os.path.join(self.test_prefix, 'test.txt_%d' % idx), '')
+
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        self.assertEqual(os.path.basename(res), 'test.txt_123')
+
 
 def suite():
     """ returns all the testcases in this module """

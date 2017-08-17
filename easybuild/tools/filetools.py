@@ -1163,16 +1163,15 @@ def rmtree2(path, n=3):
     else:
         _log.info("Path %s successfully removed." % path)
 
+
 def find_backup_name_candidate(src_file):
-    """Returns a non-existing file to be used as destination for rotating backups"""
+    """Returns a non-existing file to be used as destination for backup files"""
     dst_file = src_file
 
-    if os.path.exists(src_file):
-        i = 0
-        dst_file = "%s_%d" % (src_file, i)
-        while os.path.exists(dst_file):
-            i += 1
-            dst_file = "%s_%d" % (src_file, i)
+    i = 0
+    while os.path.exists(dst_file):
+        dst_file = '%s_%d' % (src_file, i)
+        i += 1
 
     return dst_file
 
