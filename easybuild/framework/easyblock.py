@@ -2221,9 +2221,9 @@ class EasyBlock(object):
                 diff_msg = "comparing module file with backup %s; " % self.mod_file_backup
                 mod_diff = diff_files(self.mod_file_backup, mod_filepath)
                 if mod_diff:
-                    diff_msg += ' diff is:\n%s' % mod_diff
+                    diff_msg += 'diff is:\n%s' % mod_diff
                 else:
-                    diff_msg += ' no differences found.'
+                    diff_msg += 'no differences found'
                 self.log.info(diff_msg)
                 print_msg(diff_msg)
 

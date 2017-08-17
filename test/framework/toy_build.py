@@ -1226,31 +1226,10 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_backup_modules(self):
         """Test use of --backup-modules."""
-        args = ['--backup-modules']
 
-        # See if a warning is displayed when not used with --module-only
-        warning = "WARNING: --backup-modules can be used just together with --module-only. Ignoring it..."
-        self.mock_stderr(True)
-        self.eb_main(args, testing=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertTrue(re.search(warning, stderr, re.M))
-
-        # See if a warning is NOT displayed when used with --module-only
-        args += ['--module-only']
-        self.mock_stderr(True)
-        self.eb_main(args, testing=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        self.assertFalse(re.search(warning, stderr, re.M))
-
-        # Prepare for the real test
         ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(ec_files_path, 't', 'toy', 'toy-0.0-deps.eb')
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
-
-        # only consider provided test modules
-        self.reset_modulepath([os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')])
 
         common_args = [
             ec_file,
@@ -1264,60 +1243,107 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
             '--disable-cleanup-tmpdir'
         ]
-        args = common_args + ['--module-syntax=Tcl']
+        args = common_args + ['--module-syntax=Tcl', '--backup-modules']
 
-        warning = "WARNING: Old module file found. Backing it up in .* No differences found"
+        # install module once, so it can be backed up
+        self.eb_main(args[:-1], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
 
+        self.mock_stderr(True)
+        self.mock_stdout(True)
         self.eb_main(args, do_build=True, raise_error=True)
-        self.assertTrue(os.path.exists(toy_mod))
-        self.mock_stderr(True)
-        self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True)
         stderr = self.get_stderr()
+        stdout = self.get_stdout()
         self.mock_stderr(False)
+        self.mock_stdout(False)
         self.assertTrue(os.path.exists(toy_mod))
-        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), '.'+os.path.basename(toy_mod)+'.bck')))
-        self.assertTrue(re.search(warning, stderr, re.M))
+        toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 1)
+        first_toy_mod_backup = toy_mod_backups[0]
+        # check that backup module is hidden (required for Tcl syntax)
+        self.assertTrue(os.path.basename(first_toy_mod_backup).startswith('.'))
 
-        warning = "WARNING: Old module file found. Backing it up in .* Diff is:"
-        diff = "some difference\n"
-        with open(toy_mod, "a") as fh:
-            fh.write(diff)
+        toy_mod_bck = ".*/toy/\.0\.0-deps\.bck_[0-9]*"
+        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(stderr, '')
+
+        # inject additional lines in module file to generate diff
+        write_file(toy_mod, "some difference\n", append=True)
+
         self.mock_stderr(True)
-        self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True, verbose=True)
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, verbose=True)
         stderr = self.get_stderr()
+        stdout = self.get_stdout()
         self.mock_stderr(False)
-        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), '.'+os.path.basename(toy_mod)+'.bck_0')))
-        self.assertTrue(re.search(warning, stderr, re.M))
-        self.assertTrue(re.search(diff, stderr, re.M))
+        self.mock_stdout(False)
+
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 2)
+
+        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("^-some difference$", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertEqual(stderr, '')
 
         # Test also with lua syntax if Lmod is available. In particular, that the backup is not hidden
         if isinstance(self.modtool, Lmod):
-            args = common_args + ['--module-syntax=Lua']
-
+            args = common_args + ['--module-syntax=Lua', '--backup-modules']
             toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps.lua')
-            warning = "WARNING: Old module file found. Backing it up in .* No differences found"
 
-            self.eb_main(args, do_build=True, raise_error=True)
+            self.eb_main(args[:-1], do_build=True, raise_error=True)
             self.assertTrue(os.path.exists(toy_mod))
-            self.mock_stderr(True)
-            self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True)
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
-            self.assertTrue(os.path.exists(toy_mod))
-            self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), os.path.basename(toy_mod)+'.bck')))
-            self.assertTrue(re.search(warning, stderr, re.M))
 
-            warning = "WARNING: Old module file found. Backing it up in .* Diff is:"
-            diff = "some difference\n"
-            with open(toy_mod, "a") as fh:
-                fh.write(diff)
             self.mock_stderr(True)
-            self.eb_main(args + ['--backup-modules'], do_build=True, raise_error=True, verbose=True)
+            self.mock_stdout(True)
+            self.eb_main(args, do_build=True, raise_error=True, verbose=True)
             stderr = self.get_stderr()
+            stdout = self.get_stdout()
             self.mock_stderr(False)
-            self.assertTrue(os.path.exists(os.path.join(os.path.dirname(toy_mod), os.path.basename(toy_mod)+'.bck_0')))
-            self.assertTrue(re.search(warning, stderr, re.M))
-            self.assertTrue(re.search(diff, stderr, re.M))
+            self.mock_stdout(False)
+
+            toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
+            self.assertTrue(os.path.exists(toy_mod))
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
+            self.assertEqual(len(toy_mod_backups), 1)
+            first_toy_lua_mod_backup = toy_mod_backups[0]
+            self.assertTrue('.lua.bck' in os.path.basename(first_toy_lua_mod_backup))
+            self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
+
+            toy_mod_bck = ".*/toy/0\.0-deps\.lua\.bck_[0-9]*"
+            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+            write_file(toy_mod, "some difference\n", append=True)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, do_build=True, raise_error=True, verbose=True)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
+            self.assertEqual(len(toy_mod_backups), 2)
+
+            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile("^-some difference$", re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            self.assertEqual(stderr, '')
 
     def test_package(self):
         """Test use of --package and accompanying package configuration settings."""
