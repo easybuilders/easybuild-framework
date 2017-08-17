@@ -1311,6 +1311,72 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
 
+    def test_move_file(self):
+        """Test move_file function"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(test_file, 'test123')
+
+        new_test_file = os.path.join(self.test_prefix, 'subdir', 'new_test.txt')
+        ft.move_file(test_file, new_test_file)
+
+        self.assertFalse(os.path.exists(test_file))
+        self.assertTrue(os.path.exists(new_test_file))
+        self.assertEqual(ft.read_file(new_test_file), 'test123')
+
+        # test moving to an existing file
+        ft.write_file(test_file, 'gibberish')
+        ft.move_file(new_test_file, test_file)
+
+        self.assertTrue(os.path.exists(test_file))
+        self.assertEqual(ft.read_file(test_file), 'test123')
+        self.assertFalse(os.path.exists(new_test_file))
+
+        # also test behaviour of move_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        ft.move_file(test_file, new_test_file)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        # informative message printed, but file was not actually moved
+        regex = re.compile("^moved file .*/test\.txt to .*/new_test\.txt$")
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertEqual(stderr, '')
+
+        self.assertTrue(os.path.exists(test_file))
+        self.assertEqual(ft.read_file(test_file), 'test123')
+        self.assertFalse(os.path.exists(new_test_file))
+
+    def test_find_backup_name_candidate(self):
+        """Test find_backup_name_candidate"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(test_file, 'foo')
+
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        self.assertEqual(os.path.basename(res), 'test.txt_0')
+
+        ft.write_file(os.path.join(self.test_prefix, 'test.txt_0'), '')
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        self.assertEqual(os.path.basename(res), 'test.txt_1')
+
+        # generate backup files until test.txt_122
+        for idx in range(1, 123):
+            ft.write_file(os.path.join(self.test_prefix, 'test.txt_%d' % idx), '')
+
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        self.assertEqual(os.path.basename(res), 'test.txt_123')
+
 
 def suite():
     """ returns all the testcases in this module """

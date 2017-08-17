@@ -1163,16 +1163,15 @@ def rmtree2(path, n=3):
     else:
         _log.info("Path %s successfully removed." % path)
 
+
 def find_backup_name_candidate(src_file):
-    """Returns a non-existing file to be used as destination for rotating backups"""
+    """Returns a non-existing file to be used as destination for backup files"""
     dst_file = src_file
 
-    if os.path.exists(src_file):
-        i = 0
-        dst_file = "%s_%d" % (src_file, i)
-        while os.path.exists(dst_file):
-            i += 1
-            dst_file = "%s_%d" % (src_file, i)
+    i = 0
+    while os.path.exists(dst_file):
+        dst_file = '%s_%d' % (src_file, i)
+        i += 1
 
     return dst_file
 
@@ -1220,8 +1219,6 @@ def move_logs(src_logfile, target_logfile):
             if os.path.exists(new_log_path):
                 back_up_file(new_log_path)
 
-            # remove first to ensure portability (shutil.move might fail when overwriting files in some systems)
-            remove_file(new_log_path)
             # move log to target path
             move_file(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
@@ -1589,12 +1586,14 @@ def move_file(path, target_path, force_in_dry_run=False):
     Move a file from path to target_path
 
     :param path: the original filepath
-    :param target_path: path to copy the file to
+    :param target_path: path to move the file to
     :param force_in_dry_run: force running the command during dry run
     """
     if not force_in_dry_run and build_option('extended_dry_run'):
         dry_run_msg("moved file %s to %s" % (path, target_path))
     else:
+        # remove first to ensure portability (shutil.move might fail when overwriting files in some systems)
+        remove_file(target_path)
         try:
             mkdir(os.path.dirname(target_path), parents=True)
             shutil.move(path, target_path)
