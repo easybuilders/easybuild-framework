@@ -37,6 +37,7 @@ Set of file tools.
 :author: Davide Vanzo (ACCRE, Vanderbilt University)
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+import datetime
 import fileinput
 import glob
 import hashlib
@@ -1166,12 +1167,15 @@ def rmtree2(path, n=3):
 
 def find_backup_name_candidate(src_file):
     """Returns a non-existing file to be used as destination for backup files"""
-    dst_file = src_file
 
-    i = 0
+    # e.g. 20170817234510 on Aug 17th 2017 at 23:45:10
+    timestamp = datetime.datetime.now()
+    dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
     while os.path.exists(dst_file):
-        dst_file = '%s_%d' % (src_file, i)
-        i += 1
+        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, timestamp)
+        time.sleep(1)
+        timestamp = datetime.datetime.now()
+        dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
 
     return dst_file
 
