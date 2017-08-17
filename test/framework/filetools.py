@@ -1428,8 +1428,6 @@ class FileToolsTest(EnhancedTestCase):
             'five',
         ]))
         expected = '\n'.join([
-            "--- %s" % foo,
-            "+++ %s" % bar,
             "@@ -1,5 +1,6 @@",
             "-one",
             "+zero",
@@ -1441,7 +1439,10 @@ class FileToolsTest(EnhancedTestCase):
             " five",
             '',
         ])
-        self.assertEqual(ft.diff_files(foo, bar), expected)
+        res = ft.diff_files(foo, bar)
+        self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
+        regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
+        self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
 
 def suite():
