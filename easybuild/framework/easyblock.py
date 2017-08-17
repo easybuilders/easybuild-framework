@@ -67,7 +67,7 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
-from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, download_file
+from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
 from easybuild.tools.filetools import remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
@@ -171,6 +171,7 @@ class EasyBlock(object):
         # module generator
         self.module_generator = module_generator(self, fake=True)
         self.mod_filepath = self.module_generator.get_module_filepath()
+        self.mod_file_backup = None
 
         # modules footer/header
         self.modules_footer = None
@@ -1478,6 +1479,16 @@ class EasyBlock(object):
         if root:
             raise EasyBuildError("Module is already loaded (%s is set), installation cannot continue.", env_var)
 
+        # create backup of existing module file (if requested)
+        if os.path.exists(self.mod_filepath) and build_option('backup_modules'):
+            # backups of modules in Tcl syntax should be hidden to avoid they they're shown in 'module avail';
+            # backups of modules in Lua syntax do not need to be hidden:
+            # since they don't end in .lua (but in .lua.bck_*) Lmod will not pick them up anymore,
+            # which is better than hiding them (since --show-hidden still reveals them)
+            hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
+            self.mod_file_backup = back_up_file(self.mod_filepath, backup_extension='bck', hidden=hidden)
+            print_msg("backup of existing module file stored at %s" % self.mod_file_backup)
+
         # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
@@ -1489,9 +1500,9 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
-        # remove existing module file under --force (but only if --skip and --backup-modules are not used)
+        # remove existing module file under --force (but only if --skip is not used)
         elif build_option('force') or build_option('rebuild'):
-            if os.path.exists(self.mod_filepath) and not build_option('backup_modules'):
+            if os.path.exists(self.mod_filepath):
                 self.log.info("Removing existing module file %s", self.mod_filepath)
                 remove_file(self.mod_filepath)
 
@@ -2176,7 +2187,7 @@ class EasyBlock(object):
 
         :param fake: generate 'fake' module in temporary location, rather than actual module file
         """
-        modpath = self.module_generator.prepare(fake=fake)
+        modpath = self.module_generator.get_modules_path(fake=fake)
         mod_filepath = self.mod_filepath
         if fake:
             mod_filepath = self.module_generator.get_module_filepath(fake=fake)
@@ -2202,33 +2213,21 @@ class EasyBlock(object):
                 for line in txt.split('\n'):
                     self.dry_run_msg(' ' * 4 + line)
         else:
-            module_only = build_option('module_only')
-            backup_modules = build_option('backup_modules')
-            if module_only and os.path.exists(mod_filepath) and backup_modules and not fake:
-                warning_msg = "Old module file found. Backing it up in %s."
-                hidden = False
-                if isinstance(self.module_generator, ModuleGeneratorTcl):
-                     hidden = True
-                else:
-                    hidden = False
-                mod_bck_filepath = back_up_file(mod_filepath, backup_extension="bck", hidden=hidden)
-                write_file(mod_filepath, txt)
-                # diff will return 1 if there are differences. We have to set log_ok and log_all to False to ignore the
-                # return code
-                (mod_diff, _) = run_cmd("diff -u %s %s" % (mod_bck_filepath, mod_filepath), log_ok=False, log_all=False)
+            write_file(mod_filepath, txt)
+            self.log.info("Module file %s written: %s", mod_filepath, txt)
+
+            # if backup module file is there, print diff with newly generated module file
+            if self.mod_file_backup and not fake:
+                diff_msg = "comparing module file with backup %s; " % self.mod_file_backup
+                mod_diff = diff_files(self.mod_file_backup, mod_filepath)
                 if mod_diff:
-                    self.log.info(warning_msg + ' Diff is:\n%s', mod_bck_filepath, mod_diff)
-                    print_warning(warning_msg % mod_bck_filepath + ' Diff is:\n%s' % mod_diff)
+                    diff_msg += ' diff is:\n%s' % mod_diff
                 else:
-                    self.log.info(warning_msg + ' No differences found.', mod_bck_filepath)
-                    print_warning(warning_msg % mod_bck_filepath + ' No differences found.')
-                self.log.info("Module file %s written: %s", mod_filepath, txt)
-            else:
-                write_file(mod_filepath, txt)
-                self.log.info("Module file %s written: %s", mod_filepath, txt)
+                    diff_msg += ' no differences found.'
+                self.log.info(diff_msg)
+                print_msg(diff_msg)
 
             # invalidate relevant 'module avail'/'module show' cache entries
-            modpath = self.module_generator.get_modules_path(fake=fake)
             # consider both paths: for short module name, and subdir indicated by long module name
             paths = [modpath]
             if self.mod_subdir:
