@@ -143,8 +143,8 @@ DEFAULT_CONFIG = {
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
-    'group': [None, "Name of the user group for which the software should be available. Optional error message for \
-            users outside that group", LICENSE],
+    'group': [None, "Name of the user group for which the software should be available; "
+                    "format: string or 2-tuple with group name + custom error for users outside group", LICENSE],
     'key': [None, 'Key for installing software', LICENSE],
     'license_file': [None, 'License file for software', LICENSE],
     'license_server': [None, 'License server for software', LICENSE],

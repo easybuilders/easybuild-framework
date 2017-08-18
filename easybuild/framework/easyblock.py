@@ -227,12 +227,15 @@ class EasyBlock(object):
 
         # try and use the specified group (if any)
         group_name = build_option('group')
-        ec_group = self.cfg['group']
-        if ec_group is not None:
-            if isinstance(ec_group, tuple):
-                ec_group = ec_group[0]
-            self.log.warning("Group spec '%s' is overriding config group '%s'." % (ec_group, group_name))
-            group_name = ec_group
+        group_spec = self.cfg['group']
+        if group_spec is not None:
+            if isinstance(group_spec, tuple):
+                if len(group_spec) == 2:
+                    group_spec = group_spec[0]
+                else:
+                    raise EasyBuildError("Found group spec in tuple format that is not a 2-tuple: %s", ec_group)
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (group_spec, group_name))
+            group_name = group_spec
 
         self.group = None
         if group_name is not None:
@@ -1170,20 +1173,17 @@ class EasyBlock(object):
         """
         Create the necessary group check.
         """
-        group_name = None
         group_error_msg = None
         ec_group = self.cfg['group']
-        if ec_group is not None:
-            if isinstance(ec_group, tuple):
-                group_name = ec_group[0]
-                group_error_msg = ec_group[1]
-            else:
-                group_name = ec_group
+        if ec_group is not None and isinstance(ec_group, tuple):
+            group_error_msg = ec_group[1]
 
-        if group_name:
-            return self.module_generator.check_group(group_name, error_msg=group_error_msg)
+        if self.group is not None:
+            txt = self.module_generator.check_group(self.group[0], error_msg=group_error_msg)
         else:
-            return ""
+            txt = ''
+
+        return txt
 
     def make_module_req(self):
         """
