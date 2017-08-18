@@ -227,16 +227,15 @@ class EasyBlock(object):
 
         # try and use the specified group (if any)
         group_name = build_option('group')
-        ec_group = self.cfg['group']
-        if ec_group is not None:
-            if isinstance(ec_group, tuple):
-                if len(ec_group) == 2:
-                    group_name = ec_group[0]
+        group_spec = self.cfg['group']
+        if group_spec is not None:
+            if isinstance(group_spec, tuple):
+                if len(group_spec) == 2:
+                    group_spec = group_spec[0]
                 else:
                     raise EasyBuildError("Found group spec in tuple format that is not a 2-tuple: %s", ec_group)
-            else:
-                group_name = ec_group
-            self.log.warning("Group spec '%s' is overriding config group '%s'." % (ec_group, group_name))
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (group_spec, group_name))
+            group_name = group_spec
 
         self.group = None
         if group_name is not None:
