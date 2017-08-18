@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1074,7 +1074,7 @@ class EasyBlock(object):
             elif not isinstance(value, (tuple, list)):
                 raise EasyBuildError("modextrapaths dict value %s (type: %s) is not a list or tuple",
                                      value, type(value))
-            lines.append(self.module_generator.prepend_paths(key, value))
+            lines.append(self.module_generator.prepend_paths(key, value, allow_abs=self.cfg['allow_prepend_abs_path']))
 
         if self.cfg['modloadmsg']:
             lines.append(self.module_generator.msg_on_load(self.cfg['modloadmsg']))
@@ -1326,7 +1326,7 @@ class EasyBlock(object):
             try:
                 cmd = cmdtmpl % tmpldict
             except KeyError, err:
-                msg = "KeyError occured on completing extension filter template: %s; "
+                msg = "KeyError occurred on completing extension filter template: %s; "
                 msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
                 self.log.nosupport(msg, '2.0')
 

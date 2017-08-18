@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -251,11 +251,12 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     path_list.extend(sys.path)
 
     # figure out installation prefix, e.g. distutils install path for easyconfigs
-    eb_path = resolve_path(which('eb'))
+    eb_path = which('eb')
     if eb_path is None:
         _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
     else:
-        # eb should reside in <install_prefix>/bin/eb
+        # real location to 'eb' should be <install_prefix>/bin/eb
+        eb_path = resolve_path(eb_path)
         install_prefix = os.path.dirname(os.path.dirname(eb_path))
         path_list.append(install_prefix)
         _log.debug("Also considering installation prefix %s..." % install_prefix)

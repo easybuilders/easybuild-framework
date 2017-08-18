@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -361,9 +361,10 @@ def init_build_options(build_options=None, cmdline_options=None):
 
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
                                       cmdline_options.dry_run, cmdline_options.dry_run_short,
-                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
+                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script,
+                                      cmdline_options.new_pr, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
-            _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
+            _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]

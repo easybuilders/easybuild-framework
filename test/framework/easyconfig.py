@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -313,8 +313,10 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "9e9485921c6afe15f62aedfead2c8f6e",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "8ebc2c32692be9ee61eadc5d650cd288",',  # MD5 checksum for patch (toy-0.0.eb)
+                        # SHA256 checksum for source (gzip-1.4.eb)
+            '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
+                        # SHA256 checksum for 'patch' (toy-0.0.eb)
+            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
             '       ],',
             '   }),',
             ']',
@@ -786,7 +788,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
-            "github_account = 'hpcugent'",
+            "github_account = 'easybuilders'",
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -804,7 +806,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
         self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
         self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
-        self.assertEqual(eb['source_urls'][1], 'https://github.com/hpcugent/PI/archive')
+        self.assertEqual(eb['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
@@ -1802,13 +1804,20 @@ class EasyConfigTest(EnhancedTestCase):
             ('g/GCC/GCC-4.6.3.eb', 'GCC.eb'),
             ('o/OpenMPI/OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
             ('t/toy/toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+            ('t/toy/toy-0.0.eb', 'TOY.eb'),
         ]
         ecs_to_copy = []
         for (src_ec, target_ec) in test_ecs:
             ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
             shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
 
-        copy_easyconfigs(ecs_to_copy, target_dir)
+        res = copy_easyconfigs(ecs_to_copy, target_dir)
+        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'paths_in_repo'])
+        self.assertEqual(len(res['ecs']), len(test_ecs))
+        self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
+        self.assertTrue(all(res['new']))
+        expected = os.path.join(target_dir, 'easybuild', 'easyconfigs', 'g', 'GCC', 'GCC-4.6.3.eb')
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], expected))
 
         # check whether easyconfigs were copied (unmodified) to correct location
         for orig_ec, src_ec in test_ecs:
@@ -1832,10 +1841,19 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(toy_ec, toy_ec_txt)
 
-        # verify whether copied easyconfig gets cleaned up
-        copy_easyconfigs([toy_ec], target_dir)
-        copied_toy_ec = os.path.join(ecs_target_dir, 't', 'toy', 'toy-0.0.eb')
+        # copy single easyconfig with buildstats included for running further tests
+        res = copy_easyconfigs([toy_ec], target_dir)
 
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1])
+        self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
+
+        # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
+        self.assertFalse(res['new'][0])
+
+        copied_toy_ec = os.path.join(ecs_target_dir, 't', 'toy', 'toy-0.0.eb')
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_toy_ec))
+
+        # verify whether copied easyconfig gets cleaned up (stripping out 'Built with' comment + build stats)
         txt = read_file(copied_toy_ec)
         regexs = [
             "# Built with EasyBuild",
@@ -2071,6 +2089,13 @@ class EasyConfigTest(EnhancedTestCase):
     def test_get_paths_for(self):
         """Test for get_paths_for"""
         orig_path = os.getenv('PATH', '')
+
+        # get_paths_for should be robust against not having any 'eb' command available through $PATH
+        path = []
+        for subdir in orig_path.split(os.pathsep):
+            if not os.path.exists(os.path.join(subdir, 'eb')):
+                path.append(subdir)
+        os.environ['PATH'] = os.pathsep.join(path)
 
         top_dir = os.path.dirname(os.path.abspath(__file__))
         mkdir(os.path.join(self.test_prefix, 'easybuild'))

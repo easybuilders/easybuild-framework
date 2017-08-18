@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ class GeneralTest(EnhancedTestCase):
 
     def test_vsc_location(self):
         """Make sure location of imported vsc module is not the framework itself."""
-        # cfr. https://github.com/hpcugent/easybuild-framework/pull/1160
+        # cfr. https://github.com/easybuilders/easybuild-framework/pull/1160
         # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
         # vsc.utils.generaloption.__file__ provides location to <prefix>/vsc/utils/generaloption/__init__.py

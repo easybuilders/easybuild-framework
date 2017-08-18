@@ -28,11 +28,11 @@ github_clone_branch()
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
     git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
 
-    echo "=== Adding and fetching HPC-UGent GitHub repository @ hpcugent/${REPO} ..."
+    echo "=== Adding and fetching HPC-UGent GitHub repository @ easybuilders/${REPO} ..."
     cd "${REPO}"
-    git remote add "github_hpcugent" "git@github.com:hpcugent/${REPO}.git"
-    git fetch github_hpcugent
-    git branch --set-upstream "${BRANCH}" "github_hpcugent/${BRANCH}"
+    git remote add "github_easybuilders" "git@github.com/easybuilders/${REPO}.git"
+    git fetch github_easybuilders
+    git branch --set-upstream "${BRANCH}" "github_easybuilders/${BRANCH}"
 }
 
 # Print the content of the module
@@ -44,7 +44,7 @@ cat <<EOF
 proc ModulesHelp { } {
     puts stderr {   EasyBuild is a software build and installation framework
 written in Python that allows you to install software in a structured,
-repeatable and robust way. - Homepage: http://hpcugent.github.com/easybuild/
+repeatable and robust way. - Homepage: https://easybuilders.github.io/easybuild/
 
 This module provides the development version of EasyBuild.
 }
@@ -52,7 +52,7 @@ This module provides the development version of EasyBuild.
 
 module-whatis {EasyBuild is a software build and installation framework
 written in Python that allows you to install software in a structured,
-repeatable and robust way. - Homepage: http://hpcugent.github.com/easybuild/
+repeatable and robust way. - Homepage: https://easybuilders.github.io/easybuild/
 
 This module provides the development version of EasyBuild.
 }
