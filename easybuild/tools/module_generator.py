@@ -673,7 +673,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
         min_lmod_version = '6.0.8'
 
-        if lmod_version and LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
+        if lmod_version != 'NOT_FOUND' and LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
             if error_msg is None:
                 error_msg = "You are not part of '%s' group of users that have access to this software; " % group
                 error_msg += "Please consult with user support how to become a member of this group"
