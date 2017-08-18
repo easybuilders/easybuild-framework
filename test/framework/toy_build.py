@@ -587,7 +587,7 @@ class ToyBuildTest(EnhancedTestCase):
             if isinstance(group, basestring):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
-                write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
+                write_file(test_ec, read_file(toy_ec) + "\ngroup = %s'\n" % str(group))
             outtxt, _ = self.eb_main(args, logfile=dummylogfn, do_build=True, return_error=True)
 
             if get_module_syntax() == 'Tcl':
