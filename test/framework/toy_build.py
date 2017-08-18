@@ -35,6 +35,7 @@ import shutil
 import stat
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -49,6 +50,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.modules import Lmod
+from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -563,23 +565,62 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
 
     def test_toy_group_check(self):
-        """Test the userInGroup function with lua modules"""
-        toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-group.eb')
+        """Test presence of group check in generated (Lua) modules"""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # figure out a group that we're a member of to use in the test
+        out, ec = run_cmd("groups $USER", simple=False)
+        self.assertEqual(ec, 0, "Failed to select group to use in test")
+        group_name = out.split(' ')[0]
+
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = [
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
-            '--debug',
-            '--unittest-file=%s' % self.logfile,
+            test_ec,
             '--force',
             '--module-only',
         ]
 
-        # test specifying a Tcl module syntax
-        allargs = [toy_ec_file] + args + ['--module-syntax=Tcl']
-        outtxt, err = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, return_error=True)
-        err_regex = re.compile("Can't generate robust check in TCL modules for users belonging to group randomgroup.")
-        self.assertTrue(err_regex.search(outtxt), "Pattern '%s' found in '%s'" % (err_regex.pattern, self.dummylogfn))
+        for group in [group_name, (group_name, "Hey, you're not in the '%s' group!" % group_name)]:
+
+            if isinstance(group, basestring):
+                write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
+            else:
+                write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
+            outtxt, _ = self.eb_main(args, logfile=dummylogfn, do_build=True, return_error=True)
+
+            if get_module_syntax() == 'Tcl':
+                pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+
+            elif get_module_syntax() == 'Lua':
+                lmod_version = os.getenv('LMOD_VERSION', 'NOT_FOUND')
+                if LooseVersion(lmod_version) >= LooseVersion('6.0.8'):
+                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
+                    toy_mod_txt = read_file(toy_mod)
+
+                    if isinstance(group, tuple):
+                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group[0]
+                    else:
+                        error_msg_pattern = "You are not part of '%s' group of users" % group
+
+                    pattern = '\n'.join([
+                        '^if not userInGroup\("staff"\) then',
+                        '    LmodError\("%s[^"]*"\)' % error_msg_pattern,
+                        'end$',
+                    ])
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
+                else:
+                    pattern = "Can't generate robust check in Lua modules for users belonging to group %s. "
+                    pattern += "Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
+                    regex = re.compile(pattern % group_name, re.M)
+                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
