@@ -572,7 +572,7 @@ class ToyBuildTest(EnhancedTestCase):
         # figure out a group that we're a member of to use in the test
         out, ec = run_cmd('groups', simple=False)
         self.assertEqual(ec, 0, "Failed to select group to use in test")
-        group_name = out.split(' ')[0]
+        group_name = out.split(' ')[0].strip()
 
         toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -587,7 +587,7 @@ class ToyBuildTest(EnhancedTestCase):
             if isinstance(group, basestring):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
-                write_file(test_ec, read_file(toy_ec) + "\ngroup = %s'\n" % str(group))
+                write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
             outtxt, _ = self.eb_main(args, logfile=dummylogfn, do_build=True, return_error=True)
 
             if get_module_syntax() == 'Tcl':
