@@ -570,7 +570,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.close(fd)
 
         # figure out a group that we're a member of to use in the test
-        out, ec = run_cmd("groups $USER", simple=False)
+        out, ec = run_cmd('groups', simple=False)
         self.assertEqual(ec, 0, "Failed to select group to use in test")
         group_name = out.split(' ')[0]
 
