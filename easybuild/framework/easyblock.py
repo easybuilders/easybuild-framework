@@ -1481,7 +1481,7 @@ class EasyBlock(object):
 
         # create backup of existing module file (if requested)
         if os.path.exists(self.mod_filepath) and build_option('backup_modules'):
-            # backups of modules in Tcl syntax should be hidden to avoid they they're shown in 'module avail';
+            # backups of modules in Tcl syntax should be hidden to avoid that they're shown in 'module avail';
             # backups of modules in Lua syntax do not need to be hidden:
             # since they don't end in .lua (but in .lua.bck_*) Lmod will not pick them up anymore,
             # which is better than hiding them (since --show-hidden still reveals them)
