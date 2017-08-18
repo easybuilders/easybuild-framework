@@ -266,7 +266,7 @@ class EasyBuildOptions(GeneralOption):
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
-                            'pathlist', 'add_flex', [], {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+                             'pathlist', 'store_or_None', [], {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
