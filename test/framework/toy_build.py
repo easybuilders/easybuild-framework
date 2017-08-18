@@ -602,12 +602,14 @@ class ToyBuildTest(EnhancedTestCase):
                     toy_mod_txt = read_file(toy_mod)
 
                     if isinstance(group, tuple):
-                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group[0]
+                        group_name = group[0]
+                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
                     else:
-                        error_msg_pattern = "You are not part of '%s' group of users" % group
+                        group_name = group
+                        error_msg_pattern = "You are not part of '%s' group of users" % group_name
 
                     pattern = '\n'.join([
-                        '^if not userInGroup\("staff"\) then',
+                        '^if not userInGroup\("%s"\) then' % group_name,
                         '    LmodError\("%s[^"]*"\)' % error_msg_pattern,
                         'end$',
                     ])
