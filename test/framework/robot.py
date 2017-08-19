@@ -595,6 +595,31 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/ictce-3.2.2.u3.eb \(module: ictce/3.2.2.u3\)", re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
+
+    def test_search_paths(self):
+        """Test search_paths command line argument."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        test_ec = 'toy-0.0-deps.eb'
+        shutil.copy2(os.path.join(test_ecs_path, 't', 'toy', test_ec), self.test_prefix)
+        self.assertFalse(os.path.exists(test_ec))
+
+        args = [
+            '--search-paths=%s' % self.test_prefix,  # add to search path
+            '--tmpdir=%s' % self.test_prefix,
+            '--search',
+            'toy',
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True) # How do I get the regular output into outtxt?
+
+        # Make sure we found the copied file
+        regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
+        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+
     def test_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
         if self.github_token is None:
