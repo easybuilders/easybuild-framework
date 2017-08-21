@@ -2892,7 +2892,8 @@ def inject_checksums(ecs, checksum_type):
         checksums_txt = '\n'.join(checksum_lines)
 
         if app.cfg['checksums']:
-            ectxt = re.sub(r'^checksums(?:.|\n)+?\]\s*$', checksums_txt, ectxt, flags=re.M)
+            regex = re.compile(r'^checksums(?:.|\n)+?\]\s*$', re.M)
+            ectxt = regex.sub(checksums_txt, ectxt)
 
         # it'is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
         elif app.src:
@@ -2960,6 +2961,7 @@ def inject_checksums(ecs, checksum_type):
 
             exts_list_lines.append(']\n')
 
-            ectxt = re.sub(r'^exts_list(.|\n)*?\n\]\s*$', '\n'.join(exts_list_lines), ectxt, flags=re.M)
+            regex = re.compile(r'^exts_list(.|\n)*?\n\]\s*$', re.M)
+            ectxt = regex.sub('\n'.join(exts_list_lines), ectxt)
 
         write_file(ec['spec'], ectxt)
