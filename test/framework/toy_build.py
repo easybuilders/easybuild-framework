@@ -588,7 +588,7 @@ class ToyBuildTest(EnhancedTestCase):
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
             else:
                 write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
-            outtxt, _ = self.eb_main(args, logfile=dummylogfn, do_build=True, return_error=True)
+            outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
 
             if get_module_syntax() == 'Tcl':
                 pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
@@ -622,6 +622,11 @@ class ToyBuildTest(EnhancedTestCase):
                     self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        write_file(test_ec, read_file(toy_ec) + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
+        error_pattern = "Failed to get application instance.*: Found group spec in tuple format that is not a 2-tuple:"
+        self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
+                              raise_error=True, raise_systemexit=True)
 
 
     def test_allow_system_deps(self):
