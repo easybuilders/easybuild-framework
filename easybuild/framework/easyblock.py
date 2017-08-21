@@ -2932,10 +2932,7 @@ def inject_checksums(ecs, checksum_type):
                 if ext.keys() == ['name']:
                     exts_list_lines.append("%s'%s'," % (INDENT_4SPACES, ext['name']))
                 else:
-                    exts_list_lines.append("%s('%s', '%s', {" % (INDENT_4SPACES, ext['name'], ext['version']))
-                    for key, val in sorted(ext['options'].items()):
-                        val = quote_str(val, prefer_single_quotes=True)
-                        exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
+                    ext_options = ext.get('options', {})
 
                     # compute checksums for extension sources & patches
                     ext_checksums = []
@@ -2950,6 +2947,14 @@ def inject_checksums(ecs, checksum_type):
                         print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
                         ext_checksums.append((patch_fn, checksum))
 
+                    exts_list_lines.append("%s('%s', '%s'," % (INDENT_4SPACES, ext['name'], ext['version']))
+                    if ext_options or ext_checksums:
+                        exts_list_lines[-1] += ' {'
+
+                    for key, val in sorted(ext_options.items()):
+                        val = quote_str(val, prefer_single_quotes=True)
+                        exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
+
                     # if any checksums were collected, inject them for this extension
                     if ext_checksums:
                         exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
@@ -2957,7 +2962,10 @@ def inject_checksums(ecs, checksum_type):
                             exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
                         exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
 
-                    exts_list_lines.append("%s})," % INDENT_4SPACES)
+                    if ext_options or ext_checksums:
+                        exts_list_lines.append("%s})," % INDENT_4SPACES)
+                    else:
+                        exts_list_lines[-1] += '),'
 
             exts_list_lines.append(']\n')
 
