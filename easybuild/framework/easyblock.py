@@ -34,6 +34,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 
 import copy
@@ -60,22 +61,23 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg
+from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
-from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
-from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
+from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
+from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
+from easybuild.tools.filetools import remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
+from easybuild.tools.modules import Lmod, ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name
+from easybuild.tools.modules import get_software_version_env_var_name, modules_tool
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -169,6 +171,7 @@ class EasyBlock(object):
         # module generator
         self.module_generator = module_generator(self, fake=True)
         self.mod_filepath = self.module_generator.get_module_filepath()
+        self.mod_file_backup = None
 
         # modules footer/header
         self.modules_footer = None
@@ -1191,11 +1194,9 @@ class EasyBlock(object):
         """
         requirements = self.make_module_req_guess()
 
-        lines = []
+        lines = ['\n']
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
-
-            lines.append('\n')
 
             if self.dry_run:
                 self.dry_run_msg("List of paths that would be searched and added to module file:\n")
@@ -1499,6 +1500,16 @@ class EasyBlock(object):
         (root, env_var) = get_software_root(self.name, with_env_var=True)
         if root:
             raise EasyBuildError("Module is already loaded (%s is set), installation cannot continue.", env_var)
+
+        # create backup of existing module file (if requested)
+        if os.path.exists(self.mod_filepath) and build_option('backup_modules'):
+            # backups of modules in Tcl syntax should be hidden to avoid that they're shown in 'module avail';
+            # backups of modules in Lua syntax do not need to be hidden:
+            # since they don't end in .lua (but in .lua.bck_*) Lmod will not pick them up anymore,
+            # which is better than hiding them (since --show-hidden still reveals them)
+            hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
+            self.mod_file_backup = back_up_file(self.mod_filepath, backup_extension='bck', hidden=hidden)
+            print_msg("backup of existing module file stored at %s" % self.mod_file_backup)
 
         # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
@@ -2198,7 +2209,7 @@ class EasyBlock(object):
 
         :param fake: generate 'fake' module in temporary location, rather than actual module file
         """
-        modpath = self.module_generator.prepare(fake=fake)
+        modpath = self.module_generator.get_modules_path(fake=fake)
         mod_filepath = self.mod_filepath
         if fake:
             mod_filepath = self.module_generator.get_module_filepath(fake=fake)
@@ -2228,8 +2239,18 @@ class EasyBlock(object):
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
 
+            # if backup module file is there, print diff with newly generated module file
+            if self.mod_file_backup and not fake:
+                diff_msg = "comparing module file with backup %s; " % self.mod_file_backup
+                mod_diff = diff_files(self.mod_file_backup, mod_filepath)
+                if mod_diff:
+                    diff_msg += 'diff is:\n%s' % mod_diff
+                else:
+                    diff_msg += 'no differences found'
+                self.log.info(diff_msg)
+                print_msg(diff_msg)
+
             # invalidate relevant 'module avail'/'module show' cache entries
-            modpath = self.module_generator.get_modules_path(fake=fake)
             # consider both paths: for short module name, and subdir indicated by long module name
             paths = [modpath]
             if self.mod_subdir:

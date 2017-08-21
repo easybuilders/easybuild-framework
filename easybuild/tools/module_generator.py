@@ -175,24 +175,6 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def prepare(self, fake=False):
-        """
-        Prepare for generating module file: Creates the absolute filename for the module.
-        """
-        mod_path = self.get_modules_path(fake=fake)
-        # module file goes in general moduleclass category
-        # make symlink in moduleclass category
-
-        mod_filepath = self.get_module_filepath(fake=fake)
-        mkdir(os.path.dirname(mod_filepath), parents=True)
-
-        # remove module file if it's there (it'll be recreated), see EasyBlock.make_module
-        if os.path.exists(mod_filepath) and not build_option('extended_dry_run'):
-            self.log.debug("Removing existing module file %s", mod_filepath)
-            os.remove(mod_filepath)
-
-        return mod_path
-
     # From this point on just not implemented methods
 
     def check_group(self, group, error_msg=None):

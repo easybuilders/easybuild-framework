@@ -32,6 +32,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import glob
@@ -101,6 +102,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
+        'backup_modules',
         'download_timeout',
         'dump_test_report',
         'easyblock',

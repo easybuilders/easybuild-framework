@@ -35,7 +35,10 @@ Set of file tools.
 :author: Fotis Georgatos (Uni.Lu, NTUA)
 :author: Sotiris Fragkiskos (NTUA, CERN)
 :author: Davide Vanzo (ACCRE, Vanderbilt University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+import datetime
+import difflib
 import fileinput
 import glob
 import hashlib
@@ -1163,6 +1166,45 @@ def rmtree2(path, n=3):
         _log.info("Path %s successfully removed." % path)
 
 
+def find_backup_name_candidate(src_file):
+    """Returns a non-existing file to be used as destination for backup files"""
+
+    # e.g. 20170817234510 on Aug 17th 2017 at 23:45:10
+    timestamp = datetime.datetime.now()
+    dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+    while os.path.exists(dst_file):
+        _log.debug("Backup of %s at %s already found at %s, trying again in a second...", src_file, timestamp)
+        time.sleep(1)
+        timestamp = datetime.datetime.now()
+        dst_file = '%s_%s' % (src_file, timestamp.strftime('%Y%m%d%H%M%S'))
+
+    return dst_file
+
+
+def back_up_file(src_file, backup_extension='', hidden=False):
+    """
+    Backs up a file appending a backup extension and a number to it (if there is already an existing backup). Returns
+    the name of the backup
+
+    :param src_file: file to be back up
+    :param backup_extension: optional extension to use for the backup file
+    :param hidden: make backup hidden (leading dot in filename)
+    """
+    fn_prefix, fn_suffix = '', ''
+    if hidden:
+        fn_prefix = '.'
+    if backup_extension:
+        fn_suffix = '.%s' % backup_extension
+
+    src_dir, src_fn = os.path.split(src_file)
+    backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
+
+    copy_file(src_file, backup_fp)
+    _log.info("File %s backed up in %s", src_file, backup_fp)
+
+    return backup_fp
+
+
 def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
 
@@ -1180,16 +1222,10 @@ def move_logs(src_logfile, target_logfile):
 
             # retain old logs
             if os.path.exists(new_log_path):
-                i = 0
-                oldlog_backup = "%s_%d" % (new_log_path, i)
-                while os.path.exists(oldlog_backup):
-                    i += 1
-                    oldlog_backup = "%s_%d" % (new_log_path, i)
-                shutil.move(new_log_path, oldlog_backup)
-                _log.info("Moved existing log file %s to %s" % (new_log_path, oldlog_backup))
+                back_up_file(new_log_path)
 
             # move log to target path
-            shutil.move(app_log, new_log_path)
+            move_file(app_log, new_log_path)
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
             if zip_log_cmd:
@@ -1548,3 +1584,33 @@ def copy(paths, target_path, force_in_dry_run=False):
             copy_dir(path, full_target_path, force_in_dry_run=force_in_dry_run)
         else:
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
+
+
+def move_file(path, target_path, force_in_dry_run=False):
+    """
+    Move a file from path to target_path
+
+    :param path: the original filepath
+    :param target_path: path to move the file to
+    :param force_in_dry_run: force running the command during dry run
+    """
+    if not force_in_dry_run and build_option('extended_dry_run'):
+        dry_run_msg("moved file %s to %s" % (path, target_path))
+    else:
+        # remove first to ensure portability (shutil.move might fail when overwriting files in some systems)
+        remove_file(target_path)
+        try:
+            mkdir(os.path.dirname(target_path), parents=True)
+            shutil.move(path, target_path)
+            _log.info("%s moved to %s", path, target_path)
+        except (IOError, OSError) as err:
+            raise EasyBuildError("Failed to move %s to %s: %s", path, target_path, err)
+
+
+def diff_files(path1, path2):
+    """
+    Return unified diff between two files
+    """
+    file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
+    file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
+    return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
