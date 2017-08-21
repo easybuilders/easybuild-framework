@@ -56,6 +56,7 @@ from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
+from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -1507,7 +1508,7 @@ class EasyBlock(object):
             # which is better than hiding them (since --show-hidden still reveals them)
             hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
             self.mod_file_backup = back_up_file(self.mod_filepath, backup_extension='bck', hidden=hidden)
-            print_msg("backup of existing module file stored at %s" % self.mod_file_backup)
+            print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
 
         # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
@@ -2232,7 +2233,7 @@ class EasyBlock(object):
             if not fake:
                 self.dry_run_msg("Generating module file %s, with contents:\n", mod_filepath)
                 for line in txt.split('\n'):
-                    self.dry_run_msg(' ' * 4 + line)
+                    self.dry_run_msg(INDENT_4SPACES + line)
         else:
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
@@ -2246,7 +2247,7 @@ class EasyBlock(object):
                 else:
                     diff_msg += 'no differences found'
                 self.log.info(diff_msg)
-                print_msg(diff_msg)
+                print_msg(diff_msg, log=self.log)
 
             # invalidate relevant 'module avail'/'module show' cache entries
             # consider both paths: for short module name, and subdir indicated by long module name
@@ -2848,10 +2849,12 @@ def inject_checksums(ecs, checksum_type):
     """
     for ec in ecs:
         ec_fn = os.path.basename(ec['spec'])
-        print_msg("injecting %s checksums in %s" % (checksum_type, ec['spec']))
+        print_msg("injecting %s checksums in %s" % (checksum_type, ec['spec']), log=_log)
+
+        ectxt = read_file(ec['spec'])
 
         # get easyblock instance and make sure all sources/patches are available by running fetch_step
-        print_msg("fetching sources & patches for %s..." % ec_fn)
+        print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
         app = get_easyblock_instance(ec)
         app.update_config_template_run_step()
         app.fetch_step()
@@ -2867,20 +2870,15 @@ def inject_checksums(ecs, checksum_type):
                 raise EasyBuildError("Found existing checksums, use --force to overwrite them")
 
         # back up easyconfig file before injecting checksums
-        ectxt = read_file(ec['spec'])
-        ec_backup = os.path.join(ec['spec'] + '.bck')
-        if os.path.exists(ec_backup):
-            raise EasyBuildError("Backup of easyconfig already exists, please (re)move it first: %s", ec_backup)
-        else:
-            write_file(ec_backup, ectxt)
-        print_msg("backup of easyconfig file saved to %s..." % ec_backup)
+        ec_backup = back_up_file(ec['spec'], backup_extension='bck')
+        print_msg("backup of easyconfig file saved to %s..." % ec_backup, log=_log)
 
         # compute & inject checksums for sources/patches
-        print_msg("computing & injecting %s checksums for sources & patches for %s..." % (checksum_type, ec_fn))
+        print_msg("injecting %s checksums for sources & patches for %s..." % (checksum_type, ec_fn), log=_log)
         checksums = []
         for entry in app.src + app.patches:
             checksum = compute_checksum(entry['path'], checksum_type)
-            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum))
+            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum), log=_log)
             checksums.append((os.path.basename(entry['path']), checksum))
 
         if len(checksums) == 1:
@@ -2888,14 +2886,14 @@ def inject_checksums(ecs, checksum_type):
         else:
             checksum_lines = ['checksums = [']
             for fn, checksum in checksums:
-                checksum_lines.append("    '%s',  # %s" % (checksum, fn))
+                checksum_lines.append("%s'%s',  # %s" % (INDENT_4SPACES, checksum, fn))
             checksum_lines.append(']\n')
 
         checksums_txt = '\n'.join(checksum_lines)
 
         if app.cfg['checksums']:
-            regex = re.compile(r'^checksums(?:.|\n)*?\]\s*$', re.M)
-            ectxt = regex.sub(checksums_txt, ectxt)
+            ectxt = re.sub(r'^checksums(?:.|\n)+?\]\s*$', checksums_txt, ectxt, flags=re.M)
+
         elif app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
@@ -2923,41 +2921,40 @@ def inject_checksums(ecs, checksum_type):
 
         # compute & inject checksums for extension sources/patches
         if app.exts:
-            print_msg("computing & injecting %s checksums for extensions in %s..." % (checksum_type, ec_fn))
+            print_msg("injecting %s checksums for extensions in %s..." % (checksum_type, ec_fn), log=_log)
 
             exts_list_lines = ['exts_list = [']
             for ext in app.exts:
 
                 if ext.keys() == ['name']:
-                    exts_list_lines.append("%s'%s'," % (' ' * 4, ext['name']))
+                    exts_list_lines.append("%s'%s'," % (INDENT_4SPACES, ext['name']))
 
                 else:
-                    exts_list_lines.append("%s('%s', '%s', {" % (' ' * 4, ext['name'], ext['version']))
+                    exts_list_lines.append("%s('%s', '%s', {" % (INDENT_4SPACES, ext['name'], ext['version']))
                     for key, val in sorted(ext['options'].items()):
-                        exts_list_lines.append("%s'%s': %s," % (' ' * 8, key, quote_str(val, prefer_single_quotes=True)))
+                        val = quote_str(val, prefer_single_quotes=True)
+                        exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
 
                     ext_checksums = []
                     if 'src' in ext:
                         checksum = compute_checksum(ext['src'], checksum_type)
-                        print_msg(" * %s: %s" % (os.path.basename(ext['src']), checksum))
+                        print_msg(" * %s: %s" % (os.path.basename(ext['src']), checksum), log=_log)
                         ext_checksums.append((os.path.basename(ext['src']), checksum))
                     for ext_patch in ext.get('patches', []):
                         checksum = compute_checksum(ext_patch, checksum_type)
-                        print_msg(" * %s: %s" % (os.path.basename(ext_patch), checksum))
+                        print_msg(" * %s: %s" % (os.path.basename(ext_patch), checksum), log=_log)
                         ext_checksums.append((os.path.basename(ext_patch), checksum))
 
                     if ext_checksums:
-                        exts_list_lines.append("%s'checksums': [" % (' ' * 8))
+                        exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
                         for fn, checksum in ext_checksums:
-                            exts_list_lines.append("%s'%s',  # %s" % (' ' * 12, checksum, fn))
-                        exts_list_lines.append("%s]," % (' ' * 8))
+                            exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
+                        exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
 
-                    exts_list_lines.append("    }),")
+                    exts_list_lines.append("%s})," % INDENT_4SPACES)
 
             exts_list_lines.append(']\n')
-            exts_list_txt = '\n'.join(exts_list_lines)
 
-            regex = re.compile(r'^exts_list(.|\n)*?\n\]\s*$', re.M)
-            ectxt = regex.sub(exts_list_txt, ectxt)
+            ectxt = re.sub(r'^exts_list(.|\n)*?\n\]\s*$', '\n'.join(exts_list_lines), ectxt, flags=re.M)
 
         write_file(ec['spec'], ectxt)

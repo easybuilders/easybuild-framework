@@ -3345,11 +3345,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             "^== injecting sha256 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
-            "^== backup of easyconfig file saved to .*/test\.eb\.bck\.\.\.$",
-            "^== computing & injecting sha256 checksums for sources & patches for test\.eb\.\.\.$",
+            "^== backup of easyconfig file saved to .*/test\.eb\.bck_[0-9]+\.\.\.$",
+            "^== injecting sha256 checksums for sources & patches for test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: %s$" % toy_source_sha256,
             "^== \* toy-0\.0_typo\.patch: %s$" % toy_patch_sha256,
-            "^== computing & injecting sha256 checksums for extensions in test\.eb\.\.\.$",
+            "^== injecting sha256 checksums for extensions in test\.eb\.\.\.$",
             "^==  \* bar-0\.0\.tar\.gz: f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7$",
             "^==  \* bar-0\.0_typo\.patch: 84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab$",
             "^==  \* barbar-0\.0\.tar\.gz: a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c$",
@@ -3381,28 +3381,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         }))
 
         # backup of easyconfig was created
-        self.assertTrue(os.path.exists(test_ec + '.bck'))
-        self.assertEqual(read_file(toy_ec), read_file(test_ec + '.bck'))
-
-        # if a backup easyconfig is already in place, it's not overwritten blindly
-        error_pattern = "Backup of easyconfig already exists, please \(re\)move it first: .*/test\.eb\.bck"
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
-        stdout = self.get_stdout().strip()
-        stderr = self.get_stderr().strip()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        ec_backups = glob.glob(test_ec + '.bck_*')
+        self.assertEqual(len(ec_backups), 1)
+        self.assertEqual(read_file(toy_ec), read_file(ec_backups[0]))
 
         self.assertTrue("injecting sha256 checksums in" in stdout)
         self.assertEqual(stderr, warning_msg)
 
-        remove_file(test_ec + '.bck')
+        remove_file(ec_backups[0])
 
         # also test injecting of MD5 checksums into easyconfig that doesn't include checksums already
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)
-        test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         # get rid of existing checksums
         regex = re.compile('^checksums(?:.|\n)*?\]\s*$', re.M)
@@ -3423,8 +3413,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             "^== injecting md5 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
-            "^== backup of easyconfig file saved to .*/test\.eb\.bck\.\.\.$",
-            "^== computing & injecting md5 checksums for sources & patches for test\.eb\.\.\.$",
+            "^== backup of easyconfig file saved to .*/test\.eb\.bck_[0-9]+\.\.\.$",
+            "^== injecting md5 checksums for sources & patches for test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
             "^== \* toy-0\.0_typo\.patch: e6785e1a721fc8bf79892e3ef41557c0$",
             "^== \* toy-extra\.txt: 3b0787b3bf36603ae1398c4a49097893$",
@@ -3436,8 +3426,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         # backup of easyconfig was created
-        self.assertTrue(os.path.exists(test_ec + '.bck'))
-        self.assertEqual(toy_ec_txt, read_file(test_ec + '.bck'))
+        ec_backups = glob.glob(test_ec + '.bck_*')
+        self.assertEqual(len(ec_backups), 1)
+        self.assertEqual(toy_ec_txt, read_file(ec_backups[0]))
 
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
