@@ -613,7 +613,10 @@ class RobotTest(EnhancedTestCase):
             '--search',
             'toy',
         ]
-        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True) # How do I get the regular output into outtxt?
+        self.mock_stdout(True)
+        _ = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+        outtxt = self.get_stdout()
+        self.mock_stdout(False)
 
         # Make sure we found the copied file
         regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
