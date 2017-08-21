@@ -1225,11 +1225,12 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
 
     def test_backup_modules(self):
-        """Test use of --backup-modules."""
+        """Test use of backing up of modules with --module-only."""
 
         ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ec_file = os.path.join(ec_files_path, 't', 'toy', 'toy-0.0-deps.eb')
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+        toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
 
         common_args = [
             ec_file,
@@ -1239,25 +1240,30 @@ class ToyBuildTest(EnhancedTestCase):
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--robot=%s' % ec_files_path,
-            '--module-only',
             '--force',
             '--disable-cleanup-tmpdir'
         ]
-        args = common_args + ['--module-syntax=Tcl', '--backup-modules']
+        args = common_args + ['--module-syntax=Tcl']
 
-        # install module once, so it can be backed up
-        self.eb_main(args[:-1], do_build=True, raise_error=True)
+        # install module once (without --module-only), so it can be backed up
+        outtxt = self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
+
+        # forced reinstall, no backup of module file because --backup-modules (or --module-only) is not used
+        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 0)
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.eb_main(args, do_build=True, raise_error=True)
+        # note: no need to specificy --backup-modules, enabled automatically under --module-only
+        outtxt = self.eb_main(args + ['--module-only'], do_build=True, raise_error=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertTrue(os.path.exists(toy_mod))
-        toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
         toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
         self.assertEqual(len(toy_mod_backups), 1)
         first_toy_mod_backup = toy_mod_backups[0]
@@ -1272,12 +1278,17 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
 
+        # no backup of existing module file if --disable-backup-modules is used
+        self.eb_main(args + ['--disable-backup-modules'], do_build=True, raise_error=True)
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 1)
+
         # inject additional lines in module file to generate diff
         write_file(toy_mod, "some difference\n", append=True)
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.eb_main(args, do_build=True, raise_error=True, verbose=True)
+        self.eb_main(args + ['--module-only'], do_build=True, raise_error=True, verbose=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
@@ -1298,9 +1309,12 @@ class ToyBuildTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             args = common_args + ['--module-syntax=Lua', '--backup-modules']
             toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps.lua')
+            toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
 
-            self.eb_main(args[:-1], do_build=True, raise_error=True)
+            self.eb_main(args, do_build=True, raise_error=True)
             self.assertTrue(os.path.exists(toy_mod))
+            lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua'))
+            self.assertEqual(len(lua_toy_mods), 1)
 
             self.mock_stderr(True)
             self.mock_stdout(True)
@@ -1310,7 +1324,6 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.mock_stdout(False)
 
-            toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
             self.assertTrue(os.path.exists(toy_mod))
             toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
             self.assertEqual(len(toy_mod_backups), 1)
