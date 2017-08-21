@@ -2849,9 +2849,9 @@ def inject_checksums(ecs, checksum_type):
     """
     for ec in ecs:
         ec_fn = os.path.basename(ec['spec'])
+        ectxt = read_file(ec['spec'])
         print_msg("injecting %s checksums in %s" % (checksum_type, ec['spec']), log=_log)
 
-        ectxt = read_file(ec['spec'])
 
         # get easyblock instance and make sure all sources/patches are available by running fetch_step
         print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
@@ -2874,7 +2874,7 @@ def inject_checksums(ecs, checksum_type):
         print_msg("backup of easyconfig file saved to %s..." % ec_backup, log=_log)
 
         # compute & inject checksums for sources/patches
-        print_msg("injecting %s checksums for sources & patches for %s..." % (checksum_type, ec_fn), log=_log)
+        print_msg("injecting %s checksums for sources & patches in %s..." % (checksum_type, ec_fn), log=_log)
         checksums = []
         for entry in app.src + app.patches:
             checksum = compute_checksum(entry['path'], checksum_type)
@@ -2894,6 +2894,7 @@ def inject_checksums(ecs, checksum_type):
         if app.cfg['checksums']:
             ectxt = re.sub(r'^checksums(?:.|\n)+?\]\s*$', checksums_txt, ectxt, flags=re.M)
 
+        # it'is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
         elif app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
@@ -2906,6 +2907,7 @@ def inject_checksums(ecs, checksum_type):
                     raw[key] = res.group(0).strip() + '\n'
                     ectxt = regex.sub(placeholder, ectxt)
 
+            # this should not happen...
             if 'sources' not in raw:
                 raise EasyBuildError("Failed to extract raw lines for 'sources' parameter from easyconfig file!")
 
@@ -2925,26 +2927,29 @@ def inject_checksums(ecs, checksum_type):
 
             exts_list_lines = ['exts_list = [']
             for ext in app.exts:
-
+                # for some extensions, only a name if specified (so no sources/patches)
                 if ext.keys() == ['name']:
                     exts_list_lines.append("%s'%s'," % (INDENT_4SPACES, ext['name']))
-
                 else:
                     exts_list_lines.append("%s('%s', '%s', {" % (INDENT_4SPACES, ext['name'], ext['version']))
                     for key, val in sorted(ext['options'].items()):
                         val = quote_str(val, prefer_single_quotes=True)
                         exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
 
+                    # compute checksums for extension sources & patches
                     ext_checksums = []
                     if 'src' in ext:
+                        src_fn = os.path.basename(ext['src'])
                         checksum = compute_checksum(ext['src'], checksum_type)
-                        print_msg(" * %s: %s" % (os.path.basename(ext['src']), checksum), log=_log)
-                        ext_checksums.append((os.path.basename(ext['src']), checksum))
+                        print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
+                        ext_checksums.append((src_fn, checksum))
                     for ext_patch in ext.get('patches', []):
+                        patch_fn = os.path.basename(ext_patch)
                         checksum = compute_checksum(ext_patch, checksum_type)
-                        print_msg(" * %s: %s" % (os.path.basename(ext_patch), checksum), log=_log)
-                        ext_checksums.append((os.path.basename(ext_patch), checksum))
+                        print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
+                        ext_checksums.append((patch_fn, checksum))
 
+                    # if any checksums were collected, inject them for this extension
                     if ext_checksums:
                         exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
                         for fn, checksum in ext_checksums:
