@@ -31,11 +31,13 @@ Generating module files.
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import os
 import re
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from textwrap import wrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
@@ -192,6 +194,16 @@ class ModuleGenerator(object):
         return mod_path
 
     # From this point on just not implemented methods
+
+    def check_group(self, group, error_msg=None):
+        """
+        Generate a check of the software group and the current user, and refuse to load the module if the user don't
+        belong to the group
+
+        :param group: string with the group name
+        :param error_msg: error message to print for users outside that group
+        """
+        raise NotImplementedError
 
     def comment(self, msg):
         """Return given string formatted as a comment."""
@@ -388,6 +400,17 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
+
+    def check_group(self, group, error_msg=None):
+        """
+        Generate a check of the software group and the current user, and refuse to load the module if the user don't
+        belong to the group
+
+        :param group: string with the group name
+        :param error_msg: error message to print for users outside that group
+        """
+        self.log.warning("Can't generate robust check in TCL modules for users belonging to group %s.", group)
+        return ''
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -638,6 +661,32 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
+
+    def check_group(self, group, error_msg=None):
+        """
+        Generate a check of the software group and the current user, and refuse to load the module if the user don't
+        belong to the group
+
+        :param group: string with the group name
+        :param error_msg: error message to print for users outside that group
+        """
+        lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
+        min_lmod_version = '6.0.8'
+
+        if lmod_version != 'NOT_FOUND' and LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
+            if error_msg is None:
+                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+                error_msg += "Please consult with user support how to become a member of this group"
+
+            error_msg = 'LmodError("' + error_msg + '")'
+            res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
+        else:
+            warn_msg = "Can't generate robust check in Lua modules for users belonging to group %s. "
+            warn_msg += "Lmod version not recent enough (%s), should be >= %s"
+            self.log.warning(warn_msg, group, lmod_version, min_lmod_version)
+            res = ''
+
+        return res
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
