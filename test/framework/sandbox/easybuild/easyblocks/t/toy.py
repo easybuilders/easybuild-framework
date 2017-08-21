@@ -43,6 +43,12 @@ from easybuild.tools.run import run_cmd
 class EB_toy(EasyBlock):
     """Support for building/installing toy."""
 
+    def __init__(self, *args, **kwargs):
+        """Constructor"""
+        super(EB_toy, self).__init__(*args, **kwargs)
+
+        setvar('TOY', '%s-%s' % (self.name, self.version))
+
     def prepare_for_extensions(self):
         """
         Prepare for installing toy extensions.
@@ -62,8 +68,6 @@ class EB_toy(EasyBlock):
 
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
-
-        setvar('TOY', '%s-%s' % (self.name, self.version))
 
     def build_step(self, name=None, buildopts=None):
         """Build toy."""

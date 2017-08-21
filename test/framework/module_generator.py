@@ -32,7 +32,6 @@ import glob
 import os
 import sys
 import tempfile
-from distutils.version import StrictVersion
 from unittest import TextTestRunner, TestSuite
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import nub

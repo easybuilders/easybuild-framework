@@ -26,6 +26,7 @@
 Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
+@author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import glob
 import grp
@@ -35,6 +36,7 @@ import shutil
 import stat
 import sys
 import tempfile
+from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from test.framework.package import mock_fpm
 from unittest import TextTestRunner
@@ -49,6 +51,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.modules import Lmod
+from easybuild.tools.run import run_cmd
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
 
@@ -561,6 +564,71 @@ class ToyBuildTest(EnhancedTestCase):
             perms = os.stat(fullpath).st_mode
             self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
             self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
+
+    def test_toy_group_check(self):
+        """Test presence of group check in generated (Lua) modules"""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # figure out a group that we're a member of to use in the test
+        out, ec = run_cmd('groups', simple=False)
+        self.assertEqual(ec, 0, "Failed to select group to use in test")
+        group_name = out.split(' ')[0].strip()
+
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        args = [
+            test_ec,
+            '--force',
+            '--module-only',
+        ]
+
+        for group in [group_name, (group_name, "Hey, you're not in the '%s' group!" % group_name)]:
+
+            if isinstance(group, basestring):
+                write_file(test_ec, read_file(toy_ec) + "\ngroup = '%s'\n" % group)
+            else:
+                write_file(test_ec, read_file(toy_ec) + "\ngroup = %s\n" % str(group))
+            outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
+
+            if get_module_syntax() == 'Tcl':
+                pattern = "Can't generate robust check in TCL modules for users belonging to group %s." % group_name
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+
+            elif get_module_syntax() == 'Lua':
+                lmod_version = os.getenv('LMOD_VERSION', 'NOT_FOUND')
+                if LooseVersion(lmod_version) >= LooseVersion('6.0.8'):
+                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
+                    toy_mod_txt = read_file(toy_mod)
+
+                    if isinstance(group, tuple):
+                        group_name = group[0]
+                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
+                    else:
+                        group_name = group
+                        error_msg_pattern = "You are not part of '%s' group of users" % group_name
+
+                    pattern = '\n'.join([
+                        '^if not userInGroup\("%s"\) then' % group_name,
+                        '    LmodError\("%s[^"]*"\)' % error_msg_pattern,
+                        'end$',
+                    ])
+                    regex = re.compile(pattern, re.M)
+                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_mod_txt))
+                else:
+                    pattern = "Can't generate robust check in Lua modules for users belonging to group %s. "
+                    pattern += "Lmod version not recent enough \(%s\), should be >= 6.0.8" % lmod_version
+                    regex = re.compile(pattern % group_name, re.M)
+                    self.assertTrue(regex.search(outtxt), "Pattern '%s' found in: %s" % (regex.pattern, outtxt))
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        write_file(test_ec, read_file(toy_ec) + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
+        error_pattern = "Failed to get application instance.*: Found group spec in tuple format that is not a 2-tuple:"
+        self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
+                              raise_error=True, raise_systemexit=True)
+
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
@@ -1222,6 +1290,140 @@ class ToyBuildTest(EnhancedTestCase):
             # make sure load statements for dependencies are included
             modtxt = read_file(toy_mod + '.lua')
             self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+
+    def test_backup_modules(self):
+        """Test use of backing up of modules with --module-only."""
+
+        ec_files_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(ec_files_path, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+        toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
+
+        common_args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--robot=%s' % ec_files_path,
+            '--force',
+            '--disable-cleanup-tmpdir'
+        ]
+        args = common_args + ['--module-syntax=Tcl']
+
+        # install module once (without --module-only), so it can be backed up
+        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+
+        # forced reinstall, no backup of module file because --backup-modules (or --module-only) is not used
+        outtxt = self.eb_main(args, do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 0)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        # note: no need to specificy --backup-modules, enabled automatically under --module-only
+        outtxt = self.eb_main(args + ['--module-only'], do_build=True, raise_error=True)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertTrue(os.path.exists(toy_mod))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 1)
+        first_toy_mod_backup = toy_mod_backups[0]
+        # check that backup module is hidden (required for Tcl syntax)
+        self.assertTrue(os.path.basename(first_toy_mod_backup).startswith('.'))
+
+        toy_mod_bck = ".*/toy/\.0\.0-deps\.bck_[0-9]*"
+        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        self.assertEqual(stderr, '')
+
+        # no backup of existing module file if --disable-backup-modules is used
+        self.eb_main(args + ['--disable-backup-modules'], do_build=True, raise_error=True)
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 1)
+
+        # inject additional lines in module file to generate diff
+        write_file(toy_mod, "some difference\n", append=True)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.eb_main(args + ['--module-only'], do_build=True, raise_error=True, verbose=True)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        self.assertEqual(len(toy_mod_backups), 2)
+
+        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bck, re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        regex = re.compile("^-some difference$", re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertEqual(stderr, '')
+
+        # Test also with lua syntax if Lmod is available. In particular, that the backup is not hidden
+        if isinstance(self.modtool, Lmod):
+            args = common_args + ['--module-syntax=Lua', '--backup-modules']
+            toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps.lua')
+            toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
+
+            self.eb_main(args, do_build=True, raise_error=True)
+            self.assertTrue(os.path.exists(toy_mod))
+            lua_toy_mods = glob.glob(os.path.join(toy_mod_dir, '*.lua'))
+            self.assertEqual(len(lua_toy_mods), 1)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, do_build=True, raise_error=True, verbose=True)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            self.assertTrue(os.path.exists(toy_mod))
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
+            self.assertEqual(len(toy_mod_backups), 1)
+            first_toy_lua_mod_backup = toy_mod_backups[0]
+            self.assertTrue('.lua.bck' in os.path.basename(first_toy_lua_mod_backup))
+            self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
+
+            toy_mod_bck = ".*/toy/0\.0-deps\.lua\.bck_[0-9]*"
+            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+            write_file(toy_mod, "some difference\n", append=True)
+
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            self.eb_main(args, do_build=True, raise_error=True, verbose=True)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
+            self.assertEqual(len(toy_mod_backups), 2)
+
+            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bck, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            regex = re.compile("^-some difference$", re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            self.assertEqual(stderr, '')
 
     def test_package(self):
         """Test use of --package and accompanying package configuration settings."""
