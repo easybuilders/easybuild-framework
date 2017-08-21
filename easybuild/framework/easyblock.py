@@ -233,7 +233,7 @@ class EasyBlock(object):
                 if len(group_spec) == 2:
                     group_spec = group_spec[0]
                 else:
-                    raise EasyBuildError("Found group spec in tuple format that is not a 2-tuple: %s", ec_group)
+                    raise EasyBuildError("Found group spec in tuple format that is not a 2-tuple: %s", str(group_spec))
             self.log.warning("Group spec '%s' is overriding config group '%s'." % (group_spec, group_name))
             group_name = group_spec
 
