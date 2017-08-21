@@ -38,6 +38,7 @@ Set of file tools.
 :author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import datetime
+import difflib
 import fileinput
 import glob
 import hashlib
@@ -1604,3 +1605,12 @@ def move_file(path, target_path, force_in_dry_run=False):
             _log.info("%s moved to %s", path, target_path)
         except (IOError, OSError) as err:
             raise EasyBuildError("Failed to move %s to %s: %s", path, target_path, err)
+
+
+def diff_files(path1, path2):
+    """
+    Return unified diff between two files
+    """
+    file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
+    file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
+    return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))

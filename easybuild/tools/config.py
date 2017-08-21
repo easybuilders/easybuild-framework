@@ -102,6 +102,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
+        'backup_modules',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -177,7 +178,6 @@ BUILD_OPTIONS_CMDLINE = {
         'set_default_module',
     ],
     True: [
-        'backup_modules',
         'cleanup_builddir',
         'cleanup_easyconfigs',
         'cleanup_tmpdir',
