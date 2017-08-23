@@ -3390,6 +3390,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         remove_file(ec_backups[0])
 
+        # if any checksums are present already, it doesn't matter if they're wrong (since they will be replaced)
+        ectxt = read_file(test_ec)
+        for chksum in ec['checksums'] + [c for e in ec['exts_list'] for c in e[2]['checksums']]:
+            ectxt = ectxt.replace(chksum, chksum[::-1])
+        write_file(test_ec, ectxt)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, raise_error=True)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+
+        ec_backups = glob.glob(test_ec + '.bck_*')
+        self.assertEqual(len(ec_backups), 1)
+        remove_file(ec_backups[0])
+
         # also test injecting of MD5 checksums into easyconfig that doesn't include checksums already
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         toy_ec_txt = read_file(toy_ec)

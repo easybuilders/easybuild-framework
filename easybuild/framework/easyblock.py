@@ -445,7 +445,7 @@ class EasyBlock(object):
         else:
             self.log.info("Added patches: %s" % self.patches)
 
-    def fetch_extension_sources(self):
+    def fetch_extension_sources(self, skip_checksums=False):
         """
         Find source file for extensions.
         """
@@ -501,37 +501,40 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
-                            # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                            for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
-                                self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
+                            if not skip_checksums:
+                                # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                                for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                    src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
+                                    self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
 
-                            if checksums:
-                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
-                                if verify_checksum(src_fn, fn_checksum):
-                                    self.log.info('Checksum for ext source %s verified' % fn)
-                                else:
-                                    raise EasyBuildError('Checksum for ext source %s failed', fn)
+                                if checksums:
+                                    fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                                    if verify_checksum(src_fn, fn_checksum):
+                                        self.log.info('Checksum for ext source %s verified', fn)
+                                    else:
+                                        raise EasyBuildError('Checksum for ext source %s failed', fn)
 
                             ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
 
-                                for patch in ext_patches:
-                                    # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                                    for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                        patch_checksum = compute_checksum(patch, checksum_type=checksum_type)
-                                        self.log.info("%s checksum for %s: %s", checksum_type, patch, patch_checksum)
+                                if not skip_checksums:
+                                    for patch in ext_patches:
+                                        # report both MD5 and SHA256 checksums,
+                                        # since both are valid default checksum types
+                                        for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                            checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                            self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
 
-                                if checksums:
-                                    self.log.debug('Verifying checksums for extension patches...')
-                                    for index, ext_patch in enumerate(ext_patches):
-                                        checksum = self.get_checksum_for(checksums[1:], filename=ext_patch, index=index)
-                                        if verify_checksum(ext_patch, checksum):
-                                            self.log.info('Checksum for extension patch %s verified' % ext_patch)
-                                        else:
-                                            raise EasyBuildError('Checksum for extension patch %s failed', ext_patch)
+                                    if checksums:
+                                        self.log.debug('Verifying checksums for extension patches...')
+                                        for idx, patch in enumerate(ext_patches):
+                                            checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
+                                            if verify_checksum(patch, checksum):
+                                                self.log.info('Checksum for extension patch %s verified', patch)
+                                            else:
+                                                raise EasyBuildError('Checksum for extension patch %s failed', patch)
                             else:
                                 self.log.debug('No patches found for extension %s.' % ext_name)
 
@@ -1588,7 +1591,7 @@ class EasyBlock(object):
 
         # fetch extensions
         if self.cfg['exts_list']:
-            self.exts = self.fetch_extension_sources()
+            self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
@@ -2857,7 +2860,7 @@ def inject_checksums(ecs, checksum_type):
         print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
         app = get_easyblock_instance(ec)
         app.update_config_template_run_step()
-        app.fetch_step()
+        app.fetch_step(skip_checksums=True)
 
         # check for any existing checksums, require --force to overwrite them
         found_checksums = bool(app.cfg['checksums'])
