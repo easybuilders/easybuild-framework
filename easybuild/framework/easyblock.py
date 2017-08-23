@@ -2898,7 +2898,7 @@ def inject_checksums(ecs, checksum_type):
             regex = re.compile(r'^checksums(?:.|\n)+?\]\s*$', re.M)
             ectxt = regex.sub(checksums_txt, ectxt)
 
-        # it'is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
+        # it is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
         elif app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
