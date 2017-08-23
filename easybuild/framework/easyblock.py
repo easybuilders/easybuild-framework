@@ -1507,10 +1507,10 @@ class EasyBlock(object):
         if os.path.exists(self.mod_filepath) and build_option('backup_modules'):
             # backups of modules in Tcl syntax should be hidden to avoid that they're shown in 'module avail';
             # backups of modules in Lua syntax do not need to be hidden:
-            # since they don't end in .lua (but in .lua.bck_*) Lmod will not pick them up anymore,
+            # since they don't end in .lua (but in .lua.bak_*) Lmod will not pick them up anymore,
             # which is better than hiding them (since --show-hidden still reveals them)
             hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
-            self.mod_file_backup = back_up_file(self.mod_filepath, backup_extension='bck', hidden=hidden)
+            self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden)
             print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
 
         # check if main install needs to be skipped
@@ -2873,7 +2873,7 @@ def inject_checksums(ecs, checksum_type):
                 raise EasyBuildError("Found existing checksums, use --force to overwrite them")
 
         # back up easyconfig file before injecting checksums
-        ec_backup = back_up_file(ec['spec'], backup_extension='bck')
+        ec_backup = back_up_file(ec['spec'])
         print_msg("backup of easyconfig file saved to %s..." % ec_backup, log=_log)
 
         # compute & inject checksums for sources/patches

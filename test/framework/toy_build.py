@@ -1319,7 +1319,7 @@ class ToyBuildTest(EnhancedTestCase):
         # forced reinstall, no backup of module file because --backup-modules (or --module-only) is not used
         outtxt = self.eb_main(args, do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
-        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 0)
 
         self.mock_stderr(True)
@@ -1331,23 +1331,23 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertTrue(os.path.exists(toy_mod))
-        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 1)
         first_toy_mod_backup = toy_mod_backups[0]
         # check that backup module is hidden (required for Tcl syntax)
         self.assertTrue(os.path.basename(first_toy_mod_backup).startswith('.'))
 
-        toy_mod_bck = ".*/toy/\.0\.0-deps\.bck_[0-9]*"
-        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+        toy_mod_bak = ".*/toy/\.0\.0-deps\.bak_[0-9]*"
+        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-        regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bck, re.M)
+        regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(stderr, '')
 
         # no backup of existing module file if --disable-backup-modules is used
         self.eb_main(args + ['--disable-backup-modules'], do_build=True, raise_error=True)
-        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 1)
 
         # inject additional lines in module file to generate diff
@@ -1361,12 +1361,12 @@ class ToyBuildTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
 
-        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bck_*'))
+        toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, '.' + toy_mod_fn + '.bak_*'))
         self.assertEqual(len(toy_mod_backups), 2)
 
-        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+        regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-        regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bck, re.M)
+        regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bak, re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         regex = re.compile("^-some difference$", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
@@ -1392,16 +1392,16 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stdout(False)
 
             self.assertTrue(os.path.exists(toy_mod))
-            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
             self.assertEqual(len(toy_mod_backups), 1)
             first_toy_lua_mod_backup = toy_mod_backups[0]
-            self.assertTrue('.lua.bck' in os.path.basename(first_toy_lua_mod_backup))
+            self.assertTrue('.lua.bak' in os.path.basename(first_toy_lua_mod_backup))
             self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
 
-            toy_mod_bck = ".*/toy/0\.0-deps\.lua\.bck_[0-9]*"
-            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+            toy_mod_bak = ".*/toy/0\.0-deps\.lua\.bak_[0-9]*"
+            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-            regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bck, re.M)
+            regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
             write_file(toy_mod, "some difference\n", append=True)
@@ -1414,12 +1414,12 @@ class ToyBuildTest(EnhancedTestCase):
             self.mock_stderr(False)
             self.mock_stdout(False)
 
-            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bck_*'))
+            toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
             self.assertEqual(len(toy_mod_backups), 2)
 
-            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bck, re.M)
+            regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-            regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bck, re.M)
+            regex = re.compile("^== comparing module file with backup %s; diff is:$" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
             regex = re.compile("^-some difference$", re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))

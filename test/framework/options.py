@@ -3345,7 +3345,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             "^== injecting sha256 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
-            "^== backup of easyconfig file saved to .*/test\.eb\.bck_[0-9]+\.\.\.$",
+            "^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+\.\.\.$",
             "^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: %s$" % toy_source_sha256,
             "^== \* toy-0\.0_typo\.patch: %s$" % toy_patch_sha256,
@@ -3381,7 +3381,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         }))
 
         # backup of easyconfig was created
-        ec_backups = glob.glob(test_ec + '.bck_*')
+        ec_backups = glob.glob(test_ec + '.bak_*')
         self.assertEqual(len(ec_backups), 1)
         self.assertEqual(read_file(toy_ec), read_file(ec_backups[0]))
 
@@ -3407,7 +3407,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
 
-        ec_backups = glob.glob(test_ec + '.bck_*')
+        ec_backups = glob.glob(test_ec + '.bak_*')
         self.assertEqual(len(ec_backups), 1)
         remove_file(ec_backups[0])
 
@@ -3434,7 +3434,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         patterns = [
             "^== injecting md5 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
-            "^== backup of easyconfig file saved to .*/test\.eb\.bck_[0-9]+\.\.\.$",
+            "^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+\.\.\.$",
             "^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
             "^== \* toy-0\.0_typo\.patch: e6785e1a721fc8bf79892e3ef41557c0$",
@@ -3447,7 +3447,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         # backup of easyconfig was created
-        ec_backups = glob.glob(test_ec + '.bck_*')
+        ec_backups = glob.glob(test_ec + '.bak_*')
         self.assertEqual(len(ec_backups), 1)
         self.assertEqual(toy_ec_txt, read_file(ec_backups[0]))
 
