@@ -200,9 +200,6 @@ def sanitize_env():
     Note that this is not an airtight protection against the Python being used in the build/install procedure
     picking up non-stdlib Python packages (e.g., setuptools, vsc-base, ...), thanks to the magic of .pth files,
     cfr. https://docs.python.org/2/library/site.html .
-
-    Compute Canada-specific: our setup relies on sitecustomize.py in a single-entry PYTHONPATH set in the eb
-    wrapper script. The rest is done via EBPYTHONPATH.
     """
-    keys_to_unset = [key for key in os.environ if (key.startswith('PYTHON') or key == 'EBPYTHONPATH') and key != 'PYTHONPATH']
+    keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
