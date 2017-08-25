@@ -27,8 +27,10 @@
 The main easyconfig format class
 
 :author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import re
+import sys
 
 from vsc.utils import fancylogger
 
@@ -184,8 +186,12 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         try:
             exec(pyheader, global_vars, local_vars)
-        except SyntaxError, err:
-            raise EasyBuildError("SyntaxError in easyconfig pyheader %s: %s", pyheader, err)
+        except Exception as err:
+            err_msg = str(err)
+            exc_tb = line_idx = sys.exc_info()[2]
+            if exc_tb.tb_next is not None:
+                err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
+            raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
 
         self.log.debug("pyheader final global_vars %s" % global_vars)
         self.log.debug("pyheader final local_vars %s" % local_vars)

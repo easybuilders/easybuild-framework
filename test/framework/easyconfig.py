@@ -172,7 +172,14 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.contents += "\nsyntax_error'"
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
+        error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+
+        # introduce "TypeError: format requires mapping" issue"
+        self.contents = self.contents.replace("syntax_error'", "foo = '%(name)s %s' % version")
+        self.prep()
+        error_pattern = "Parsing easyconfig file failed: format requires a mapping \(line 8\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
