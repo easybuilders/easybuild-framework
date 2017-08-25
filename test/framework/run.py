@@ -132,6 +132,17 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 123)
         self.assertEqual(cached_out, "123456")
 
+        # also test with command that uses stdin
+        (out, ec) = run_cmd("cat", inp='foo')
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, 'foo')
+
+        # inject different output for cat with 'foo' as stdin to check whether cached value is used
+        run_cmd.update_cache({('cat', 'foo'): ('bar', 123)})
+        (cached_out, ec) = run_cmd("cat", inp='foo')
+        self.assertEqual(ec, 123)
+        self.assertEqual(cached_out, 'bar')
+
         run_cmd.clear_cache()
 
     def test_parse_log_error(self):
