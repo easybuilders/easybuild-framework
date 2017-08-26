@@ -118,6 +118,7 @@ CHECKSUM_FUNCTIONS = {
     'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
     'size': lambda p: os.path.getsize(p),
 }
+CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
 
 class ZlibChecksum(object):
@@ -1181,13 +1182,13 @@ def find_backup_name_candidate(src_file):
     return dst_file
 
 
-def back_up_file(src_file, backup_extension='', hidden=False):
+def back_up_file(src_file, backup_extension='bak', hidden=False):
     """
     Backs up a file appending a backup extension and a number to it (if there is already an existing backup). Returns
     the name of the backup
 
     :param src_file: file to be back up
-    :param backup_extension: optional extension to use for the backup file
+    :param backup_extension: extension to use for the backup file (can be empty or None)
     :param hidden: make backup hidden (leading dot in filename)
     """
     fn_prefix, fn_suffix = '', ''

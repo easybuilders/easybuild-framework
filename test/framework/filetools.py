@@ -510,7 +510,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 2)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt_'))
+        self.assertTrue(new_file.startswith('test.txt.bak_'))
         first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -521,27 +521,49 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 3)
         new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('.test.txt.bak_'))
+        first_hidden_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test simple file backup with empty extension
+        ft.back_up_file(fp, backup_extension='')
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 4)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('test.txt_'))
+        first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test hidden simple file backup
+        ft.back_up_file(fp, hidden=True, backup_extension=None)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 5)
+        new_file = [x for x in test_files if x not in known_files][0]
         self.assertTrue(new_file.startswith('.test.txt_'))
         first_hidden_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
         self.assertEqual(ft.read_file(fp), txt)
 
-        # Test simple file backup with extension
-        ft.back_up_file(fp, backup_extension='bck')
+        # Test simple file backup with custom extension
+        ft.back_up_file(fp, backup_extension='foobar')
         test_files = os.listdir(os.path.dirname(fp))
-        self.assertEqual(len(test_files), 4)
+        self.assertEqual(len(test_files), 6)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt.bck_'))
+        self.assertTrue(new_file.startswith('test.txt.foobar_'))
         first_bck_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
         self.assertEqual(ft.read_file(fp), txt)
 
-        # Test hidden simple file backup with extension
+        # Test hidden simple file backup with custom extension
         ft.back_up_file(fp, backup_extension='bck', hidden=True)
         test_files = os.listdir(os.path.dirname(fp))
-        self.assertEqual(len(test_files), 5)
+        self.assertEqual(len(test_files), 7)
         new_file = [x for x in test_files if x not in known_files][0]
         self.assertTrue(new_file.startswith('.test.txt.bck_'))
         first_hidden_bck_backup = os.path.join(os.path.dirname(fp), new_file)
@@ -551,23 +573,23 @@ class FileToolsTest(EnhancedTestCase):
 
         new_txt = 'barfoo'
         ft.write_file(fp, new_txt)
-        self.assertEqual(len(os.listdir(os.path.dirname(fp))), 5)
+        self.assertEqual(len(os.listdir(os.path.dirname(fp))), 7)
 
         # Test file backup with existing backup
         ft.back_up_file(fp)
         test_files = os.listdir(os.path.dirname(fp))
-        self.assertEqual(len(test_files), 6)
+        self.assertEqual(len(test_files), 8)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt_'))
+        self.assertTrue(new_file.startswith('test.txt.bak_'))
         known_files = os.listdir(os.path.dirname(fp))
         self.assertTrue(ft.read_file(first_normal_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
         self.assertEqual(ft.read_file(fp), new_txt)
 
         # Test hidden file backup with existing backup
-        ft.back_up_file(fp, hidden=True)
+        ft.back_up_file(fp, hidden=True, backup_extension=None)
         test_files = os.listdir(os.path.dirname(fp))
-        self.assertEqual(len(test_files), 7)
+        self.assertEqual(len(test_files), 9)
         new_file = [x for x in test_files if x not in known_files][0]
         self.assertTrue(new_file.startswith('.test.txt_'))
         known_files = os.listdir(os.path.dirname(fp))
@@ -578,7 +600,7 @@ class FileToolsTest(EnhancedTestCase):
         # Test file backup with extension and existing backup
         ft.back_up_file(fp, backup_extension='bck')
         test_files = os.listdir(os.path.dirname(fp))
-        self.assertEqual(len(test_files), 8)
+        self.assertEqual(len(test_files), 10)
         new_file = [x for x in test_files if x not in known_files][0]
         self.assertTrue(new_file.startswith('test.txt.bck_'))
         known_files = os.listdir(os.path.dirname(fp))
@@ -587,11 +609,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(fp), new_txt)
 
         # Test hidden file backup with extension and existing backup
-        ft.back_up_file(fp, backup_extension='bck', hidden=True)
+        ft.back_up_file(fp, backup_extension='foobar', hidden=True)
         test_files = os.listdir(os.path.dirname(fp))
-        self.assertEqual(len(test_files), 9)
+        self.assertEqual(len(test_files), 11)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('.test.txt.bck_'))
+        self.assertTrue(new_file.startswith('.test.txt.foobar_'))
         known_files = os.listdir(os.path.dirname(fp))
         self.assertTrue(ft.read_file(first_hidden_bck_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
