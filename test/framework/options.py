@@ -3372,6 +3372,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7',
                 '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab',
             ],
+            'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
             'patches': ['bar-0.0_typo.patch'],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
