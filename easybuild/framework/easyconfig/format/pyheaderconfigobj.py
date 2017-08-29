@@ -188,7 +188,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             exec(pyheader, global_vars, local_vars)
         except Exception as err:
             err_msg = str(err)
-            exc_tb = line_idx = sys.exc_info()[2]
+            exc_tb = sys.exc_info()[2]
             if exc_tb.tb_next is not None:
                 err_msg += " (line %d)" % exc_tb.tb_next.tb_lineno
             raise EasyBuildError("Parsing easyconfig file failed: %s",  err_msg)
