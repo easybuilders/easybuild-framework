@@ -203,7 +203,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None, maxhits=50):
+def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None,
+               maxhits=50, trace=True):
     """
     Run specified interactive command (in a subshell)
     :param cmd: command to run
@@ -215,6 +216,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     :param std_qa: dictionary which maps question regex patterns to answers
     :param path: path to execute the command is; current working directory is used if unspecified
+    :param maxhits: maximum number of cycles (seconds) without being able to find a known question
+    :param trace: print command being executed as part of trace output
     """
     cwd = os.getcwd()
 
