@@ -118,6 +118,33 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(True, run_cmd("echo hello", simple=True))
         self.assertEqual(False, run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
 
+    def test_run_cmd_cache(self):
+        """Test caching for run_cmd"""
+        (first_out, ec) = run_cmd("ulimit -u")
+        self.assertEqual(ec, 0)
+        (cached_out, ec) = run_cmd("ulimit -u")
+        self.assertEqual(ec, 0)
+        self.assertEqual(first_out, cached_out)
+
+        # inject value into cache to check whether executing command again really returns cached value
+        run_cmd.update_cache({("ulimit -u", None): ("123456", 123)})
+        (cached_out, ec) = run_cmd("ulimit -u")
+        self.assertEqual(ec, 123)
+        self.assertEqual(cached_out, "123456")
+
+        # also test with command that uses stdin
+        (out, ec) = run_cmd("cat", inp='foo')
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, 'foo')
+
+        # inject different output for cat with 'foo' as stdin to check whether cached value is used
+        run_cmd.update_cache({('cat', 'foo'): ('bar', 123)})
+        (cached_out, ec) = run_cmd("cat", inp='foo')
+        self.assertEqual(ec, 123)
+        self.assertEqual(cached_out, 'bar')
+
+        run_cmd.clear_cache()
+
     def test_parse_log_error(self):
         """Test basic parse_log_for_error functionality."""
         errors = parse_log_for_error("error failed", True)

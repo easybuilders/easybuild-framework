@@ -267,10 +267,10 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         try:
             main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
-        except SystemExit:
+        except SystemExit as err:
             if raise_systemexit:
                 raise err
-        except Exception, err:
+        except Exception as err:
             myerr = err
             if verbose:
                 print "err: %s" % err

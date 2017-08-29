@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
+from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, print_warning, raise_easybuilderror
 from easybuild.tools.config import DEFAULT_JOB_BACKEND, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL, DEFAULT_PKG_TYPE
@@ -70,7 +70,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import mkdir
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -324,6 +324,8 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
+            'backup-modules': ("Back up an existing module file, if any. Only works when using --module-only",
+                               None, 'store_true', None),  # default None to allow auto-enabling if not disabled
             'check-ebroot-env-vars': ("Action to take when defined $EBROOT* environment variables are found "
                                       "for which there is no matching loaded module; "
                                       "supported values: %s" % ', '.join(EBROOT_ENV_VAR_ACTIONS), None, 'store', WARN),
@@ -608,9 +610,12 @@ class EasyBuildOptions(GeneralOption):
         # easyconfig options (to be passed to easyconfig instance)
         descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
 
-        opts = None
+        opts = OrderedDict({
+            'inject-checksums': ("Inject checksums of specified type for sources/patches into easyconfig file(s)",
+                                 'choice', 'store_or_None', CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES),
+        })
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
-        self.add_group_parser(opts, descr, prefix='easyconfig')
+        self.add_group_parser(opts, descr, prefix='')
 
     def job_options(self):
         """Option related to --job."""
@@ -753,6 +758,11 @@ class EasyBuildOptions(GeneralOption):
         # imply --terse for --last-log to avoid extra output that gets in the way
         if self.options.last_log:
             self.options.terse = True
+
+        # auto-enable --backup-modules with --skip and --module-only, unless it was hard disabled
+        if (self.options.module_only or self.options.skip) and self.options.backup_modules is None:
+            self.log.debug("Auto-enabling --backup-modules because of --module-only or --skip")
+            self.options.backup_modules = True
 
         # make sure --optarch has a valid format, but do it only if we are not going to submit jobs. Otherwise it gets
         # processed twice and fails when trying to parse a dictionary as if it was a string

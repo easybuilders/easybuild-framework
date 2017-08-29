@@ -26,6 +26,8 @@ exts_list = [
         'patches': ['bar-0.0_typo.patch'],
         'toy_ext_param': "mv anotherbar bar_bis",
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
+        # custom extension filter to verify use of stdin value being passed to filter command
+        'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
     }),
     ('barbar', '0.0'),
 ]

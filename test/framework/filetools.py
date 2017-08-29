@@ -30,6 +30,7 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import datetime
 import os
 import re
 import shutil
@@ -495,10 +496,133 @@ class FileToolsTest(EnhancedTestCase):
         ]:
             self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
 
+    def test_back_up_file(self):
+        """Test back_up_file function."""
+        fp = os.path.join(self.test_prefix, 'sandbox', 'test.txt')
+        txt = 'foobar'
+        ft.write_file(fp, txt)
+
+        known_files = ['test.txt']
+        self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), known_files)
+
+        # Test simple file backup
+        ft.back_up_file(fp)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 2)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('test.txt.bak_'))
+        first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test hidden simple file backup
+        ft.back_up_file(fp, hidden=True)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 3)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('.test.txt.bak_'))
+        first_hidden_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test simple file backup with empty extension
+        ft.back_up_file(fp, backup_extension='')
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 4)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('test.txt_'))
+        first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test hidden simple file backup
+        ft.back_up_file(fp, hidden=True, backup_extension=None)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 5)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('.test.txt_'))
+        first_hidden_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test simple file backup with custom extension
+        ft.back_up_file(fp, backup_extension='foobar')
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 6)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('test.txt.foobar_'))
+        first_bck_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        # Test hidden simple file backup with custom extension
+        ft.back_up_file(fp, backup_extension='bck', hidden=True)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 7)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('.test.txt.bck_'))
+        first_hidden_bck_backup = os.path.join(os.path.dirname(fp), new_file)
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        new_txt = 'barfoo'
+        ft.write_file(fp, new_txt)
+        self.assertEqual(len(os.listdir(os.path.dirname(fp))), 7)
+
+        # Test file backup with existing backup
+        ft.back_up_file(fp)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 8)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('test.txt.bak_'))
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertTrue(ft.read_file(first_normal_backup), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
+        # Test hidden file backup with existing backup
+        ft.back_up_file(fp, hidden=True, backup_extension=None)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 9)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('.test.txt_'))
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertTrue(ft.read_file(first_hidden_backup), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
+        # Test file backup with extension and existing backup
+        ft.back_up_file(fp, backup_extension='bck')
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 10)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('test.txt.bck_'))
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertTrue(ft.read_file(first_bck_backup), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
+        # Test hidden file backup with extension and existing backup
+        ft.back_up_file(fp, backup_extension='foobar', hidden=True)
+        test_files = os.listdir(os.path.dirname(fp))
+        self.assertEqual(len(test_files), 11)
+        new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(new_file.startswith('.test.txt.foobar_'))
+        known_files = os.listdir(os.path.dirname(fp))
+        self.assertTrue(ft.read_file(first_hidden_bck_backup), txt)
+        self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
+        self.assertEqual(ft.read_file(fp), new_txt)
+
     def test_move_logs(self):
         """Test move_logs function."""
-        fh, fp = tempfile.mkstemp()
-        os.close(fh)
+        fp = os.path.join(self.test_prefix, 'test.txt')
+
         ft.write_file(fp, 'foobar')
         ft.write_file(fp + '.1', 'moarfoobar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'foo.log'))
@@ -509,20 +633,22 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(self.test_prefix, 'bar.log'), 'bar')
         ft.write_file(os.path.join(self.test_prefix, 'bar.log_1'), 'barbar')
 
-        fh, fp = tempfile.mkstemp()
-        os.close(fh)
+        fp = os.path.join(self.test_prefix, 'test2.txt')
         ft.write_file(fp, 'moarbar')
         ft.write_file(fp + '.1', 'evenmoarbar')
         ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
 
-        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1',
-                os.path.basename(self.logfile),
-                'foo.log', 'foo.log.1']
-        self.assertEqual(sorted([f for f in os.listdir(self.test_prefix) if 'log' in f]), logs)
-        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
+        logs = sorted([f for f in os.listdir(self.test_prefix) if 'log' in f])
+        self.assertEqual(len(logs), 7)
+        self.assertEqual(len([x for x in logs if x.startswith('eb-test-')]), 1)
+        self.assertEqual(len([x for x in logs if x.startswith('foo')]), 2)
+        self.assertEqual(len([x for x in logs if x.startswith('bar')]), 4)
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
         self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+        # one more 'bar' log, the rotated copy of bar.log
+        other_bar = [x for x in logs if x.startswith('bar') and x not in ['bar.log', 'bar.log.1', 'bar.log_1']][0]
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, other_bar)), 'bar')
 
     def test_multidiff(self):
         """Test multidiff function."""
@@ -1238,6 +1364,108 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(justatest, '#!/bin/bash')
 
         self.assertTrue(os.path.samefile(ft.find_eb_script('justatest.sh'), justatest))
+
+    def test_move_file(self):
+        """Test move_file function"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(test_file, 'test123')
+
+        new_test_file = os.path.join(self.test_prefix, 'subdir', 'new_test.txt')
+        ft.move_file(test_file, new_test_file)
+
+        self.assertFalse(os.path.exists(test_file))
+        self.assertTrue(os.path.exists(new_test_file))
+        self.assertEqual(ft.read_file(new_test_file), 'test123')
+
+        # test moving to an existing file
+        ft.write_file(test_file, 'gibberish')
+        ft.move_file(new_test_file, test_file)
+
+        self.assertTrue(os.path.exists(test_file))
+        self.assertEqual(ft.read_file(test_file), 'test123')
+        self.assertFalse(os.path.exists(new_test_file))
+
+        # also test behaviour of move_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        ft.move_file(test_file, new_test_file)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        # informative message printed, but file was not actually moved
+        regex = re.compile("^moved file .*/test\.txt to .*/new_test\.txt$")
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertEqual(stderr, '')
+
+        self.assertTrue(os.path.exists(test_file))
+        self.assertEqual(ft.read_file(test_file), 'test123')
+        self.assertFalse(os.path.exists(new_test_file))
+
+    def test_find_backup_name_candidate(self):
+        """Test find_backup_name_candidate"""
+        test_file = os.path.join(self.test_prefix, 'test.txt')
+        ft.write_file(test_file, 'foo')
+
+        # timestamp should be exactly 14 digits (year, month, day, hours, minutes, seconds)
+        regex = re.compile('^test\.txt_[0-9]{14}$')
+
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        fn = os.path.basename(res)
+        self.assertTrue(regex.match(fn), "'%s' matches pattern '%s'" % (fn, regex.pattern))
+
+        # create expected next backup location to (try and) see if it's handled well
+        timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        ft.write_file(os.path.join(self.test_prefix, 'test.txt_%s' % timestamp), '')
+
+        res = ft.find_backup_name_candidate(test_file)
+        self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
+        fn = os.path.basename(res)
+        self.assertTrue(regex.match(fn), "'%s' matches pattern '%s'" % (fn, regex.pattern))
+
+    def test_diff_files(self):
+        """Test for diff_files function"""
+        foo = os.path.join(self.test_prefix, 'foo')
+        ft.write_file(foo, '\n'.join([
+            'one',
+            'two',
+            'three',
+            'four',
+            'five',
+        ]))
+        bar = os.path.join(self.test_prefix, 'bar')
+        ft.write_file(bar, '\n'.join([
+            'zero',
+            '1',
+            'two',
+            'tree',
+            'four',
+            'five',
+        ]))
+        expected = '\n'.join([
+            "@@ -1,5 +1,6 @@",
+            "-one",
+            "+zero",
+            "+1",
+            " two",
+            "-three",
+            "+tree",
+            " four",
+            " five",
+            '',
+        ])
+        res = ft.diff_files(foo, bar)
+        self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
+        regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
+        self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
 
 def suite():

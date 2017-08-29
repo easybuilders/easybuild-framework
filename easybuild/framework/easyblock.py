@@ -34,6 +34,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
 :author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 
 import copy
@@ -55,32 +56,34 @@ from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
+from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg, trace_msg
+from easybuild.tools.build_log import print_error, print_msg, print_warning, trace_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, change_dir, convert_name, compute_checksum
-from easybuild.tools.filetools import copy_file, derive_alt_pypi_url, download_file, encode_class_name, extract_file
-from easybuild.tools.filetools import is_alt_pypi_url, mkdir, move_logs, read_file, remove_file, rmtree2, write_file
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
+from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
+from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
+from easybuild.tools.filetools import remove_file, rmtree2, write_file
 from easybuild.tools.filetools import verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
+from easybuild.tools.modules import Lmod, ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name
+from easybuild.tools.modules import get_software_version_env_var_name, modules_tool
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
-from easybuild.tools.utilities import remove_unwanted_chars
+from easybuild.tools.utilities import quote_str, remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
@@ -152,7 +155,7 @@ class EasyBlock(object):
         self.installdir_mod = None  # module file
 
         # extensions
-        self.exts = None
+        self.exts = []
         self.exts_all = None
         self.ext_instances = []
         self.skip = None
@@ -169,6 +172,7 @@ class EasyBlock(object):
         # module generator
         self.module_generator = module_generator(self, fake=True)
         self.mod_filepath = self.module_generator.get_module_filepath()
+        self.mod_file_backup = None
 
         # modules footer/header
         self.modules_footer = None
@@ -227,9 +231,15 @@ class EasyBlock(object):
 
         # try and use the specified group (if any)
         group_name = build_option('group')
-        if self.cfg['group'] is not None:
-            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group_name))
-            group_name = self.cfg['group']
+        group_spec = self.cfg['group']
+        if group_spec is not None:
+            if isinstance(group_spec, tuple):
+                if len(group_spec) == 2:
+                    group_spec = group_spec[0]
+                else:
+                    raise EasyBuildError("Found group spec in tuple format that is not a 2-tuple: %s", str(group_spec))
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (group_spec, group_name))
+            group_name = group_spec
 
         self.group = None
         if group_name is not None:
@@ -435,7 +445,7 @@ class EasyBlock(object):
         else:
             self.log.info("Added patches: %s" % self.patches)
 
-    def fetch_extension_sources(self):
+    def fetch_extension_sources(self, skip_checksums=False):
         """
         Find source file for extensions.
         """
@@ -491,37 +501,40 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
-                            # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                            for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
-                                self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
+                            if not skip_checksums:
+                                # report both MD5 and SHA256 checksums, since both are valid default checksum types
+                                for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                    src_checksum = compute_checksum(src_fn, checksum_type=checksum_type)
+                                    self.log.info("%s checksum for %s: %s", checksum_type, src_fn, src_checksum)
 
-                            if checksums:
-                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
-                                if verify_checksum(src_fn, fn_checksum):
-                                    self.log.info('Checksum for ext source %s verified' % fn)
-                                else:
-                                    raise EasyBuildError('Checksum for ext source %s failed', fn)
+                                if checksums:
+                                    fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                                    if verify_checksum(src_fn, fn_checksum):
+                                        self.log.info('Checksum for ext source %s verified', fn)
+                                    else:
+                                        raise EasyBuildError('Checksum for ext source %s failed', fn)
 
                             ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
 
-                                for patch in ext_patches:
-                                    # report both MD5 and SHA256 checksums, since both are valid default checksum types
-                                    for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
-                                        patch_checksum = compute_checksum(patch, checksum_type=checksum_type)
-                                        self.log.info("%s checksum for %s: %s", checksum_type, patch, patch_checksum)
+                                if not skip_checksums:
+                                    for patch in ext_patches:
+                                        # report both MD5 and SHA256 checksums,
+                                        # since both are valid default checksum types
+                                        for checksum_type in (CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256):
+                                            checksum = compute_checksum(patch, checksum_type=checksum_type)
+                                            self.log.info("%s checksum for %s: %s", checksum_type, patch, checksum)
 
-                                if checksums:
-                                    self.log.debug('Verifying checksums for extension patches...')
-                                    for index, ext_patch in enumerate(ext_patches):
-                                        checksum = self.get_checksum_for(checksums[1:], filename=ext_patch, index=index)
-                                        if verify_checksum(ext_patch, checksum):
-                                            self.log.info('Checksum for extension patch %s verified' % ext_patch)
-                                        else:
-                                            raise EasyBuildError('Checksum for extension patch %s failed', ext_patch)
+                                    if checksums:
+                                        self.log.debug('Verifying checksums for extension patches...')
+                                        for idx, patch in enumerate(ext_patches):
+                                            checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
+                                            if verify_checksum(patch, checksum):
+                                                self.log.info('Checksum for extension patch %s verified', patch)
+                                            else:
+                                                raise EasyBuildError('Checksum for extension patch %s failed', patch)
                             else:
                                 self.log.debug('No patches found for extension %s.' % ext_name)
 
@@ -1166,17 +1179,31 @@ class EasyBlock(object):
             self.log.debug("Not including module path extensions, as specified.")
         return txt
 
+    def make_module_group_check(self):
+        """
+        Create the necessary group check.
+        """
+        group_error_msg = None
+        ec_group = self.cfg['group']
+        if ec_group is not None and isinstance(ec_group, tuple):
+            group_error_msg = ec_group[1]
+
+        if self.group is not None:
+            txt = self.module_generator.check_group(self.group[0], error_msg=group_error_msg)
+        else:
+            txt = ''
+
+        return txt
+
     def make_module_req(self):
         """
         Generate the environment-variables to run the module.
         """
         requirements = self.make_module_req_guess()
 
-        lines = []
+        lines = ['\n']
         if os.path.isdir(self.installdir):
             change_dir(self.installdir)
-
-            lines.append('\n')
 
             if self.dry_run:
                 self.dry_run_msg("List of paths that would be searched and added to module file:\n")
@@ -1310,8 +1337,6 @@ class EasyBlock(object):
             raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = exts_filter[0]
         cmdinputtmpl = exts_filter[1]
-        if not self.exts:
-            self.exts = []
 
         res = []
         for ext in self.exts:
@@ -1481,6 +1506,16 @@ class EasyBlock(object):
         if root:
             raise EasyBuildError("Module is already loaded (%s is set), installation cannot continue.", env_var)
 
+        # create backup of existing module file (if requested)
+        if os.path.exists(self.mod_filepath) and build_option('backup_modules'):
+            # backups of modules in Tcl syntax should be hidden to avoid that they're shown in 'module avail';
+            # backups of modules in Lua syntax do not need to be hidden:
+            # since they don't end in .lua (but in .lua.bak_*) Lmod will not pick them up anymore,
+            # which is better than hiding them (since --show-hidden still reveals them)
+            hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
+            self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden)
+            print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
+
         # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
@@ -1570,7 +1605,7 @@ class EasyBlock(object):
 
         # fetch extensions
         if self.cfg['exts_list']:
-            self.exts = self.fetch_extension_sources()
+            self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
@@ -2199,7 +2234,7 @@ class EasyBlock(object):
 
         :param fake: generate 'fake' module in temporary location, rather than actual module file
         """
-        modpath = self.module_generator.prepare(fake=fake)
+        modpath = self.module_generator.get_modules_path(fake=fake)
         mod_filepath = self.mod_filepath
         if fake:
             mod_filepath = self.module_generator.get_module_filepath(fake=fake)
@@ -2214,6 +2249,7 @@ class EasyBlock(object):
             txt += self.modules_header + '\n'
 
         txt += self.make_module_description()
+        txt += self.make_module_group_check()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
@@ -2225,13 +2261,23 @@ class EasyBlock(object):
             if not fake:
                 self.dry_run_msg("Generating module file %s, with contents:\n", mod_filepath)
                 for line in txt.split('\n'):
-                    self.dry_run_msg(' ' * 4 + line)
+                    self.dry_run_msg(INDENT_4SPACES + line)
         else:
             write_file(mod_filepath, txt)
             self.log.info("Module file %s written: %s", mod_filepath, txt)
 
+            # if backup module file is there, print diff with newly generated module file
+            if self.mod_file_backup and not fake:
+                diff_msg = "comparing module file with backup %s; " % self.mod_file_backup
+                mod_diff = diff_files(self.mod_file_backup, mod_filepath)
+                if mod_diff:
+                    diff_msg += 'diff is:\n%s' % mod_diff
+                else:
+                    diff_msg += 'no differences found'
+                self.log.info(diff_msg)
+                print_msg(diff_msg, log=self.log)
+
             # invalidate relevant 'module avail'/'module show' cache entries
-            modpath = self.module_generator.get_modules_path(fake=fake)
             # consider both paths: for short module name, and subdir indicated by long module name
             paths = [modpath]
             if self.mod_subdir:
@@ -2822,3 +2868,138 @@ class StopException(Exception):
     StopException class definition.
     """
     pass
+
+
+def inject_checksums(ecs, checksum_type):
+    """
+    Inject checksums of given type in specified easyconfig files
+
+    :param ecs: list of EasyConfig instances to inject checksums into corresponding files
+    :param checksum_type: type of checksum to use
+    """
+    for ec in ecs:
+        ec_fn = os.path.basename(ec['spec'])
+        ectxt = read_file(ec['spec'])
+        print_msg("injecting %s checksums in %s" % (checksum_type, ec['spec']), log=_log)
+
+
+        # get easyblock instance and make sure all sources/patches are available by running fetch_step
+        print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
+        app = get_easyblock_instance(ec)
+        app.update_config_template_run_step()
+        app.fetch_step(skip_checksums=True)
+
+        # check for any existing checksums, require --force to overwrite them
+        found_checksums = bool(app.cfg['checksums'])
+        for ext in app.exts:
+            found_checksums |= bool(ext.get('checksums'))
+        if found_checksums:
+            if build_option('force'):
+                print_warning("Found existing checksums in %s, overwriting them (due to use of --force)..." % ec_fn)
+            else:
+                raise EasyBuildError("Found existing checksums, use --force to overwrite them")
+
+        # back up easyconfig file before injecting checksums
+        ec_backup = back_up_file(ec['spec'])
+        print_msg("backup of easyconfig file saved to %s..." % ec_backup, log=_log)
+
+        # compute & inject checksums for sources/patches
+        print_msg("injecting %s checksums for sources & patches in %s..." % (checksum_type, ec_fn), log=_log)
+        checksums = []
+        for entry in app.src + app.patches:
+            checksum = compute_checksum(entry['path'], checksum_type)
+            print_msg("* %s: %s" % (os.path.basename(entry['path']), checksum), log=_log)
+            checksums.append((os.path.basename(entry['path']), checksum))
+
+        if len(checksums) == 1:
+            checksum_lines = ["checksums = ['%s']\n" % checksums[0][1]]
+        else:
+            checksum_lines = ['checksums = [']
+            for fn, checksum in checksums:
+                checksum_lines.append("%s'%s',  # %s" % (INDENT_4SPACES, checksum, fn))
+            checksum_lines.append(']\n')
+
+        checksums_txt = '\n'.join(checksum_lines)
+
+        if app.cfg['checksums']:
+            regex = re.compile(r'^checksums(?:.|\n)+?\]\s*$', re.M)
+            ectxt = regex.sub(checksums_txt, ectxt)
+
+        # it is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
+        elif app.src:
+            placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
+
+            # grab raw lines for source_urls, sources, patches
+            raw = {}
+            for key in ['patches', 'source_urls', 'sources']:
+                regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
+                res = regex.search(ectxt)
+                if res:
+                    raw[key] = res.group(0).strip() + '\n'
+                    ectxt = regex.sub(placeholder, ectxt)
+
+            # this should not happen...
+            if 'sources' not in raw:
+                raise EasyBuildError("Failed to extract raw lines for 'sources' parameter from easyconfig file!")
+
+            # inject combination of source_urls/sources/patches/checksums into easyconfig
+            # by replacing first occurence of placeholder that was put in place
+            source_urls_raw = raw.get('source_urls', '')
+            patches_raw = raw.get('patches', '')
+            regex = re.compile(placeholder + '\n', re.M)
+            ectxt = regex.sub(source_urls_raw + raw['sources'] + patches_raw + checksums_txt + '\n', ectxt, count=1)
+
+            # get rid of potential remaining placeholders
+            ectxt = regex.sub('', ectxt)
+
+        # compute & inject checksums for extension sources/patches
+        if app.exts:
+            print_msg("injecting %s checksums for extensions in %s..." % (checksum_type, ec_fn), log=_log)
+
+            exts_list_lines = ['exts_list = [']
+            for ext in app.exts:
+                # for some extensions, only a name if specified (so no sources/patches)
+                if ext.keys() == ['name']:
+                    exts_list_lines.append("%s'%s'," % (INDENT_4SPACES, ext['name']))
+                else:
+                    ext_options = ext.get('options', {})
+
+                    # compute checksums for extension sources & patches
+                    ext_checksums = []
+                    if 'src' in ext:
+                        src_fn = os.path.basename(ext['src'])
+                        checksum = compute_checksum(ext['src'], checksum_type)
+                        print_msg(" * %s: %s" % (src_fn, checksum), log=_log)
+                        ext_checksums.append((src_fn, checksum))
+                    for ext_patch in ext.get('patches', []):
+                        patch_fn = os.path.basename(ext_patch)
+                        checksum = compute_checksum(ext_patch, checksum_type)
+                        print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
+                        ext_checksums.append((patch_fn, checksum))
+
+                    exts_list_lines.append("%s('%s', '%s'," % (INDENT_4SPACES, ext['name'], ext['version']))
+                    if ext_options or ext_checksums:
+                        exts_list_lines[-1] += ' {'
+
+                    for key, val in sorted(ext_options.items()):
+                        val = quote_str(val, prefer_single_quotes=True)
+                        exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
+
+                    # if any checksums were collected, inject them for this extension
+                    if ext_checksums:
+                        exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
+                        for fn, checksum in ext_checksums:
+                            exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
+                        exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
+
+                    if ext_options or ext_checksums:
+                        exts_list_lines.append("%s})," % INDENT_4SPACES)
+                    else:
+                        exts_list_lines[-1] += '),'
+
+            exts_list_lines.append(']\n')
+
+            regex = re.compile(r'^exts_list(.|\n)*?\n\]\s*$', re.M)
+            ectxt = regex.sub('\n'.join(exts_list_lines), ectxt)
+
+        write_file(ec['spec'], ectxt)
