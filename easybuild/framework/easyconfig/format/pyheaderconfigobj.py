@@ -186,7 +186,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         try:
             exec(pyheader, global_vars, local_vars)
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-except
             err_msg = str(err)
             exc_tb = sys.exc_info()[2]
             if exc_tb.tb_next is not None:
