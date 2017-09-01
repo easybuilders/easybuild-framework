@@ -3361,6 +3361,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         warning_msg = "WARNING: Found existing checksums in test.eb, overwriting them (due to use of --force)..."
         self.assertEqual(stderr, warning_msg)
 
+        # make sure checksums are only there once...
+        ec_txt = read_file(test_ec)
+        # exactly one definition of 'checksums' easyconfig parameter
+        self.assertEqual(re.findall('^checksums', ec_txt, re.M), ['checksums'])
+        # exactly two checksum specs for extensions, one list of checksums for each extension
+        self.assertEqual(re.findall("[ ]*'checksums'", ec_txt, re.M), ["        'checksums'", "        'checksums'"])
+
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['sources'], ['%(name)s-%(version)s.tar.gz'])

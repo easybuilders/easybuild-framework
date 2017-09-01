@@ -2982,8 +2982,9 @@ def inject_checksums(ecs, checksum_type):
                         exts_list_lines[-1] += ' {'
 
                     for key, val in sorted(ext_options.items()):
-                        val = quote_str(val, prefer_single_quotes=True)
-                        exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
+                        if key != 'checksums':
+                            val = quote_str(val, prefer_single_quotes=True)
+                            exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
 
                     # if any checksums were collected, inject them for this extension
                     if ext_checksums:
