@@ -991,8 +991,11 @@ class ToolchainTest(EnhancedTestCase):
             "--debug",
             "--disable-cleanup-tmpdir",
         ]
-        msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
-        self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True, reset_env=False)
+
+        ccache = which('ccache')
+        if ccache is None:
+            msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
+            self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache
         for cache_tool in ['ccache', 'f90cache']:
