@@ -340,6 +340,54 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar', guarded=True))
         self.assertEqual(expected, self.modgen.swap_module('foo', 'bar'))
 
+    def test_append_paths(self):
+        """Test generating append-paths statements."""
+        # test append_paths
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = ''.join([
+                "append-path\tkey\t\t$root/path1\n",
+                "append-path\tkey\t\t$root/path2\n",
+                "append-path\tkey\t\t$root\n",
+            ])
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+
+            expected = "append-path\tbar\t\t$root/foo\n"
+            self.assertEqual(expected, self.modgen.append_paths("bar", "foo"))
+
+            res = self.modgen.append_paths("key", ["/abs/path"], allow_abs=True)
+            self.assertEqual("append-path\tkey\t\t/abs/path\n", res)
+
+            res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
+            self.assertEqual("append-path\tkey\t\t1234@example.com\n", res)
+
+        else:
+            expected = ''.join([
+                'append_path("key", pathJoin(root, "path1"))\n',
+                'append_path("key", pathJoin(root, "path2"))\n',
+                'append_path("key", root)\n',
+            ])
+            paths = ['path1', 'path2', '']
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+            # 2nd call should still give same result, no side-effects like manipulating passed list 'paths'!
+            self.assertEqual(expected, self.modgen.append_paths("key", paths))
+
+            expected = 'append_path("bar", pathJoin(root, "foo"))\n'
+            self.assertEqual(expected, self.modgen.append_paths("bar", "foo"))
+
+            expected = 'append_path("key", "/abs/path")\n'
+            self.assertEqual(expected, self.modgen.append_paths("key", ["/abs/path"], allow_abs=True))
+
+            res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
+            self.assertEqual('append_path("key", "1234@example.com")\n', res)
+
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to append_paths " \
+                                              "which only expects relative paths." % self.modgen.app.installdir,
+                              self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths

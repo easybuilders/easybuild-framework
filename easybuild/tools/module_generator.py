@@ -132,6 +132,23 @@ class ModuleGenerator(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.fake_mod_path = tempfile.mkdtemp()
 
+    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+        """
+        Generate append-path statements for the given list of paths.
+
+        :param key: environment variable to append paths to
+        :param paths: list of paths to append
+        :param allow_abs: allow providing of absolute paths
+        :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        """
+        try:
+            txt = self.prepend_paths(key, paths, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        except EasyBuildError as err:
+            raise EasyBuildError(str(err).replace('prepend', 'append'))
+
+        regex = re.compile('^prepend([-_]path)', re.M)
+        return regex.sub(r'append\1', txt)
+
     def create_symlinks(self, mod_symlink_paths, fake=False):
         """Create moduleclass symlink(s) to actual module file."""
         mod_filepath = self.get_module_filepath(fake=fake)
