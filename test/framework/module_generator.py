@@ -384,7 +384,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to append_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
@@ -432,7 +432,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = self.modgen.prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths " \
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
