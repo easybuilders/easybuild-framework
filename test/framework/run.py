@@ -39,6 +39,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
@@ -47,6 +48,18 @@ from easybuild.tools.run import _log as run_log
 
 class RunTest(EnhancedTestCase):
     """ Testcase for run module """
+
+    def setUp(self):
+        """Set up test."""
+        super(RunTest, self).setUp()
+        self.orig_experimental = easybuild.tools.utilities._log.experimental
+
+    def tearDown(self):
+        """Test cleanup."""
+        super(RunTest, self).tearDown()
+
+        # restore log.experimental
+        easybuild.tools.utilities._log.experimental = self.orig_experimental
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
@@ -103,6 +116,9 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_trace(self):
         """Test run_cmd under --trace"""
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
+
         init_config(build_options={'trace': True})
 
         self.mock_stdout(True)
@@ -148,6 +164,9 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
+
         init_config(build_options={'trace': True})
 
         self.mock_stdout(True)
