@@ -114,7 +114,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None, versionsuffix=''):
+                       raise_error=False, test_report=None, versionsuffix='', testing=True):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -141,7 +141,7 @@ class ToyBuildTest(EnhancedTestCase):
         myerr = None
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
-                                  raise_error=raise_error)
+                                  raise_error=raise_error, testing=testing)
         except Exception, err:
             myerr = err
             if raise_error:
@@ -1702,6 +1702,34 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(sorted(os.listdir(modules_path)), ['toytwo', 'yot'])
         self.assertEqual(os.listdir(os.path.join(modules_path, 'toytwo')), [toytwo_name])
         self.assertEqual(os.listdir(os.path.join(modules_path, 'yot')), [yot_name])
+
+    def test_toy_build_trace(self):
+        """Test use of --trace"""
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=['--trace', '--experimental'], verify=False, testing=False)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+
+        patterns = [
+            "^  >> installation prefix: .*/software/toy/0\.0$",
+            "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
+            "^  >> applying patch toy-0\.0_typo\.patch\.\.\.$",
+            "^  >> running command 'gcc toy.c -o toy' \(output in .*\)\.\.\. \[started at: .*\]$",
+            '^' + '\n'.join([
+                "== sanity checking\.\.\.",
+                "  >> file 'bin/yot' or 'bin/toy' found: OK",
+                "  >> \(non-empty\) directory 'bin' found: OK",
+            ]) + '$',
+            "^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0\.lua\.\.\.$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
 
 def suite():
