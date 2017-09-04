@@ -523,11 +523,24 @@ class Toolchain(object):
         else:
             # load modules for all dependencies
             self.log.debug("Loading modules for dependencies: %s", dep_mods)
-            if dep_mods:
-                trace_msg("loading modules for dependencies:")
-                for dep_mod in dep_mods:
-                    trace_msg(' * ' + dep_mod)
             self.modules_tool.load(dep_mods)
+
+            if self.dependencies:
+                build_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if dep['build_only']]
+                if build_dep_mods:
+                    trace_msg("loading modules for build dependencies:")
+                    for dep_mod in build_dep_mods:
+                        trace_msg(' * ' + dep_mod)
+                else:
+                    trace_msg("(no build dependencies specified)")
+
+                run_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if not dep['build_only']]
+                if run_dep_mods:
+                    trace_msg("loading modules for (runtime) dependencies:")
+                    for dep_mod in run_dep_mods:
+                        trace_msg(' * ' + dep_mod)
+                else:
+                    trace_msg("(no build dependencies specified)")
 
         # append dependency modules to list of modules
         self.modules.extend(dep_mods)
