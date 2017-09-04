@@ -931,10 +931,10 @@ class ModuleGeneratorLua(ModuleGenerator):
                 full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
             else:
                 full_path = quoted_path
+            prepend_modulepath = self.UPDATE_PATH_TEMPLATE % ('prepend', 'MODULEPATH', full_path)
             if guarded:
-                cond_statement = self.conditional_statement('isDir(%s)' % full_path,
-                                                            self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path))
+                cond_statement = self.conditional_statement('isDir(%s)' % full_path, prepend_modulepath)
                 use_statements.append(cond_statement)
             else:
-                use_statements.append(self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', full_path) + '\n')
+                use_statements.append(prepend_modulepath + '\n')
         return ''.join(use_statements)

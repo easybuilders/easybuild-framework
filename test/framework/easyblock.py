@@ -350,7 +350,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.check_readiness_step()
 
         # absolute paths are not allowed by default
-        error_pattern = "Absolute path .* passed to prepend_paths which only expects relative paths"
+        error_pattern = "Absolute path .* passed to update_paths which only expects relative paths"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
 
         # allow use of absolute paths, and verify contents of module
