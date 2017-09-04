@@ -112,11 +112,12 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def experimental(self, msg, *args, **kwargs):
         """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
+        common_msg = "Experimental functionality. Behaviour might change/be removed later"
         if EXPERIMENTAL:
-            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
+            msg = common_msg + ': ' + msg
             self.warning(msg, *args, **kwargs)
         else:
-            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
+            msg = common_msg + " (use --experimental option to enable): " + msg
             raise EasyBuildError(msg, *args)
 
     def deprecated(self, msg, ver, max_ver=None, *args, **kwargs):
