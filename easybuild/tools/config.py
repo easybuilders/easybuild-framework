@@ -166,6 +166,7 @@ BUILD_OPTIONS_CMDLINE = {
         'rebuild',
         'robot',
         'rpath',
+        'search_paths',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',

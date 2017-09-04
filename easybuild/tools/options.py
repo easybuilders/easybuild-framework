@@ -265,6 +265,8 @@ class EasyBuildOptions(GeneralOption):
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+            'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
+                             'pathlist', 'store_or_None', [], {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step",
@@ -839,6 +841,10 @@ class EasyBuildOptions(GeneralOption):
             # keep both values in sync if robot is enabled, which implies enabling dependency resolver
             self.options.robot_paths = [os.path.abspath(path) for path in self.options.robot + self.options.robot_paths]
             self.options.robot = self.options.robot_paths
+
+        # Update the search_paths (if any) to absolute paths
+        if self.options.search_paths is not None:
+            self.options.search_paths = [os.path.abspath(path) for path in self.options.search_paths]
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

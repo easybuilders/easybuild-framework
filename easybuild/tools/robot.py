@@ -359,6 +359,9 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False):
     search_path = build_option('robot_path')
     if not search_path:
         search_path = [os.getcwd()]
+    extra_search_paths = build_option('search_paths')
+    if extra_search_paths:
+        search_path.extend(extra_search_paths)
 
     ignore_dirs = build_option('ignore_dirs')
 
