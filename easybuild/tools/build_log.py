@@ -37,7 +37,6 @@ import re
 import sys
 import tempfile
 from copy import copy
-from datetime import datetime
 from vsc.utils import fancylogger
 from vsc.utils.exceptions import LoggedException
 
@@ -299,10 +298,3 @@ def print_warning(message, silent=False):
     """
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % message)
-
-
-def trace_msg(message, silent=False, timestamp=False):
-    """Print trace message."""
-    if timestamp:
-        message += " [started at: %s]" % datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print_msg('  >> ' + message, prefix=False)

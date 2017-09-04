@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.toolchain
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, trace_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg 
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, which, write_file
@@ -50,6 +50,7 @@ from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
+from easybuild.tools.utilities import trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -492,8 +493,7 @@ class Toolchain(object):
 
             # load modules for all dependencies
             self.log.debug("Loading module for toolchain: %s", tc_mod)
-            if build_option('trace'):
-                trace_msg("loading toolchain module: " + tc_mod)
+            trace_msg("loading toolchain module: " + tc_mod)
             self.modules_tool.load([tc_mod])
 
         # append toolchain module to list of modules
@@ -523,7 +523,7 @@ class Toolchain(object):
         else:
             # load modules for all dependencies
             self.log.debug("Loading modules for dependencies: %s", dep_mods)
-            if dep_mods and build_option('trace'):
+            if dep_mods:
                 trace_msg("loading modules for dependencies:")
                 for dep_mod in dep_mods:
                     trace_msg(' * ' + dep_mod)
@@ -661,8 +661,7 @@ class Toolchain(object):
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 
-            if build_option('trace'):
-                trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
+            trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
 
             if not self.dry_run:
                 self._verify_toolchain()

@@ -44,8 +44,9 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, trace_msg
+from easybuild.tools.utilities import trace_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -114,7 +115,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     """
     cwd = os.getcwd()
 
-    if trace and build_option('trace'):
+    if trace:
         trace_msg("running command '%s'..." % cmd.strip(), timestamp=True)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
@@ -221,7 +222,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     cwd = os.getcwd()
 
-    if trace and build_option('trace'):
+    if trace:
         trace_msg("running interactive command '%s'..." % cmd.strip(), timestamp=True)
 
     # early exit in 'dry run' mode, after printing the command that would be run
