@@ -29,6 +29,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import glob
 import os
 import re
 import signal
@@ -85,12 +86,92 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(out), len("hello\n"*300))
         self.assertEqual(ec, 0)
 
+    def test_run_cmd_log_output(self):
+        """Test run_cmd with log_output enabled"""
+        (out, ec) = run_cmd("seq 1 100", log_output=True)
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith("1\n2\n"))
+        self.assertTrue(out.endswith("99\n100\n"))
+
+        run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd*.log'))
+        self.assertEqual(len(run_cmd_logs), 1)
+        run_cmd_log_txt = read_file(run_cmd_logs[0])
+        self.assertTrue(run_cmd_log_txt.startswith("# output for command: seq 1 100\n\n"))
+        run_cmd_log_lines = run_cmd_log_txt.split('\n')
+        self.assertEqual(run_cmd_log_lines[2:5], ['1', '2', '3'])
+        self.assertEqual(run_cmd_log_lines[-4:-1], ['98', '99', '100'])
+
+    def test_run_cmd_trace(self):
+        """Test run_cmd under --trace"""
+        init_config(build_options={'trace': True})
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        regex = re.compile("^  >> running command 'echo hello' \(output in .*\)\.\.\. \[started at: .*\]")
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # trace output can be disabled on a per-command basis
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello", trace=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+
     def test_run_cmd_qa(self):
         """Basic test for run_cmd_qa function."""
-        (out, ec) = run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
+        (out, ec) = run_cmd_qa("echo question; read x; echo $x", {'question': 'answer'})
         self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+    def test_run_cmd_qa_log_all(self):
+        """Test run_cmd_qa with log_output enabled"""
+        (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'}, log_all=True)
+        self.assertEqual(ec, 0)
+        self.assertEquals(out, "n: \n1\n2\n3\n4\n5\n")
+
+        run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd_qa*.log'))
+        self.assertEqual(len(run_cmd_logs), 1)
+        run_cmd_log_txt = read_file(run_cmd_logs[0])
+        extra_pref = "# output for interactive command: echo 'n: '; read n; seq 1 $n\n\n"
+        self.assertEquals(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
+
+    def test_run_cmd_qa_trace(self):
+        """Test run_cmd under --trace"""
+        init_config(build_options={'trace': True})
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        pattern = "^  >> running interactive command 'echo \'n: \'; read n; seq 1 \$n' "
+        pattern += "\(output in .*\)\.\.\. \[started at: .*\]"
+        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+        # trace output can be disabled on a per-command basis
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello", trace=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
 
     def test_run_cmd_qa_answers(self):
         """Test providing list of answers in run_cmd_qa."""
