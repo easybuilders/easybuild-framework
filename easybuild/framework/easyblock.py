@@ -1595,11 +1595,17 @@ class EasyBlock(object):
         if self.src:
             trace_msg("sources:")
             for src in self.src:
-                trace_msg("%s [SHA256: %s]" % (src['path'], src[CHECKSUM_TYPE_SHA256]))
+                msg = src['path']
+                if CHECKSUM_TYPE_SHA256 in src:
+                    msg += " [SHA256: %s]" % src[CHECKSUM_TYPE_SHA256]
+                trace_msg(msg)
         if self.patches:
             trace_msg("patches:")
             for patch in self.patches:
-                trace_msg("%s [SHA256: %s]" % (patch['path'], patch[CHECKSUM_TYPE_SHA256]))
+                msg = patch['path']
+                if CHECKSUM_TYPE_SHA256 in src:
+                    msg += " [SHA256: %s]" % patch[CHECKSUM_TYPE_SHA256]
+                trace_msg(msg)
 
         # fetch extensions
         if self.cfg['exts_list']:
