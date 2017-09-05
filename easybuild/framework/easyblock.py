@@ -1603,7 +1603,7 @@ class EasyBlock(object):
             trace_msg("patches:")
             for patch in self.patches:
                 msg = patch['path']
-                if CHECKSUM_TYPE_SHA256 in src:
+                if CHECKSUM_TYPE_SHA256 in patch:
                     msg += " [SHA256: %s]" % patch[CHECKSUM_TYPE_SHA256]
                 trace_msg(msg)
 
