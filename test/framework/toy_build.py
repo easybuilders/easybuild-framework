@@ -1718,14 +1718,14 @@ class ToyBuildTest(EnhancedTestCase):
         patterns = [
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
-            "^  >> applying patch toy-0\.0_typo\.patch\.\.\.$",
-            "^  >> running command 'gcc toy.c -o toy' \(output in .*\)\.\.\. \[started at: .*\]$",
+            "^  >> applying patch toy-0\.0_typo\.patch$",
+            "^  >> running command 'gcc toy.c -o toy' \(output in .*\) \[started at: .*\]$",
             '^' + '\n'.join([
                 "== sanity checking\.\.\.",
                 "  >> file 'bin/yot' or 'bin/toy' found: OK",
                 "  >> \(non-empty\) directory 'bin' found: OK",
             ]) + '$',
-            "^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?\.\.\.$",
+            "^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)

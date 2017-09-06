@@ -135,7 +135,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         cmd_log_fn, cmd_log = None, None
 
     if trace:
-        trace_msg("running command '%s' (output in %s)..." % (cmd_msg, cmd_log_fn), timestamp=True)
+        trace_msg("running command '%s' (output in %s)" % (cmd_msg, cmd_log_fn), timestamp=True)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
     if not force_in_dry_run and build_option('extended_dry_run'):
@@ -243,7 +243,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         cmd_log_fn, cmd_log = None, None
 
     if trace:
-        trace_msg("running interactive command '%s' (output in %s)..." % (cmd.strip(), cmd_log_fn), timestamp=True)
+        trace_msg("running interactive command '%s' (output in %s)" % (cmd.strip(), cmd_log_fn), timestamp=True)
 
     # early exit in 'dry run' mode, after printing the command that would be run
     if build_option('extended_dry_run'):

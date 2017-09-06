@@ -1658,7 +1658,7 @@ class EasyBlock(object):
         """
         for patch in self.patches:
             self.log.info("Applying patch %s" % patch['name'])
-            trace_msg("applying patch %s..." % patch['name'])
+            trace_msg("applying patch %s" % patch['name'])
 
             # patch source at specified index (first source if not specified)
             srcind = patch.get('source', 0)
@@ -2156,7 +2156,7 @@ class EasyBlock(object):
             else:
                 self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
 
-            trace_msg("running command '%s'... %s" % (command, ('FAILED', 'OK')[ec == 0]))
+            trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
@@ -2240,7 +2240,7 @@ class EasyBlock(object):
         if fake:
             mod_filepath = self.module_generator.get_module_filepath(fake=fake)
         else:
-            trace_msg("generating module file @ %s..." % self.mod_filepath)
+            trace_msg("generating module file @ %s" % self.mod_filepath)
 
         txt = self.module_generator.MODULE_SHEBANG
         if txt:

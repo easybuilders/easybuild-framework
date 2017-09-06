@@ -129,7 +129,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.mock_stderr(False)
         self.assertEqual(stderr, '')
-        regex = re.compile("^  >> running command 'echo hello' \(output in .*\)\.\.\. \[started at: .*\]")
+        regex = re.compile("^  >> running command 'echo hello' \(output in .*\) \[started at: .*\]")
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         # trace output can be disabled on a per-command basis
@@ -178,7 +178,7 @@ class RunTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.assertEqual(stderr, '')
         pattern = "^  >> running interactive command 'echo \'n: \'; read n; seq 1 \$n' "
-        pattern += "\(output in .*\)\.\.\. \[started at: .*\]"
+        pattern += "\(output in .*\) \[started at: .*\]"
         self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
 
         # trace output can be disabled on a per-command basis
