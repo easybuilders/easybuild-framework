@@ -753,6 +753,7 @@ class ToolchainTest(EnhancedTestCase):
                 'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
+                'build_only': False,
             },
         ]
         tc.add_dependencies(deps)
@@ -770,6 +771,7 @@ class ToolchainTest(EnhancedTestCase):
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
                 'external_module_metadata': {},
+                'build_only': False,
             },
             # no metadata available
             {
@@ -779,6 +781,7 @@ class ToolchainTest(EnhancedTestCase):
                 'short_mod_name': 'toy/0.0',
                 'external_module': True,
                 'external_module_metadata': {},
+                'build_only': False,
             }
         ]
         tc = self.get_toolchain('GCC', version='4.6.4')
@@ -799,7 +802,8 @@ class ToolchainTest(EnhancedTestCase):
                 'name': ['toy', 'foobar'],
                 'version': ['1.2.3', '4.5'],
                 'prefix': 'FOOBAR_PREFIX',
-            }
+            },
+            'build_only': False,
         }
         tc = self.get_toolchain('GCC', version='4.6.4')
         tc.add_dependencies(deps)

@@ -44,8 +44,9 @@ import time
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.utilities import trace_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -96,7 +97,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True):
+            force_in_dry_run=False, verbose=True, shell=True, trace=True):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -110,15 +111,38 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param force_in_dry_run: force running the command during dry run
     :param verbose: include message on running the command in dry run output
     :param shell: allow commands to not run in a shell (especially useful for cmd lists)
+    :param trace: print command being executed as part of trace output
     """
     cwd = os.getcwd()
+
+    if isinstance(cmd, basestring):
+        cmd_msg = cmd.strip()
+    elif isinstance(cmd, list):
+        cmd_msg = ' '.join(cmd)
+    else:
+        raise EasyBuildError("Unknown command type ('%s'): %s", type(cmd), cmd)
+
+    if log_output or (trace and build_option('trace')):
+        # collect output of running command in temporary log file, if desired
+        fd, cmd_log_fn = tempfile.mkstemp(suffix='.log', prefix='easybuild-run_cmd-')
+        os.close(fd)
+        try:
+            cmd_log = open(cmd_log_fn, 'w')
+        except IOError as err:
+            raise EasyBuildError("Failed to open temporary log file for output of command: %s", err)
+        _log.debug('run_cmd: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+    else:
+        cmd_log_fn, cmd_log = None, None
+
+    if trace:
+        trace_msg("running command '%s' (output in %s)" % (cmd_msg, cmd_log_fn), timestamp=True)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
     if not force_in_dry_run and build_option('extended_dry_run'):
         if path is None:
             path = cwd
         if verbose:
-            dry_run_msg("  running command \"%s\"" % cmd, silent=build_option('silent'))
+            dry_run_msg("  running command \"%s\"" % cmd_msg, silent=build_option('silent'))
             dry_run_msg("  (in %s)" % path, silent=build_option('silent'))
 
         # make sure we get the type of the return value right
@@ -135,15 +159,10 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         _log.debug("run_cmd: running cmd %s (in %s)" % (cmd, os.getcwd()))
     except OSError, err:
         _log.warning("Failed to change to %s: %s" % (path, err))
-        _log.info("running cmd %s in non-existing directory, might fail!" % cmd)
+        _log.info("running cmd %s in non-existing directory, might fail!", cmd)
 
-    # # Log command output
-    if log_output:
-        runLog = tempfile.NamedTemporaryFile(suffix='.log', prefix='easybuild-run_cmd-')
-        _log.debug('run_cmd: Command output will be logged to %s' % runLog.name)
-        runLog.write(cmd + "\n\n")
-    else:
-        runLog = None
+    if cmd_log:
+        cmd_log.write("# output for command: %s\n\n" % cmd_msg)
     
     exec_cmd = "/bin/bash"
 
@@ -173,23 +192,17 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         output = p.stdout.read(readSize)
-        if runLog:
-            runLog.write(output)
+        if cmd_log:
+            cmd_log.write(output)
         stdouterr += output
         ec = p.poll()
 
     # read remaining data (all of it)
     output = p.stdout.read()
-    if runLog:
-        runLog.write(output)
+    if cmd_log:
+        cmd_log.write(output)
+        cmd_log.close()
     stdouterr += output
-
-    # not needed anymore. subprocess does this correct?
-    # ec=os.WEXITSTATUS(ec)
-
-    # # Command log output
-    if log_output:
-        runLog.close()
 
     try:
         os.chdir(cwd)
@@ -199,7 +212,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None, maxhits=50):
+def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None,
+               maxhits=50, trace=True):
     """
     Run specified interactive command (in a subshell)
     :param cmd: command to run
@@ -211,8 +225,25 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     :param regex: regex used to check the output for errors; if True it will use the default (see parse_log_for_error)
     :param std_qa: dictionary which maps question regex patterns to answers
     :param path: path to execute the command is; current working directory is used if unspecified
+    :param maxhits: maximum number of cycles (seconds) without being able to find a known question
+    :param trace: print command being executed as part of trace output
     """
     cwd = os.getcwd()
+
+    if log_all or (trace and build_option('trace')):
+        # collect output of running command in temporary log file, if desired
+        fd, cmd_log_fn = tempfile.mkstemp(suffix='.log', prefix='easybuild-run_cmd_qa-')
+        os.close(fd)
+        try:
+            cmd_log = open(cmd_log_fn, 'w')
+        except IOError as err:
+            raise EasyBuildError("Failed to open temporary log file for output of interactive command: %s", err)
+        _log.debug('run_cmd_qa: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+    else:
+        cmd_log_fn, cmd_log = None, None
+
+    if trace:
+        trace_msg("running interactive command '%s' (output in %s)" % (cmd.strip(), cmd_log_fn), timestamp=True)
 
     # early exit in 'dry run' mode, after printing the command that would be run
     if build_option('extended_dry_run'):
@@ -270,23 +301,23 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         # list is manipulated when answering matching question, so return a copy
         return answers[:]
 
-    newQA = {}
-    _log.debug("newQA: ")
+    new_qa = {}
+    _log.debug("new_qa: ")
     for question, answers in qa.items():
         answers = check_answers_list(answers)
         (answers, regQ) = process_QA(question, answers)
-        newQA[regQ] = answers
-        _log.debug("newqa[%s]: %s" % (regQ.pattern, newQA[regQ]))
+        new_qa[regQ] = answers
+        _log.debug("new_qa[%s]: %s" % (regQ.pattern, new_qa[regQ]))
 
-    newstdQA = {}
+    new_std_qa = {}
     if std_qa:
         for question, answers in std_qa.items():
             regQ = re.compile(r"" + question + r"[\s\n]*$")
             answers = check_answers_list(answers)
             for i in [idx for idx, a in enumerate(answers) if not a.endswith('\n')]:
                 answers[i] += '\n'
-            newstdQA[regQ] = answers
-            _log.debug("newstdQA[%s]: %s" % (regQ.pattern, newstdQA[regQ]))
+            new_std_qa[regQ] = answers
+            _log.debug("new_std_qa[%s]: %s" % (regQ.pattern, new_std_qa[regQ]))
 
     new_no_qa = []
     if no_qa:
@@ -299,15 +330,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # - this needs asynchronous stdout
 
     # # Log command output
-    if log_all:
-        try:
-            runLog = tempfile.NamedTemporaryFile(suffix='.log', prefix='easybuild-cmdqa-')
-            _log.debug('run_cmd_qa: Command output will be logged to %s' % runLog.name)
-            runLog.write(cmd + "\n\n")
-        except IOError, err:
-            raise EasyBuildError("Opening log file for Q&A failed: %s", err)
-    else:
-        runLog = None
+    if cmd_log:
+        cmd_log.write("# output for interactive command: %s\n\n" % cmd)
 
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
@@ -315,77 +339,77 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         raise EasyBuildError("run_cmd_qa init cmd %s failed:%s", cmd, err)
 
     ec = p.poll()
-    stdoutErr = ''
-    oldLenOut = -1
-    hitCount = 0
+    stdout_err = ''
+    old_len_out = -1
+    hit_count = 0
 
     while ec is None:
         # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
-            tmpOut = recv_some(p)
-            if runLog:
-                runLog.write(tmpOut)
-            stdoutErr += tmpOut
+            out = recv_some(p)
+            if cmd_log:
+                cmd_log.write(out)
+            stdout_err += out
         # recv_some may throw Exception
         except (IOError, Exception), err:
-            _log.debug("run_cmd_qa cmd %s: read failed: %s" % (cmd, err))
-            tmpOut = None
+            _log.debug("run_cmd_qa cmd %s: read failed: %s", cmd, err)
+            out = None
 
         hit = False
-        for question, answers in newQA.items():
-            res = question.search(stdoutErr)
-            if tmpOut and res:
+        for question, answers in new_qa.items():
+            res = question.search(stdout_err)
+            if out and res:
                 fa = answers[0] % res.groupdict()
                 # cycle through list of answers
                 last_answer = answers.pop(0)
                 answers.append(last_answer)
-                _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
+                _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
-                _log.debug("run_cmd_qa answer %s question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
+                _log.debug("run_cmd_qa answer %s question %s out %s", fa, question.pattern, stdout_err[-50:])
                 send_all(p, fa)
                 hit = True
                 break
         if not hit:
-            for question, answers in newstdQA.items():
-                res = question.search(stdoutErr)
-                if tmpOut and res:
+            for question, answers in new_std_qa.items():
+                res = question.search(stdout_err)
+                if out and res:
                     fa = answers[0] % res.groupdict()
                     # cycle through list of answers
                     last_answer = answers.pop(0)
                     answers.append(last_answer)
-                    _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
+                    _log.debug("List of answers for question %s after cycling: %s", question.pattern, answers)
 
-                    _log.debug("run_cmd_qa answer %s std question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
+                    _log.debug("run_cmd_qa answer %s std question %s out %s", fa, question.pattern, stdout_err[-50:])
                     send_all(p, fa)
                     hit = True
                     break
             if not hit:
-                if len(stdoutErr) > oldLenOut:
-                    oldLenOut = len(stdoutErr)
+                if len(stdout_err) > old_len_out:
+                    old_len_out = len(stdout_err)
                 else:
                     noqa = False
                     for r in new_no_qa:
-                        if r.search(stdoutErr):
-                            _log.debug("runqanda: noQandA found for out %s" % stdoutErr[-50:])
+                        if r.search(stdout_err):
+                            _log.debug("runqanda: noQandA found for out %s", stdout_err[-50:])
                             noqa = True
                     if not noqa:
-                        hitCount += 1
+                        hit_count += 1
             else:
-                hitCount = 0
+                hit_count = 0
         else:
-            hitCount = 0
+            hit_count = 0
 
-        if hitCount > maxhits:
+        if hit_count > maxhits:
             # explicitly kill the child process before exiting
             try:
                 os.killpg(p.pid, signal.SIGKILL)
                 os.kill(p.pid, signal.SIGKILL)
-            except OSError, err:
-                _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
-            _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
+            except OSError as err:
+                _log.debug("run_cmd_qa exception caught when killing child process: %s", err)
+            _log.debug("run_cmd_qa: full stdouterr: %s", stdout_err)
             raise EasyBuildError("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s",
-                                 cmd, maxhits, stdoutErr[-500:])
+                                 cmd, maxhits, stdout_err[-500:])
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -394,22 +418,20 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Process stopped. Read all remaining data
     try:
         if p.stdout:
-            readTxt = p.stdout.read()
-            stdoutErr += readTxt
-            if runLog:
-                runLog.write(readTxt)
-    except IOError, err:
-        _log.debug("runqanda cmd %s: remaining data read failed: %s" % (cmd, err))
-
-    # Not needed anymore. Subprocess does this correct?
-    # ec=os.WEXITSTATUS(ec)
+            out = p.stdout.read()
+            stdout_err += out
+            if cmd_log:
+                cmd_log.write(out)
+                cmd_log.close()
+    except IOError as err:
+        _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
 
     try:
         os.chdir(cwd)
     except OSError, err:
         raise EasyBuildError("Failed to return to %s after executing command: %s", cwd, err)
 
-    return parse_cmd_output(cmd, stdoutErr, ec, simple, log_all, log_ok, regexp)
+    return parse_cmd_output(cmd, stdout_err, ec, simple, log_all, log_ok, regexp)
 
 
 def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):

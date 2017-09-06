@@ -270,7 +270,8 @@ class ModulesTool(object):
             else:
                 out, ec = None, 1
         else:
-            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False, force_in_dry_run=True)
+            cmd = "type module"
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)

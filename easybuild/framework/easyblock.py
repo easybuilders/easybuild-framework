@@ -83,7 +83,7 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
-from easybuild.tools.utilities import quote_str, remove_unwanted_chars
+from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
@@ -831,6 +831,8 @@ class EasyBlock(object):
 
         # always make build dir
         self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+
+        trace_msg("build dir: %s" % self.builddir)
 
     def gen_installdir(self):
         """
@@ -1589,6 +1591,22 @@ class EasyBlock(object):
                     fil[checksum_type] = compute_checksum(fil['path'], checksum_type=checksum_type)
                     self.log.info("%s checksum for %s: %s", checksum_type, fil['path'], fil[checksum_type])
 
+        # trace output for sources & patches
+        if self.src:
+            trace_msg("sources:")
+            for src in self.src:
+                msg = src['path']
+                if CHECKSUM_TYPE_SHA256 in src:
+                    msg += " [SHA256: %s]" % src[CHECKSUM_TYPE_SHA256]
+                trace_msg(msg)
+        if self.patches:
+            trace_msg("patches:")
+            for patch in self.patches:
+                msg = patch['path']
+                if CHECKSUM_TYPE_SHA256 in patch:
+                    msg += " [SHA256: %s]" % patch[CHECKSUM_TYPE_SHA256]
+                trace_msg(msg)
+
         # fetch extensions
         if self.cfg['exts_list']:
             self.exts = self.fetch_extension_sources(skip_checksums=skip_checksums)
@@ -1640,6 +1658,7 @@ class EasyBlock(object):
         """
         for patch in self.patches:
             self.log.info("Applying patch %s" % patch['name'])
+            trace_msg("applying patch %s" % patch['name'])
 
             # patch source at specified index (first source if not specified)
             srcind = patch.get('source', 0)
@@ -2108,6 +2127,9 @@ class EasyBlock(object):
                     self.sanity_check_fail_msgs.append("no %s of %s in %s" % (typ, xs, self.installdir))
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
+                cand_paths = ' or '.join(["'%s'" % x for x in xs])
+                trace_msg("%s %s found: %s" % (typ, cand_paths, ('FAILED', 'OK')[found]))
+
         fake_mod_data = None
         # only load fake module for non-extensions, and not during dry run
         if not (extension or self.dry_run):
@@ -2126,13 +2148,15 @@ class EasyBlock(object):
         # run sanity check commands
         for command in commands:
 
-            out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
                 self.sanity_check_fail_msgs.append(fail_msg)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
             else:
                 self.log.info("sanity check command %s ran successfully! (output: %s)" % (command, out))
+
+            trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
         if not extension:
             failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
@@ -2215,6 +2239,8 @@ class EasyBlock(object):
         mod_filepath = self.mod_filepath
         if fake:
             mod_filepath = self.module_generator.get_module_filepath(fake=fake)
+        else:
+            trace_msg("generating module file @ %s" % self.mod_filepath)
 
         txt = self.module_generator.MODULE_SHEBANG
         if txt:
@@ -2522,6 +2548,7 @@ class EasyBlock(object):
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         print_msg("building and installing %s..." % self.full_mod_name, log=self.log, silent=self.silent)
+        trace_msg("installation prefix: %s" % self.installdir)
         try:
             for (step_name, descr, step_methods, skippable) in steps:
                 if self._skip_step(step_name, skippable):
