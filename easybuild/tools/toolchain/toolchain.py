@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.toolchain
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg 
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, which, write_file
@@ -540,7 +540,7 @@ class Toolchain(object):
                     for dep_mod in run_dep_mods:
                         trace_msg(' * ' + dep_mod)
                 else:
-                    trace_msg("(no build dependencies specified)")
+                    trace_msg("(no (runtime) dependencies specified)")
 
         # append dependency modules to list of modules
         self.modules.extend(dep_mods)
