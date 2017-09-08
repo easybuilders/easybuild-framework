@@ -3,6 +3,30 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.4.0 (September 8th 2017)
+---------------------------
+
+feature release
+- various enhancements, including:
+  - add support for backing up modules with --module-only via --backup-modules (#2134)
+  - add support for --search-paths to extend list of locations considered by --search/-S (#2255)
+  - add support for 'eb --trace' (#2285)
+  - add support for 'eb --inject-checksums' (#2286)
+  - add support for append_paths in module generator (#2294)
+- various bug fixes, including:
+  - strip provided GitHub token of spaces in --install-github-token (#2270)
+  - include userInGroup check in Lua modules when installation is group-restricted (#2274)
+  - remove 'provides' line from setup.py (#2275)
+  - pass down stdin in 'import' check for extensions during sanity check (#2276)
+  - make sure location to 'eb' installed during stage 1 is included in $PATH during stage 2 of bootstrap procedure (#2281)
+  - make resolve_path robust against None path being provided (#2282)
+  - ensure clean error message on easyconfig file parse failure (#2290)
+  - fix regex to avoid sucking up additional lines prior to module file path in modulefile_path (#2291)
+  - fix test_inject_checksums that got broken by changes to toy-0.0-gompi-1.3.12-test.eb test easyconfig in PR #2276 (#2292)
+  - avoid introducing duplicate entry for 'checksums' in exts_list with --inject-checksums (#2293)
+  - fix error message when --use-ccache is used but ccache is not available in $PATH (#2295)
+
+
 v3.3.1 (July 12th 2017)
 -----------------------
 
