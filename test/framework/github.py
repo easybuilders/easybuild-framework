@@ -207,8 +207,9 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
         # poor mans mocking of getpass
+        # inject leading/trailing spaces to verify stripping of provided value
         def fake_getpass(*args, **kwargs):
-            return self.github_token
+            return ' ' + self.github_token + '  '
 
         orig_getpass = gh.getpass.getpass
         gh.getpass.getpass = fake_getpass

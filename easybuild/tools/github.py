@@ -1415,7 +1415,7 @@ def install_github_token(github_user, silent=False):
                                  current_token, github_user)
 
     # get token to install
-    token = getpass.getpass(prompt="Token: ")
+    token = getpass.getpass(prompt="Token: ").strip()
 
     # validate token before installing it
     print_msg("Validating token...", prefix=False, silent=silent)

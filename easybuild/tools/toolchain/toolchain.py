@@ -50,6 +50,7 @@ from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
+from easybuild.tools.utilities import trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -492,6 +493,7 @@ class Toolchain(object):
 
             # load modules for all dependencies
             self.log.debug("Loading module for toolchain: %s", tc_mod)
+            trace_msg("loading toolchain module: " + tc_mod)
             self.modules_tool.load([tc_mod])
 
         # append toolchain module to list of modules
@@ -522,6 +524,23 @@ class Toolchain(object):
             # load modules for all dependencies
             self.log.debug("Loading modules for dependencies: %s", dep_mods)
             self.modules_tool.load(dep_mods)
+
+            if self.dependencies:
+                build_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if dep['build_only']]
+                if build_dep_mods:
+                    trace_msg("loading modules for build dependencies:")
+                    for dep_mod in build_dep_mods:
+                        trace_msg(' * ' + dep_mod)
+                else:
+                    trace_msg("(no build dependencies specified)")
+
+                run_dep_mods = [dep['short_mod_name'] for dep in self.dependencies if not dep['build_only']]
+                if run_dep_mods:
+                    trace_msg("loading modules for (runtime) dependencies:")
+                    for dep_mod in run_dep_mods:
+                        trace_msg(' * ' + dep_mod)
+                else:
+                    trace_msg("(no (runtime) dependencies specified)")
 
         # append dependency modules to list of modules
         self.modules.extend(dep_mods)
@@ -655,6 +674,8 @@ class Toolchain(object):
 
         if self.name != DUMMY_TOOLCHAIN_NAME:
 
+            trace_msg("defining build environment for %s/%s toolchain" % (self.name, self.version))
+
             if not self.dry_run:
                 self._verify_toolchain()
 
@@ -727,7 +748,7 @@ class Toolchain(object):
 
         cache_path = which(cache_tool)
         if cache_path is None:
-            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache_tool)
         else:
             self.symlink_commands({cache_tool: (cache_path, compilers)})
 

@@ -31,10 +31,12 @@ import glob
 import os
 import string
 import sys
+from datetime import datetime
 from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import build_option
 
 
 _log = fancylogger.getLogger('tools.utilities')
@@ -160,3 +162,12 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
             return error
 
     return wrap
+
+
+def trace_msg(message, silent=False, timestamp=False):
+    """Print trace message."""
+    if build_option('trace'):
+        _log.experimental("Using --trace")
+        if timestamp:
+            message += " [started at: %s]" % datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print_msg('  >> ' + message, prefix=False)
