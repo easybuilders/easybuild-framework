@@ -270,7 +270,8 @@ class ModulesTool(object):
             else:
                 out, ec = None, 1
         else:
-            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False, force_in_dry_run=True)
+            cmd = "type module"
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False, force_in_dry_run=True, trace=False)
 
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
@@ -572,7 +573,7 @@ class ModulesTool(object):
         :param strip_ext: strip (.lua) extension from module fileame (if present)"""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
-        modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
+        modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^\s]+):$', re.M)
         modpath = self.get_value_from_modulefile(mod_name, modpath_re)
 
         if strip_ext and modpath.endswith('.lua'):

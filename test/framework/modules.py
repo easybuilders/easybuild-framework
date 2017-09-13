@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
 from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
-from easybuild.tools.modules import invalidate_module_caches_for, modules_tool
+from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
 
 
@@ -326,6 +326,41 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
         self.assertEqual(modtool.mod_paths[1], test_modules_path)
         self.assertTrue(len(modtool.available()) > 0)
+
+    def test_modulefile_path(self):
+        """Test modulefile_path method"""
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        gcc_mod_file = os.path.join(test_dir, 'modules', 'GCC', '4.7.2')
+
+        modtool = modules_tool()
+        res  = modtool.modulefile_path('GCC/4.7.2')
+        self.assertTrue(os.path.samefile(res, gcc_mod_file))
+
+        if isinstance(self.modtool, Lmod):
+            res  = modtool.modulefile_path('bzip2/.1.0.6')
+            self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'bzip2', '.1.0.6.lua')))
+            res  = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
+            self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
+
+        # hack into 'module show GCC/4.7.2' cache and inject alternate output that modulecmd.tcl sometimes produces
+        # make sure we only extract the module file path, nothing else...
+        # cfr. https://github.com/easybuilders/easybuild/issues/368
+        modulepath = os.environ['MODULEPATH'].split(':')
+        mod_show_cache_key = modtool.mk_module_cache_key('GCC/4.7.2')
+        mod.MODULE_SHOW_CACHE[mod_show_cache_key] = '\n'.join([
+            "import os",
+            "os.environ['MODULEPATH_modshare'] = '%s'" % ':'.join(m + ':1' for m in modulepath),
+            "os.environ['MODULEPATH'] = '%s'" % ':'.join(modulepath),
+            "------------------------------------------------------------------------------",
+            "%s:" % gcc_mod_file,
+            "------------------------------------------------------------------------------",
+            # remainder of output doesn't really matter in this context
+            "setenv		EBROOTGCC /prefix/GCC/4.7.2"
+        ])
+        res  = modtool.modulefile_path('GCC/4.7.2')
+        self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'GCC', '4.7.2')))
+
+        reset_module_caches()
 
     def test_path_to_top_of_module_tree(self):
         """Test function to determine path to top of the module tree."""

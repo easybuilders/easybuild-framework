@@ -29,6 +29,7 @@ Unit tests for filetools.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import glob
 import os
 import re
 import signal
@@ -38,6 +39,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
@@ -46,6 +48,18 @@ from easybuild.tools.run import _log as run_log
 
 class RunTest(EnhancedTestCase):
     """ Testcase for run module """
+
+    def setUp(self):
+        """Set up test."""
+        super(RunTest, self).setUp()
+        self.orig_experimental = easybuild.tools.utilities._log.experimental
+
+    def tearDown(self):
+        """Test cleanup."""
+        super(RunTest, self).tearDown()
+
+        # restore log.experimental
+        easybuild.tools.utilities._log.experimental = self.orig_experimental
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
@@ -85,12 +99,98 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(len(out), len("hello\n"*300))
         self.assertEqual(ec, 0)
 
+    def test_run_cmd_log_output(self):
+        """Test run_cmd with log_output enabled"""
+        (out, ec) = run_cmd("seq 1 100", log_output=True)
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith("1\n2\n"))
+        self.assertTrue(out.endswith("99\n100\n"))
+
+        run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd*.log'))
+        self.assertEqual(len(run_cmd_logs), 1)
+        run_cmd_log_txt = read_file(run_cmd_logs[0])
+        self.assertTrue(run_cmd_log_txt.startswith("# output for command: seq 1 100\n\n"))
+        run_cmd_log_lines = run_cmd_log_txt.split('\n')
+        self.assertEqual(run_cmd_log_lines[2:5], ['1', '2', '3'])
+        self.assertEqual(run_cmd_log_lines[-4:-1], ['98', '99', '100'])
+
+    def test_run_cmd_trace(self):
+        """Test run_cmd under --trace"""
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
+
+        init_config(build_options={'trace': True})
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello")
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        regex = re.compile("^  >> running command 'echo hello' \(output in .*\) \[started at: .*\]")
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        # trace output can be disabled on a per-command basis
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello", trace=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+
     def test_run_cmd_qa(self):
         """Basic test for run_cmd_qa function."""
-        (out, ec) = run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
+        (out, ec) = run_cmd_qa("echo question; read x; echo $x", {'question': 'answer'})
         self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+    def test_run_cmd_qa_log_all(self):
+        """Test run_cmd_qa with log_output enabled"""
+        (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'}, log_all=True)
+        self.assertEqual(ec, 0)
+        self.assertEquals(out, "n: \n1\n2\n3\n4\n5\n")
+
+        run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd_qa*.log'))
+        self.assertEqual(len(run_cmd_logs), 1)
+        run_cmd_log_txt = read_file(run_cmd_logs[0])
+        extra_pref = "# output for interactive command: echo 'n: '; read n; seq 1 $n\n\n"
+        self.assertEquals(run_cmd_log_txt, extra_pref + "n: \n1\n2\n3\n4\n5\n")
+
+    def test_run_cmd_qa_trace(self):
+        """Test run_cmd under --trace"""
+        # replace log.experimental with log.warning to allow experimental code
+        easybuild.tools.utilities._log.experimental = easybuild.tools.utilities._log.warning
+
+        init_config(build_options={'trace': True})
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stderr, '')
+        pattern = "^  >> running interactive command 'echo \'n: \'; read n; seq 1 \$n' "
+        pattern += "\(output in .*\) \[started at: .*\]"
+        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+
+        # trace output can be disabled on a per-command basis
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello", trace=False)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
 
     def test_run_cmd_qa_answers(self):
         """Test providing list of answers in run_cmd_qa."""
@@ -117,6 +217,33 @@ class RunTest(EnhancedTestCase):
         """Test return value for run_cmd in 'simple' mode."""
         self.assertEqual(True, run_cmd("echo hello", simple=True))
         self.assertEqual(False, run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
+
+    def test_run_cmd_cache(self):
+        """Test caching for run_cmd"""
+        (first_out, ec) = run_cmd("ulimit -u")
+        self.assertEqual(ec, 0)
+        (cached_out, ec) = run_cmd("ulimit -u")
+        self.assertEqual(ec, 0)
+        self.assertEqual(first_out, cached_out)
+
+        # inject value into cache to check whether executing command again really returns cached value
+        run_cmd.update_cache({("ulimit -u", None): ("123456", 123)})
+        (cached_out, ec) = run_cmd("ulimit -u")
+        self.assertEqual(ec, 123)
+        self.assertEqual(cached_out, "123456")
+
+        # also test with command that uses stdin
+        (out, ec) = run_cmd("cat", inp='foo')
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, 'foo')
+
+        # inject different output for cat with 'foo' as stdin to check whether cached value is used
+        run_cmd.update_cache({('cat', 'foo'): ('bar', 123)})
+        (cached_out, ec) = run_cmd("cat", inp='foo')
+        self.assertEqual(ec, 123)
+        self.assertEqual(cached_out, 'bar')
+
+        run_cmd.clear_cache()
 
     def test_parse_log_error(self):
         """Test basic parse_log_for_error functionality."""

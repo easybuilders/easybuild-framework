@@ -141,7 +141,7 @@ class Extension(object):
         exts_filter = self.cfg['exts_filter']
         self.cfg.enable_templating = True
 
-        if not exts_filter is None:
+        if exts_filter is not None:
             cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
@@ -174,7 +174,7 @@ class Extension(object):
             if inp:
                 stdin = inp % template
             # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
 
             if ec:
                 msg = "%s failed to install, cmd '%s' (stdin: %s) output: %s" % (self.name, cmd, stdin, output)

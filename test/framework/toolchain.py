@@ -753,6 +753,7 @@ class ToolchainTest(EnhancedTestCase):
                 'full_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
+                'build_only': False,
             },
         ]
         tc.add_dependencies(deps)
@@ -770,6 +771,7 @@ class ToolchainTest(EnhancedTestCase):
                 'short_mod_name': 'OpenMPI/1.6.4-GCC-4.6.4',
                 'external_module': False,
                 'external_module_metadata': {},
+                'build_only': False,
             },
             # no metadata available
             {
@@ -779,6 +781,7 @@ class ToolchainTest(EnhancedTestCase):
                 'short_mod_name': 'toy/0.0',
                 'external_module': True,
                 'external_module_metadata': {},
+                'build_only': False,
             }
         ]
         tc = self.get_toolchain('GCC', version='4.6.4')
@@ -799,7 +802,8 @@ class ToolchainTest(EnhancedTestCase):
                 'name': ['toy', 'foobar'],
                 'version': ['1.2.3', '4.5'],
                 'prefix': 'FOOBAR_PREFIX',
-            }
+            },
+            'build_only': False,
         }
         tc = self.get_toolchain('GCC', version='4.6.4')
         tc.add_dependencies(deps)
@@ -981,6 +985,22 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_compiler_cache(self):
         """Test ccache"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        args = [
+            eb_file,
+            "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
+            "--force",
+            "--debug",
+            "--disable-cleanup-tmpdir",
+        ]
+
+        ccache = which('ccache')
+        if ccache is None:
+            msg = "ccache binary not found in \$PATH, required by --use-compiler-cache"
+            self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
+
         # generate shell script to mock ccache/f90cache
         for cache_tool in ['ccache', 'f90cache']:
             path = os.path.join(self.test_prefix, 'scripts')
@@ -1004,19 +1024,8 @@ class ToolchainTest(EnhancedTestCase):
 
         prepped_path_envvar = os.environ['PATH']
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         ccache_dir = os.path.join(self.test_prefix, 'ccache')
         mkdir(ccache_dir, parents=True)
-
-        args = [
-            eb_file,
-            "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
-            "--force",
-            "--debug",
-            "--disable-cleanup-tmpdir",
-        ]
 
         out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
 
