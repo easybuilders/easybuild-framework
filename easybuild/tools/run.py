@@ -40,11 +40,11 @@ import signal
 import subprocess
 import tempfile
 import time
-
+from datetime import datetime
 from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.tools.build_log import EasyBuildError, dry_run_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.utilities import trace_msg
 
@@ -134,8 +134,12 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         cmd_log_fn, cmd_log = None, None
 
+    start_time = datetime.now()
     if trace:
-        trace_msg("running command '%s' (output in %s)" % (cmd_msg, cmd_log_fn), timestamp=True)
+        trace_txt = "running command:\n"
+        trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
+        trace_msg(trace_txt + '\t' + cmd_msg)
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless running the command is forced)
     if not force_in_dry_run and build_option('extended_dry_run'):
@@ -204,6 +208,9 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         cmd_log.close()
     stdouterr += output
 
+    if trace:
+        trace_msg("command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
+
     try:
         os.chdir(cwd)
     except OSError, err:
@@ -242,8 +249,12 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     else:
         cmd_log_fn, cmd_log = None, None
 
+    start_time = datetime.now()
     if trace:
-        trace_msg("running interactive command '%s' (output in %s)" % (cmd.strip(), cmd_log_fn), timestamp=True)
+        trace_txt = "running interactive command:\n"
+        trace_txt += "\t[started at: %s]\n" % start_time.strftime('%Y-%m-%d %H:%M:%S')
+        trace_txt += "\t[output logged in %s]\n" % cmd_log_fn
+        trace_msg(trace_txt + '\t' + cmd.strip())
 
     # early exit in 'dry run' mode, after printing the command that would be run
     if build_option('extended_dry_run'):
@@ -425,6 +436,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 cmd_log.close()
     except IOError as err:
         _log.debug("runqanda cmd %s: remaining data read failed: %s", cmd, err)
+
+    if trace:
+        trace_msg("interactive command completed: exit %s, ran in %s" % (ec, time_str_since(start_time)))
 
     try:
         os.chdir(cwd)
