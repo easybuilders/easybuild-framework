@@ -312,21 +312,7 @@ def time_str_since(start_time):
     """
     tot_time = datetime.now() - start_time
     if tot_time.seconds > 0:
-        hours, mins, secs = 0, 0, tot_time.seconds
-        if secs >= 60:
-            mins = secs / 60
-            secs = secs % 60
-        if mins >= 60:
-            hours = mins / 60
-            mins = mins % 60
-
-        res = ''
-        if hours:
-            res += '%dh' % hours
-        if hours or mins:
-            res += '%dm' % mins
-        res += '%ds' % secs
-
+        res = datetime.utcfromtimestamp(tot_time.total_seconds()).strftime('%Hh%Mm%Ss')
     else:
         res = "< 1s"
 

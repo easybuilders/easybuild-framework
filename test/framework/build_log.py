@@ -258,16 +258,16 @@ class BuildLogTest(EnhancedTestCase):
     def test_time_str_since(self):
         """Test time_str_since"""
         self.assertEqual(time_str_since(datetime.now()), '< 1s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1.1)), '1s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=37.1)), '37s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=60.1)), '1m0s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=81.1)), '1m21s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1358.1)), '22m38s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3600.1)), '1h0m0s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3960.1)), '1h6m0s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=4500.1)), '1h15m0s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=12305.1)), '3h25m5s')
-        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=54321.1)), '15h5m21s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1.1)), '00h00m01s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=37.1)), '00h00m37s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=60.1)), '00h01m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=81.1)), '00h01m21s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1358.1)), '00h22m38s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3600.1)), '01h00m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3960.1)), '01h06m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=4500.1)), '01h15m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=12305.1)), '03h25m05s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=54321.1)), '15h05m21s')
 
 
 def suite():
