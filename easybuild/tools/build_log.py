@@ -312,7 +312,8 @@ def time_str_since(start_time):
     """
     tot_time = datetime.now() - start_time
     if tot_time.seconds > 0:
-        res = datetime.utcfromtimestamp(tot_time.total_seconds()).strftime('%Hh%Mm%Ss')
+        tot_secs = tot_time.seconds + tot_time.days * 24 * 3600
+        res = datetime.utcfromtimestamp(tot_secs).strftime('%Hh%Mm%Ss')
     else:
         res = "< 1s"
 
