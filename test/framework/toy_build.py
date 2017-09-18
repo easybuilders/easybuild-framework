@@ -1235,6 +1235,17 @@ class ToyBuildTest(EnhancedTestCase):
 
         os.remove(toy_mod)
 
+        # --module-only --rebuild should be equivalent with --module-only --force
+        self.eb_main(args + ['--rebuild'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+
+        # make sure load statements for dependencies are included in additional module file generated with --module-only
+        modtxt = read_file(toy_mod)
+        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
+
+        os.remove(toy_mod)
+
         # installing another module under a different naming scheme and using Lua module syntax works fine
 
         # first actually build and install toy software + module

@@ -1895,7 +1895,7 @@ class EasyBlock(object):
 
             pkgtype = build_option('package_type')
             pkgdir_dest = os.path.abspath(package_path())
-            opt_force = build_option('force')
+            opt_force = build_option('force') or build_option('rebuild')
 
             self.log.info("Generating %s package in %s", pkgtype, pkgdir_dest)
             pkgdir_src = package(self)
@@ -2383,7 +2383,7 @@ class EasyBlock(object):
     def _skip_step(self, step, skippable):
         """Dedice whether or not to skip the specified step."""
         module_only = build_option('module_only')
-        force = build_option('force')
+        force = build_option('force') or build_option('rebuild')
         skip = False
 
         # skip step if specified as individual (skippable) step
