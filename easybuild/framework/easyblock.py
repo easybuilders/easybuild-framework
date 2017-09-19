@@ -2225,6 +2225,8 @@ class EasyBlock(object):
         if not build_option('cleanup_builddir'):
             self.log.info("Keeping builddir %s" % self.builddir)
 
+        self.toolchain.cleanup()
+
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
         self.restore_iterate_opts()
