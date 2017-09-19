@@ -1730,7 +1730,8 @@ class ToyBuildTest(EnhancedTestCase):
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             "^  >> applying patch toy-0\.0_typo\.patch$",
-            "^  >> running command 'gcc toy.c -o toy' \(output in .*\) \[started at: .*\]$",
+            "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
+            "  >> command completed: exit 0, ran in .*",
             '^' + '\n'.join([
                 "== sanity checking\.\.\.",
                 "  >> file 'bin/yot' or 'bin/toy' found: OK",
