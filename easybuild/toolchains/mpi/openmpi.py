@@ -105,8 +105,8 @@ class OpenMPI(Mpi):
         """Clean up after using OpenMPI in toolchain."""
         super(OpenMPI, self).cleanup(*args, **kwargs)
 
-        if self.orig_tmpdir:
-            tmpdir = os.environ.get('TMPDIR')
+        tmpdir = os.environ.get('TMPDIR')
+        if tmpdir != self.orig_tmpdir:
             try:
                 shutil.rmtree(tmpdir)
             except OSError as err:
