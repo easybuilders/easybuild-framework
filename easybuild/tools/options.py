@@ -511,6 +511,8 @@ class EasyBuildOptions(GeneralOption):
                                            None, 'store_true', False),
             'avail-toolchain-opts': ("Show options for toolchain", 'str', 'store', None),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
+            'check-versions': ("Check which software versions are available for specified easyconfigs",
+                               None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
             'dump-env-script': ("Dump source script to set up build environment based on toolchain/dependencies",
                                 None, 'store_true', False),

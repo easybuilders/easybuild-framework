@@ -582,3 +582,8 @@ def categorize_files_by_type(paths):
             res['easyconfigs'].append(path)
 
     return res
+
+
+def check_software_versions(easyconfigs):
+    """Check available software versions for each of the specified easyconfigs"""
+    raise NotImplementedError

@@ -52,9 +52,10 @@ from easybuild.framework.easyblock import EasyBlock, build_and_install_one, inje
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
-from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
-from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
-from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
+from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type
+from easybuild.framework.easyconfig.tools import check_software_versions, dep_graph, det_easyconfig_paths
+from easybuild.framework.easyconfig.tools import dump_env_script, get_paths_for, parse_easyconfigs, review_pr
+from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.docs import list_software
@@ -420,6 +421,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         else:
             print_msg("\nNo conflicts detected!\n", prefix=False)
 
+    elif options.check_versions:
+        check_software_versions(easyconfigs)
+
     # dump source script to set up build environment
     elif options.dump_env_script:
         dump_env_script(easyconfigs)
@@ -427,8 +431,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.inject_checksums:
         inject_checksums(ordered_ecs, options.inject_checksums)
 
-    # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any(no_ec_opts + [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]):
+    # early cleanup and exit after selected actions
+    early_stop_opts = [options.check_conflicts, options.check_versions, dry_run_mode, options.dump_env_script,
+                       options.inject_checksums]
+    if any(no_ec_opts + early_stop_opts):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
