@@ -586,4 +586,27 @@ def categorize_files_by_type(paths):
 
 def check_software_versions(easyconfigs):
     """Check available software versions for each of the specified easyconfigs"""
-    raise NotImplementedError
+    lines = ['']
+    for ec in easyconfigs:
+        ec = ec['ec']
+        lines.extend([
+            "* available software versions for %s:" % ec['name'],
+            "\t(based on %s)" % ec.path,
+        ])
+
+        versions = []
+
+        # check if easyblock has a custom way of determining available versions
+        app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        app = app_class(ec)
+        try:
+            versions = app.check_versions()
+        except NotImplementedError:
+            _log.debug("No custom method for determining versions implemented in %s", app_class)
+
+        if not versions:
+            lines.append("\tNo versions found for %s! :(" % ec['name'])
+
+        # FIXME: also handle extensions
+
+    print_msg('\n'.join(lines) + '\n', prefix=False)

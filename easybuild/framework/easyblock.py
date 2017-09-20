@@ -1375,6 +1375,10 @@ class EasyBlock(object):
     # MISCELLANEOUS UTILITY FUNCTIONS
     #
 
+    def check_versions(self):
+        """Check which versions are available for this software"""
+        raise NotImplementedError
+
     def guess_start_dir(self):
         """
         Return the directory where to start the whole configure/make/make install cycle from
