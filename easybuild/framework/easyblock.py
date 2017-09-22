@@ -510,9 +510,11 @@ class EasyBlock(object):
                                 if checksums:
                                     fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
                                     if verify_checksum(src_fn, fn_checksum):
-                                        self.log.info('Checksum for ext source %s verified', fn)
+                                        self.log.info('Checksum for extension source %s verified', fn)
+                                    elif build_option('ignore_checksums'):
+                                        print_warning("Ignoring failing checksum verification for %s" % fn)
                                     else:
-                                        raise EasyBuildError('Checksum for ext source %s failed', fn)
+                                        raise EasyBuildError('Checksum verification for extension source %s failed', fn)
 
                             ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
                             if ext_patches:
@@ -533,6 +535,8 @@ class EasyBlock(object):
                                             checksum = self.get_checksum_for(checksums[1:], filename=patch, index=idx)
                                             if verify_checksum(patch, checksum):
                                                 self.log.info('Checksum for extension patch %s verified', patch)
+                                            elif build_option('ignore_checksums'):
+                                                print_warning("Ignoring failing checksum verification for %s" % patch)
                                             else:
                                                 raise EasyBuildError('Checksum for extension patch %s failed', patch)
                             else:
@@ -562,6 +566,7 @@ class EasyBlock(object):
         :param urls: list of source URLs where this file may be available
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         """
+        res = None
         srcpaths = source_paths()
 
         # should we download or just try and find it?
@@ -583,12 +588,14 @@ class EasyBlock(object):
 
                 # only download when it's not there yet
                 if os.path.exists(fullpath):
-                    self.log.info("Found file %s at %s, no need to download it." % (filename, filepath))
-                    return fullpath
-
-                else:
-                    if download_file(filename, url, fullpath):
+                    if build_option('force_download'):
+                        print_warning("Found file %s at %s, but re-downloading it anyway..." % (filename, filepath))
+                    else:
+                        self.log.info("Found file %s at %s, no need to download it", filename, filepath)
                         return fullpath
+
+                if download_file(filename, url, fullpath):
+                    return fullpath
 
             except IOError, err:
                 raise EasyBuildError("Downloading file %s from url %s to %s failed: %s", filename, url, fullpath, err)
@@ -636,13 +643,17 @@ class EasyBlock(object):
 
                     for fp in fullpaths:
                         if os.path.isfile(fp):
-                            self.log.info("Found file %s at %s" % (filename, fp))
+                            self.log.info("Found file %s at %s", filename, fp)
                             foundfile = os.path.abspath(fp)
                             break  # no need to try further
                         else:
                             failedpaths.append(fp)
 
                 if foundfile:
+                    if build_option('force_download'):
+                        print_warning("Found file %s at %s, but re-downloading it anyway..." % (filename, foundfile))
+                        foundfile = None
+
                     break  # no need to try other source paths
 
             if foundfile:
@@ -1635,10 +1646,12 @@ class EasyBlock(object):
                 expected_checksum = fil['checksum'] or '(none)'
                 self.dry_run_msg("* expected checksum for %s: %s", filename, expected_checksum)
             else:
-                if not verify_checksum(fil['path'], fil['checksum']):
-                    raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
-                else:
+                if verify_checksum(fil['path'], fil['checksum']):
                     self.log.info("Checksum verification for %s using %s passed." % (fil['path'], fil['checksum']))
+                elif build_option('ignore_checksums'):
+                    print_warning("Ignoring failing checksum verification for %s" % fil['name'])
+                else:
+                    raise EasyBuildError("Checksum verification for %s using %s failed.", fil['path'], fil['checksum'])
 
     def extract_step(self):
         """

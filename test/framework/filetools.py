@@ -31,6 +31,7 @@ Unit tests for filetools.py
 @author: Ward Poelmans (Ghent University)
 """
 import datetime
+import glob
 import os
 import re
 import shutil
@@ -250,9 +251,12 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
         # provide local file path as source URL
         test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
+        toy_source_dir = os.path.join(test_dir, 'sandbox', 'sources', 'toy')
+        source_url = 'file://%s/%s' % (toy_source_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works")
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 1)
 
         # non-existing files result in None return value
         self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
@@ -266,10 +270,20 @@ class FileToolsTest(EnhancedTestCase):
         # this tests whether proxies are taken into account by download_file
         self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
 
+        # modify existing download so we can verify re-download
+        ft.write_file(target_location, '')
+
         # restore a working file handler, and retest download of local file
         urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
+
+        # existing file was re-downloaded, so a backup should have been created of the existing file
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 2)
+        backup = [d for d in downloads if os.path.basename(d) != fn][0]
+        self.assertEqual(ft.read_file(backup), '')
+        self.assertEqual(ft.compute_checksum(target_location), ft.compute_checksum(os.path.join(toy_source_dir, fn)))
 
         # make sure specified timeout is parsed correctly (as a float, not a string)
         opts = init_config(args=['--download-timeout=5.3'])
@@ -450,6 +464,24 @@ class FileToolsTest(EnhancedTestCase):
         txt2 = '\n'.join(['test', '123'])
         ft.write_file(fp, txt2, append=True)
         self.assertEqual(ft.read_file(fp), txt+txt2)
+
+        # test backing up of existing file
+        ft.write_file(fp, 'foo', backup=True)
+        self.assertEqual(ft.read_file(fp), 'foo')
+
+        test_files = glob.glob(fp + '*')
+        self.assertEqual(len(test_files), 2)
+        backup1 = [x for x in test_files if os.path.basename(x) != 'test.txt'][0]
+        self.assertEqual(ft.read_file(backup1), txt + txt2)
+
+        ft.write_file(fp, 'bar', append=True, backup=True)
+        self.assertEqual(ft.read_file(fp), 'foobar')
+
+        test_files = glob.glob(fp + '*')
+        self.assertEqual(len(test_files), 3)
+        backup2 = [x for x in test_files if x != backup1 and os.path.basename(x) != 'test.txt'][0]
+        self.assertEqual(ft.read_file(backup1), txt + txt2)
+        self.assertEqual(ft.read_file(backup2), 'foo')
 
         # also test behaviour of write_file under --dry-run
         build_options = {
