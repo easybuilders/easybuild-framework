@@ -1352,6 +1352,7 @@ class ToolchainTest(EnhancedTestCase):
 
         def prep():
             """Helper function: create & prepare toolchain"""
+            self.modtool.unload(['gompi', 'OpenMPI', 'hwloc', 'GCC'])
             tc = self.get_toolchain('gompi', version='1.3.12')
             self.mock_stderr(True)
             self.mock_stdout(True)
