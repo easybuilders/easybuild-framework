@@ -1394,7 +1394,8 @@ class ToolchainTest(EnhancedTestCase):
         copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
 
         openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
-        write_file(openmpi_module, 'setenv EBVERSIONOPENMPI "2.0.2"', append=True)
+        ompi_mod_txt = read_file(openmpi_module)
+        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
 
         self.modtool.use(tmp_modules)
 
