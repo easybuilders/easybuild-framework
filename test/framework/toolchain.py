@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, write_file, which
+from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir, read_file, write_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 
@@ -1346,6 +1346,84 @@ class ToolchainTest(EnhancedTestCase):
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
         self.assertTrue(os.path.samefile(res[1], fake_gcc))
         self.assertFalse(any(os.path.samefile(x, fake_gcc) for x in res[2:]))
+
+    def test_prepare_openmpi_tmpdir(self):
+        """Test handling of long $TMPDIR path for OpenMPI 2.x"""
+
+        def prep():
+            """Helper function: create & prepare toolchain"""
+            tc = self.get_toolchain('gompi', version='1.3.12')
+            self.mock_stderr(True)
+            self.mock_stdout(True)
+            tc.prepare()
+            stderr = self.get_stderr().strip()
+            stdout = self.get_stdout().strip()
+            self.mock_stderr(False)
+            self.mock_stdout(False)
+
+            return tc, stdout, stderr
+
+        orig_tmpdir = os.environ.get('TMPDIR')
+        if len(orig_tmpdir) > 40:
+            # we need to make sure we have a short $TMPDIR for this test...
+            orig_tmpdir = tempfile.mkdtemp(prefix='/tmp/')
+            mkdir(orig_tmpdir)
+            os.environ['TMPDIR'] = orig_tmpdir
+
+        long_tmpdir = os.path.join(self.test_prefix, 'verylongdirectorythatmaycauseproblemswithopenmpi2')
+
+        # $TMPDIR is left untouched with OpenMPI 1.6.4
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        # ... even with long $TMPDIR
+        os.environ['TMPDIR'] = long_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        tmp_modules = os.path.join(self.test_prefix, 'modules')
+        mkdir(tmp_modules)
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
+        write_file(openmpi_module, 'setenv EBVERSIONOPENMPI "2.0.2"', append=True)
+
+        self.modtool.use(tmp_modules)
+
+        # $TMPDIR is left untouched with OpenMPI 2.x if $TMPDIR is sufficiently short
+        os.environ['TMPDIR'] = orig_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, '')
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        # warning is printed and $TMPDIR is set to shorter path if existing $TMPDIR is too long
+        os.environ['TMPDIR'] = long_tmpdir
+        tc, stdout, stderr = prep()
+        self.assertEqual(stdout, '')
+        regex = re.compile("^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{6}$")
+        self.assertTrue(regex.match(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+
+        # new $TMPDIR should be /tmp/xxxxxx
+        tmpdir = os.environ.get('TMPDIR')
+        self.assertTrue(tmpdir.startswith('/tmp'))
+        self.assertEqual(len(tmpdir), 11)
+
+        # also test cleanup method to ensure short $TMPDIR is cleaned up properly
+        self.assertTrue(os.path.exists(tmpdir))
+        tc.cleanup()
+        self.assertFalse(os.path.exists(tmpdir))
+
+        # we may have created our own short tmpdir above, so make sure to clean things up...
+        shutil.rmtree(orig_tmpdir)
 
 
 def suite():
