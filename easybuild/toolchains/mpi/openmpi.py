@@ -79,8 +79,12 @@ class OpenMPI(Mpi):
         self.orig_tmpdir = os.environ.get('TMPDIR')
         ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
         if LooseVersion(ompi_ver) >= LooseVersion('2.0') and LooseVersion(ompi_ver) < LooseVersion('3.0'):
-            if len(self.orig_tmpdir) > 50:
-                env.setvar('TMPDIR', tempfile.mkdtemp(prefix='/tmp/'))
+            if len(self.orig_tmpdir) > 40:
+                tmpdir = tempfile.mkdtemp(prefix='/tmp/')
+                env.setvar('TMPDIR', tmpdir)
+                warn_msg = "Long $TMPDIR path may cause problems with OpenMPI 2.x, using shorter path: %s" % tmpdir
+                self.log.warning(warn_msg)
+                print_warning(warn_msg)
 
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands (depends on OpenMPI version) and add OMPI_* variables to set."""
@@ -112,3 +116,4 @@ class OpenMPI(Mpi):
             except OSError as err:
                 print_warning("Failed to clean up temporary directory %s: %s", tmpdir, err)
             env.setvar('TMPDIR', self.orig_tmpdir)
+            self.log.info("$TMPDIR restored to %s", self.orig_tmpdir)
