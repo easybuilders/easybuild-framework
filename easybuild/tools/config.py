@@ -89,6 +89,13 @@ EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
 LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
 DEFAULT_ALLOW_LOADED_MODULES = ('EasyBuild',)
 
+FORCE_DOWNLOAD_ALL = 'all'
+FORCE_DOWNLOAD_PATCHES = 'patches'
+FORCE_DOWNLOAD_SOURCES = 'sources'
+FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
+DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
+
+
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
     """Create full path, avoid '/' at the end."""
@@ -156,7 +163,6 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'fixed_installdir_naming_scheme',
         'force',
-        'force_download',
         'group_writable_installdir',
         'hidden',
         'ignore_checksums',
@@ -192,6 +198,9 @@ BUILD_OPTIONS_CMDLINE = {
         'check_ebroot_env_vars',
         'detect_loaded_modules',
         'strict',
+    ],
+    DEFAULT_FORCE_DOWNLOAD: [
+        'force_download',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',

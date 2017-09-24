@@ -63,6 +63,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
@@ -364,7 +365,8 @@ class EasyBlock(object):
                 raise EasyBuildError("Unexpected source spec, not a string or dict: %s", source)
 
             # check if the sources can be located
-            path = self.obtain_file(filename, download_filename=download_filename)
+            force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
+            path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download)
             if path:
                 self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
@@ -416,7 +418,8 @@ class EasyBlock(object):
             else:
                 patch_file = patch_spec
 
-            path = self.obtain_file(patch_file, extension=extension)
+            force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES]
+            path = self.obtain_file(patch_file, extension=extension, force_download=force_download)
             if path:
                 self.log.debug('File %s found for patch %s' % (path, patch_spec))
                 patchspec = {
@@ -496,7 +499,8 @@ class EasyBlock(object):
                         exts_sources.append(ext_src)
                     else:
                         source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
-                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls)
+                        force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
+                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls, force_download=force_download)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
@@ -555,16 +559,16 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, extension=False, urls=None, download_filename=None):
+    def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
-
         :param filename: filename of source
         :param extension: indicates whether locations for extension sources should also be considered
         :param urls: list of source URLs where this file may be available
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
+        :force_download: always try to download file, even if it's already available in source path
         """
         res = None
         srcpaths = source_paths()
@@ -588,7 +592,7 @@ class EasyBlock(object):
 
                 # only download when it's not there yet
                 if os.path.exists(fullpath):
-                    if build_option('force_download'):
+                    if force_download:
                         print_warning("Found file %s at %s, but re-downloading it anyway..." % (filename, filepath))
                     else:
                         self.log.info("Found file %s at %s, no need to download it", filename, filepath)
@@ -650,7 +654,7 @@ class EasyBlock(object):
                             failedpaths.append(fp)
 
                 if foundfile:
-                    if build_option('force_download'):
+                    if force_download:
                         print_warning("Found file %s at %s, but re-downloading it anyway..." % (filename, foundfile))
                         foundfile = None
 
