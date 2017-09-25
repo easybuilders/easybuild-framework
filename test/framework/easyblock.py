@@ -888,19 +888,16 @@ class EasyBlockTest(EnhancedTestCase):
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
 
-        # --force-download results in re-downloading, even if file is already in sourcepath
-        build_options = {
-            'force_download': True,
-        }
-        init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)], build_options=build_options)
+        init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
 
         # clean up toy tarballs in tmpdir, so the one in sourcepath is found
         remove_file(os.path.join(tmpdir, toy_tarball))
         remove_file(os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
+        # enabling force_download results in re-downloading, even if file is already in sourcepath
         self.mock_stderr(True)
         self.mock_stdout(True)
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], force_download=True)
         stderr = self.get_stderr()
         stdout = self.get_stdout()
         self.mock_stderr(False)
