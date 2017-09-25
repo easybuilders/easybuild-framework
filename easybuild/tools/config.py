@@ -118,6 +118,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
+        'force_download',
         'from_pr',
         'git_working_dirs_path',
         'pr_branch_name',
@@ -198,9 +199,6 @@ BUILD_OPTIONS_CMDLINE = {
         'check_ebroot_env_vars',
         'detect_loaded_modules',
         'strict',
-    ],
-    DEFAULT_FORCE_DOWNLOAD: [
-        'force_download',
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
