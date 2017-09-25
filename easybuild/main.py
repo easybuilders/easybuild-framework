@@ -377,9 +377,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
     new_update_pr = options.new_pr or options.update_pr
+    no_skip = options.extended_dry_run or options.inject_checksums or options.check_versions
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
-    if not (forced or dry_run_mode or options.extended_dry_run or new_update_pr or options.inject_checksums):
+    if not (forced or dry_run_mode or new_update_pr or no_skip):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
