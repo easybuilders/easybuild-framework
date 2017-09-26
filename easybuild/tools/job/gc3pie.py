@@ -271,11 +271,15 @@ class GC3Pie(JobBackend):
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
         if build_option('debug'):
-            # requires GC3Pie >= 2.5.0.dev (commit 74f4b82d)
-            for task in self._engine.iter_tasks(Application):
-                datadump = StringIO()
-                gc3libs.utils.prettyprint(task, indent=2, output=datadump)
-                _log.debug("Detailed info about GC3Pie task %s", task)
-                for line in datadump.getvalue().split('\n'):
-                    _log.debug(line)
-                datadump.close()
+            # `Engine.iter_tasks()` requires GC3Pie >= 2.5.0.dev (commit 74f4b82d)
+            try:
+                for task in self._engine.iter_tasks(Application):
+                    datadump = StringIO()
+                    gc3libs.utils.prettyprint(task, indent=2, output=datadump)
+                    _log.debug("Detailed info about GC3Pie task %s", task)
+                    for line in datadump.getvalue().split('\n'):
+                        _log.debug(line)
+                    datadump.close()
+            except AttributeError:
+                # GC3Pie < 2.5.0.dev, ignore
+                pass
