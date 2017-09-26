@@ -270,7 +270,7 @@ class GC3Pie(JobBackend):
         states = ', '.join(["%d %s" % (stats[s], s.lower()) for s in stats if s != 'total' and stats[s]])
         print_msg("GC3Pie job overview: %s (total: %s)" % (states, self.job_cnt),
                   log=self.log, silent=build_option('silent'))
-        if __debug__:
+        if build_option('debug'):
             # requires GC3Pie >= 2.5.0.dev (commit 74f4b82d)
             for task in self._engine.iter_tasks(Application):
                 datadump = StringIO()
