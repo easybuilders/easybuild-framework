@@ -921,3 +921,7 @@ class Toolchain(object):
     def mpi_family(self):
         "Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."
         return None
+
+    def cleanup(self):
+        """Clean up after using this toolchain"""
+        pass

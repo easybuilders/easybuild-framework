@@ -161,13 +161,25 @@ def read_file(path, log_error=True):
     return txt
 
 
-def write_file(path, txt, append=False, forced=False):
-    """Write given contents to file at given path (overwrites current file contents!)."""
+def write_file(path, txt, append=False, forced=False, backup=False):
+    """
+    Write given contents to file at given path;
+    overwrites current file contents without backup by default!
 
+    :param path: location of file
+    :param txt: contents to write to file
+    :param append: append to existing file rather than overwrite
+    :param forced: force actually writing file in (extended) dry run mode
+    :param backup: back up existing file before overwriting or modifying it
+    """
     # early exit in 'dry run' mode
     if not forced and build_option('extended_dry_run'):
         dry_run_msg("file written: %s" % path, silent=build_option('silent'))
         return
+
+    if backup and os.path.exists(path):
+        backup = back_up_file(path)
+        _log.info("Existing file %s backed up to %s", path, backup)
 
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
@@ -413,7 +425,7 @@ def download_file(filename, url, path, forced=False):
             # urllib2 does the right thing for http proxy setups, urllib does not!
             url_fd = urllib2.urlopen(url_req, timeout=timeout)
             _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
-            write_file(path, url_fd.read(), forced=forced)
+            write_file(path, url_fd.read(), forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
@@ -1184,12 +1196,12 @@ def find_backup_name_candidate(src_file):
 
 def back_up_file(src_file, backup_extension='bak', hidden=False):
     """
-    Backs up a file appending a backup extension and a number to it (if there is already an existing backup). Returns
-    the name of the backup
+    Backs up a file appending a backup extension and timestamp to it (if there is already an existing backup).
 
     :param src_file: file to be back up
     :param backup_extension: extension to use for the backup file (can be empty or None)
     :param hidden: make backup hidden (leading dot in filename)
+    :return: location of backed up file
     """
     fn_prefix, fn_suffix = '', ''
     if hidden:
