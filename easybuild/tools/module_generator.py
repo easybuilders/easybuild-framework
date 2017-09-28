@@ -788,9 +788,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             # when "module unload" is called on the module in which the
             # depedency "module load" is present, it will get translated
             # to "module unload"
-            load_statement = [self.conditional_statement('isloaded("%(mod_name)s") or mode() == "unload"', '\n'.join(body), negative=True)]
+            # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
+            load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
         else:
-            load_statement = [self.conditional_statement('isloaded("%(mod_name)s")', '\n'.join(body), negative=True)]
+            load_guard = 'isloaded("%(mod_name)s")'
+        load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
