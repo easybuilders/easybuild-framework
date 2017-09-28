@@ -783,10 +783,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         body.append(self.LOAD_TEMPLATE)
 
         if build_option('recursive_mod_unload') or recursive_unload:
-            # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
-            # when "module unload" is called on the module in which the depedency "module load" is present,
-            # it will get translated to "module unload"
-            load_statement = body + ['']
+            # wrapping the 'module load' with an 'is-loaded or mode == unload'
+            # guard ensures recursive unloading while avoiding load storms,
+            # when "module unload" is called on the module in which the
+            # depedency "module load" is present, it will get translated
+            # to "module unload"
+            load_statement = [self.conditional_statement('isloaded("%(mod_name)s") or mode() == "unload"', '\n'.join(body), negative=True)]
         else:
             load_statement = [self.conditional_statement('isloaded("%(mod_name)s")', '\n'.join(body), negative=True)]
 
