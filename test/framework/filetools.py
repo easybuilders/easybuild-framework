@@ -1065,6 +1065,21 @@ class FileToolsTest(EnhancedTestCase):
         url = url.replace('source/e/easybuild', '5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf')
         self.assertTrue(ft.is_alt_pypi_url(url))
 
+    def test_pypi_source_urls(self):
+        """Test pypi_source_urls() function."""
+        res = ft.pypi_source_urls('easybuild')
+        eb340_url = 'https://pypi.python.org/packages/'
+        eb340_url += '93/41/574d01f352671fbc8589a436167e15a7f3e27ac0aa635d208eb29ee8fd4e/'
+        eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
+        self.assertTrue(eb340_url, res)
+        pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
+        pattern += 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
+        regex = re.compile(pattern)
+        for url in res:
+            self.assertTrue(regex.match(url), "Pattern '%s' matches for '%s'" % (regex.pattern, url))
+        # more than 50 releases at time of writing test, which always stay there
+        self.assertTrue(len(res) > 50)
+
     def test_derive_alt_pypi_url(self):
         """Test derive_alt_pypi_url() function."""
         url = 'https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz'
