@@ -82,6 +82,9 @@ try:
 except ImportError:
     pass
 
+# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
+PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
+
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
 
@@ -584,6 +587,25 @@ def categorize_files_by_type(paths):
     return res
 
 
+def check_software_versions_via_url(name, url):
+    """Check available software versions via provided URL."""
+    versions = None
+    known_url_types = {
+        PYPI_PKG_URL_PATTERN: check_software_versions_pypi,
+    }
+    for key in known_url_types:
+        if re.search(key, url):
+            versions = known_url_types[key](name, url)
+            break
+
+    return versions
+
+
+def check_software_versions_pypi(name, url):
+    """Determine available software versions for specified PyPI URL."""
+    raise NotImplementedError
+
+
 def check_software_versions(easyconfigs):
     """Check available software versions for each of the specified easyconfigs"""
     lines = ['']
@@ -604,7 +626,15 @@ def check_software_versions(easyconfigs):
         except NotImplementedError:
             _log.debug("No custom method for determining versions implemented in %s", app_class)
 
-        if not versions:
+            # try to fall back to method based on type of source URL
+            for url in ec['source_urls']:
+                versions = check_software_versions_via_url(ec['name'], url)
+                if versions:
+                    break
+
+        if versions:
+            raise NotImplementedError
+        else:
             lines.append("\tNo versions found for %s! :(" % ec['name'])
 
         # FIXME: also handle extensions

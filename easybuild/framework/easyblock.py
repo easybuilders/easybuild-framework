@@ -58,7 +58,7 @@ from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfi
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.tools import PYPI_PKG_URL_PATTERN, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -106,9 +106,6 @@ TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
-
-# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
-PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
 
 _log = fancylogger.getLogger('easyblock')
