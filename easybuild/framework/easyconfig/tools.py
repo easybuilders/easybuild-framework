@@ -52,7 +52,7 @@ from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, resolve_path, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, pypi_source_urls, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -587,7 +587,7 @@ def categorize_files_by_type(paths):
     return res
 
 
-def check_software_versions_via_url(name, url):
+def check_software_versions_via_url(name, src_pattern, url):
     """Check available software versions via provided URL."""
     versions = None
     known_url_types = {
@@ -595,15 +595,23 @@ def check_software_versions_via_url(name, url):
     }
     for key in known_url_types:
         if re.search(key, url):
-            versions = known_url_types[key](name, url)
+            versions = known_url_types[key](name, src_pattern, url)
             break
 
     return versions
 
 
-def check_software_versions_pypi(name, url):
+def check_software_versions_pypi(name, src_pattern, url):
     """Determine available software versions for specified PyPI URL."""
-    raise NotImplementedError
+    versions = []
+    regex = re.compile(src_pattern.replace('.', '\\.').replace('<version>', '(?P<version>.*)'))
+    pkg_urls = pypi_source_urls(name)
+    for pkg_url in pkg_urls:
+        res = regex.search(pkg_url)
+        if res:
+            versions.append(res.group('version'))
+
+    return sorted(versions, key=LooseVersion)
 
 
 def check_software_versions(easyconfigs):
@@ -627,14 +635,25 @@ def check_software_versions(easyconfigs):
             _log.debug("No custom method for determining versions implemented in %s", app_class)
 
             # try to fall back to method based on type of source URL
-            for url in ec['source_urls']:
-                versions = check_software_versions_via_url(ec['name'], url)
-                if versions:
-                    break
+            for src_spec in ec['sources']:
+                if isinstance(src_spec, basestring):
+                    src = src_spec
+                if isinstance(src_spec, (list, tuple)):
+                    src = src_spec[0]
+                elif isinstance(src_spec, dict):
+                    src = src_spec.get('download_filename') or src_spec.get('filename')
+                    if src is None:
+                        raise EasyBuildError("Failed to determine source filename from %s", src_spec)
 
-        if versions:
-            raise NotImplementedError
-        else:
+                src_pattern = src.replace(ec['version'], '<version>')
+                lines.append("\tfor source '%s':" % src_pattern)
+                for url in ec['source_urls']:
+                    versions = check_software_versions_via_url(ec['name'], src_pattern, url)
+                    if versions:
+                        lines.extend('\t\t* %s' % v for v in versions)
+                        break
+
+        if not versions:
             lines.append("\tNo versions found for %s! :(" % ec['name'])
 
         # FIXME: also handle extensions
