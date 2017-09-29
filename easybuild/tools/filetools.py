@@ -357,41 +357,56 @@ def is_alt_pypi_url(url):
     return res
 
 
+def pypi_source_urls(pkg_name):
+    """
+    Fetch list of source URLs (incl. source filename) for specified Python package from PyPI, using 'simple' PyPI API.
+    """
+    # example: https://pypi.python.org/simple/easybuild
+    # see also:
+    # - https://www.python.org/dev/peps/pep-0503/
+    # - https://wiki.python.org/moin/PyPISimple
+    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+
+    tmpdir = tempfile.mkdtemp()
+    urls_html = os.path.join(tmpdir, '%s_urls.html' % pkg_name)
+    if download_file(os.path.basename(urls_html), simple_url, urls_html) is None:
+        print("Failed to download %s to determine available PyPI URLs for %s" % (simple_url, pkg_name))
+        _log.debug("Failed to download %s to determine available PyPI URLs for %s", simple_url, pkg_name)
+        res = []
+    else:
+        parsed_html = ElementTree.parse(urls_html)
+        if hasattr(parsed_html, 'iter'):
+            res = [a.attrib['href'] for a in parsed_html.iter('a')]
+        else:
+            res = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+
+    # links are relative, transform them into full URLs; for example:
+    # from: ../../packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
+    # to: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
+    res = [re.sub('.*/packages/', 'https://pypi.python.org/packages/', x) for x in res]
+
+    return res
+
+
 def derive_alt_pypi_url(url):
-    """Derive alternate PyPI URL for given URL, using 'simple' PyPI API."""
-    # see also https://www.python.org/dev/peps/pep-0503/
+    """Derive alternate PyPI URL for given URL."""
     alt_pypi_url = None
 
     # example input URL: https://pypi.python.org/packages/source/e/easybuild/easybuild-2.7.0.tar.gz
     pkg_name, pkg_source = url.strip().split('/')[-2:]
 
-    # e.g. https://pypi.python.org/simple/easybuild
-    # cfr. https://wiki.python.org/moin/PyPISimple
-    simple_url = 'https://pypi.python.org/simple/%s' % re.sub(r'[-_.]+', '-', pkg_name.lower())
+    cand_urls = pypi_source_urls(pkg_name)
 
-    tmpdir = tempfile.mkdtemp()
-    links_html = os.path.join(tmpdir, '%s_links.html' % pkg_name)
-    res = download_file(os.path.basename(links_html), simple_url, links_html)
-    if res is None:
-        _log.debug("Failed to download %s to determine alternate PyPI URL for %s", simple_url, pkg_source)
-    else:
-        parsed_html = ElementTree.parse(links_html)
-        if hasattr(parsed_html, 'iter'):
-            links = [a.attrib['href'] for a in parsed_html.iter('a')]
-        else:
-            links = [a.attrib['href'] for a in parsed_html.getiterator('a')]
+    regex = re.compile('.*/%s#md5=[a-f0-9]{32}$' % pkg_source.replace('.', '\\.'), re.M)
+    for cand_url in cand_urls:
+        res = regex.match(cand_url)
+        if res:
+            # e.g.: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
+            alt_pypi_url = res.group(0).split('#md5')[0]
+            break
 
-        pkg_regex = pkg_source.replace('.', '\\.')
-        regex = re.compile('.*/packages/(?P<hash>[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60})/%s#md5.*' % pkg_regex, re.M)
-        for link in links:
-            res = regex.match(link)
-            if res:
-                # e.g. .../5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
-                alt_pypi_url = 'https://pypi.python.org/packages/%s/%s' % (res.group('hash'), pkg_source)
-                break
-
-        if not alt_pypi_url:
-            _log.debug("Failed to extract hash using pattern '%s' from list of links: %s", regex.pattern, links)
+    if not alt_pypi_url:
+        _log.debug("Failed to extract hash using pattern '%s' from list of URLs: %s", regex.pattern, cand_urls)
 
     return alt_pypi_url
 
