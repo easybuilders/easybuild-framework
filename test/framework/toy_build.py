@@ -1080,13 +1080,13 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
-                r'help\(\[\[',
+                r'help\(\[==\[',
                 r'',
                 r'%s' % help_txt,
-                r'\]\]\)',
+                r'\]==\]\)',
                 r'',
-                r'whatis\(\[\[Description: Toy C program, 100% toy.\]\]\)',
-                r'whatis\(\[\[Homepage: https://easybuilders.github.io/easybuild\]\]\)',
+                r'whatis\(\[==\[Description: Toy C program, 100% toy.\]==\]\)',
+                r'whatis\(\[==\[Homepage: https://easybuilders.github.io/easybuild\]==\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',

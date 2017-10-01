@@ -454,7 +454,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         txt = '\n'.join([
             "proc ModulesHelp { } {",
-            "    puts stderr {%s" % self._generate_help_text(),
+            "    puts stderr {%s" % re.sub('([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',
@@ -478,10 +478,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
+        whatis_lines = ["module-whatis {%s}" % re.sub('([{}\[\]])', r'\\\1', l) for l in self._generate_whatis_lines()]
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'whatis_lines': '\n'.join(["module-whatis {%s}" % line for line in self._generate_whatis_lines()]),
+            'whatis_lines': '\n'.join(whatis_lines),
             'installdir': self.app.installdir,
         }
 
@@ -673,6 +674,9 @@ class ModuleGeneratorLua(ModuleGenerator):
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
 
+    START_STR = '[==['
+    END_STR = ']==]'
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -698,6 +702,13 @@ class ModuleGeneratorLua(ModuleGenerator):
             res = ''
 
         return res
+
+    def check_str(self, txt):
+        """Check whether provided string has any unwanted substrings in it."""
+        if self.START_STR in txt or self.END_STR in txt:
+            raise EasyBuildError("Found unwanted '%s' or '%s' in: %s", self.START_STR, self.END_STR, txt)
+        else:
+            return txt
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -735,8 +746,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate a description.
         """
         txt = '\n'.join([
-            'help([[%s' % self._generate_help_text(),
-            ']])',
+            'help(%s%s' % (self.START_STR, self.check_str(self._generate_help_text())),
+            '%s)' % self.END_STR,
             '',
         ])
 
@@ -753,10 +764,14 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
+        whatis_lines = []
+        for line in self._generate_whatis_lines():
+            whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
+
         txt += '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
-            'whatis_lines': '\n'.join(["whatis([[%s]])" % line for line in self._generate_whatis_lines()]),
+            'whatis_lines': '\n'.join(whatis_lines),
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
         }
@@ -801,8 +816,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         Add a message that should be printed when loading the module.
         """
         # take into account possible newlines in messages by using [==...==] (requires Lmod 5.8)
-        stmt_tmpl = 'io.stderr:write([==[%s]==])'
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', stmt_tmpl % msg)])
+        stmt = 'io.stderr:write(%s%s%s)' % (self.START_STR, self.check_str(msg), self.END_STR)
+        return '\n' + self.conditional_statement('mode() == "load"', stmt)
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
         """

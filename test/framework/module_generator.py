@@ -103,7 +103,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                "help([[",
+                "help([==[",
                 '',
                 'Description',
                 '===========',
@@ -113,10 +113,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "More information",
                 "================",
                 " - Homepage: %s" % homepage,
-                ']])',
+                ']==])',
                 '',
-                "whatis([[Description: %s]])" % descr,
-                "whatis([[Homepage: %s]])" % homepage,
+                "whatis([==[Description: %s]==])" % descr,
+                "whatis([==[Homepage: %s]==])" % homepage,
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
@@ -156,7 +156,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         else:
             expected = '\n'.join([
-                "help([[",
+                "help([==[",
                 '',
                 'Description',
                 '===========',
@@ -166,10 +166,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "More information",
                 "================",
                 " - Homepage: %s" % homepage,
-                ']])',
+                ']==])',
                 '',
-                "whatis([[foo]])",
-                "whatis([[bar]])",
+                "whatis([==[foo]==])",
+                "whatis([==[bar]==])",
                 '',
                 'local root = "%s"' % self.modgen.app.installdir,
                 '',
