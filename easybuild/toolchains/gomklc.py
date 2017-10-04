@@ -32,7 +32,7 @@ Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
 :author: Maxime Boissonneault (Compute Canada)
 """
 
-from easybuild.toolchains.gompi import Gompi
+from easybuild.toolchains.gompic import Gompic
 from easybuild.toolchains.gmkl import Gmkl
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
