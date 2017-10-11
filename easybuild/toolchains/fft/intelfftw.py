@@ -85,7 +85,7 @@ class IntelFFTW(Fftw):
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
 
         self.FFT_LIB_DIR = self.BLAS_LIB_DIR
-        self.FFT_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
+        self.FFT_INCLUDE_DIR = os.path.join(self.BLAS_INCLUDE_DIR, 'fftw')
 
         # building the FFTW interfaces is optional,
         # so make sure libraries are there before FFT_LIB is set
