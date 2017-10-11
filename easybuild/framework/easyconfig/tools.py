@@ -590,12 +590,12 @@ def categorize_files_by_type(paths):
 def check_software_versions_via_url(name, src_pattern, url):
     """Check available software versions via provided URL."""
     versions = None
-    known_url_types = {
-        PYPI_PKG_URL_PATTERN: check_software_versions_pypi,
-    }
-    for key in known_url_types:
-        if re.search(key, url):
-            versions = known_url_types[key](name, src_pattern, url)
+    known_url_types = [
+        (PYPI_PKG_URL_PATTERN, check_software_versions_pypi),
+    ]
+    for url_pattern, url_handler in known_url_types:
+        if re.search(url_pattern, url):
+            versions = url_handler(name, src_pattern, url)
             break
 
     return versions
