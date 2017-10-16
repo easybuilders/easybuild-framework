@@ -3,21 +3,21 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
-v3.4.1 (October 16th 2017)
+v3.4.1 (October 17th 2017)
 --------------------------
 
 bugfix release
 - various enhancements, including:
   - improve trace output for executed commands + drop requirement for --experimental for --trace (#2306)
-  - also check for use of --rebuild next to --force to skip sanity check with --module-only, and also in package_step (#2307)
-  - add a toolchain using GCC, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW (#2310)
-  - ensure $TMPDIR is set to a short path for OpenMPI v2.x (#2311)
-  - add support for --force-download and --ignore-checksums (#2313)
-  - let --force-download only apply to sources by default, not patches (#2314)
-  - make recursive-unload not generate load storms. (#2316)
+  - add giolf toolchain definition: GCC, IntelMPI, OpenBLAS, (Sca)LAPACK and FFTW (#2310)
+  - add support for --force-download and --ignore-checksums (#2313, #2314)
   - flesh out pypi_source_urls from derive_alt_pypi_url (#2319)
+- various bug fixes, including:
+  - also check for use of --rebuild next to --force to skip sanity check with --module-only (#2307)
+  - ensure $TMPDIR is set to a short path for OpenMPI v2.x (#2311)
+  - guard 'module load' commands in generated modules under --recursive-unload to avoid load storms (#2316)
   - correctly deal with use of special characters in description & co (#2320)
-  - fix incorrect FFT_INC_DIR for intelfftw (#2323)
+  - fix incorrect FFT_INC_DIR for Intel MKL (#2323)
 
 
 v3.4.0 (September 10th 2017)
