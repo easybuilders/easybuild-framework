@@ -1080,13 +1080,13 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         if get_module_syntax() == 'Lua':
             mod_txt_regex_pattern = '\n'.join([
-                r'help\(\[\[',
+                r'help\(\[==\[',
                 r'',
                 r'%s' % help_txt,
-                r'\]\]\)',
+                r'\]==\]\)',
                 r'',
-                r'whatis\(\[\[Description: Toy C program, 100% toy.\]\]\)',
-                r'whatis\(\[\[Homepage: https://easybuilders.github.io/easybuild\]\]\)',
+                r'whatis\(\[==\[Description: Toy C program, 100% toy.\]==\]\)',
+                r'whatis\(\[==\[Homepage: https://easybuilders.github.io/easybuild\]==\]\)',
                 r'',
                 r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
                 r'',
@@ -1226,6 +1226,17 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(os.path.exists(toy_mod))
 
         self.eb_main(args + ['--force'], do_build=True, raise_error=True)
+        self.assertTrue(os.path.exists(toy_mod))
+
+        # make sure load statements for dependencies are included in additional module file generated with --module-only
+        modtxt = read_file(toy_mod)
+        self.assertTrue(re.search('load.*ictce/4.1.13', modtxt), "load statement for ictce/4.1.13 found in module")
+        self.assertTrue(re.search('load.*GCC/4.7.2', modtxt), "load statement for GCC/4.7.2 found in module")
+
+        os.remove(toy_mod)
+
+        # --module-only --rebuild should be equivalent with --module-only --force
+        self.eb_main(args + ['--rebuild'], do_build=True, raise_error=True)
         self.assertTrue(os.path.exists(toy_mod))
 
         # make sure load statements for dependencies are included in additional module file generated with --module-only
@@ -1719,7 +1730,8 @@ class ToyBuildTest(EnhancedTestCase):
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             "^  >> applying patch toy-0\.0_typo\.patch$",
-            "^  >> running command 'gcc toy.c -o toy' \(output in .*\) \[started at: .*\]$",
+            "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
+            "  >> command completed: exit 0, ran in .*",
             '^' + '\n'.join([
                 "== sanity checking\.\.\.",
                 "  >> file 'bin/yot' or 'bin/toy' found: OK",

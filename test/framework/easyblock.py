@@ -44,7 +44,7 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.modules import modules_tool
 
 
@@ -609,6 +609,8 @@ class EasyBlockTest(EnhancedTestCase):
         """Test the make_module_step"""
         name = "pi"
         version = "3.14"
+        # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
+        descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
         deps = [('GCC', '4.6.4')]
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
@@ -617,7 +619,7 @@ class EasyBlockTest(EnhancedTestCase):
             'name = "%s"' % name,
             'version = "%s"' % version,
             'homepage = "http://example.com"',
-            'description = "test easyconfig"',
+            'description = "%s"' % descr,
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
             "dependencies = [('GCC', '4.6.4'), ('toy', '0.0-deps')]",
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
@@ -705,6 +707,22 @@ class EasyBlockTest(EnhancedTestCase):
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
+
+        # also check whether generated module can be loaded
+        self.modtool.load(['pi/3.14'])
+        self.modtool.unload(['pi/3.14'])
+
+        # [==[ or ]==] in description is fatal
+        if get_module_syntax() == 'Lua':
+            error_pattern = "Found unwanted '\[==\[' or '\]==\]' in: .*"
+            for descr in ["test [==[", "]==] foo"]:
+                ectxt = read_file(self.eb_file)
+                write_file(self.eb_file, re.sub('description.*', 'description = "%s"' % descr, ectxt))
+                ec = EasyConfig(self.eb_file)
+                eb = EasyBlock(ec)
+                eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+                eb.check_readiness_step()
+                self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
@@ -887,6 +905,28 @@ class EasyBlockTest(EnhancedTestCase):
         # sourcepath has preference over downloading
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
+
+        init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
+
+        # clean up toy tarballs in tmpdir, so the one in sourcepath is found
+        remove_file(os.path.join(tmpdir, toy_tarball))
+        remove_file(os.path.join(tmpdir, 't', 'toy', toy_tarball))
+
+        # enabling force_download results in re-downloading, even if file is already in sourcepath
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], force_download=True)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        msg = "WARNING: Found file toy-0.0.tar.gz at %s, but re-downloading it anyway..." % toy_tarball_path
+        self.assertEqual(stderr.strip(), msg)
+
+        # toy tarball was indeed re-downloaded to tmpdir
+        self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
+        self.assertTrue(os.path.exists(os.path.join(tmpdir, 't', 'toy', toy_tarball)))
 
         # obtain_file yields error for non-existing files
         fn = 'thisisclearlyanonexistingfile'
@@ -1161,6 +1201,62 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBVERSIONPYTHON'), '1.2.3')
         self.assertEqual(len(self.modtool.list()), 1)
         self.assertEqual(self.modtool.list()[0]['mod_name'], 'GCC/4.7.2')
+
+    def test_checksum_step(self):
+        """Test checksum step"""
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+
+        ec = process_easyconfig(toy_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.fetch_sources()
+        eb.checksum_step()
+
+        # fiddle with checksum to check whether faulty checksum is catched
+        copy_file(toy_ec, self.test_prefix)
+        toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
+        ectxt = read_file(toy_ec)
+        # replace MD5 checksum for toy-0.0.tar.gz
+        ectxt = ectxt.replace('be662daa971a640e40be5c804d9d7d10', '00112233445566778899aabbccddeeff')
+        # replace SHA256 checksums for source of bar extension
+        ectxt = ectxt.replace('f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7', '01234567' * 8)
+        write_file(toy_ec, ectxt)
+
+        ec = process_easyconfig(toy_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.fetch_sources()
+        error_msg  ="Checksum verification for .*/toy-0.0.tar.gz using .* failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
+
+        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
+        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
+
+        # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
+        build_options = {
+            'ignore_checksums': True,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        eb.checksum_step()
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for toy-0.0.tar.gz")
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        eb.fetch_extension_sources()
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
 
 
 def suite():

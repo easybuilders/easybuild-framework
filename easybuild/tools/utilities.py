@@ -164,10 +164,7 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
     return wrap
 
 
-def trace_msg(message, silent=False, timestamp=False):
+def trace_msg(message, silent=False):
     """Print trace message."""
     if build_option('trace'):
-        _log.experimental("Using --trace")
-        if timestamp:
-            message += " [started at: %s]" % datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print_msg('  >> ' + message, prefix=False)

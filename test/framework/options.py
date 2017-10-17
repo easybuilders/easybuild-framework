@@ -3480,6 +3480,41 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stdout, '')
         self.assertTrue("option --inject-checksums: invalid choice" in stderr)
 
+    def test_force_download(self):
+        """Test --force-download"""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_srcdir = os.path.join(topdir, 'sandbox', 'sources', 'toy')
+
+        copy_file(toy_ec, self.test_prefix)
+        toy_tar = 'toy-0.0.tar.gz'
+        copy_file(os.path.join(toy_srcdir, toy_tar), os.path.join(self.test_prefix, 't', 'toy', toy_tar))
+
+        toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
+        write_file(toy_ec, "\nsource_urls = ['file://%s']" % toy_srcdir, append=True)
+
+        args = [
+            toy_ec,
+            '--force',
+            '--force-download',
+            '--sourcepath=%s' % self.test_prefix,
+        ]
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, raise_error=True, verbose=True, do_build=True)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+        self.assertEqual(stdout, '')
+        regex = re.compile("^WARNING: Found file toy-0.0.tar.gz at .*, but re-downloading it anyway\.\.\.$")
+        self.assertTrue(regex.match(stderr), "Pattern '%s' matches: %s" % (regex.pattern, stderr))
+
+        # check that existing source tarball was backed up
+        toy_tar_backups = glob.glob(os.path.join(self.test_prefix, 't', 'toy', '*.bak_*'))
+        self.assertEqual(len(toy_tar_backups), 1)
+        self.assertTrue(os.path.basename(toy_tar_backups[0]).startswith('toy-0.0.tar.gz.bak_'))
+
 
 def suite():
     """ returns all the testcases in this module """

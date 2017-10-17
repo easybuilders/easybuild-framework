@@ -37,6 +37,7 @@ import re
 import sys
 import tempfile
 from copy import copy
+from datetime import datetime
 from vsc.utils import fancylogger
 from vsc.utils.exceptions import LoggedException
 
@@ -299,3 +300,21 @@ def print_warning(message, silent=False):
     """
     if not silent:
         sys.stderr.write("\nWARNING: %s\n\n" % message)
+
+
+def time_str_since(start_time):
+    """
+    Return string representing amount of time that has passed since specified timestamp
+
+    :param start_time: datetime value representing start time
+    :return: string value representing amount of time passed since start_time;
+             format: "[[%d hours, ]%d mins, ]%d sec(s)"
+    """
+    tot_time = datetime.now() - start_time
+    tot_secs = tot_time.seconds + tot_time.days * 24 * 3600
+    if tot_secs > 0:
+        res = datetime.utcfromtimestamp(tot_secs).strftime('%Hh%Mm%Ss')
+    else:
+        res = "< 1s"
+
+    return res
