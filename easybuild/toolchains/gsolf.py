@@ -38,4 +38,3 @@ class Gsolf(Gsmpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, SpectrumMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gsolf'
     SUBTOOLCHAIN = Gsmpi.NAME
-
