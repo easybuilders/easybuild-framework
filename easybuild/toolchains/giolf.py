@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for goolf compiler toolchain (includes GCC, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for giolf compiler toolchain (includes GCC, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
 :author: Kenneth Hoste (Ghent University)
 """
@@ -34,7 +34,7 @@ from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-class Goolf(Gimpi, OpenBLAS, ScaLAPACK, Fftw):
+class Giolf(Gimpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, IntelMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'giolf'
     SUBTOOLCHAIN = Gimpi.NAME
