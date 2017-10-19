@@ -32,11 +32,12 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from datetime import datetime, timedelta
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_msg, print_warning, time_str_since
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -253,6 +254,20 @@ class BuildLogTest(EnhancedTestCase):
         run_check("testing, 1, 2, 3", expected_stderr="testing, 1, 2, 3", stderr=True, prefix=False, newline=False)
         run_check("testing, 1, 2, 3", silent=True)
         run_check("testing, 1, 2, 3", silent=True, stderr=True)
+
+    def test_time_str_since(self):
+        """Test time_str_since"""
+        self.assertEqual(time_str_since(datetime.now()), '< 1s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1.1)), '00h00m01s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=37.1)), '00h00m37s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=60.1)), '00h01m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=81.1)), '00h01m21s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=1358.1)), '00h22m38s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3600.1)), '01h00m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=3960.1)), '01h06m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=4500.1)), '01h15m00s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=12305.1)), '03h25m05s')
+        self.assertEqual(time_str_since(datetime.now() - timedelta(seconds=54321.1)), '15h05m21s')
 
 
 def suite():
