@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Support for Parastation MPI as toolchain MPI library.
+Support for Spectrum MPI as toolchain MPI library.
 
 :author: Alan O'Cais (Juelich Supercomputing Centre)
 """
