@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gompi compiler toolchain (includes GCC and SpectrumMPI).
+EasyBuild support for gsmpi compiler toolchain (includes GCC and SpectrumMPI).
 
 :author: Kenneth Hoste (Ghent University)
 :author: Alan O'Cais (Juelich Supercomputing Centre)
