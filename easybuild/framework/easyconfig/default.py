@@ -99,6 +99,7 @@ DEFAULT_CONFIG = {
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
     'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
+    'rpath': [False, "Use RPATH linking (regardless of --rpath configuration option)", BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "

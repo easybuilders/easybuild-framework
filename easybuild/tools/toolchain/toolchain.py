@@ -656,7 +656,7 @@ class Toolchain(object):
 
         return (c_comps, fortran_comps)
 
-    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None):
+    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath=None, rpath_filter_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -667,6 +667,7 @@ class Toolchain(object):
                          (If string: comma separated list of variables that will be ignored).
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
+        :param rpath: enable RPATH linking (regardless of 'rpath' configuration option)
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         """
         if loadmod:
@@ -700,12 +701,20 @@ class Toolchain(object):
             if build_option('use_%s' % cache_tool):
                 self.prepare_compiler_cache(cache_tool)
 
-        if build_option('rpath'):
+        if rpath:
+            self.use_rpath = True
+            self.log.info("Enabling RPATH linking, as explicitely specified for this installation")
+        elif build_option('rpath'):
             if self.options.get('rpath', True):
-                self.prepare_rpath_wrappers()
                 self.use_rpath = True
+                self.log.info("Enabling RPATH linking, as configured")
             else:
-                self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
+                self.log.info("Not enabling use of RPATH linking, disabled via 'rpath' toolchain option")
+        else:
+            self.log.info("Not enabling use of RPATH linking, not requested")
+
+        if self.use_rpath:
+            self.prepare_rpath_wrappers()
 
     def comp_cache_compilers(self, cache_tool):
         """
