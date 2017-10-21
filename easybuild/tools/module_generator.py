@@ -307,12 +307,15 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def use(self, paths, prefix=None, guarded=False):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None, arch_env_name=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
+        :param user_modpath: optional user subdir
+        :param mod_path_suffix: optional path suffix
+        :param arch_env_name: optional name of environment variable to use
         """
         raise NotImplementedError
 
@@ -636,12 +639,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None, arch_env_name=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
+        :param user_modpath: optional user subdir
+        :param mod_path_suffix: optional path suffix
+        :param arch_env_name: optional name of environment variable to use
         """
         use_statements = []
         for path in paths:
@@ -936,20 +942,32 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None, arch_env_name=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
+        :param user_modpath: optional user subdir path
+        :param arch_env_name: optional name of environment variable to use, only used with user_modpath
+        :param mod_path_suffix: optional path suffix, only used with user_modpath
         """
         use_statements = []
+        if user_modpath:
+            user_modpath = quote_str(user_modpath)
+            if arch_env_name:
+                user_modpath = 'pathJoin(%s, os.getenv("%s"))' % (user_modpath, arch_env_name)
+            if mod_path_suffix:
+                user_modpath = 'pathJoin(%s, %s)' % (user_modpath, quote_str(mod_path_suffix))
         for path in paths:
             quoted_path = quote_str(path)
+            if user_modpath:
+                quoted_path = 'pathJoin(%s, %s)' % (user_modpath, quoted_path)
             if prefix:
                 full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
             else:
                 full_path = quoted_path
+
             prepend_modulepath = self.UPDATE_PATH_TEMPLATE % ('prepend', 'MODULEPATH', full_path)
             if guarded:
                 cond_statement = self.conditional_statement('isDir(%s)' % full_path, prepend_modulepath)
