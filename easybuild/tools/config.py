@@ -147,6 +147,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip',
         'stop',
         'subdir_user_modules',
+        'subdir_arch_env',
         'test_report_env_filter',
         'testoutput',
         'umask',
