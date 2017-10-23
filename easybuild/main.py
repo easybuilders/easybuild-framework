@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.easyconfig import verify_easyconfig_filename
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, dep_graph
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
-from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
+from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, review_new_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.docs import list_software
@@ -403,6 +403,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # creating/updating PRs
     if new_update_pr:
         if options.new_pr:
+
+            if options.extended_dry_run:
+                print review_new_pr(categorized_paths, colored=use_color(options.color))
+
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
         else:
