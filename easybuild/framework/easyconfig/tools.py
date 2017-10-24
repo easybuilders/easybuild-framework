@@ -499,7 +499,7 @@ def review_pr(pr, colored=True, branch='develop'):
 
     return '\n'.join(lines)
 
-def review_new_pr(paths, colored=True, branch='develop'):
+def preview_pr(paths, colored=True, branch='develop'):
     """
     Print multi-diff overview between easyconfigs in new PR and specified branch.
     :param paths: path tuples (path, generated)
