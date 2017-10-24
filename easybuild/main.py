@@ -405,7 +405,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if options.new_pr:
 
             if options.extended_dry_run:
-                print review_new_pr(categorized_paths, colored=use_color(options.color))
+                print review_new_pr(paths, colored=use_color(options.color))
 
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)

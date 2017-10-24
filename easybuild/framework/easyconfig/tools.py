@@ -502,7 +502,7 @@ def review_pr(pr, colored=True, branch='develop'):
 def review_new_pr(paths, colored=True, branch='develop'):
     """
     Print multi-diff overview between easyconfigs in new PR and specified branch.
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: path tuples (path, generated)
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
     """
@@ -510,7 +510,7 @@ def review_new_pr(paths, colored=True, branch='develop'):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
-    pr_files = [path for path in paths['easyconfigs']]
+    pr_files = [path[0] for path in paths]
 
     lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
