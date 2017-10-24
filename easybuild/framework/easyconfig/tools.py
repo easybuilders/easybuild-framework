@@ -473,11 +473,11 @@ def find_related_easyconfigs(path, ec):
 
     return sorted(res)
 
-
-def review_pr(pr, colored=True, branch='develop'):
+def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     """
-    Print multi-diff overview between easyconfigs in specified PR and specified branch.
+    Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
+    :param paths: path tuples (path, generated) of easyconfigs to review
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
     """
@@ -485,45 +485,28 @@ def review_pr(pr, colored=True, branch='develop'):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
-
+    
+    if pr:
+        pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    elif paths:
+        pr_files = [path[0] for path in paths]
+    else:
+        return "no easyconfigs or pr specified"
+        
     lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
-        _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
+        if pr:
+            _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
+        else:
+            _log.debug("File in new PR %s has these related easyconfigs: %s" % (ec['spec'], files))
         if files:
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
     return '\n'.join(lines)
-
-def preview_pr(paths, colored=True, branch='develop'):
-    """
-    Print multi-diff overview between easyconfigs in new PR and specified branch.
-    :param paths: path tuples (path, generated)
-    :param colored: boolean indicating whether a colored multi-diff should be generated
-    :param branch: easybuild-easyconfigs branch to compare with
-    """
-    tmpdir = tempfile.mkdtemp()
-
-    download_repo_path = download_repo(branch=branch, path=tmpdir)
-    repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
-    pr_files = [path[0] for path in paths]
-
-    lines = []
-    ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
-    for ec in ecs:
-        files = find_related_easyconfigs(repo_path, ec['ec'])
-        _log.debug("File in new PR %s has these related easyconfigs: %s" % (ec['spec'], files))
-        if files:
-            lines.append(multidiff(ec['spec'], files, colored=colored))
-        else:
-            lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
-
-    return '\n'.join(lines)
-
 
 def dump_env_script(easyconfigs):
     """
