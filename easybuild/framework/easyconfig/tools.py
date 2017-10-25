@@ -491,7 +491,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     elif paths:
         pr_files = [path[0] for path in paths]
     else:
-        return "no easyconfigs or pr specified"
+        raise EasyBuildError("No PR # or easyconfig path specified")
         
     lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
