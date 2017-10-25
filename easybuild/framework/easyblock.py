@@ -2975,10 +2975,21 @@ def inject_checksums(ecs, checksum_type):
 
             exts_list_lines = ['exts_list = [']
             for ext in app.exts:
+                if ext['name'] == app.name:
+                    ext_name = 'name'
+                else:
+                    ext_name = "'%s'" % ext['name']
+
                 # for some extensions, only a name if specified (so no sources/patches)
                 if ext.keys() == ['name']:
-                    exts_list_lines.append("%s'%s'," % (INDENT_4SPACES, ext['name']))
+                    exts_list_lines.append("%s%s," % (INDENT_4SPACES, ext_name))
                 else:
+
+                    if ext['version'] == app.version:
+                        ext_version = 'version'
+                    else:
+                        ext_version = "'%s'" % ext['version']
+
                     ext_options = ext.get('options', {})
 
                     # compute checksums for extension sources & patches
@@ -2994,7 +3005,7 @@ def inject_checksums(ecs, checksum_type):
                         print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
                         ext_checksums.append((patch_fn, checksum))
 
-                    exts_list_lines.append("%s('%s', '%s'," % (INDENT_4SPACES, ext['name'], ext['version']))
+                    exts_list_lines.append("%s(%s, %s," % (INDENT_4SPACES, ext_name, ext_version))
                     if ext_options or ext_checksums:
                         exts_list_lines[-1] += ' {'
 
