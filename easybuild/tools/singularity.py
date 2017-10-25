@@ -56,9 +56,9 @@ def generate_singularity_recipe(software,toolchain):
 
     module_scheme = get_module_naming_scheme()
     bootstrap_content = "BootStrap: " + singularity_bootstrap + "\n" 
-    bootstrap_content += "From: shahzebsiddiqui/easybuild \n"
+    bootstrap_content += "From: shahzebsiddiqui/easybuild-framework \n"
     
-    if module_scheme = "HierarchicalMNS":
+    if module_scheme == "HierarchicalMNS":
 	    modulepath = "/app/modules/all/Core"
     else:
 	    modulepath = "/app/modules/all/"
@@ -84,7 +84,7 @@ source /etc/profile
 		environment_content += "module load " + os.path.join(appname,appver) + "\n"
         else:
 
-                environment_content += "module use " modulepath + "\n" 
+                environment_content += "module use " +  modulepath + "\n" 
                 environment_content += "module load " + os.path.join(appname,appver+"-"+tcname+"-"+tcver) + "\n"
     else:
         post_content += "eb " + appname + "-" + appver + ".eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
