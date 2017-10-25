@@ -66,6 +66,9 @@ PKG_TYPE_DEF = 'def'
 PKG_TYPE_IMG = 'img'
 PKG_TYPE_RPM = 'rpm'
 
+DEFAULT_SINGULARITY_BOOTSTRAP_TYPE = 'docker'
+DEFAULT_SINGULARITY_OS_TYPE = 'centos'
+
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
@@ -181,6 +184,7 @@ BUILD_OPTIONS_CMDLINE = {
         'search_paths',
         'sequential',
         'set_gid_bit',
+	'singularity',
         'skip_test_cases',
         'sticky_bit',
         'trace',
@@ -214,6 +218,12 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
+    ],
+    DEFAULT_SINGULARITY_BOOTSTRAP_TYPE: [
+	'singularity_bootstrap',
+    ],
+    DEFAULT_SINGULARITY_OS_TYPE: [
+	'singularity_os',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',

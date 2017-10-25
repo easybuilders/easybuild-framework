@@ -67,6 +67,7 @@ from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, reso
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.singularity import check_singularity
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 from easybuild.tools.version import this_is_easybuild
 
@@ -190,6 +191,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     options = eb_go.options
     orig_paths = eb_go.args
 
+
     # set umask (as early as possible)
     if options.umask is not None:
         new_umask = int(options.umask, 8)
@@ -259,6 +261,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         check_pkg_support()
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
+
+    if options.singularity:
+	check_singularity(options.software,options.toolchain)
+	sys.exit(0)
 
     # search for easyconfigs, if a query is specified
     if search_query:
