@@ -31,7 +31,10 @@ exts_list = [
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
     }),
     ('barbar', '0.0'),
-    (name, version),
+    (name, version, {
+        'sanity_check_paths': {'files': ['lib/libtoy.a'], 'dirs': []},
+        'exts_filter': ("ls -l lib/libtoy.a", ''),
+    }),
 ]
 
 sanity_check_paths = {
