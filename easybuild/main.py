@@ -326,10 +326,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     no_ec_opts = [options.aggregate_regtest, options.regtest, search_query]
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
-    if paths:
+    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+    if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
-        paths = [(p, False) for p in paths]
+        paths = [(p, False) for p in determined_paths]
     else:
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
@@ -406,7 +406,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
         elif options.preview_pr:
-            print review_pr(paths=paths, colored=use_color(options.color))
+            print review_pr(paths=determined_paths, colored=use_color(options.color))
         else:
             update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
 

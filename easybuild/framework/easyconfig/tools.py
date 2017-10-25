@@ -490,7 +490,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     if pr:
         pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
     elif paths:
-        pr_files = [path[0] for path in paths]
+        pr_files = paths
     else:
         raise EasyBuildError("No PR # or easyconfig path specified")
 
