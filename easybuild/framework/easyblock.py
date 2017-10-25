@@ -2958,16 +2958,13 @@ def inject_checksums(ecs, checksum_type):
                     raw[key] = res.group(0).strip() + '\n'
                     ectxt = regex.sub(placeholder, ectxt)
 
-            # this should not happen...
-            if 'sources' not in raw:
-                raise EasyBuildError("Failed to extract raw lines for 'sources' parameter from easyconfig file!")
-
             # inject combination of source_urls/sources/patches/checksums into easyconfig
             # by replacing first occurence of placeholder that was put in place
+            sources_raw = raw.get('sources', '')
             source_urls_raw = raw.get('source_urls', '')
             patches_raw = raw.get('patches', '')
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + raw['sources'] + patches_raw + checksums_txt + '\n', ectxt, count=1)
+            ectxt = regex.sub(source_urls_raw + sources_raw + patches_raw + checksums_txt + '\n', ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)
