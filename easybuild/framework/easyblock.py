@@ -3004,10 +3004,13 @@ def inject_checksums(ecs, checksum_type):
 
                     # if any checksums were collected, inject them for this extension
                     if ext_checksums:
-                        exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
-                        for fn, checksum in ext_checksums:
-                            exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
-                        exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
+                        if len(ext_checksums) == 1:
+                            exts_list_lines.append("%s'checksums': ['%s']," % (INDENT_4SPACES * 2, checksum))
+                        else:
+                            exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
+                            for fn, checksum in ext_checksums:
+                                exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
+                            exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
 
                     if ext_options or ext_checksums:
                         exts_list_lines.append("%s})," % INDENT_4SPACES)
