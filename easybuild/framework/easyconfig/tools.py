@@ -473,6 +473,7 @@ def find_related_easyconfigs(path, ec):
 
     return sorted(res)
 
+
 def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     """
     Print multi-diff overview between specified easyconfigs or PR and specified branch.
@@ -485,14 +486,14 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
-    
+
     if pr:
         pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
     elif paths:
         pr_files = [path[0] for path in paths]
     else:
         raise EasyBuildError("No PR # or easyconfig path specified")
-        
+
     lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
@@ -508,6 +509,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
     return '\n'.join(lines)
+
 
 def dump_env_script(easyconfigs):
     """
