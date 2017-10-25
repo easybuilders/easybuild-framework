@@ -498,9 +498,10 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
         if pr:
-            _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
+            pr_msg = "PR#%s" % pr
         else:
-            _log.debug("File in new PR %s has these related easyconfigs: %s" % (ec['spec'], files))
+            pr_msg = "new PR"
+            _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
         if files:
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
