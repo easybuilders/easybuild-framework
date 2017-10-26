@@ -502,7 +502,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop'):
             pr_msg = "PR#%s" % pr
         else:
             pr_msg = "new PR"
-            _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
+        _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
         if files:
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:
