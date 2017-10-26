@@ -431,7 +431,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
-    if no_ec_opts or new_update_preview_pr or any(stop_options):
+    if any(no_ec_opts) or new_update_preview_pr or any(stop_options):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
