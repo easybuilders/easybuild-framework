@@ -2957,16 +2957,13 @@ def inject_checksums(ecs, checksum_type):
                     raw[key] = res.group(0).strip() + '\n'
                     ectxt = regex.sub(placeholder, ectxt)
 
-            # this should not happen...
-            if 'sources' not in raw:
-                raise EasyBuildError("Failed to extract raw lines for 'sources' parameter from easyconfig file!")
-
             # inject combination of source_urls/sources/patches/checksums into easyconfig
             # by replacing first occurence of placeholder that was put in place
+            sources_raw = raw.get('sources', '')
             source_urls_raw = raw.get('source_urls', '')
             patches_raw = raw.get('patches', '')
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + raw['sources'] + patches_raw + checksums_txt + '\n', ectxt, count=1)
+            ectxt = regex.sub(source_urls_raw + sources_raw + patches_raw + checksums_txt + '\n', ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)
@@ -2977,10 +2974,21 @@ def inject_checksums(ecs, checksum_type):
 
             exts_list_lines = ['exts_list = [']
             for ext in app.exts:
+                if ext['name'] == app.name:
+                    ext_name = 'name'
+                else:
+                    ext_name = "'%s'" % ext['name']
+
                 # for some extensions, only a name if specified (so no sources/patches)
                 if ext.keys() == ['name']:
-                    exts_list_lines.append("%s'%s'," % (INDENT_4SPACES, ext['name']))
+                    exts_list_lines.append("%s%s," % (INDENT_4SPACES, ext_name))
                 else:
+
+                    if ext['version'] == app.version:
+                        ext_version = 'version'
+                    else:
+                        ext_version = "'%s'" % ext['version']
+
                     ext_options = ext.get('options', {})
 
                     # compute checksums for extension sources & patches
@@ -2996,7 +3004,7 @@ def inject_checksums(ecs, checksum_type):
                         print_msg(" * %s: %s" % (patch_fn, checksum), log=_log)
                         ext_checksums.append((patch_fn, checksum))
 
-                    exts_list_lines.append("%s('%s', '%s'," % (INDENT_4SPACES, ext['name'], ext['version']))
+                    exts_list_lines.append("%s(%s, %s," % (INDENT_4SPACES, ext_name, ext_version))
                     if ext_options or ext_checksums:
                         exts_list_lines[-1] += ' {'
 
@@ -3007,10 +3015,13 @@ def inject_checksums(ecs, checksum_type):
 
                     # if any checksums were collected, inject them for this extension
                     if ext_checksums:
-                        exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
-                        for fn, checksum in ext_checksums:
-                            exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
-                        exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
+                        if len(ext_checksums) == 1:
+                            exts_list_lines.append("%s'checksums': ['%s']," % (INDENT_4SPACES * 2, checksum))
+                        else:
+                            exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
+                            for fn, checksum in ext_checksums:
+                                exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
+                            exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
 
                     if ext_options or ext_checksums:
                         exts_list_lines.append("%s})," % INDENT_4SPACES)
