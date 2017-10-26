@@ -67,7 +67,7 @@ from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, reso
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.singularity import check_singularity
+from easybuild.tools.singularity.utilities import check_singularity
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 from easybuild.tools.version import this_is_easybuild
 

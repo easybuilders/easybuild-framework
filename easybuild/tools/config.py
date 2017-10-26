@@ -68,6 +68,8 @@ PKG_TYPE_RPM = 'rpm'
 
 DEFAULT_SINGULARITY_BOOTSTRAP_TYPE = 'shub'
 DEFAULT_SINGULARITY_OS_TYPE = 'centos'
+DEFAULT_SINGULARITY_OS_RELEASE = '7.3.1611'
+DEFAULT_CONTAINER_SIZE = 1024
 
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -161,6 +163,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+	'build_container',
         'consider_archived_easyconfigs',
         'debug',
         'debug_lmod',
@@ -224,6 +227,12 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_SINGULARITY_OS_TYPE: [
 	'singularity_os',
+    ],
+    DEFAULT_SINGULARITY_OS_RELEASE: [
+	'singularity_os_release',
+    ],
+    DEFAULT_CONTAINER_SIZE: [
+	'container_size',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
