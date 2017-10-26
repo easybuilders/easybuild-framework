@@ -11,7 +11,7 @@ repeatable and robust way.
      yum groupinstall -y "Development Tools"
      yum install -y which wget
      yum install -y epel-release
-     yum install -y python-pip python-devel openssl-devel Lmod
+     yum install -y python-pip python-devel  Lmod
 
      # need this for --package to work to generate RPM
      # yum install ruby ruby-devel rubygems -y &&
@@ -22,7 +22,7 @@ repeatable and robust way.
      pip install easybuild
 
      # need this for git integration with eb
-     pip install GitPython python-graph-dot graphviz keyring keyrings.alt
+     #pip install GitPython python-graph-dot graphviz keyring keyrings.alt
 
      mkdir -p /app/modules/
      mkdir -p /app/software
