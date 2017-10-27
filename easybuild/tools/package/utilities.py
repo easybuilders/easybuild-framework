@@ -73,8 +73,6 @@ def package(easyblock):
         pkgdir = package_with_docker(easyblock)
     elif pkgtool == PKG_TOOL_FPM:
         pkgdir = package_with_fpm(easyblock)
-    elif pkgtool == PKG_TOOL_SINGULARITY:
-        pkgdir = package_with_singularity(easyblock)
     else:
         raise EasyBuildError("Unknown packaging tool specified: %s", pkgtool)
 
@@ -178,90 +176,6 @@ def package_with_fpm(easyblock):
 
     return workdir
 
-
-def package_with_singularity(easyblock):
-    """
-    Package software with Singularity,
-    i.e. either generate a container definition file, or build an actual Singularity container image
-    (depending on the value for --package-type, 'def' or 'img')
-    """
-    workdir = tempfile.mkdtemp(prefix='eb-pkgs-')
-    pkgtype = build_option('package_type')
-
-    packagepath_dir = package_path()
-
-
-    module_scheme = get_module_naming_scheme()
-    header_content = """
-# Copyright (c) 2015-2016, Gregory M. Kurtzer. All rights reserved.
-# 
-# "Singularity" Copyright (c) 2016, The Regents of the University of California,
-# through Lawrence Berkeley National Laboratory (subject to receipt of any
-# required approvals from the U.S. Dept. of Energy).  All rights reserved.
-
-"""
-    bootstrap_content = """
-BootStrap: docker
-From: shahzebsiddiqui/easybuild
-
-"""
-
-    post_content = """
-%post
-su - easybuild
-export EASYBUILD_INSTALLPATH=/app
-export EASYBUILD_PREFIX=/scratch
-export EASYBUILD_TMPDIR=/scratch/tmp
-"""
-    environment_content = """
-%environment
-source /etc/profile 
-"""
-
-    # set module naming scheme and alter MODULEPATH based on scheme
-    if module_scheme == "HierarchicalMNS":
-	post_content += """export EASYBUILD_MODULE_NAMING_SCHEME=HierarchicalMNS
-module use /app/modules/all/Core
-"""
-	environment_content += " module use /app/modules/all/Core \n"
-
-    else:
-	post_content += """export EASYBUILD_MODULE_NAMING_SCHEME=EasyBuildMNS
-module use /app/modules/all/
-"""
-	environment_content += " module use /app/modules/all/ \n "
-   	
-    # check if toolchain is specified, that affects how to invoke eb and module load is affected based on module naming scheme
-    if easyblock.toolchain.name != "dummy":
-	post_content += "eb " + easyblock.name + "-" + easyblock.version + "-" + easyblock.toolchain.name + "-" + easyblock.toolchain.version + ".eb --robot \n"
-	def_file  = easyblock.name + "-" + easyblock.version + "-" + easyblock.toolchain.name + "-" + easyblock.toolchain.version + ".def"
-
-	if module_scheme == "HierarchicalMNS":
-		environment_content += "module load " + os.path.join(easyblock.name,easyblock.version) + "\n"
-	else:
-		environment_content += "module load " + os.path.join(easyblock.name,easyblock.version+"-"+easyblock.toolchain.name+"-"+easyblock.toolchain.version) + "\n"
-    else:
-	post_content += "eb " + easyblock.name + "-" + easyblock.version + ".eb --robot \n"
-    	environment_content +=  "module load " + os.path.join(easyblock.name,easyblock.version) + "\n"
-	def_file  = easyblock.name + "-" + easyblock.version + ".def"
-
-    post_content += "exit \n"
-		
-
-    runscript_content = """
-%runscript
-eval "$@"
-"""
-    content = header_content + bootstrap_content + post_content + runscript_content + environment_content
-    if pkgtype == PKG_TYPE_DEF:
-	change_dir(packagepath_dir)
-	write_file(def_file,content)
-    elif pkgtype == PKG_TYPE_IMG:
-        raise NotImplementedError
-    else:
-        raise EasyBuildError("Unknown package type '%s' for Singularity", pkgtype)
-
-    return workdir
 
 
 def check_pkg_support():

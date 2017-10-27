@@ -71,7 +71,6 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
     container_size = build_option('container_size')
     build_container= build_option('build_container')
 
-    print "OS/Release:", singularity_os, singularity_os_release
     packagepath_dir = package_path()
     modulepath = ""
 
@@ -103,7 +102,7 @@ source /etc/profile
 
     # check if toolchain is specified, that affects how to invoke eb and module load is affected based on module naming scheme
     if tcname != None:
-        post_content += "eb " + appname + "-" + appver + "-" + tcname + "-" + tcver + ".eb --robot --installpath=/app/easybuild --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
+        post_content += "eb " + appname + "-" + appver + "-" + tcname + "-" + tcver + ".eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
 
         def_file  = appname + "-" + appver + "-" + tcname + "-" + tcver + ".def"
 
@@ -126,7 +125,9 @@ source /etc/profile
         def_file  = appname + "-" + appver + ".def"
 
 
-    post_content += "exit \n"
+    post_content += """exit
+rm -rf /scratch
+"""
 
 
     runscript_content = """
@@ -145,7 +146,6 @@ eval "$@"
 
     print "Writing Singularity Definition File: %s" % os.path.join(packagepath_dir,def_file)
 
-    print "build_container:", build_container
     # if easybuild will create and build container
     if build_container:
 	    container_name = os.path.splitext(def_file)[0] + ".img"
@@ -180,21 +180,6 @@ def check_singularity(software, toolchain):
 
     buildsystem_session = session_state()
     system_info = buildsystem_session['system_info']
-    """
-    print buildsystem_session['cpu_model']
-    model = buildsystem_session['cpu_model'],
-    host = buildsystem_session['hostname'],
-    osname = buildsystem_session['os_name'],
-    ostype = buildsystem_session['os_type'],
-    osversion = buildsystem_session['os_version'],
-
-    print model
-    print host
-    print host
-    print osname
-    print ostype
-    print osversion
-    """
 
     ret = subprocess.Popen("""lscpu | grep Model: | cut -f2 -d ":" """,shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     model_num = int(ret.communicate()[0])
