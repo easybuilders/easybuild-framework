@@ -277,7 +277,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         merge_pr(options.merge_pr)
 
     elif options.review_pr:
-        print review_pr(options.review_pr, colored=use_color(options.color))
+        print review_pr(pr=options.review_pr, colored=use_color(options.color))
 
     elif options.list_installed_software:
         detailed = options.list_installed_software == 'detailed'
@@ -324,13 +324,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.new_pr, options.regtest, options.update_pr, search_query]
+    no_ec_opts = [options.aggregate_regtest, options.regtest, search_query]
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
-    if paths:
+    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+    if determined_paths:
         # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
-        paths = [(p, False) for p in paths]
+        paths = [(p, False) for p in determined_paths]
     else:
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
@@ -376,11 +376,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
-    new_update_pr = options.new_pr or options.update_pr
+    new_update_preview_pr = options.new_pr or options.update_pr or options.preview_pr
     no_skip = options.extended_dry_run or options.inject_checksums or options.check_versions
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
-    if not (forced or dry_run_mode or new_update_pr or no_skip):
+    if not (forced or dry_run_mode or new_update_preview_pr or no_skip):
         retained_ecs = skip_available(easyconfigs, modtool)
         if not testing:
             for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
@@ -391,22 +391,24 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if len(easyconfigs) > 0:
         # resolve dependencies if robot is enabled, except in dry run mode
         # one exception: deps *are* resolved with --new-pr or --update-pr when dry run mode is enabled
-        if options.robot and (not dry_run_mode or new_update_pr):
+        if options.robot and (not dry_run_mode or new_update_preview_pr):
             print_msg("resolving dependencies ...", log=_log, silent=testing)
             ordered_ecs = resolve_dependencies(easyconfigs, modtool)
         else:
             ordered_ecs = easyconfigs
-    elif new_update_pr:
+    elif new_update_preview_pr:
         ordered_ecs = None
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
 
     # creating/updating PRs
-    if new_update_pr:
+    if new_update_preview_pr:
         if options.new_pr:
             new_pr(categorized_paths, ordered_ecs, title=options.pr_title, descr=options.pr_descr,
                    commit_msg=options.pr_commit_msg)
+        elif options.preview_pr:
+            print review_pr(paths=determined_paths, colored=use_color(options.color))
         else:
             update_pr(options.update_pr, categorized_paths, ordered_ecs, commit_msg=options.pr_commit_msg)
 
@@ -432,10 +434,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.inject_checksums:
         inject_checksums(ordered_ecs, options.inject_checksums)
 
-    # early cleanup and exit after selected actions
-    early_stop_opts = [options.check_conflicts, options.check_versions, dry_run_mode, options.dump_env_script,
-                       options.inject_checksums]
-    if any(no_ec_opts + early_stop_opts):
+    # cleanup and exit after dry run, searching easyconfigs or submitting regression test
+    stop_options = [options.check_conflicts, options.check_versions, dry_run_mode, options.dump_env_script,
+                    options.inject_checksums]
+    if any(no_ec_opts) or new_update_preview_pr or any(stop_options):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

@@ -609,6 +609,8 @@ class EasyBlockTest(EnhancedTestCase):
         """Test the make_module_step"""
         name = "pi"
         version = "3.14"
+        # purposely use a 'nasty' description, that includes (unbalanced) special chars: [, ], {, }
+        descr = "This {is a}} [fancy]] [[description]]. {{[[TEST}]"
         deps = [('GCC', '4.6.4')]
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
@@ -617,7 +619,7 @@ class EasyBlockTest(EnhancedTestCase):
             'name = "%s"' % name,
             'version = "%s"' % version,
             'homepage = "http://example.com"',
-            'description = "test easyconfig"',
+            'description = "%s"' % descr,
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
             "dependencies = [('GCC', '4.6.4'), ('toy', '0.0-deps')]",
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
@@ -705,6 +707,22 @@ class EasyBlockTest(EnhancedTestCase):
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
+
+        # also check whether generated module can be loaded
+        self.modtool.load(['pi/3.14'])
+        self.modtool.unload(['pi/3.14'])
+
+        # [==[ or ]==] in description is fatal
+        if get_module_syntax() == 'Lua':
+            error_pattern = "Found unwanted '\[==\[' or '\]==\]' in: .*"
+            for descr in ["test [==[", "]==] foo"]:
+                ectxt = read_file(self.eb_file)
+                write_file(self.eb_file, re.sub('description.*', 'description = "%s"' % descr, ectxt))
+                ec = EasyConfig(self.eb_file)
+                eb = EasyBlock(ec)
+                eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+                eb.check_readiness_step()
+                self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
