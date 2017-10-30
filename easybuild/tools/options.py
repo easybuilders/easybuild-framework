@@ -569,6 +569,7 @@ class EasyBuildOptions(GeneralOption):
             'pr-target-branch': ("Target branch for new PRs", str, 'store', 'develop'),
             'pr-target-repo': ("Target repository for new/updating PRs", str, 'store', GITHUB_EASYCONFIGS_REPO),
             'pr-title': ("Title for new pull request created with --new-pr", str, 'store', None),
+            'preview-pr': ("Preview a new pull request", None, 'store_true', False),
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
