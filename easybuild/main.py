@@ -335,7 +335,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif no_ec_opts:
+        elif any(no_ec_opts):
             paths = determined_paths
         else:
             print_error(("Please provide one or multiple easyconfig files, or use software build "
