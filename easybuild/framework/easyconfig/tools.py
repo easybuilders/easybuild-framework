@@ -598,6 +598,12 @@ def categorize_files_by_type(paths):
     return res
 
 
+def mk_src_regex(src, version):
+    """Create regex pattern based on given source filename."""
+    src_pattern = src.replace(version, '<version>').replace('.', '\\.').replace('<version>', '(?P<version>.*)')
+    return re.compile(src_pattern)
+
+
 def check_software_versions_via_url(name, src_pattern, url):
     """Check available software versions via provided URL."""
     versions = None
@@ -612,13 +618,12 @@ def check_software_versions_via_url(name, src_pattern, url):
     return versions
 
 
-def check_software_versions_pypi(name, src_pattern, url):
+def check_software_versions_pypi(name, src_regex, url):
     """Determine available software versions for specified PyPI URL."""
     versions = []
-    regex = re.compile(src_pattern.replace('.', '\\.').replace('<version>', '(?P<version>.*)'))
     pkg_urls = pypi_source_urls(name)
     for pkg_url in pkg_urls:
-        res = regex.search(pkg_url)
+        res = src_regex.search(pkg_url)
         if res:
             versions.append(res.group('version'))
 
@@ -656,10 +661,10 @@ def check_software_versions(easyconfigs):
                     if src is None:
                         raise EasyBuildError("Failed to determine source filename from %s", src_spec)
 
-                src_pattern = src.replace(ec['version'], '<version>')
-                lines.append("\tfor source '%s':" % src_pattern)
+                src_regex = mk_src_regex(src, ec['version'])
+                lines.append("\tfor source file pattern '%s':" % src_regex.pattern)
                 for url in ec['source_urls']:
-                    versions = check_software_versions_via_url(ec['name'], src_pattern, url)
+                    versions = check_software_versions_via_url(ec['name'], src_regex, url)
                     if versions:
                         lines.extend('\t\t* %s' % v for v in versions)
                         break
