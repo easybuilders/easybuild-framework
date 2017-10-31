@@ -120,6 +120,32 @@ CHECKSUM_FUNCTIONS = {
 }
 CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
+EXTRACT_CMDS = {
+    # gzipped or gzipped tarball
+    '.gtgz':    "tar xzf %(filepath)s",
+    '.gz':      "gunzip -c %(filepath)s > %(target)s",
+    '.tar.gz':  "tar xzf %(filepath)s",
+    '.tgz':     "tar xzf %(filepath)s",
+    # bzipped or bzipped tarball
+    '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
+    '.tar.bz2': "tar xjf %(filepath)s",
+    '.tb2':     "tar xjf %(filepath)s",
+    '.tbz':     "tar xjf %(filepath)s",
+    '.tbz2':    "tar xjf %(filepath)s",
+    # xzipped or xzipped tarball
+    '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
+    '.txz':     "unxz %(filepath)s --stdout | tar x",
+    '.xz':      "unxz %(filepath)s",
+    # tarball
+    '.tar':     "tar xf %(filepath)s",
+    # zip file
+    '.zip':     "unzip -qq %(filepath)s",
+    # iso file
+    '.iso':     "7z x %(filepath)s",
+    # tar.Z: using compress (LZW)
+    '.tar.z':   "tar xZf %(filepath)s",
+}
+
 
 class ZlibChecksum(object):
     """
@@ -715,49 +741,32 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(filepath, overwrite=False):
-    """
-    Determines the file type of file at filepath, returns extract cmd based on file suffix
-    """
-    filename = os.path.basename(filepath)
-
-    extract_cmds = {
-        # gzipped or gzipped tarball
-        '.gtgz':    "tar xzf %(filepath)s",
-        '.gz':      "gunzip -c %(filepath)s > %(target)s",
-        '.tar.gz':  "tar xzf %(filepath)s",
-        '.tgz':     "tar xzf %(filepath)s",
-        # bzipped or bzipped tarball
-        '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
-        '.tar.bz2': "tar xjf %(filepath)s",
-        '.tb2':     "tar xjf %(filepath)s",
-        '.tbz':     "tar xjf %(filepath)s",
-        '.tbz2':    "tar xjf %(filepath)s",
-        # xzipped or xzipped tarball
-        '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-        '.txz':     "unxz %(filepath)s --stdout | tar x",
-        '.xz':      "unxz %(filepath)s",
-        # tarball
-        '.tar':     "tar xf %(filepath)s",
-        # zip file
-        '.zip':     "unzip -qq -o %(filepath)s" if overwrite else "unzip -qq %(filepath)s",
-        # iso file
-        '.iso':     "7z x %(filepath)s",
-        # tar.Z: using compress (LZW)
-        '.tar.z':   "tar xZf %(filepath)s",
-    }
-
-    suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
-    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in suffixes])
+def find_extension(filename):
+    """Find best match for filename extension."""
+    # sort by length, so longest file extensions get preference
+    suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
+    pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
         ext = res.group('ext')
     else:
         raise EasyBuildError('Unknown file type for file %s', filename)
 
+    return ext
+
+
+def extract_cmd(filepath, overwrite=False):
+    """
+    Determines the file type of file at filepath, returns extract cmd based on file suffix
+    """
+    filename = os.path.basename(filepath)
+    ext = find_extension(filename)
     target = filename.rstrip(ext)
 
-    cmd_tmpl = extract_cmds[ext.lower()]
+    cmd_tmpl = EXTRACT_CMDS[ext.lower()]
+    if overwrite:
+        if 'unzip -qq' in cmd_tmpl:
+            cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
 
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
