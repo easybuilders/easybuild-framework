@@ -323,7 +323,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     categorized_paths = categorize_files_by_type(orig_paths)
 
     # command line options that do not require any easyconfigs to be specified
-    no_ec_opts = [options.aggregate_regtest, options.regtest, search_query]
+    new_update_preview_pr = options.new_pr or options.update_pr or options.preview_pr
+    no_ec_opts = [options.aggregate_regtest, options.regtest, search_query, new_update_preview_pr]
 
     # determine paths to easyconfigs
     determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
@@ -334,7 +335,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any(no_ec_opts):
+        elif any(no_ec_opts):
+            paths = determined_paths
+        else:
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
@@ -375,7 +378,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
-    new_update_preview_pr = options.new_pr or options.update_pr or options.preview_pr
 
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not (forced or dry_run_mode or options.extended_dry_run or new_update_preview_pr or options.inject_checksums):
@@ -431,7 +433,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [options.check_conflicts, dry_run_mode, options.dump_env_script, options.inject_checksums]
-    if any(no_ec_opts) or new_update_preview_pr or any(stop_options):
+    if any(no_ec_opts) or any(stop_options):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
