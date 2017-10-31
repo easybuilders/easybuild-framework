@@ -42,8 +42,9 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion, StrictVersion
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
@@ -52,7 +53,8 @@ from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, pypi_source_urls, resolve_path, which, write_file
+from easybuild.tools.filetools import KNOWN_EXTS, find_easyconfigs, find_extension, is_patch_file, pypi_source_urls
+from easybuild.tools.filetools import resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -600,7 +602,22 @@ def categorize_files_by_type(paths):
 
 def mk_src_regex(src, version):
     """Create regex pattern based on given source filename."""
-    src_pattern = src.replace(version, '<version>').replace('.', '\\.').replace('<version>', '(?P<version>.*)')
+    known_exts = sorted(KNOWN_EXTS, key=len, reverse=True)
+
+    # replace file extension with regex pattern for known extensions for source files
+    ext_regex = re.compile(find_extension(src).replace('.', '\\.') + '$')
+    src_pattern = ext_regex.sub('(' + '|'.join(known_exts) + ')', src) # '(?![a-zA-Z.]))', src)
+
+    # replace version with placeholder (which doesn't include dots)
+    version_placeholder = '@version@'
+    src_pattern = src_pattern.replace(version, version_placeholder)
+    # escape all dots to avoid that they match any character
+    src_pattern = src_pattern.replace('.', '\\.')
+    # replace version placeholder with regex pattern for versions;
+    # versions are assumed not to include a dot followed by a letter,
+    # to avoid including parts of an extension in the matched version
+    src_pattern = src_pattern.replace(version_placeholder, '(?P<version>([\w-]|\.(?![a-zA-Z]))*)')
+
     return re.compile(src_pattern)
 
 
@@ -627,7 +644,7 @@ def check_software_versions_pypi(name, src_regex, url):
         if res:
             versions.append(res.group('version'))
 
-    return sorted(versions, key=LooseVersion)
+    return versions
 
 
 def check_software_versions(easyconfigs):
@@ -637,7 +654,7 @@ def check_software_versions(easyconfigs):
         ec = ec['ec']
         lines.extend([
             "* available software versions for %s:" % ec['name'],
-            "\t(based on %s)" % ec.path,
+            "  (based on %s)" % ec.path,
         ])
 
         versions = []
@@ -654,22 +671,26 @@ def check_software_versions(easyconfigs):
             for src_spec in ec['sources']:
                 if isinstance(src_spec, basestring):
                     src = src_spec
-                if isinstance(src_spec, (list, tuple)):
+                elif isinstance(src_spec, (list, tuple)):
                     src = src_spec[0]
                 elif isinstance(src_spec, dict):
                     src = src_spec.get('download_filename') or src_spec.get('filename')
                     if src is None:
                         raise EasyBuildError("Failed to determine source filename from %s", src_spec)
+                else:
+                    raise EasyBuildError("Unknown type of source spec: %s", src_spec)
 
                 src_regex = mk_src_regex(src, ec['version'])
-                lines.append("\tfor source file pattern '%s':" % src_regex.pattern)
                 for url in ec['source_urls']:
-                    versions = check_software_versions_via_url(ec['name'], src_regex, url)
-                    if versions:
-                        lines.extend('\t\t* %s' % v for v in versions)
-                        break
+                    versions.extend(check_software_versions_via_url(ec['name'], src_regex, url))
 
-        if not versions:
+        if versions:
+            # replace pre-release tags like 'rc1' with 'b9991' to get correct version ordering
+            # the '999' is added to try and ensure correct ordering against existing 'b<number>' versions
+            rc_regex = re.compile('rc([0-9])')
+            ordered_versions = nub(sorted(versions, key=lambda v: StrictVersion(rc_regex.sub(r'b999\1', v))))
+            lines.extend('\t* %s' % v for v in nub(ordered_versions))
+        else:
             lines.append("\tNo versions found for %s! :(" % ec['name'])
 
         # FIXME: also handle extensions

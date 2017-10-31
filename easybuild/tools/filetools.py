@@ -145,6 +145,7 @@ EXTRACT_CMDS = {
     # tar.Z: using compress (LZW)
     '.tar.z':   "tar xZf %(filepath)s",
 }
+KNOWN_EXTS = EXTRACT_CMDS.keys()
 
 
 class ZlibChecksum(object):
@@ -744,7 +745,7 @@ def find_base_dir():
 def find_extension(filename):
     """Find best match for filename extension."""
     # sort by length, so longest file extensions get preference
-    suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
+    suffixes = sorted(KNOWN_EXTS, key=len, reverse=True)
     pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
