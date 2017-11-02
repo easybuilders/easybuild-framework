@@ -138,6 +138,7 @@ BUILD_OPTIONS_CMDLINE = {
         'github_org',
         'group',
         'ignore_dirs',
+	'image_name',
         'job_backend_config',
         'job_cores',
         'job_max_walltime',

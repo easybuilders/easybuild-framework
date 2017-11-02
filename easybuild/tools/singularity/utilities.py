@@ -74,6 +74,7 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
     bootstrap_imagepath = build_option('bootstrap_imagepath')
     container_size = build_option('container_size')
     build_container= build_option('build_container')
+    image_name = build_option('image_name')
 
     packagepath_dir = package_path()
     modulepath = ""
@@ -87,7 +88,6 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
 	
     bootstrap_localimage = "False"
 	
-    print bootstrap_imagepath
     # check if bootstrap imagepath is valid path and extension is ".img or .simg"
     if bootstrap_imagepath != None:
 	if os.path.exists(bootstrap_imagepath):
@@ -157,7 +157,10 @@ source /etc/profile
 
 
     post_content += """exit
-rm -rf /scratch
+rm -rf /scratch/tmp/*
+rm -rf /scratch/build
+rm -rf /scratch/sources
+rm -rf /scratch/ebfiles_repo
 """
 
 
@@ -179,7 +182,21 @@ eval "$@"
 
     # if easybuild will create and build container
     if build_container:
-	    container_name = os.path.splitext(def_file)[0] + ".img"
+	    container_name = ""
+
+	    if image_name != None:
+		    ext =  os.path.splitext(image_name)[1] 
+		    if ext == ".img" or ext == ".simg":
+			_log.debug("Extension for image is okay from --image-name")
+		    else:
+			print "Invalid Extension for --image-name ", ext
+			EasyBuildError("Invalid Extension for --image-name %s", ext)
+			sys.exit(1)
+
+		    container_name = image_name
+	    else:
+		    container_name = os.path.splitext(def_file)[0] + ".img"
+
    	    os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
 	    os.system("sudo singularity build " + container_name + " " + def_file)
     return 

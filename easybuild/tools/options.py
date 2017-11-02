@@ -619,6 +619,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'singularity': ("Enabling Singularity Integration", None, 'store_true', False),
+	    'image-name': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
             'singularity-bootstrap': ("Singularity bootstrap agent", None, 'store', DEFAULT_SINGULARITY_BOOTSTRAP_TYPE),
 	    'bootstrap-imagepath': ("Image path used for localimage bootstrap type", None, 'store',None),
             'singularity-os': ("Singularity container operating system ", None, 'store', DEFAULT_SINGULARITY_OS_TYPE),
