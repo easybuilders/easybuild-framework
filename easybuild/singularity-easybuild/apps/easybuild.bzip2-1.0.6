@@ -5,7 +5,10 @@ From: shahzebsiddiqui/easybuild-framework:centos-7.3.1611
 su - easybuild
 eb bzip2-1.0.6.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=EasyBuildMNS
 exit
-rm -rf /scratch
+rm -rf /scratch/tmp/*
+rm -rf /scratch/build
+rm -rf /scratch/sources
+rm -rf /scratch/ebfiles_repo
 
 %runscript
 eval "$@"
