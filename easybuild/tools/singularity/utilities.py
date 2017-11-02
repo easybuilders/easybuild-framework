@@ -31,10 +31,13 @@ import subprocess
 import os
 import sys
 import easybuild.tools.options as eboptions
+
+from vsc.utils import fancylogger
 from easybuild.tools.config import build_option, get_module_naming_scheme, package_path
 from easybuild.tools.filetools import change_dir, which, write_file
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.testing import  session_state
+_log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
 
 def architecture_query(model_num):
 	model_mapping = {
@@ -68,6 +71,7 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
     singularity_os = build_option('singularity_os')
     singularity_os_release = build_option('singularity_os_release')
     singularity_bootstrap = build_option('singularity_bootstrap')
+    bootstrap_imagepath = build_option('bootstrap_imagepath')
     container_size = build_option('container_size')
     build_container= build_option('build_container')
 
@@ -80,10 +84,37 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
 	tcname = None 
     else:
 	tcname,tcver = toolchain
+	
+    bootstrap_localimage = "False"
+	
+    print bootstrap_imagepath
+    # check if bootstrap imagepath is valid path and extension is ".img or .simg"
+    if bootstrap_imagepath != None:
+	if os.path.exists(bootstrap_imagepath):
+		image_ext = os.path.splitext(bootstrap_imagepath)[1]
+		if image_ext == ".img" or image_ext != ".simg":
+    			_log.debug("Image Extension from --bootstrap-imagepath is OK")
+			bootstrap_localimage = "True"
+		else:
+			print "Invalid image extension %s", image_ext
+			EasyBuildError("Invalid image extension %s", image_ext)
+			sys.exit(1)
+	else:
+		
+		print "Can't find image path ", bootstrap_imagepath
+		EasyBuildError("Can't find image path %s", bootstrap_imagepath)
+		sys.exit(1)
 
     module_scheme = get_module_naming_scheme()
-    bootstrap_content = "BootStrap: " + singularity_bootstrap + "\n" 
-    bootstrap_content += "From: shahzebsiddiqui/easybuild-framework:" + singularity_os + "-" + singularity_os_release + "\n"
+    
+    # bootstrap from local image
+    if bootstrap_localimage == "True":
+	bootstrap_content = "Bootstrap: localimage \n"
+	bootstrap_content += "From: " + bootstrap_imagepath + "\n" 
+    # default bootstrap is shub
+    else:
+	    bootstrap_content = "BootStrap: " + singularity_bootstrap + "\n" 
+	    bootstrap_content += "From: shahzebsiddiqui/easybuild-framework:" + singularity_os + "-" + singularity_os_release + "\n"
     
     if module_scheme == "HierarchicalMNS":
 	    modulepath = "/app/modules/all/Core"
