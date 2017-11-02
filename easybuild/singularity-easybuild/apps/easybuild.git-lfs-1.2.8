@@ -1,0 +1,21 @@
+BootStrap: shub
+From: shahzebsiddiqui/easybuild-framework:centos-7.3.1611
+
+%post
+su - easybuild
+eb git-lfs-1.1.1.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=EasyBuildMNS
+exit
+rm -rf /scratch
+
+%runscript
+eval "$@"
+
+%environment
+source /etc/profile
+module use /app/modules/all/
+module load git-lfs/1.1.1
+
+%labels 
+Architecture IvyBridge
+Host amrndhl1157.pfizer.com
+CPU  Intel(R) Xeon(R) CPU E7-8891 v2 @ 3.20GHz

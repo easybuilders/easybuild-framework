@@ -1,0 +1,21 @@
+Bootstrap: localimage 
+From: /nfs/grid/software/singularity/easybuild/easybuild-centos-7.3.1611.img
+
+%post
+su - easybuild
+eb zlib-1.2.8.eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=EasyBuildMNS
+exit
+rm -rf /scratch
+
+%runscript
+eval "$@"
+
+%environment
+source /etc/profile
+module use /app/modules/all/
+module load zlib/1.2.8
+
+%labels 
+Architecture IvyBridge
+Host amrndhl1157.pfizer.com
+CPU  Intel(R) Xeon(R) CPU E7-8891 v2 @ 3.20GHz
