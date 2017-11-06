@@ -54,8 +54,8 @@ from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import KNOWN_EXTS, find_easyconfigs, find_extension, is_patch_file, pypi_source_urls
-from easybuild.tools.filetools import resolve_path, which, write_file
+from easybuild.tools.filetools import KNOWN_EXTS, download_file, find_easyconfigs, find_extension, is_patch_file
+from easybuild.tools.filetools import pypi_source_urls, read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -633,10 +633,13 @@ def check_software_versions_via_url(name, src_pattern, url):
             versions = url_handler(name, src_pattern, url)
             break
 
+    if not versions:
+        versions = check_software_versions_via_dir_listing(name, src_pattern, url)
+
     return versions
 
 
-def check_software_versions_pypi(name, src_regex, url):
+def check_software_versions_pypi(name, src_regex, _):
     """Determine available software versions for specified PyPI URL."""
     versions = []
     pkg_urls = pypi_source_urls(name)
@@ -644,6 +647,18 @@ def check_software_versions_pypi(name, src_regex, url):
         res = src_regex.search(pkg_url)
         if res:
             versions.append(res.group('version'))
+
+    return versions
+
+
+def check_software_versions_via_dir_listing(name, src_regex, url):
+    """Try to determine available software versions by scraping URL as directory listing."""
+    target = os.path.join(tempfile.mkdtemp(), 'dir.list')
+    download_file(os.path.basename(target), url, target)
+
+    versions = []
+    for res in src_regex.finditer(read_file(target)):
+        versions.append(res.group('version'))
 
     return versions
 
