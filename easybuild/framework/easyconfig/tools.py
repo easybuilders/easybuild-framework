@@ -42,7 +42,8 @@ import os
 import re
 import sys
 import tempfile
-from distutils.version import LooseVersion, StrictVersion
+from distutils.version import LooseVersion
+from pkg_resources import parse_version
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
@@ -688,7 +689,7 @@ def check_software_versions(easyconfigs):
             # replace pre-release tags like 'rc1' with 'b9991' to get correct version ordering
             # the '999' is added to try and ensure correct ordering against existing 'b<number>' versions
             rc_regex = re.compile('rc([0-9])')
-            ordered_versions = nub(sorted(versions, key=lambda v: StrictVersion(rc_regex.sub(r'b999\1', v))))
+            ordered_versions = nub(sorted(versions, key=lambda v: parse_version(v)))
             lines.extend('\t* %s' % v for v in nub(ordered_versions))
         else:
             lines.append("\tNo versions found for %s! :(" % ec['name'])
