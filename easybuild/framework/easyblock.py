@@ -1390,6 +1390,11 @@ class EasyBlock(object):
     # MISCELLANEOUS UTILITY FUNCTIONS
     #
 
+    @property
+    def start_dir(self):
+        """Start directory in build directory"""
+        return self.cfg['start_dir']
+
     def guess_start_dir(self):
         """
         Return the directory where to start the whole configure/make/make install cycle from
@@ -1401,8 +1406,8 @@ class EasyBlock(object):
         start_dir = ''
         # do not use the specified 'start_dir' when running as --module-only as
         # the directory will not exist (extract_step is skipped)
-        if self.cfg['start_dir'] and not build_option('module_only'):
-            start_dir = self.cfg['start_dir']
+        if self.start_dir and not build_option('module_only'):
+            start_dir = self.start_dir
 
         if not os.path.isabs(start_dir):
             if len(self.src) > 0 and not self.skip and self.src[0]['finalpath']:
@@ -1428,8 +1433,8 @@ class EasyBlock(object):
 
         self.log.info("Using %s as start dir", self.cfg['start_dir'])
 
-        change_dir(self.cfg['start_dir'])
-        self.log.debug("Changed to real build directory %s (start_dir)", self.cfg['start_dir'])
+        change_dir(self.start_dir)
+        self.log.debug("Changed to real build directory %s (start_dir)", self.start_dir)
 
     def handle_iterate_opts(self):
         """Handle options relevant during iterated part of build/install procedure."""
