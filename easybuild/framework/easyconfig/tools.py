@@ -653,12 +653,16 @@ def check_software_versions_pypi(name, src_regex, _):
 
 def check_software_versions_via_dir_listing(name, src_regex, url):
     """Try to determine available software versions by scraping URL as directory listing."""
-    target = os.path.join(tempfile.mkdtemp(), 'dir.list')
-    download_file(os.path.basename(target), url, target)
-
     versions = []
-    for res in src_regex.finditer(read_file(target)):
-        versions.append(res.group('version'))
+
+    target = os.path.join(tempfile.mkdtemp(), 'dir.list')
+    if download_file(os.path.basename(target), url, target):
+        dir_list = read_file(target)
+        _log.debug("Directory listing @ %s:\n%s", url, dir_list)
+        for res in src_regex.finditer(dir_list):
+            _log.debug("Found match for source regex '%s': %s", src_regex.pattern, res.groups())
+            version = res.group('version')
+            versions.append(res.group('version'))
 
     return versions
 
@@ -696,6 +700,7 @@ def check_software_versions(easyconfigs):
                 else:
                     raise EasyBuildError("Unknown type of source spec: %s", src_spec)
 
+                # FIXME version will be incorrect here for components...
                 src_regex = mk_src_regex(src, ec['version'])
                 for url in ec['source_urls']:
                     versions.extend(check_software_versions_via_url(ec['name'], src_regex, url))
