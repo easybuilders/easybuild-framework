@@ -75,7 +75,8 @@ try:
     sys.path.append('..')
     sys.path.append('/usr/lib/graphviz/python/')
     sys.path.append('/usr/lib64/graphviz/python/')
-    # https://pypi.python.org/pypi/pygraphviz
+    # Python bindings to Graphviz (http://www.graphviz.org/),
+    # see https://pypi.python.org/pypi/graphviz-python
     # graphviz-python (yum) or python-pygraphviz (apt-get)
     # or brew install graphviz --with-bindings (OS X)
     import gv
@@ -225,7 +226,7 @@ def _dep_graph_dump(dgr, filename):
         _dep_graph_gv(dottxt, filename)
 
 
-@only_if_module_is_available('gv', pkgname='graphviz')
+@only_if_module_is_available('gv', pkgname='graphviz-python')
 def _dep_graph_gv(dottxt, filename):
     """Render dependency graph to file using graphviz."""
     # try and render graph in specified file format
