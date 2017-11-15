@@ -42,6 +42,7 @@ import difflib
 import fileinput
 import glob
 import hashlib
+import imp
 import os
 import re
 import shutil
@@ -1651,3 +1652,37 @@ def diff_files(path1, path2):
     file1_lines = ['%s\n' % l for l in read_file(path1).split('\n')]
     file2_lines = ['%s\n' % l for l in read_file(path2).split('\n')]
     return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
+
+
+def find_hook(step_name, pre_hook=True):
+    """
+    Find pre- or post-hook for specified step.
+
+    :param step_name: name of the step that hook relates to
+    :param pre_hook: True to search for pre-step hook, False to search for post-step hook
+    """
+    res = None
+    hooks_path = build_option('hooks')
+    if hooks_path:
+        (hooks_dir, hooks_filename) = os.path.split(hooks_path)
+        (hooks_mod_name, hooks_file_ext) = os.path.splitext(hooks_filename)
+        if hooks_file_ext == '.py':
+            _log.info("Importing hooks implementation from %s...", hooks_path)
+            (fh, pathname, descr) = imp.find_module(hooks_mod_name, [hooks_dir])
+            try:
+                imported_hooks = imp.load_module(hooks_mod_name, fh, pathname, descr)
+                found_hooks = [attr for attr in dir(imported_hooks) if attr.endswith('_hook')]
+                _log.debug("Found hooks: %s", found_hooks)
+            except ImportError as err:
+                raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
+
+            hook_name = ('post_', 'pre_')[pre_hook] + step_name + '_hook'
+            if hook_name in found_hooks:
+                res = getattr(imported_hooks, hook_name)
+                print "Found %s: %s" % (hook_name, res)
+        else:
+            raise EasyBuildError("Provided path for hooks implementation should be location of a Python file (*.py)")
+    else:
+        _log.info("No location for hooks implementation provided, no hooks defined")
+
+    return res
