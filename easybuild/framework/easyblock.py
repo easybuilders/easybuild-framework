@@ -145,7 +145,7 @@ class EasyBlock(object):
         self.orig_workdir = os.getcwd()
 
         # list of pre- and post-step hooks
-        self.hooks = hooks
+        self.hooks = hooks or []
 
         # list of patch/source files, along with checksums
         self.patches = []

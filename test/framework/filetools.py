@@ -1542,6 +1542,36 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile('^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
         self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
 
+    def test_hooks(self):
+        """Test for functions that support use of hooks."""
+        test_hooks_pymod = os.path.join(self.test_prefix, 'test_hooks.py')
+        test_hooks_pymod_txt = '\n'.join([
+            'def pre_install_hook(self):',
+            '    pass',
+            'def foo():',
+            '    pass',
+            'def post_configure_hook(self):',
+            '    foo()',
+            '    pass',
+        ])
+        ft.write_file(test_hooks_pymod, test_hooks_pymod_txt)
+
+        hooks = ft.load_hooks(test_hooks_pymod)
+        self.assertEqual(len(hooks), 2)
+        self.assertEqual(sorted(h.__name__ for h in hooks), ['post_configure_hook', 'pre_install_hook'])
+        self.assertTrue(all(callable(h) for h in hooks))
+
+        post_configure_hook = [h for h in hooks if h.__name__ == 'post_configure_hook'][0]
+        pre_install_hook = [h for h in hooks if h.__name__ == 'pre_install_hook'][0]
+
+        self.assertEqual(ft.find_hook('configure', hooks), None)
+        self.assertEqual(ft.find_hook('configure', hooks, pre_hook=True), None)
+        self.assertEqual(ft.find_hook('configure', hooks, pre_hook=False), post_configure_hook)
+
+        self.assertEqual(ft.find_hook('install', hooks), pre_install_hook)
+        self.assertEqual(ft.find_hook('install', hooks, pre_hook=True), pre_install_hook)
+        self.assertEqual(ft.find_hook('install', hooks, pre_hook=False), None)
+
 
 def suite():
     """ returns all the testcases in this module """
