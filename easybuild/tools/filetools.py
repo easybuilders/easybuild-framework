@@ -1654,14 +1654,9 @@ def diff_files(path1, path2):
     return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
 
 
-def find_hook(step_name, pre_hook=True):
-    """
-    Find pre- or post-hook for specified step.
-
-    :param step_name: name of the step that hook relates to
-    :param pre_hook: True to search for pre-step hook, False to search for post-step hook
-    """
-    res = None
+def load_hooks():
+    """Load defined hooks (if any)."""
+    hooks = []
     hooks_path = build_option('hooks')
     if hooks_path:
         (hooks_dir, hooks_filename) = os.path.split(hooks_path)
@@ -1670,19 +1665,38 @@ def find_hook(step_name, pre_hook=True):
             _log.info("Importing hooks implementation from %s...", hooks_path)
             (fh, pathname, descr) = imp.find_module(hooks_mod_name, [hooks_dir])
             try:
+                # import module that defines hooks, and collect all functions of which name ends with '_hook'
                 imported_hooks = imp.load_module(hooks_mod_name, fh, pathname, descr)
-                found_hooks = [attr for attr in dir(imported_hooks) if attr.endswith('_hook')]
-                _log.debug("Found hooks: %s", found_hooks)
+                for attr in dir(imported_hooks):
+                    if attr.endswith('_hook'):
+                        hook = getattr(imported_hooks, attr)
+                        if callable(hook):
+                            hooks.append(hook)
+                        else:
+                            _log.debug("Skipping non-callable attribute '%s' when loading hooks", attr)
+                _log.debug("Found hooks: %s", hooks)
             except ImportError as err:
                 raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
-
-            hook_name = ('post_', 'pre_')[pre_hook] + step_name + '_hook'
-            if hook_name in found_hooks:
-                res = getattr(imported_hooks, hook_name)
-                print "Found %s: %s" % (hook_name, res)
         else:
             raise EasyBuildError("Provided path for hooks implementation should be location of a Python file (*.py)")
     else:
         _log.info("No location for hooks implementation provided, no hooks defined")
+
+    return hooks
+
+
+def find_hook(step_name, known_hooks, pre_hook=True):
+    """
+    Find pre- or post-hook for specified step.
+
+    :param step_name: name of the step that hook relates to
+    :param pre_hook: True to search for pre-step hook, False to search for post-step hook
+    """
+    res = None
+    hook_name = ('post_', 'pre_')[pre_hook] + step_name + '_hook'
+    for hook in known_hooks:
+        if hook.__name__ == hook_name:
+            res = hook
+            break
 
     return res
