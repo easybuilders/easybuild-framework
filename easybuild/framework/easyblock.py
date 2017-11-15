@@ -135,7 +135,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, ec):
+    def __init__(self, ec, hooks=None):
         """
         Initialize the EasyBlock instance.
         :param ec: a parsed easyconfig file (EasyConfig instance)
@@ -143,6 +143,9 @@ class EasyBlock(object):
 
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
+
+        # list of pre- and post-step hooks
+        self.hooks = hooks
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -2434,7 +2437,7 @@ class EasyBlock(object):
         self.log.info("Starting %s step", step)
         self.update_config_template_run_step()
 
-        pre_hook = find_hook(step, pre_hook=True)
+        pre_hook = find_hook(step, self.hooks, pre_hook=True)
         if pre_hook:
             self.log.info("Found pre-%s hook, so running it...", step)
             pre_hook(self)
@@ -2462,7 +2465,7 @@ class EasyBlock(object):
                 # and returns the actual method, so use () to execute it
                 step_method(self)()
 
-        post_hook = find_hook(step, pre_hook=False)
+        post_hook = find_hook(step, self.hooks, pre_hook=False)
         if post_hook:
             self.log.info("Found post-%s hook, so running it...", step)
             post_hook(self)
@@ -2611,7 +2614,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env):
+def build_and_install_one(ecdict, init_env, hooks=None):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
@@ -2649,7 +2652,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
 
-        app = app_class(ecdict['ec'])
+        app = app_class(ecdict['ec'], hooks=hooks)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),

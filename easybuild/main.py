@@ -58,7 +58,7 @@ from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, s
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
 from easybuild.tools.docs import list_software
-from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
+from easybuild.tools.filetools import adjust_permissions, cleanup, load_hooks, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import new_pr, merge_pr, update_pr
 from easybuild.tools.modules import modules_tool
@@ -104,8 +104,15 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
-    """Build and install software for all provided parsed easyconfig files."""
+def build_and_install_software(ecs, init_session_state, hooks=None, exit_on_failure=True):
+    """
+    Build and install software for all provided parsed easyconfig files.
+
+    :param ecs: easyconfig files to install software with
+    :param init_session_state: initial session state, to use in test reports
+    :param hooks: list of defined pre- and post-step hooks
+    :param exit_on_failure: whether or not to exit on installation failure
+    """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
@@ -115,7 +122,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     for ec in ecs:
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, hooks=hooks)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -455,7 +462,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     # build software, will exit when errors occurs (except when testing)
     exit_on_failure = not options.dump_test_report and not options.upload_test_report
     if not testing or (testing and do_build):
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, hooks=load_hooks(),
+                                                  exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
