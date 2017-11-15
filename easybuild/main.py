@@ -460,9 +460,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when testing)
+    hooks = load_hooks(build_option('hooks'))
     exit_on_failure = not options.dump_test_report and not options.upload_test_report
     if not testing or (testing and do_build):
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, hooks=load_hooks(),
+        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, hooks=hooks,
                                                   exit_on_failure=exit_on_failure)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]

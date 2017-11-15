@@ -1654,10 +1654,9 @@ def diff_files(path1, path2):
     return ''.join(difflib.unified_diff(file1_lines, file2_lines, fromfile=path1, tofile=path2))
 
 
-def load_hooks():
+def load_hooks(hooks_path):
     """Load defined hooks (if any)."""
     hooks = []
-    hooks_path = build_option('hooks')
     if hooks_path:
         (hooks_dir, hooks_filename) = os.path.split(hooks_path)
         (hooks_mod_name, hooks_file_ext) = os.path.splitext(hooks_filename)
