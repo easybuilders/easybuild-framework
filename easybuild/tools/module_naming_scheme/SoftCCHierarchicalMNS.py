@@ -72,6 +72,8 @@ class SoftCCHierarchicalMNS(HierarchicalMNS):
                 modname_regex = re.compile('^%s/\S+$' % re.escape('intel'))
             elif name == 'impi':
                 modname_regex = re.compile('^%s/\S+$' % re.escape('intelmpi'))
+            elif name == 'FFTW':
+                modname_regex = re.compile('^%s/\S+$' % re.escape('fftw-mpi'))
             res = bool(modname_regex.match(short_modname.lower()))
 
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",
