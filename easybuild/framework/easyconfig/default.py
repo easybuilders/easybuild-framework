@@ -153,6 +153,7 @@ DEFAULT_CONFIG = {
     # EXTENSIONS easyconfig parameters
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
     'exts_defaultclass': [None, "List of module for and name of the default extension class", EXTENSIONS],
+    'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],
     'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
                            "(templates for name, version and src)."), EXTENSIONS],
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
