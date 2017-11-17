@@ -3406,11 +3406,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
             'patches': ['bar-0.0_typo.patch'],
+            'source_urls': ['http://example.com'],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
         }))
         self.assertEqual(ec['exts_list'][1], ('barbar', '0.0', {
-            'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c']
+            'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
+            'source_urls': ['http://example.com'],
         }))
 
         # backup of easyconfig was created

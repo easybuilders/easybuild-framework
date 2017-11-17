@@ -470,14 +470,19 @@ class EasyBlock(object):
                     exts_sources.append({'name': ext_name})
                 else:
                     ext_version = ext[1]
-                    ext_options = {}
+
+                    # make sure we grab *raw* dict of default options for extension,
+                    # since it may use template values like %(name)s & %(version)s
+                    self.cfg.enable_templating = False
+                    ext_options = copy.deepcopy(self.cfg['exts_default_options'])
+                    self.cfg.enable_templating = True
 
                     def_src_tmpl = "%(name)s-%(version)s.tar.gz"
 
                     if len(ext) == 3:
-                        ext_options = ext[2]
-
-                        if not isinstance(ext_options, dict):
+                        if isinstance(ext_options, dict):
+                            ext_options.update(ext[2])
+                        else:
                             raise EasyBuildError("Unexpected type (non-dict) for 3rd element of %s", ext)
                     elif len(ext) > 3:
                         raise EasyBuildError('Extension specified in unknown format (list/tuple too long)')
