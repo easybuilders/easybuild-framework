@@ -3018,8 +3018,14 @@ def inject_checksums(ecs, checksum_type):
                     if ext_options or ext_checksums:
                         exts_list_lines[-1] += ' {'
 
+                    # make sure we grab *raw* dict of default options for extension,
+                    # since it may use template values like %(name)s & %(version)s
+                    app.cfg.enable_templating = False
+                    exts_default_options = app.cfg['exts_default_options']
+                    app.cfg.enable_templating = True
+
                     for key, val in sorted(ext_options.items()):
-                        if key != 'checksums':
+                        if key != 'checksums' and val != exts_default_options.get(key):
                             val = quote_str(val, prefer_single_quotes=True)
                             exts_list_lines.append("%s'%s': %s," % (INDENT_4SPACES * 2, key, val))
 
