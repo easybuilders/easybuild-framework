@@ -312,7 +312,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain = {"name": "dummy", "version": "dummy"}',
             'exts_default_options = {',
             '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
-            '    "source_urls": ["http://example.com/"]',
+            '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
             '}',
             'exts_list = [',
             '   ("ext1", "1.0"),',
@@ -338,7 +338,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[0]['version'], '1.0')
         self.assertEqual(exts_sources[0]['options'], {
             'source_tmpl': 'gzip-1.4.eb',
-            'source_urls': ['http://example.com/'],
+            'source_urls': ['http://example.com/%(name)s/%(version)s'],
         })
         self.assertEqual(exts_sources[1]['name'], 'ext2')
         self.assertEqual(exts_sources[1]['version'], '2.0')
