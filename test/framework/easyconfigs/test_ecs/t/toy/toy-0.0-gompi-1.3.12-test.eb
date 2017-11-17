@@ -21,7 +21,7 @@ checksums = [[
 patches = ['toy-0.0_typo.patch']
 
 exts_default_options = {
-    'source_urls': ['http://example.com'],
+    'source_urls': ['http://example.com/%(name)s'],
 }
 
 exts_list = [
