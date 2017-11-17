@@ -3393,11 +3393,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # exactly three checksum specs for extensions, one list of checksums for each extension
         self.assertEqual(re.findall("[ ]*'checksums'", ec_txt, re.M), ["        'checksums'"] * 3)
 
+        # there should be only one hit for 'source_urls', i.e. the one in exts_default_options
+        self.assertEqual(len(re.findall('source_urls*.*$', ec_txt, re.M)), 1)
+
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['sources'], ['%(name)s-%(version)s.tar.gz'])
         self.assertEqual(ec['patches'], ['toy-0.0_typo.patch'])
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+        self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
@@ -3406,13 +3410,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
             'patches': ['bar-0.0_typo.patch'],
-            'source_urls': ['http://example.com'],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
         }))
         self.assertEqual(ec['exts_list'][1], ('barbar', '0.0', {
             'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
-            'source_urls': ['http://example.com'],
         }))
 
         # backup of easyconfig was created
