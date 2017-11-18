@@ -1684,29 +1684,49 @@ def load_hooks(hooks_path):
     return hooks
 
 
-def find_hook(hook_name, known_hooks):
+def find_hook(label, known_hooks, pre_step_hook=False, post_step_hook=False):
     """
-    Find hook with specified name.
+    Find hook with specified label.
 
-    :param hook_name: name of hook
+    :param label: name of hook
     :param known_hooks: list of known hooks
+    :param pre_step_hook: indicates whether hook to run is a pre-step hook
+    :param post_step_hook: indicates whether hook to run is a post-step hook
     """
     res = None
+
+    if pre_step_hook:
+        hook_prefix = 'pre_'
+    elif post_step_hook:
+        hook_prefix = 'post_'
+    else:
+        hook_prefix = ''
+
+    hook_name = hook_prefix + label + '_hook'
+
     for hook in known_hooks:
-        if hook.__name__ == hook_name + '_hook':
+        if hook.__name__ == hook_name:
+            _log.info("Found %s hook", hook_name)
             res = hook
             break
 
     return res
 
 
-def find_step_hook(step_name, known_hooks, pre_hook=True):
+def run_hook(label, known_hooks, pre_step_hook=False, post_step_hook=False, args=None):
     """
-    Find pre- or post-hook for specified step.
+    Run hook with specified label.
 
-    :param step_name: name of the step that hook relates to
+    :param label: name of hook
     :param known_hooks: list of known hooks
-    :param pre_hook: True to search for pre-step hook, False to search for post-step hook
+    :param pre_step_hook: indicates whether hook to run is a pre-step hook
+    :param post_step_hook: indicates whether hook to run is a post-step hook
+    :param args: arguments to pass to hook function
     """
-    hook_name = ('post_', 'pre_')[pre_hook] + step_name
-    return find_hook(hook_name, known_hooks)
+    hook = find_hook(label, known_hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    if hook:
+        if args is None:
+            args = []
+
+        _log.info("Running %s hook (arguments: %s)...", hook.__name__, args)
+        hook(*args)
