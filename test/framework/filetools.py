@@ -1564,13 +1564,17 @@ class FileToolsTest(EnhancedTestCase):
         post_configure_hook = [h for h in hooks if h.__name__ == 'post_configure_hook'][0]
         pre_install_hook = [h for h in hooks if h.__name__ == 'pre_install_hook'][0]
 
-        self.assertEqual(ft.find_hook('configure', hooks), None)
-        self.assertEqual(ft.find_hook('configure', hooks, pre_hook=True), None)
-        self.assertEqual(ft.find_hook('configure', hooks, pre_hook=False), post_configure_hook)
+        self.assertEqual(ft.find_step_hook('configure', hooks), None)
+        self.assertEqual(ft.find_step_hook('configure', hooks, pre_hook=True), None)
+        self.assertEqual(ft.find_step_hook('configure', hooks, pre_hook=False), post_configure_hook)
 
-        self.assertEqual(ft.find_hook('install', hooks), pre_install_hook)
-        self.assertEqual(ft.find_hook('install', hooks, pre_hook=True), pre_install_hook)
-        self.assertEqual(ft.find_hook('install', hooks, pre_hook=False), None)
+        self.assertEqual(ft.find_step_hook('install', hooks), pre_install_hook)
+        self.assertEqual(ft.find_step_hook('install', hooks, pre_hook=True), pre_install_hook)
+        self.assertEqual(ft.find_step_hook('install', hooks, pre_hook=False), None)
+
+        self.assertEqual(ft.find_step_hook('build', hooks), None)
+        self.assertEqual(ft.find_step_hook('build', hooks, pre_hook=True), None)
+        self.assertEqual(ft.find_step_hook('build', hooks, pre_hook=False), None)
 
 
 def suite():

@@ -1684,18 +1684,29 @@ def load_hooks(hooks_path):
     return hooks
 
 
-def find_hook(step_name, known_hooks, pre_hook=True):
+def find_hook(hook_name, known_hooks):
     """
-    Find pre- or post-hook for specified step.
+    Find hook with specified name.
 
-    :param step_name: name of the step that hook relates to
-    :param pre_hook: True to search for pre-step hook, False to search for post-step hook
+    :param hook_name: name of hook
+    :param known_hooks: list of known hooks
     """
     res = None
-    hook_name = ('post_', 'pre_')[pre_hook] + step_name + '_hook'
     for hook in known_hooks:
-        if hook.__name__ == hook_name:
+        if hook.__name__ == hook_name + '_hook':
             res = hook
             break
 
     return res
+
+
+def find_step_hook(step_name, known_hooks, pre_hook=True):
+    """
+    Find pre- or post-hook for specified step.
+
+    :param step_name: name of the step that hook relates to
+    :param known_hooks: list of known hooks
+    :param pre_hook: True to search for pre-step hook, False to search for post-step hook
+    """
+    hook_name = ('post_', 'pre_')[pre_hook] + step_name
+    return find_hook(hook_name, known_hooks)
