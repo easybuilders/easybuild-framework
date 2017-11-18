@@ -70,7 +70,7 @@ from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, find_hook, is_alt_pypi_url, mkdir, move_logs
+from easybuild.tools.filetools import encode_class_name, extract_file, find_step_hook, is_alt_pypi_url, mkdir, move_logs
 from easybuild.tools.filetools import read_file, remove_file, rmtree2, write_file, verify_checksum, weld_paths
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -2437,7 +2437,7 @@ class EasyBlock(object):
         self.log.info("Starting %s step", step)
         self.update_config_template_run_step()
 
-        pre_hook = find_hook(step, self.hooks, pre_hook=True)
+        pre_hook = find_step_hook(step, self.hooks, pre_hook=True)
         if pre_hook:
             self.log.info("Found pre-%s hook, so running it...", step)
             pre_hook(self)
@@ -2465,7 +2465,7 @@ class EasyBlock(object):
                 # and returns the actual method, so use () to execute it
                 step_method(self)()
 
-        post_hook = find_hook(step, self.hooks, pre_hook=False)
+        post_hook = find_step_hook(step, self.hooks, pre_hook=False)
         if post_hook:
             self.log.info("Found post-%s hook, so running it...", step)
             post_hook(self)
