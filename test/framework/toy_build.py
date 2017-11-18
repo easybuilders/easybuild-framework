@@ -1749,6 +1749,9 @@ class ToyBuildTest(EnhancedTestCase):
         hooks_file_txt = '\n'.join([
             "import os",
             '',
+            "def start_hook():",
+            "   print('start hook triggered')",
+            '',
             "def pre_configure_hook(self):",
             "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
             '',
@@ -1758,6 +1761,9 @@ class ToyBuildTest(EnhancedTestCase):
             "def post_install_hook(self):",
             "    print('in post-install hook for %s v%s' % (self.name, self.version))",
             "    print(', '.join(sorted(os.listdir(self.installdir))))",
+            '',
+            "def end_hook():",
+            "   print('end hook triggered, all done!')",
         ])
         write_file(hooks_file, hooks_file_txt)
 
@@ -1771,10 +1777,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
         expected_output = '\n'.join([
+            "start hook triggered",
             "pre-configure: toy.source: True",
             "post-configure: toy.source: False",
             "in post-install hook for toy v0.0",
             "bin, lib",
+            "end hook triggered, all done!",
         ])
         self.assertEqual(stdout.strip(), expected_output)
 
