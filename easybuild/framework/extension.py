@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ import os
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, build_path
+from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_cmd
 
 
@@ -45,9 +46,13 @@ class Extension(object):
     """
     Support for installing extensions.
     """
-    def __init__(self, mself, ext):
+    def __init__(self, mself, ext, extra_params=None):
         """
-        mself has the logger
+        Constructor for Extension class
+
+        :param mself: parent Easyblock instance
+        :param ext: dictionary with extension metadata (name, version, src, patches, options, ...)
+        :param extra_params: extra custom easyconfig parameters to take into account for this extension
         """
         self.master = mself
         self.log = self.master.log
@@ -66,6 +71,22 @@ class Extension(object):
         self.src = self.ext.get('src', [])
         self.patches = self.ext.get('patches', [])
         self.options = copy.deepcopy(self.ext.get('options', {}))
+
+        if extra_params:
+            self.cfg.extend_params(extra_params, overwrite=False)
+
+        # custom easyconfig parameters for extension are included in self.options
+        # make sure they are merged into self.cfg so they can be queried;
+        # unknown easyconfig parameters are ignored since self.options may include keys only there for extensions;
+        # this allows to specify custom easyconfig parameters on a per-extension basis
+        for key in self.options:
+            if key in self.cfg:
+                self.cfg[key] = self.options[key]
+                self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
+                               key, self.ext['name'], self.ext['version'], self.cfg[key])
+            else:
+                self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
+                               key, self.ext['name'], self.ext['version'], self.options[key])
 
         self.sanity_check_fail_msgs = []
 
@@ -113,17 +134,15 @@ class Extension(object):
         Sanity check to run after installing extension
         """
 
-        try:
-            os.chdir(self.installdir)
-        except OSError, err:
-            raise EasyBuildError("Failed to change %s: %s", self.installdir, err)
+        if os.path.isdir(self.installdir):
+            change_dir(self.installdir)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False
         exts_filter = self.cfg['exts_filter']
         self.cfg.enable_templating = True
 
-        if not exts_filter is None:
+        if exts_filter is not None:
             cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
@@ -156,7 +175,7 @@ class Extension(object):
             if inp:
                 stdin = inp % template
             # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
 
             if ec:
                 msg = "%s failed to install, cmd '%s' (stdin: %s) output: %s" % (self.name, cmd, stdin, output)

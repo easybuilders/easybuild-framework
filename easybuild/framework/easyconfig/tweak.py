@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,9 +70,11 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs, modtool, targetdir=None):
+def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     """Tweak list of easyconfigs according to provided build specifications."""
-
+    tweaked_ecs_path, tweaked_ecs_deps_path = None, None
+    if targetdirs is not None:
+        tweaked_ecs_path, tweaked_ecs_deps_path = targetdirs
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
     toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
     if len(toolchains) > 1:
@@ -106,13 +108,18 @@ def tweak(easyconfigs, build_specs, modtool, targetdir=None):
 
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
-    for orig_ec in orig_ecs:
-        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdir)
-        # only return tweaked easyconfigs for easyconfigs which were listed originally
-        # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot
+    for orig_ec in orig_ecs:  
+        # Only return tweaked easyconfigs for easyconfigs which were listed originally on the command line (and use the
+        # prepended path so that they are found first).
+        # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
+        # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
         if orig_ec['spec'] in listed_ec_paths:
+            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_path)
             new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
             tweaked_easyconfigs.extend(new_ecs)
+        else:
+            # Place all tweaked dependency easyconfigs in the directory appended to the robot path
+            new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
     return tweaked_easyconfigs
 
@@ -172,7 +179,9 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*\])\s*$" % key, re.M)
+            # use non-greedy matching for list value using '*?' to avoid including other parameters in match,
+            # and a lookahead assertion (?=...) so next line is either another parameter definition or a blank line
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>\[(.|\n)*?\])\s*$(?=(\n^\w+\s*=.*|\s*)$)" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings

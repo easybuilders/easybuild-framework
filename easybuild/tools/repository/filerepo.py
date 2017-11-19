@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.tools import stats_to_str
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
 from easybuild.tools.repository.repository import Repository
 from easybuild.tools.version import VERBOSE_VERSION
 
@@ -71,16 +71,19 @@ class FileRepository(Repository):
 
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add the eb-file for software name and version to the repository.
-        stats should be a dict containing statistics.
-        if previous is true -> append the statistics to the file
-        This will return the path to the created file (for use in subclasses)
+        Add easyconfig to repository
+
+        :param cfg: location of easyconfig file
+        :param name: software name
+        :param version: software install version, incl. toolchain & versionsuffix
+        :param stats: build stats, to add to archived easyconfig
+        :param previous: list of previous build stats
+        :return: location of archived easyconfig
         """
         # create directory for eb file
         full_path = os.path.join(self.wc, self.subdir, name)
-        mkdir(full_path, parents=True)
-        yeb_format = is_yeb_format(cfg, None)
 
+        yeb_format = is_yeb_format(cfg, None)
         if yeb_format:
             extension = YEB_FORMAT_EXTENSION
             prefix = "buildstats: ["
@@ -113,6 +116,18 @@ class FileRepository(Repository):
         write_file(dest, txt)
 
         return dest
+
+    def add_patch(self, patch, name):
+        """
+        Add patch file to repository
+
+        :param patch: location of patch file
+        :param name: software name
+        :return: location of archived patch
+        """
+        full_path = os.path.join(self.wc, self.subdir, name, os.path.basename(patch))
+        copy_file(patch, full_path)
+        return full_path
 
     def get_buildstats(self, name, ec_version):
         """

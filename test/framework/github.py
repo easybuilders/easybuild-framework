@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,9 +55,8 @@ except ImportError, err:
 
 # test account, for which a token may be available
 GITHUB_TEST_ACCOUNT = 'easybuild_test'
-# the user who's repo to test
+# the user & repo to use in this test (https://github.com/hpcugent/testrepository)
 GITHUB_USER = "hpcugent"
-# the repo of this user to use in this test
 GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'master'
@@ -122,7 +121,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         tmpdir = tempfile.mkdtemp()
-        # PR for rename of ffmpeg to FFmpeg, see https://github.com/hpcugent/easybuild-easyconfigs/pull/2481/files
+        # PR for rename of ffmpeg to FFmpeg, see https://github.com/easybuilders/easybuild-easyconfigs/pull/2481/files
         all_ecs = [
             'FFmpeg-2.4-intel-2014.06.eb',
             'FFmpeg-2.4-intel-2014b.eb',
@@ -151,9 +150,10 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_fetch_latest_commit_sha, no GitHub token available?"
             return
 
-        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'hpcugent')
+        sha = gh.fetch_latest_commit_sha('easybuild-framework', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
-        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'hpcugent', branch='develop')
+        sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT,
+                                         branch='develop')
         self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
 
     def test_download_repo(self):
@@ -162,9 +162,9 @@ class GithubTest(EnhancedTestCase):
             print "Skipping test_download_repo, no GitHub token available?"
             return
 
-        # default: download tarball for master branch of hpcugent/easybuild-easyconfigs repo
-        path = gh.download_repo(path=self.test_prefix)
-        repodir = os.path.join(self.test_prefix, 'hpcugent', 'easybuild-easyconfigs-master')
+        # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
+        path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-master')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue(os.path.exists(repodir))
         shafile = os.path.join(repodir, 'latest-sha')
@@ -174,18 +174,20 @@ class GithubTest(EnhancedTestCase):
         # existing downloaded repo is not reperformed, except if SHA is different
         account, repo, branch = 'boegel', 'easybuild-easyblocks', 'develop'
         repodir = os.path.join(self.test_prefix, account, '%s-%s' % (repo, branch))
-        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch)
+        latest_sha = gh.fetch_latest_commit_sha(repo, account, branch=branch, github_user=GITHUB_TEST_ACCOUNT)
 
         # put 'latest-sha' fail in place, check whether repo was (re)downloaded (should not)
         shafile = os.path.join(repodir, 'latest-sha')
         write_file(shafile, latest_sha)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertEqual(os.listdir(repodir), ['latest-sha'])
 
         # remove 'latest-sha' file and verify that download was performed
         os.remove(shafile)
-        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix)
+        path = gh.download_repo(repo=repo, branch=branch, account=account, path=self.test_prefix,
+                                github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertTrue('easybuild' in os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
@@ -205,8 +207,9 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
         # poor mans mocking of getpass
+        # inject leading/trailing spaces to verify stripping of provided value
         def fake_getpass(*args, **kwargs):
-            return self.github_token
+            return ' ' + self.github_token + '  '
 
         orig_getpass = gh.getpass.getpass
         gh.getpass.getpass = fake_getpass
@@ -247,7 +250,7 @@ class GithubTest(EnhancedTestCase):
         if self.github_token is None:
             print "Skipping test_find_easybuild_easyconfig, no GitHub token available?"
             return
-        path = gh.find_easybuild_easyconfig()
+        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', 'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
@@ -274,6 +277,112 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(ec == 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
+
+    def test_check_pr_eligible_to_merge(self):
+        """Test check_pr_eligible_to_merge function"""
+        def run_check(expected_result=False):
+            """Helper function to check result of check_pr_eligible_to_merge"""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            res = gh.check_pr_eligible_to_merge(pr_data)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            self.assertEqual(res, expected_result)
+            self.assertEqual(stdout, expected_stdout)
+            self.assertTrue(expected_warning in stderr, "Found '%s' in: %s" % (expected_warning, stderr))
+            return stderr
+
+        pr_data = {
+            'base': {
+                'ref': 'master',
+                'repo': {
+                    'name': 'easybuild-easyconfigs',
+                    'owner': {'login': 'easybuilders'},
+                },
+            },
+            'status_last_commit': None,
+            'issue_comments': [],
+            'milestone': None,
+            'number': '1234',
+            'reviews': [],
+        }
+
+        test_result_warning_template = "* test suite passes: %s => not eligible for merging!"
+
+        expected_stdout = "Checking eligibility of easybuilders/easybuild-easyconfigs PR #1234 for merging...\n"
+
+        # target branch for PR must be develop
+        expected_warning = "* targets develop branch: FAILED; found 'master' => not eligible for merging!\n"
+        run_check()
+
+        pr_data['base']['ref'] = 'develop'
+        expected_stdout += "* targets develop branch: OK\n"
+
+        # test suite must PASS (not failed, pending or unknown) in Travis
+        tests = [
+            ('', '(result unknown)'),
+            ('foobar', '(result unknown)'),
+            ('pending', 'pending...'),
+            ('error', 'FAILED'),
+            ('failure', 'FAILED'),
+        ]
+        for status, test_result in tests:
+            pr_data['status_last_commit'] = status
+            expected_warning = test_result_warning_template % test_result
+            run_check()
+
+        pr_data['status_last_commit'] = 'success'
+        expected_stdout += "* test suite passes: OK\n"
+        expected_warning = ''
+        run_check()
+
+        # at least the last test report must be successful (and there must be one)
+        expected_warning = "* last test report is successful: (no test reports found) => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'] = [
+            {'body': "@easybuild-easyconfigs/maintainers: please review/merge?"},
+            {'body': "Test report by @boegel\n**FAILED**\nnothing ever works..."},
+            {'body': "this is just a regular comment"},
+        ]
+        expected_warning = "* last test report is successful: FAILED => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'].extend([
+            {'body': "yet another comment"},
+            {'body': "Test report by @boegel\n**SUCCESS**\nit's all good!"},
+        ])
+        expected_stdout += "* last test report is successful: OK\n"
+        expected_warning = ''
+        run_check()
+
+        # approved style review by a human is required
+        expected_warning = "* approved review: MISSING => not eligible for merging!"
+        run_check()
+
+        pr_data['issue_comments'].insert(2, {'body': 'lgtm'})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'CHANGES_REQUESTED', 'user': {'login': 'boegel'}})
+        run_check()
+
+        pr_data['reviews'].append({'state': 'APPROVED', 'user': {'login': 'boegel'}})
+        expected_stdout += "* approved review: OK (by boegel)\n"
+        expected_warning = ''
+        run_check()
+
+        # milestone must be set
+        expected_warning = "* milestone is set: no milestone found => not eligible for merging!"
+        run_check()
+
+        pr_data['milestone'] = {'title': '3.3.1'}
+        expected_stdout += "* milestone is set: OK (3.3.1)\n"
+
+        # all checks pass, PR is eligible for merging
+        expected_warning = ''
+        self.assertEqual(run_check(True), '')
 
 
 def suite():

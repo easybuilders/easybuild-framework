@@ -1,0 +1,3 @@
+#%Module
+# dummy PGI/16.7-GCC-5.4.0-2.26 module
+setenv  EBVERSIONPGI            "16.7-GCC-5.4.0-2.2"

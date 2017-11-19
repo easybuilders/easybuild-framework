@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2016 Ghent University
+# Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ EasyBuild configuration (paths, preferences, etc.)
 :author: Jens Timmerman (Ghent University)
 :author: Toon Willems (Ghent University)
 :author: Ward Poelmans (Ghent University)
+:author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
 import glob
@@ -51,15 +52,23 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 _log = fancylogger.getLogger('config', fname=False)
 
 
+ERROR = 'error'
+IGNORE = 'ignore'
+PURGE = 'purge'
+UNLOAD = 'unload'
+UNSET = 'unset'
+WARN = 'warn'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
 
-DEFAULT_JOB_BACKEND = 'PbsPython'
+DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
 DEFAULT_MNS = 'EasyBuildMNS'
-DEFAULT_MODULE_SYNTAX = 'Tcl'
-DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
+DEFAULT_MODULE_SYNTAX = 'Lua'
+DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
@@ -76,6 +85,16 @@ DEFAULT_PNS = 'EasyBuildPNS'
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
+EBROOT_ENV_VAR_ACTIONS = [ERROR, IGNORE, UNSET, WARN]
+LOADED_MODULES_ACTIONS = [ERROR, IGNORE, PURGE, UNLOAD, WARN]
+DEFAULT_ALLOW_LOADED_MODULES = ('EasyBuild',)
+
+FORCE_DOWNLOAD_ALL = 'all'
+FORCE_DOWNLOAD_PATCHES = 'patches'
+FORCE_DOWNLOAD_SOURCES = 'sources'
+FORCE_DOWNLOAD_CHOICES = [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES]
+DEFAULT_FORCE_DOWNLOAD = FORCE_DOWNLOAD_SOURCES
+
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -90,6 +109,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
+        'backup_modules',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -98,6 +118,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
+        'force_download',
         'from_pr',
         'git_working_dirs_path',
         'pr_branch_name',
@@ -119,7 +140,9 @@ BUILD_OPTIONS_CMDLINE = {
         'mpi_cmd_template',
         'only_blocks',
         'optarch',
+        'package_tool_options',
         'parallel',
+        'rpath_filter',
         'regtest_output_dir',
         'skip',
         'stop',
@@ -132,15 +155,18 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'consider_archived_easyconfigs',
         'debug',
         'debug_lmod',
         'dump_autopep8',
+        'enforce_checksums',
         'extended_dry_run',
         'experimental',
         'fixed_installdir_naming_scheme',
         'force',
         'group_writable_installdir',
         'hidden',
+        'ignore_checksums',
         'install_latest_eb_release',
         'minimal_toolchains',
         'module_only',
@@ -148,24 +174,34 @@ BUILD_OPTIONS_CMDLINE = {
         'read_only_installdir',
         'rebuild',
         'robot',
+        'rpath',
+        'search_paths',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',
         'sticky_bit',
+        'trace',
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
         'use_f90cache',
         'use_existing_modules',
+        'set_default_module',
     ],
     True: [
         'cleanup_builddir',
+        'cleanup_easyconfigs',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'mpi_tests',
     ],
-    'warn': [
+    WARN: [
+        'check_ebroot_env_vars',
+        'detect_loaded_modules',
         'strict',
+    ],
+    DEFAULT_MAX_FAIL_RATIO_PERMS: [
+        'max_fail_ratio_adjust_permissions',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
@@ -181,7 +217,10 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     'defaultopt': [
         'default_opt_level',
-    ]
+    ],
+    DEFAULT_ALLOW_LOADED_MODULES: [
+        'allow_loaded_modules',
+    ],
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -334,9 +373,10 @@ def init_build_options(build_options=None, cmdline_options=None):
 
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
                                       cmdline_options.dry_run, cmdline_options.dry_run_short,
-                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script]
+                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script,
+                                      cmdline_options.new_pr, cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
-            _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
+            _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]

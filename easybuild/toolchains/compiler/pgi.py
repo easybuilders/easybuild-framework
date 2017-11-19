@@ -11,7 +11,7 @@
 # the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@ class Pgi(Compiler):
         'r8': 'r8',
         'optarch': '', # PGI by default generates code for the arch it is running on!
         'openmp': 'mp',
+        'ieee': 'Kieee',
         'strict': ['Mnoflushz','Kieee'],
         'precise': ['Mnoflushz'],
         'defaultprec': ['Mflushz'],
@@ -68,13 +69,13 @@ class Pgi(Compiler):
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.AMD : '',
-        systemtools.INTEL : '',
+        (systemtools.X86_64, systemtools.AMD): '',
+        (systemtools.X86_64, systemtools.INTEL): '',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        systemtools.AMD : 'tp=x64',
-        systemtools.INTEL : 'tp=x64',
+        (systemtools.X86_64, systemtools.AMD): 'tp=x64',
+        (systemtools.X86_64, systemtools.INTEL): 'tp=x64',
     }
 
     COMPILER_CC = 'pgcc'

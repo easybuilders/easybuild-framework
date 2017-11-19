@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version
+from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 
 
 class TweakTest(EnhancedTestCase):
@@ -47,7 +48,7 @@ class TweakTest(EnhancedTestCase):
 
     def test_find_matching_easyconfigs(self):
         """Test find_matching_easyconfigs function."""
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         for (name, installver) in [('GCC', '4.8.2'), ('gzip', '1.5-goolf-1.4.10')]:
             ecs = find_matching_easyconfigs(name, installver, [test_easyconfigs_path])
             self.assertTrue(len(ecs) == 1 and ecs[0].endswith('/%s-%s.eb' % (name, installver)))
@@ -62,7 +63,7 @@ class TweakTest(EnhancedTestCase):
 
     def test_obtain_ec_for(self):
         """Test obtain_ec_for function."""
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         # find existing easyconfigs
         specs = {
             'name': 'GCC',
@@ -108,6 +109,27 @@ class TweakTest(EnhancedTestCase):
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertTrue(generated)
         self.assertEqual(os.path.basename(ec_file), 'GCC-5.4.3.eb')
+
+    def test_tweak_one_version(self):
+        """Test tweak_one function"""
+        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs_path, 't', 'toy', 'toy-0.0.eb')
+
+        # test tweaking of software version (--try-software-version)
+        tweaked_toy_ec = os.path.join(self.test_prefix, 'toy-tweaked.eb')
+        tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+
+        toy_ec_parsed = EasyConfigParser(toy_ec).get_config_dict()
+        tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
+
+        # checksums should be reset to empty list, only version should be changed, nothing else
+        self.assertEqual(tweaked_toy_ec_parsed['checksums'], [])
+        self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
+        for key in [k for k in toy_ec_parsed.keys() if k not in ['checksums', 'version']]:
+            val = toy_ec_parsed[key]
+            self.assertTrue(key in tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
+            tweaked_val = tweaked_toy_ec_parsed.get(key)
+            self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))
 
 
 def suite():

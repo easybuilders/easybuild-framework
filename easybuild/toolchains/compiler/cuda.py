@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2016 Ghent University
+# Copyright 2013-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -92,8 +92,8 @@ class Cuda(Compiler):
             'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
             'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
         ]
-        self.variables.nappend('CUDA_CFLAGS', cuda_flags)
-        self.variables.nappend('CUDA_CXXFLAGS', cuda_flags)
+        self.variables.nextend('CUDA_CFLAGS', cuda_flags)
+        self.variables.nextend('CUDA_CXXFLAGS', cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
         for gencode_val in self.options.get('cuda_gencode', []):

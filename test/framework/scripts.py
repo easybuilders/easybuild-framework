@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import setuptools
-import vsc
+import vsc.utils.generaloption
 
 import easybuild.framework
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -53,7 +53,8 @@ class ScriptsTest(EnhancedTestCase):
 
         # make sure setuptools, vsc-base and easybuild-framework are included in $PYTHONPATH (so scripts can pick it up)
         setuptools_loc = os.path.dirname(os.path.dirname(setuptools.__file__))
-        vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+        generaloption_loc = os.path.abspath(vsc.utils.generaloption.__file__)
+        vsc_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(generaloption_loc))))
         framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
         pythonpath = os.environ.get('PYTHONPATH', '')
         os.environ['PYTHONPATH'] = os.pathsep.join([setuptools_loc, vsc_loc, framework_loc, pythonpath])
@@ -84,15 +85,16 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(23 "
+        regex = r"Supported Packages \(26 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
             'B': '1',  # bzip2
             'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
-            'G': '5',  # GCC, GCCcore, gompi, goolf, gzip
+            'G': '6',  # GCC, GCCcore, gmvapich2, gompi, goolf, gzip
             'H': '1',  # hwloc
-            'I': '7',  # icc, iccifort, ictce, ifort, iimpi, imkl, impi
+            'I': '8',  # icc, iccifort, iccifortcuda, ictce, ifort, iimpi, imkl, impi
+            'M': '1',  # MVAPICH2
             'O': '2',  # OpenMPI, OpenBLAS
             'P': '1',  # Python
             'S': '2',  # ScaLAPACK, SQLite

@@ -7,15 +7,18 @@ docstring test
 """
 name = "toy"
 
-homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
-docurls = ["https://github.com/hpcugent/easybuild/wiki"]
+homepage = 'https://easybuilders.github.io/easybuild'
+description = "Toy C program, 100% toy."
+docurls = ["https://github.com/easybuilders/easybuild/wiki"]
 
 software_license = GPLv2
-software_license_urls = ['https://github.com/hpcugent/easybuild/wiki/License']
+software_license_urls = ['https://github.com/easybuilders/easybuild/wiki/License']
 
 sources = ['%(name)s-0.0.tar.gz']  # purposely fixed to 0.0
-checksums = ['be662daa971a640e40be5c804d9d7d10']  # (MD5) source checksum
+checksums = [
+    'be662daa971a640e40be5c804d9d7d10',  # MD5
+    '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # SHA256
+]
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],

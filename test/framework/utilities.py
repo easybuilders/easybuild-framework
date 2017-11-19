@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.filetools import copy_dir, mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
@@ -124,7 +124,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
@@ -180,9 +180,9 @@ class EnhancedTestCase(_EnhancedTestCase):
         # save values of $PATH & $PYTHONPATH, so they can be restored later
         # this is important in case EasyBuild was installed as a module, since that module may be unloaded,
         # for example due to changes to $MODULEPATH in case EasyBuild was installed in a module hierarchy
-        # cfr. https://github.com/hpcugent/easybuild-framework/issues/1685
-        self.env_path = os.environ['PATH']
-        self.env_pythonpath = os.environ['PYTHONPATH']
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/1685
+        self.env_path = os.environ.get('PATH')
+        self.env_pythonpath = os.environ.get('PYTHONPATH')
 
         self.modtool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
@@ -231,8 +231,10 @@ class EnhancedTestCase(_EnhancedTestCase):
         """
         Restore $PATH & $PYTHONPATH in environment using saved values.
         """
-        os.environ['PATH'] = self.env_path
-        os.environ['PYTHONPATH'] = self.env_pythonpath
+        if self.env_path is not None:
+            os.environ['PATH'] = self.env_path
+        if self.env_path is not None:
+            os.environ['PYTHONPATH'] = self.env_pythonpath
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
@@ -241,7 +243,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        os.environ['MODULEPATH'] = ''
+        if 'MODULEPATH' in os.environ:
+            del os.environ['MODULEPATH']
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()
@@ -264,10 +267,10 @@ class EnhancedTestCase(_EnhancedTestCase):
 
         try:
             main(args=args, logfile=logfile, do_build=do_build, testing=testing, modtool=self.modtool)
-        except SystemExit:
+        except SystemExit as err:
             if raise_systemexit:
                 raise err
-        except Exception, err:
+        except Exception as err:
             myerr = err
             if verbose:
                 print "err: %s" % err
@@ -305,7 +308,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+            copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
         # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
@@ -351,7 +354,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         'modules', 'CategorizedHMNS', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+            copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make C/Tcl modules happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
         mkdir(os.path.join(mpi_pref, 'base'))

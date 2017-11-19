@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -9,7 +9,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ import test.framework.repository as r
 import test.framework.robot as robot
 import test.framework.run as run
 import test.framework.scripts as sc
+import test.framework.style as st
 import test.framework.systemtools as s
 import test.framework.toolchain as tc
 import test.framework.toolchainvariables as tcv
@@ -106,8 +107,8 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw,
-         p, i, pkg, d, env, et, y]
+tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc,
+         tw, p, i, pkg, d, env, et, y, st]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 

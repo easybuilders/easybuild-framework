@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2016 Ghent University
+# Copyright 2015-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ Unit tests for .yeb easyconfig format
 @author: Caroline De Brouwer (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
 import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -94,7 +95,8 @@ class YebTest(EnhancedTestCase):
         for filename in test_files:
             ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
             # compare with parsed result of .eb easyconfig
-            ec_eb = EasyConfig(os.path.join(test_easyconfigs, '%s.eb' % filename))
+            ec_file = glob.glob(os.path.join(test_easyconfigs, 'test_ecs', '*', '*', '%s.eb' % filename))[0]
+            ec_eb = EasyConfig(ec_file)
 
             no_match = False
             for key in sorted(ec_yeb.asdict()):
@@ -115,7 +117,7 @@ class YebTest(EnhancedTestCase):
         self.assertTrue(is_yeb_format(test_yeb, None))
         self.assertTrue(is_yeb_format(None, raw_yeb))
 
-        test_eb = os.path.join(testdir, 'easyconfigs', 'gzip-1.4.eb')
+        test_eb = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
         raw_eb = read_file(test_eb)
 
         self.assertFalse(is_yeb_format(test_eb, None))

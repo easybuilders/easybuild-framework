@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/easybuild
+# https://github.com/easybuilders/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,9 +30,11 @@ Unit tests for easyconfig.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import copy
+import glob
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -44,19 +46,20 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, letter_dir_for
-from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, get_easyblock_class, resolve_template
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
+from easybuild.framework.easyconfig.easyconfig import letter_dir_for, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import resolve_template, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
-from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, find_related_easyconfigs
-from easybuild.framework.easyconfig.tools import parse_easyconfigs
+from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_graph, get_paths_for
+from easybuild.framework.easyconfig.tools import find_related_easyconfigs, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
@@ -169,7 +172,14 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.contents += "\nsyntax_error'"
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
+        error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+
+        # introduce "TypeError: format requires mapping" issue"
+        self.contents = self.contents.replace("syntax_error'", "foo = '%(name)s %s' % version")
+        self.prep()
+        error_pattern = "Parsing easyconfig file failed: format requires a mapping \(line 8\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
@@ -287,7 +297,11 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
-        os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        os.environ['EASYBUILD_SOURCEPATH'] = ':'.join([
+            os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip'),
+            os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy'),
+        ])
         init_config()
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -296,18 +310,20 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_default_options = {',
+            '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
+            '}',
             'exts_list = [',
-            '   ("ext1", "ext_ver1", {',
-            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
-            '       "source_urls": ["http://example.com/"]',
-            '   }),',
-            '   ("ext2", "ext_ver2", {',
-            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '   ("ext1", "1.0"),',
+            '   ("ext2", "2.0", {',
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "9e9485921c6afe15f62aedfead2c8f6e",',  # MD5 checksum for source (gzip-1.4.eb)
-            '           "fad34da3432ee2fd4d6554b86c8df4bf",',  # MD5 checksum for patch (toy-0.0.eb)
+                        # SHA256 checksum for source (gzip-1.4.eb)
+            '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
+                        # SHA256 checksum for 'patch' (toy-0.0.eb)
+            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
             '       ],',
             '   }),',
             ']',
@@ -316,6 +332,28 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
+
+        self.assertEqual(len(exts_sources), 2)
+        self.assertEqual(exts_sources[0]['name'], 'ext1')
+        self.assertEqual(exts_sources[0]['version'], '1.0')
+        self.assertEqual(exts_sources[0]['options'], {
+            'source_tmpl': 'gzip-1.4.eb',
+            'source_urls': ['http://example.com/%(name)s/%(version)s'],
+        })
+        self.assertEqual(exts_sources[1]['name'], 'ext2')
+        self.assertEqual(exts_sources[1]['version'], '2.0')
+        self.assertEqual(exts_sources[1]['options'], {
+            'checksums': ['6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09',
+                          '044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074'],
+            'patches': ['toy-0.0.eb'],
+            'source_tmpl': 'gzip-1.4.eb',
+            'source_urls': [('http://example.com', 'suffix')],
+        })
+
+        modfile = os.path.join(eb.make_module_step(), 'pi', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
+        modtxt = read_file(modfile)
+        regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
+        self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
@@ -778,7 +816,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rshortver)s',
             ]),
             'license_file = HOME + "/licenses/PI/license.txt"',
-            "github_account = 'hpcugent'",
+            "github_account = 'easybuilders'",
         ]) % inp
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
@@ -796,7 +834,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['sources'][0], 'PI-3.04.tar.gz')
         self.assertEqual(eb['sources'][1], ('pi-3.04.tar.bz2', "tar xfvz %s"))
         self.assertEqual(eb['source_urls'][0], 'http://pi.googlecode.com/files')
-        self.assertEqual(eb['source_urls'][1], 'https://github.com/hpcugent/PI/archive')
+        self.assertEqual(eb['source_urls'][1], 'https://github.com/easybuilders/PI/archive')
         self.assertEqual(eb['versionsuffix'], '-Python-2.7.10')
         self.assertEqual(eb['sanity_check_paths']['files'][0], 'bin/pi_3_04')
         self.assertEqual(eb['sanity_check_paths']['files'][1], 'lib/python2.7/site-packages')
@@ -945,7 +983,8 @@ class EasyConfigTest(EnhancedTestCase):
             ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb',
              {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
         ]:
-            ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), validate=False)
+            eb_file1 = glob.glob(os.path.join(easyconfigs_path, 'v1.0', '*', '*', eb_file1))[0]
+            ec1 = EasyConfig(eb_file1, validate=False)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), validate=False, build_specs=specs)
 
             ec2_dict = ec2.asdict()
@@ -960,18 +999,21 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_fetch_parameters_from_easyconfig(self):
         """Test fetch_parameters_from_easyconfig function."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        toy_ec_file = os.path.join(test_ecs_dir, 'toy-0.0.eb')
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_file = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
 
         for ec_file, correct_name, correct_easyblock in [
             (toy_ec_file, 'toy', None),
-            (os.path.join(test_ecs_dir, 'goolf-1.4.10.eb'), 'goolf', 'Toolchain'),
+            (os.path.join(test_ecs_dir, 'g', 'goolf', 'goolf-1.4.10.eb'), 'goolf', 'Toolchain'),
         ]:
             name, easyblock = fetch_parameters_from_easyconfig(read_file(ec_file), ['name', 'easyblock'])
             self.assertEqual(name, correct_name)
             self.assertEqual(easyblock, correct_easyblock)
 
-        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program.")
+        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program, 100% toy.")
+
+        res = fetch_parameters_from_easyconfig("easyblock = 'ConfigureMake'  # test comment", ['easyblock'])
+        self.assertEqual(res, ['ConfigureMake'])
 
     def test_get_easyblock_class(self):
         """Test get_easyblock_class function."""
@@ -986,10 +1028,21 @@ class EasyConfigTest(EnhancedTestCase):
         ]:
             self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
 
-        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
+        error_pattern = "No software-specific easyblock 'EB_gzip' found"
+        self.assertErrorRegex(EasyBuildError, error_pattern, get_easyblock_class, None, name='gzip')
+        self.assertEqual(get_easyblock_class(None, name='gzip', error_on_missing_easyblock=False), None)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
+
+        # also test deprecated default_fallback named argument
+        self.assertErrorRegex(EasyBuildError, "DEPRECATED", get_easyblock_class, None, name='gzip',
+                                                                                 default_fallback=False)
+
+        orig_value = easybuild.tools.build_log.CURRENT_VERSION
+        easybuild.tools.build_log.CURRENT_VERSION = '3.9'
+        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
+        easybuild.tools.build_log.CURRENT_VERSION = orig_value
 
     def test_letter_dir(self):
         """Test letter_dir_for function."""
@@ -1001,6 +1054,7 @@ class EasyConfigTest(EnhancedTestCase):
             '3to2': '0',
             '7zip': '0',
             '_bleh_': '0',
+            '*': '*',
         }
         for name, letter in test_cases.items():
             self.assertEqual(letter_dir_for(name), letter)
@@ -1027,29 +1081,30 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
-            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')],
+            'robot_path': [test_ecs],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
 
-        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb'))
+        ec = EasyConfig(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
         self.assertEqual(['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)], ['GCC/4.7.2'])
         self.assertEqual(det_toolchain_mpi(ec)['name'], 'OpenMPI')
 
-        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'hwloc-1.6.2-GCC-4.6.4.eb'))
+        ec = EasyConfig(os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'))
         tc_comps = det_toolchain_compilers(ec)
         self.assertEqual(['/'.join([x['name'], x['version']]) for x in tc_comps], ['GCC/4.6.4'])
         self.assertEqual(det_toolchain_mpi(ec), None)
 
-        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'))
+        ec = EasyConfig(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
         self.assertEqual(det_toolchain_compilers(ec), None)
         self.assertEqual(det_toolchain_mpi(ec), None)
 
     def test_filter_deps(self):
         """Test filtered dependencies."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec_file = os.path.join(test_ecs_dir, 'goolf-1.4.10.eb')
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(test_ecs_dir, 'g', 'goolf', 'goolf-1.4.10.eb')
         ec = EasyConfig(ec_file)
         deps = sorted([dep['name'] for dep in ec.dependencies()])
         self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
@@ -1083,13 +1138,13 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         ec_file = os.path.join(self.test_prefix, 'test.eb')
-        shutil.copy2(os.path.join(test_ecs_dir, 'OpenMPI-1.6.4-GCC-4.6.4.eb'), ec_file)
+        shutil.copy2(os.path.join(test_ecs_dir, 'o', 'OpenMPI', 'OpenMPI-1.6.4-GCC-4.6.4.eb'), ec_file)
 
         ec_txt = read_file(ec_file)
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
         write_file(ec_file, ec_txt)
 
-        self.assertErrorRegex(EasyBuildError, "No easyconfig for .* that matches toolchain hierarchy",
+        self.assertErrorRegex(EasyBuildError, "Failed to determine minimal toolchain for dep .*",
                               EasyConfig, ec_file, validate=False)
 
         build_options.update({'filter_deps': ['deptobefiltered']})
@@ -1099,8 +1154,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
         replaced_parameters = {
             'license': ('license_file', '2.0'),
             'makeopts': ('buildopts', '2.0'),
@@ -1120,8 +1175,8 @@ class EasyConfigTest(EnhancedTestCase):
         easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
         init_config()
 
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
 
         orig_deprecated_parameters = copy.deepcopy(easyconfig.parser.DEPRECATED_PARAMETERS)
         easyconfig.parser.DEPRECATED_PARAMETERS.update({
@@ -1179,7 +1234,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_external_dependencies(self):
         """Test specifying external (build) dependencies."""
-        ectxt = read_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-deps.eb'))
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        ectxt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb'))
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
@@ -1279,7 +1335,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""
-        toy_ebfile = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ebfile = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         ec = EasyConfig(toy_ebfile)
 
         # for string values: append
@@ -1287,7 +1344,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['unpack_options'].strip(), '--strip-components=1')
 
         ec.update('description', "- just a test")
-        self.assertEqual(ec['description'].strip(), "Toy C program. - just a test")
+        self.assertEqual(ec['description'].strip(), "Toy C program, 100% toy. - just a test")
 
         # spaces in between multiple updates for stirng values
         ec.update('configopts', 'CC="$CC"')
@@ -1301,7 +1358,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(test_dir, 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'], [])
@@ -1346,12 +1403,12 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         ecfiles = [
-            'toy-0.0.eb',
-            'goolf-1.4.10.eb',
-            'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
-            'gzip-1.4-GCC-4.6.3.eb',
+            't/toy/toy-0.0.eb',
+            'g/goolf/goolf-1.4.10.eb',
+            's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb',
+            'g/gzip/gzip-1.4-GCC-4.6.3.eb',
         ]
         for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -1579,7 +1636,7 @@ class EasyConfigTest(EnhancedTestCase):
         try:
             import pygraph
 
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
             build_options = {
                 'external_modules_metadata': ConfigObj(),
                 'valid_module_classes': module_classes(),
@@ -1588,7 +1645,7 @@ class EasyConfigTest(EnhancedTestCase):
             }
             init_config(build_options=build_options)
 
-            ec_file = os.path.join(test_easyconfigs, 'toy-0.0-deps.eb')
+            ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
             ec_files = [(ec_file, False)]
             ecs, _ = parse_easyconfigs(ec_files)
 
@@ -1613,14 +1670,15 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         init_config(build_options=build_options)
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
         ec = EasyConfig(ec_file)
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'ictce/4.1.13')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/4.7.2')
 
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
         hiddendep = ec['hiddendependencies'][0]
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep), 'toy/.0.0-deps')
@@ -1628,8 +1686,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_find_related_easyconfigs(self):
         """Test find_related_easyconfigs function."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec_file = os.path.join(test_easyconfigs, 'GCC-4.6.3.eb')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_file = os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
 
         # exact match: GCC-4.6.3.eb
@@ -1647,7 +1705,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.7.2.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb']
         self.assertEqual(res, expected)
 
-        ec_file = os.path.join(test_easyconfigs, 'toy-0.0-deps.eb')
+        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
         ec = EasyConfig(ec_file)
 
         # exact match
@@ -1678,7 +1736,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_modaltsoftname(self):
         """Test specifying an alternative name for the software name, to use when determining module name."""
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0-deps.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
         ectxt = read_file(ec_file)
         modified_ec_file = os.path.join(self.test_prefix, os.path.basename(ec_file))
         write_file(modified_ec_file, ectxt + "\nmodaltsoftname = 'notreallyatoy'")
@@ -1690,14 +1749,15 @@ class EasyConfigTest(EnhancedTestCase):
     def test_software_license(self):
         """Tests related to software_license easyconfig parameter."""
         # default: None
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         ec = EasyConfig(ec_file)
         ec.validate_license()
         self.assertEqual(ec['software_license'], None)
         self.assertEqual(ec.software_license, None)
 
         # specified software license gets handled correctly
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4.eb')
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
         ec = EasyConfig(ec_file)
         ec.validate_license()
         # constant GPLv3 is resolved as string
@@ -1712,7 +1772,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_param_value_type_checking(self):
         """Test value tupe checking of easyconfig parameters."""
-        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'gzip-1.4-broken.eb')
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
         # version parameter has values of wrong type in this broken easyconfig
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
@@ -1723,8 +1784,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_copy(self):
         """Test copy method of EasyConfig object."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec1 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
         ec2 = ec1.copy()
 
@@ -1734,9 +1795,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec1 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
-        ec2 = EasyConfig(os.path.join(test_easyconfigs, 'toy-0.0.eb'))
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
+        ec2 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
         # different instances, same parsed easyconfig
         self.assertFalse(ec1 is ec2)
@@ -1748,13 +1809,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(hash(ec1), hash(ec2))
 
         # other parsed easyconfig is not equal
-        ec3 = EasyConfig(os.path.join(test_easyconfigs, 'gzip-1.4.eb'))
+        ec3 = EasyConfig(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
         self.assertFalse(ec1 == ec3)
         self.assertTrue(ec1 != ec3)
 
     def test_copy_easyconfigs(self):
         """Test copy_easyconfigs function."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         target_dir = os.path.join(self.test_prefix, 'copied_ecs')
         # easybuild/easyconfigs subdir is expected to exist
@@ -1764,31 +1825,82 @@ class EasyConfigTest(EnhancedTestCase):
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
         self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
-        self.assertEqual(os.listdir(os.path.join(target_dir, 'easybuild', 'easyconfigs')), [])
+        self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
         test_ecs = [
-            ('GCC-4.6.3.eb', 'GCC.eb'),
-            ('OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
-            ('toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+            ('g/GCC/GCC-4.6.3.eb', 'GCC.eb'),
+            ('o/OpenMPI/OpenMPI-1.6.4-GCC-4.6.4.eb', 'openmpi164.eb'),
+            ('t/toy/toy-0.0-gompi-1.3.12-test.eb', 'foo.eb'),
+            ('t/toy/toy-0.0.eb', 'TOY.eb'),
         ]
         ecs_to_copy = []
         for (src_ec, target_ec) in test_ecs:
             ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
             shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
 
-        copy_easyconfigs(ecs_to_copy, target_dir)
+        res = copy_easyconfigs(ecs_to_copy, target_dir)
+        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'paths_in_repo'])
+        self.assertEqual(len(res['ecs']), len(test_ecs))
+        self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
+        self.assertTrue(all(res['new']))
+        expected = os.path.join(target_dir, 'easybuild', 'easyconfigs', 'g', 'GCC', 'GCC-4.6.3.eb')
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], expected))
 
         # check whether easyconfigs were copied (unmodified) to correct location
         for orig_ec, src_ec in test_ecs:
+            orig_ec = os.path.basename(orig_ec)
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
             self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
 
+        # create test easyconfig that includes comments & build stats, just like an archived easyconfig
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        copy_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'), toy_ec)
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt = '\n'.join([
+            "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
+            toy_ec_txt,
+            "# Build statistics",
+            "buildstats = [{",
+            '   "build_time": 8.34,',
+            '   "os_type": "Linux",',
+            "}]",
+        ])
+        write_file(toy_ec, toy_ec_txt)
+
+        # copy single easyconfig with buildstats included for running further tests
+        res = copy_easyconfigs([toy_ec], target_dir)
+
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1])
+        self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
+
+        # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
+        self.assertFalse(res['new'][0])
+
+        copied_toy_ec = os.path.join(ecs_target_dir, 't', 'toy', 'toy-0.0.eb')
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], copied_toy_ec))
+
+        # verify whether copied easyconfig gets cleaned up (stripping out 'Built with' comment + build stats)
+        txt = read_file(copied_toy_ec)
+        regexs = [
+            "# Built with EasyBuild",
+            "# Build statistics",
+            "buildstats\s*=",
+        ]
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
+
+        # make sure copied easyconfig still parses
+        ec = EasyConfig(copied_toy_ec)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec['buildstats'], None)
+
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
 
         expected = {
             'github_account': None,
@@ -1805,7 +1917,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         self.assertEqual(template_constant_dict(ec), expected)
 
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0-deps.eb'))
+        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb'))
         # fiddle with version to check version_minor template ('0' should be retained)
         ec['version'] = '0.01'
 
@@ -1826,10 +1938,10 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-goolf-1.4.10.eb')
-        shutil.copy2(os.path.join(test_ecs, 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
+        shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-ictce-4.1.13.eb'), pyec)
         write_file(pyec, "\ntoolchain = {'name': 'goolf', 'version': '1.4.10'}", append=True)
 
         ec_txt = '\n'.join([
@@ -1879,8 +1991,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_hidden_toolchain(self):
         """Test hiding of toolchain via easyconfig parameter."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        ec_txt = read_file(os.path.join(test_ecs_dir, 'gzip-1.6-GCC-4.9.2.eb'))
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        ec_txt = read_file(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb'))
 
         new_tc = "toolchain = {'name': 'GCC', 'version': '4.9.2', 'hidden': True}"
         ec_txt = re.sub("toolchain = .*", new_tc, ec_txt, re.M)
@@ -1900,17 +2012,22 @@ class EasyConfigTest(EnhancedTestCase):
         """Test categorize_files_by_type"""
         self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
         toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
         paths = [
             'bzip2-1.0.6.eb',
-            os.path.join(test_ecs_dir, 'gzip-1.4.eb'),
+            os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
             toy_patch,
             'foo',
             ':toy-0.0-deps.eb',
         ]
         res = categorize_files_by_type(paths)
-        self.assertEqual(res['easyconfigs'], ['bzip2-1.0.6.eb', os.path.join(test_ecs_dir, 'gzip-1.4.eb'), 'foo'])
+        expected = [
+            'bzip2-1.0.6.eb',
+            os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
+            'foo',
+        ]
+        self.assertEqual(res['easyconfigs'], expected)
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
 
@@ -1951,6 +2068,93 @@ class EasyConfigTest(EnhancedTestCase):
 
         # '%(name)' is not a correct template spec (missing trailing 's')
         self.assertEqual(resolve_template('%(name)', tmpl_dict), '%(name)')
+
+    def test_verify_easyconfig_filename(self):
+        """Test verify_easyconfig_filename function"""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+        toy_ec_name = os.path.basename(toy_ec)
+        specs = {
+            'name': 'toy',
+            'toolchain': {'name': 'gompi', 'version': '1.3.12'},
+            'version': '0.0',
+            'versionsuffix': '-test'
+        }
+
+        # all is well
+        verify_easyconfig_filename(toy_ec, specs)
+
+        # pass parsed easyconfig
+        parsed_ecs = process_easyconfig(toy_ec)
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=parsed_ecs)
+        verify_easyconfig_filename(toy_ec, specs, parsed_ec=parsed_ecs[0]['ec'])
+
+        # incorrect spec
+        specs['versionsuffix'] = ''
+        error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-1.3.12.eb' " % toy_ec_name
+        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
+        error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+        specs['versionsuffix'] = '-test'
+
+        # incorrect file name
+        toy_txt = read_file(toy_ec)
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        write_file(toy_ec, toy_txt)
+        error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-1.3.12-test.eb' "
+        error_pattern += "\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
+        error_pattern += "toolchain name, version: 'gompi', '1.3.12'\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+
+        # incorrect file contents
+        error_pattern = r"Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
+        toy_txt = toy_txt.replace("versionsuffix = '-test'", "versionsuffix = ''")
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-gompi-1.3.12-test.eb')
+        write_file(toy_ec, toy_txt)
+        error_pattern = "Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
+        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+
+    def test_get_paths_for(self):
+        """Test for get_paths_for"""
+        orig_path = os.getenv('PATH', '')
+
+        # get_paths_for should be robust against not having any 'eb' command available through $PATH
+        path = []
+        for subdir in orig_path.split(os.pathsep):
+            if not os.path.exists(os.path.join(subdir, 'eb')):
+                path.append(subdir)
+        os.environ['PATH'] = os.pathsep.join(path)
+
+        top_dir = os.path.dirname(os.path.abspath(__file__))
+        mkdir(os.path.join(self.test_prefix, 'easybuild'))
+        test_ecs = os.path.join(top_dir, 'easyconfigs')
+        symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
+
+        # locations listed in 'robot_path' named argument are taken into account
+        res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
+        self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+        # easyconfigs location can also be derived from location of 'eb'
+        write_file(os.path.join(self.test_prefix, 'bin', 'eb'), "#!/bin/bash; echo 'This is a fake eb'")
+        adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # also works when 'eb' resides in a symlinked location
+        altbin = os.path.join(self.test_prefix, 'some', 'other', 'symlinked', 'bin')
+        mkdir(os.path.dirname(altbin), parents=True)
+        symlink(os.path.join(self.test_prefix, 'bin'), altbin)
+        os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+
+        # also locations in sys.path are considered
+        os.environ['PATH'] = orig_path
+        sys.path.insert(0, self.test_prefix)
+        res = get_paths_for(subdir='easyconfigs', robot_path=None)
+        self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
 
 def suite():
