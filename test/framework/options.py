@@ -2187,6 +2187,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_preview_pr(self):
         """Test --preview-pr."""
+        if self.github_token is None:
+            print "Skipping test_preview_pr, no GitHub token available?"
+            return
 
         self.mock_stdout(True)
 
