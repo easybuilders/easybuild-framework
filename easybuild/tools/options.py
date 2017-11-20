@@ -713,7 +713,7 @@ class EasyBuildOptions(GeneralOption):
 
         # log to specified value of --unittest-file
         if self.options.unittest_file:
-            fancylogger.logToFile(self.options.unittest_file)
+            fancylogger.logToFile(self.options.unittest_file, max_bytes=0)
 
         # set tmpdir
         self.tmpdir = set_tmpdir(self.options.tmpdir)
