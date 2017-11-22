@@ -1,0 +1,131 @@
+# #
+# Copyright 2017-2017 Ghent University
+#
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# https://github.com/easybuilders/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+# #
+"""
+Unit tests for hooks.py
+
+@author: Kenneth Hoste (Ghent University)
+"""
+import os
+import sys
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
+
+from easybuild.tools.filetools import write_file
+from easybuild.tools.hooks import find_hook, load_hooks, run_hook
+
+
+class HooksTest(EnhancedTestCase):
+    """Tests for hooks support."""
+
+    def setUp(self):
+        """Set up for testing."""
+        super(HooksTest, self).setUp()
+        self.test_hooks_pymod = os.path.join(self.test_prefix, 'test_hooks.py')
+        test_hooks_pymod_txt = '\n'.join([
+            'def start_hook():',
+            '    print("running start hook")',
+            '',
+            'def foo():',
+            '    print("running foo helper method")',
+            '',
+            'def post_configure_hook(self):',
+            '    print("running post-configure hook")',
+            '    foo()',
+            '',
+            'def pre_install_hook(self):',
+            '    print("running pre-install hook")',
+        ])
+        write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
+
+    def testload__hooks(self):
+        """Test for load_hooks function."""
+
+        hooks = load_hooks(self.test_hooks_pymod)
+
+        self.assertEqual(len(hooks), 3)
+        self.assertEqual(sorted(h.__name__ for h in hooks), ['post_configure_hook', 'pre_install_hook', 'start_hook'])
+        self.assertTrue(all(callable(h) for h in hooks))
+
+    def test_find_hook(self):
+        """Test for find_hook function."""
+
+        hooks = load_hooks(self.test_hooks_pymod)
+
+        post_configure_hook = [h for h in hooks if h.__name__ == 'post_configure_hook'][0]
+        pre_install_hook = [h for h in hooks if h.__name__ == 'pre_install_hook'][0]
+        start_hook = [h for h in hooks if h.__name__ == 'start_hook'][0]
+
+        self.assertEqual(find_hook('configure', hooks), None)
+        self.assertEqual(find_hook('configure', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('configure', hooks, post_step_hook=True), post_configure_hook)
+
+        self.assertEqual(find_hook('install', hooks), None)
+        self.assertEqual(find_hook('install', hooks, pre_step_hook=True), pre_install_hook)
+        self.assertEqual(find_hook('install', hooks, post_step_hook=True), None)
+
+        self.assertEqual(find_hook('build', hooks), None)
+        self.assertEqual(find_hook('build', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('build', hooks, post_step_hook=True), None)
+
+        self.assertEqual(find_hook('start', hooks), start_hook)
+        self.assertEqual(find_hook('start', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('start', hooks, post_step_hook=True), None)
+
+    def test_run_hook(self):
+        """Test for run_hook function."""
+
+        hooks = load_hooks(self.test_hooks_pymod)
+
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        run_hook('start', hooks)
+        run_hook('configure', hooks, pre_step_hook=True, args=[None])
+        run_hook('configure', hooks, post_step_hook=True, args=[None])
+        run_hook('build', hooks, pre_step_hook=True, args=[None])
+        run_hook('build', hooks, post_step_hook=True, args=[None])
+        run_hook('install', hooks, pre_step_hook=True, args=[None])
+        run_hook('install', hooks, post_step_hook=True, args=[None])
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        expected_stdout = '\n'.join([
+            "running start hook",
+            "running post-configure hook",
+            "running foo helper method",
+            "running pre-install hook",
+        ])
+
+        self.assertEqual(stdout.strip(), expected_stdout)
+        self.assertEqual(stderr, '')
+
+
+def suite():
+    """ returns all the testcases in this module """
+    return TestLoaderFiltered().loadTestsFromTestCase(HooksTest, sys.argv[1:])
+
+if __name__ == '__main__':
+    TextTestRunner(verbosity=1).run(suite())
