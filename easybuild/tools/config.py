@@ -121,7 +121,6 @@ BUILD_OPTIONS_CMDLINE = {
         'force_download',
         'from_pr',
         'git_working_dirs_path',
-        'hooks',
         'github_user',
         'github_org',
         'group',

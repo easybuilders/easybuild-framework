@@ -31,6 +31,8 @@ import imp
 import os
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('hooks', fname=False)
 
@@ -38,7 +40,11 @@ _log = fancylogger.getLogger('hooks', fname=False)
 def load_hooks(hooks_path):
     """Load defined hooks (if any)."""
     hooks = []
+
     if hooks_path:
+        if not os.path.exists(hooks_path):
+            raise EasyBuildError("Specified path for hooks implementation does not exist: %s", hooks_path)
+
         (hooks_dir, hooks_filename) = os.path.split(hooks_path)
         (hooks_mod_name, hooks_file_ext) = os.path.splitext(hooks_filename)
         if hooks_file_ext == '.py':
