@@ -70,7 +70,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir, resolve_path
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -779,10 +779,6 @@ class EasyBuildOptions(GeneralOption):
 
         # handle configuration options that affect other configuration options
         self._postprocess_config()
-
-        # make sure absolute path is used for location of hooks
-        if self.options.hooks:
-            self.options.hooks = resolve_path(self.options.hooks)
 
         # show current configuration and exit, if requested
         if self.options.show_config or self.options.show_full_config:
