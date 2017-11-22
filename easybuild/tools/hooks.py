@@ -36,6 +36,12 @@ from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('hooks', fname=False)
 
+# this should be obtained via EasyBlock.get_steps(),
+# but we can't import from easybuild.framework.easyblock without introducing a cyclic dependency...
+STEP_NAMES = ['fetch', 'ready', 'source', 'patch', 'prepare', 'configure', 'build', 'test', 'install', 'extensions',
+              'postproc', 'sanitycheck', 'cleanup', 'module', 'permissions', 'package', 'testcases']
+KNOWN_HOOKS = ['%s_hook' % h for h in ['start'] + [p + '_' + s for s in STEP_NAMES for p in ['pre', 'post']] + ['end']]
+
 
 def load_hooks(hooks_path):
     """Load defined hooks (if any)."""
@@ -45,14 +51,12 @@ def load_hooks(hooks_path):
         if not os.path.exists(hooks_path):
             raise EasyBuildError("Specified path for hooks implementation does not exist: %s", hooks_path)
 
-        (hooks_dir, hooks_filename) = os.path.split(hooks_path)
-        (hooks_mod_name, hooks_file_ext) = os.path.splitext(hooks_filename)
+        (hooks_filename, hooks_file_ext) = os.path.splitext(os.path.split(hooks_path)[1])
         if hooks_file_ext == '.py':
             _log.info("Importing hooks implementation from %s...", hooks_path)
-            (fh, pathname, descr) = imp.find_module(hooks_mod_name, [hooks_dir])
             try:
                 # import module that defines hooks, and collect all functions of which name ends with '_hook'
-                imported_hooks = imp.load_module(hooks_mod_name, fh, pathname, descr)
+                imported_hooks = imp.load_source(hooks_filename, hooks_path)
                 for attr in dir(imported_hooks):
                     if attr.endswith('_hook'):
                         hook = getattr(imported_hooks, attr)
@@ -68,15 +72,31 @@ def load_hooks(hooks_path):
     else:
         _log.info("No location for hooks implementation provided, no hooks defined")
 
+    verify_hooks(hooks)
+
     return hooks
 
 
-def find_hook(label, known_hooks, pre_step_hook=False, post_step_hook=False):
+def verify_hooks(hooks):
+    """Check whether list of obtained hooks only includes known hooks."""
+    unknown_hooks = []
+    for hook in hooks:
+        if hook.__name__ not in KNOWN_HOOKS:
+            unknown_hooks.append(hook.__name__)
+
+    if unknown_hooks:
+        raise EasyBuildError("Found one or more unknown hooks: %s (known hooks: %s)",
+                             ', '.join(unknown_hooks), ', '.join(KNOWN_HOOKS))
+    else:
+        _log.info("Defined hooks verified, all known hooks: %s", ', '.join(h.__name__ for h in hooks))
+
+
+def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     """
     Find hook with specified label.
 
     :param label: name of hook
-    :param known_hooks: list of known hooks
+    :param hooks: list of defined hooks
     :param pre_step_hook: indicates whether hook to run is a pre-step hook
     :param post_step_hook: indicates whether hook to run is a post-step hook
     """
@@ -91,7 +111,7 @@ def find_hook(label, known_hooks, pre_step_hook=False, post_step_hook=False):
 
     hook_name = hook_prefix + label + '_hook'
 
-    for hook in known_hooks:
+    for hook in hooks:
         if hook.__name__ == hook_name:
             _log.info("Found %s hook", hook_name)
             res = hook
@@ -100,17 +120,17 @@ def find_hook(label, known_hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def run_hook(label, known_hooks, pre_step_hook=False, post_step_hook=False, args=None):
+def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None):
     """
     Run hook with specified label.
 
     :param label: name of hook
-    :param known_hooks: list of known hooks
+    :param hooks: list of defined hooks
     :param pre_step_hook: indicates whether hook to run is a pre-step hook
     :param post_step_hook: indicates whether hook to run is a post-step hook
     :param args: arguments to pass to hook function
     """
-    hook = find_hook(label, known_hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     if hook:
         if args is None:
             args = []
