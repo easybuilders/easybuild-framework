@@ -32,8 +32,9 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
-from easybuild.tools.hooks import find_hook, load_hooks, run_hook
+from easybuild.tools.hooks import find_hook, load_hooks, run_hook, verify_hooks
 
 
 class HooksTest(EnhancedTestCase):
@@ -59,8 +60,10 @@ class HooksTest(EnhancedTestCase):
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
 
-    def testload__hooks(self):
+    def test_load_hooks(self):
         """Test for load_hooks function."""
+
+        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, '/no/such/hooks.py')
 
         hooks = load_hooks(self.test_hooks_pymod)
 
@@ -121,6 +124,30 @@ class HooksTest(EnhancedTestCase):
 
         self.assertEqual(stdout.strip(), expected_stdout)
         self.assertEqual(stderr, '')
+
+    def test_verify_hooks(self):
+        """Test verify_hooks function."""
+
+        hooks = load_hooks(self.test_hooks_pymod)
+        # verify_hooks is actually already called by load_hooks, so this is a bit silly, but fine
+        # if no unexpected hooks are found, verify_hooks just logs (no return value)
+        self.assertEqual(verify_hooks(hooks), None)
+
+        test_broken_hooks_pymod = os.path.join(self.test_prefix, 'test_broken_hooks.py')
+        test_hooks_txt = '\n'.join([
+            '',
+            'def there_is_no_such_hook():',
+            '    pass',
+            'def post_source_hook(self):',
+            '    pass',
+            'def another_faulty_hook(self):',
+            '    pass',
+        ])
+
+        write_file(test_broken_hooks_pymod, test_hooks_txt)
+
+        error_msg_pattern = "Found one or more unknown hooks: another_faulty_hook, there_is_no_such_hook \(known hooks:"
+        self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 
 
 def suite():
