@@ -32,7 +32,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import apply_patch, extract_file
+from easybuild.tools.filetools import apply_patch, change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars
 
 
@@ -100,6 +100,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
+
+            if self.cfg['start_dir'] and os.path.isdir(self.cfg['start_dir']):
+                self.log.debug("Using start_dir: %s", self.cfg['start_dir'])
+                change_dir(self.cfg['start_dir'])
 
         # patch if needed
         if self.patches:
