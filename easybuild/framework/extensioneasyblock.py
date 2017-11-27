@@ -81,6 +81,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
+            self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
