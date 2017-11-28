@@ -642,8 +642,6 @@ class EasyConfig(object):
                         low = LooseVersion(spec['low']) if spec['low'] else None
                         excl_high = spec['excl_high']
                         high = LooseVersion(spec['high']) if spec['high'] else None
-                        print("low=" + str(low))
-                        print("high=" + str(high))
                         filtering = False
                         version = LooseVersion(dep['version'])
 
