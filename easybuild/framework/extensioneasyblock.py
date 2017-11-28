@@ -104,7 +104,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
 
-            if self.start_dir and os.path.isdir(self.start_dir]):
+            if self.start_dir and os.path.isdir(self.start_dir):
                 self.log.debug("Using start_dir: %s", self.start_dir)
                 change_dir(self.start_dir)
 
