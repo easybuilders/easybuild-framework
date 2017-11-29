@@ -642,39 +642,17 @@ class EasyConfig(object):
                         low = LooseVersion(spec['low']) if spec['low'] else None
                         excl_high = spec['excl_high']
                         high = LooseVersion(spec['high']) if spec['high'] else None
-                        filtering = False
+                        filtering = True
                         version = LooseVersion(dep['version'])
 
-                        # if both were specified
-                        if low and high:
-                            # test if we include both boundaries
-                            if not excl_low and not excl_high and (version >= low and version <= high):
-                                filtering = True
-                            # test if we exclude low and include high
-                            elif excl_low and not excl_high and (version > low and version <= high):
-                                filtering = True
-                            # test if we include low and exclude high
-                            elif not excl_low and excl_high and (version >= low and version < high):
-                                filtering = True
-                            # test if we exclude both boundaries
-                            elif excl_low and excl_high and (version > low and version < high):
-                                filtering = True
-                        # only low is defined
-                        elif low and not high:
-                            # test if we include low
-                            if not excl_low and version >= low:
-                                filtering = True
-                            # test if we exclude low
-                            if excl_low and version > low:
-                                filtering = True
-                        # only high is defined
-                        elif not low and high:
-                            # test if we include high
-                            if not excl_high and version <= high:
-                                filtering = True
-                            # test if we exclude high
-                            if excl_high and version < high:
-                                filtering = True
+                        # test if version is lower than the lower bound
+                        if filtering and low:
+                            if version < low or (excl_low and version == low):
+                                filtering = False
+
+                        if filtering and high:
+                            if version > high or (excl_high and version == high):
+                                filtering = False
 
                         if not filtering:
                             filtered_deps.append(dep)
