@@ -617,8 +617,7 @@ class EasyConfig(object):
                 complex_fdeps = { }
                 for s in complex_fdeps_list:
                     k,v = s.split('=')
-                    complex_fdeps[k] = v
-                for k,v in complex_fdeps.iteritems():
+                    
                     # test whether this is a range
                     if ":" in v:
                         # remove range characters
