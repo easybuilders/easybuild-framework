@@ -611,10 +611,13 @@ class EasyConfig(object):
 
         if filter_deps:
             # find if any of the filter_deps are in the form name=version or name=[low:high[
-            complex_fdeps = [x for x in filter_deps if "=" in x]
+            complex_fdeps_list = [x for x in filter_deps if "=" in x]
             # convert list of k=v into dictionary
-            if complex_fdeps:
-                complex_fdeps = { k:v for k,v in (s.split('=') for s in complex_fdeps) }
+            if complex_fdeps_list:
+                complex_fdeps = { }
+                for s in complex_fdeps_list:
+                    k,v = s.split('=')
+                    complex_fdeps[k] = v
                 for k,v in complex_fdeps.iteritems():
                     # test whether this is a range
                     if ":" in v:
@@ -629,9 +632,6 @@ class EasyConfig(object):
                         excl_low = False
                         excl_high = False
                     complex_fdeps[k] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
-            else:
-                # if there were no elements in complex_fdeps, we must convert it to an empty dict, else .keys() fails
-                complex_fdeps = {}
 
             filtered_deps = []
             for dep in deps:
