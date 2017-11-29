@@ -611,6 +611,7 @@ class ToolchainTest(EnhancedTestCase):
 
         fftw_libs = ['fftw3xc_intel', 'fftw3xc_pgi', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
         fftw_libs += ['mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'mkl_intel_ilp64']
+        fftw_libs += ['mkl_intel_thread', 'iomp5', 'pthread']
         if LooseVersion(imklver) >= LooseVersion('11'):
             fftw_libs.extend(['fftw3x_cdft_ilp64', 'fftw3x_cdft_lp64'])
         else:
@@ -826,68 +827,116 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.prepend_module_path(self.test_prefix)
 
         # incl. -lguide
+        libblas_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libblas_ictce3 += " -Wl,--end-group -Wl,-Bdynamic"
         libblas_mt_ictce3 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
         libblas_mt_ictce3 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lguide -lpthread"
 
         # no -lguide
+        libblas_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libblas_ictce4 += " -Wl,--end-group -Wl,-Bdynamic"
         libblas_mt_ictce4 = "-Wl,-Bstatic -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core"
         libblas_mt_ictce4 += " -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread"
 
         # incl. -lmkl_solver*
-        libscalack_ictce3 = "-lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -lmkl_blacs_intelmpi_lp64"
-        libscalack_ictce3 += " -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalapack_ictce3_tpl = "-lmkl_scalapack_lp64 %s -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 %s -lmkl_core"
+        libscalapack_ictce3 = libscalapack_ictce3_tpl % ('-lmkl_solver_lp64_sequential', '-lmkl_sequential')
+        libscalapack_mt_ictce3 = libscalapack_ictce3_tpl % ('-lmkl_solver_lp64', '-lmkl_intel_thread')
 
         # no -lmkl_solver*
-        libscalack_ictce4 = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core"
+        libscalapack_ictce4_tpl = "-lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -lmkl_intel_lp64 %s -lmkl_core"
+        libscalapack_ictce4 = libscalapack_ictce4_tpl % '-lmkl_sequential'
+        libscalapack_mt_ictce4 = libscalapack_ictce4_tpl % '-lmkl_intel_thread'
 
-        libblas_mt_goolfc = "-lopenblas -lgfortran"
-        libscalack_goolfc = "-lscalapack -lopenblas -lgfortran"
-        libfft_mt_goolfc = "-lfftw3_omp -lfftw3 -lpthread"
+        libblas_goolfc = "-lopenblas -lgfortran"
+        libscalapack_goolfc = "-lscalapack -lopenblas -lgfortran"
+        libscalapack_mt_goolfc = "-lscalapack -lopenblas -lpthread -lgfortran"
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
         tc.prepare()
-        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
-        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+        self.assertEqual(os.environ['LIBBLAS'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBLAPACK'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBLAPACK_MT'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalapack_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK_MT'], libscalapack_mt_goolfc)
         self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_ictce4)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBLAPACK', "(not set)"), libblas_ictce4)
+        self.assertEqual(os.environ.get('LIBLAPACK_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalapack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_mt_ictce4 in os.environ['LIBSCALAPACK_MT'])
         self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
         tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_ictce3)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
-        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBLAPACK', "(not set)"), libblas_ictce3)
+        self.assertEqual(os.environ.get('LIBLAPACK_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalapack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_mt_ictce3 in os.environ['LIBSCALAPACK_MT'])
         self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='4.1.13')
         tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_ictce4)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBLAPACK', "(not set)"), libblas_ictce4)
+        self.assertEqual(os.environ.get('LIBLAPACK_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalapack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_mt_ictce4 in os.environ['LIBSCALAPACK_MT'])
         self.modtool.purge()
 
         tc = self.get_toolchain('ictce', version='3.2.2.u3')
         tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_ictce3)
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce3)
-        self.assertTrue(libscalack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertEqual(os.environ.get('LIBLAPACK', "(not set)"), libblas_ictce3)
+        self.assertEqual(os.environ.get('LIBLAPACK_MT', "(not set)"), libblas_mt_ictce3)
+        self.assertTrue(libscalapack_ictce3 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_mt_ictce3 in os.environ['LIBSCALAPACK_MT'])
         self.modtool.purge()
 
-        libscalack_ictce4 = libscalack_ictce4.replace('_lp64', '_ilp64')
+        libscalapack_ictce4 = libscalapack_ictce4.replace('_lp64', '_ilp64')
+        libscalapack_mt_ictce4 = libscalapack_mt_ictce4.replace('_lp64', '_ilp64')
         tc = self.get_toolchain('ictce', version='4.1.13')
         opts = {'i8': True}
         tc.set_options(opts)
         tc.prepare()
-        self.assertTrue(libscalack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_mt_ictce4 in os.environ['LIBSCALAPACK_MT'])
         self.modtool.purge()
 
         tc = self.get_toolchain('goolfc', version='1.3.12')
         tc.set_options({'openmp': True})
         tc.prepare()
-        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_mt_goolfc)
-        self.assertEqual(os.environ['LIBFFT_MT'], libfft_mt_goolfc)
-        self.assertEqual(os.environ['LIBSCALAPACK'], libscalack_goolfc)
+
+        self.assertEqual(os.environ['LIBBLAS'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBLAPACK'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBBLAS_MT'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBLAPACK_MT'], libblas_goolfc)
+        self.assertEqual(os.environ['LIBFFT'], '-lfftw3')
+        self.assertEqual(os.environ['LIBFFT_MT'], "-lfftw3_omp -lfftw3 -lpthread")
+        self.assertEqual(os.environ['LIBSCALAPACK'], libscalapack_goolfc)
+        self.assertEqual(os.environ['LIBSCALAPACK_MT'], libscalapack_mt_goolfc)
+        self.modtool.purge()
+
+        # with 'mt_blas_lapack' toolchain option set, $LIBBLAS is identical to $LIBBLAS_MT (idem for $LIBLAPACK)
+        libscalapack_mt_ictce4 = libscalapack_mt_ictce4.replace('_ilp64', '_lp64')
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.set_options({'mt_blas_lapack': True})
+        tc.prepare()
+        self.assertEqual(os.environ.get('LIBBLAS', "(not set)"), libblas_mt_ictce4)
+        self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertEqual(os.environ.get('LIBLAPACK', "(not set)"), libblas_mt_ictce4)
+        self.assertEqual(os.environ.get('LIBLAPACK_MT', "(not set)"), libblas_mt_ictce4)
+        self.assertTrue(libscalapack_mt_ictce4 in os.environ['LIBSCALAPACK'])
+        self.assertTrue(libscalapack_mt_ictce4 in os.environ['LIBSCALAPACK_MT'])
 
     def test_independence(self):
         """Test independency of toolchain instances."""

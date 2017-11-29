@@ -788,7 +788,8 @@ def avail_toolchain_opts(name, output_format=FORMAT_TXT):
     tc = tc_class(version='1.0') # version doesn't matter here, but needs to be defined
 
     tc_dict = {}
-    for cst in ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']:
+    csts = ['COMPILER_SHARED_OPTS', 'COMPILER_UNIQUE_OPTS', 'LINALG_SHARED_OPTS', 'MPI_SHARED_OPTS', 'MPI_UNIQUE_OPTS']
+    for cst in csts:
         if hasattr(tc, cst):
             opts = getattr(tc, cst)
             if opts is not None:
