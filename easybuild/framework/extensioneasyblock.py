@@ -81,8 +81,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
-            # We cannot inherit the start_dir from the easyconfig. It should be specified in the extension
-            # itself or be empty.
+            # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
+            # It should be specified for the extension specifically, or be empty (so it is auto-derived).
             self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
