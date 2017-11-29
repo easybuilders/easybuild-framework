@@ -612,9 +612,9 @@ class EasyConfig(object):
         if filter_deps:
             # find if any of the filter_deps are in the form name=version or name=[low:high[
             complex_fdeps_list = [x for x in filter_deps if "=" in x]
+            complex_fdeps = { }
             # convert list of k=v into dictionary
             if complex_fdeps_list:
-                complex_fdeps = { }
                 for s in complex_fdeps_list:
                     k,v = s.split('=')
                     
