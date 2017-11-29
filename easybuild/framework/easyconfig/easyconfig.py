@@ -629,6 +629,9 @@ class EasyConfig(object):
                         excl_low = False
                         excl_high = False
                     complex_fdeps[k] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
+            else:
+                # if there were no elements in complex_fdeps, we must convert it to an empty dict, else .keys() fails
+                complex_fdeps = {}
 
             filtered_deps = []
             for dep in deps:
