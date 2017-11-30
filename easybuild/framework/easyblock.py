@@ -198,6 +198,9 @@ class EasyBlock(object):
         # list of locations to include in RPATH filter used by toolchain
         self.rpath_filter_dirs = []
 
+        # list of locations to include in RPATH used by toolchain
+        self.rpath_include_dirs = []
+
         # logging
         self.log = None
         self.logfile = None
@@ -1738,8 +1741,15 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
+        # always include self.installdir+'/lib' and self.installdir+'/lib64' and $ORIGIN
+        # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
+        # see also https://linux.die.net/man/8/ld-linux;
+        self.rpath_include_dirs.append(self.installdir+'/lib')
+        self.rpath_include_dirs.append(self.installdir+'/lib64')
+        self.rpath_include_dirs.append('$ORIGIN')
+
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs)
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:
