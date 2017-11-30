@@ -1284,7 +1284,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
-        cmd = "%s g++ '' -v" % script
+        cmd = "%s g++ '' '%s/lib,%s/lib64,$ORIGIN' -v" % (script, self.test_prefix, self.test_prefix)
         out, ec = run_cmd(cmd, simple=False)
         self.assertEqual(ec, 0)
         self.assertEqual(out.strip(), "CMD_ARGS=('-v')")
@@ -1336,9 +1336,6 @@ class ToolchainTest(EnhancedTestCase):
         # no -rpath for /bar because of rpath filter
         out, _ = run_cmd('gcc ${USER}.c -L/foo -L/bar \'$FOO\' -DX="\\"\\""')
         expected = ' '.join([
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=/foo',
             '%(user)s.c',
