@@ -45,6 +45,7 @@ import shutil
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
+from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import MANDATORY
@@ -607,11 +608,56 @@ class EasyConfig(object):
         # each processed easyconfig to remove the unwanted dependencies
         self.log.debug("Dependencies BEFORE filtering: %s" % deps)
         filter_deps = build_option('filter_deps')
+
         if filter_deps:
+            # find if any of the filter_deps are in the form name=version or name=[low:high[
+            complex_fdeps_list = [x for x in filter_deps if "=" in x]
+            complex_fdeps = { }
+            # convert list of k=v into dictionary
+            if complex_fdeps_list:
+                for s in complex_fdeps_list:
+                    k,v = s.split('=')
+                    
+                    # test whether this is a range
+                    if ":" in v:
+                        # remove range characters
+                        values = v.translate(None, '][()')
+                        low, high = values.split(":")
+                        excl_low = v[0] in [']', '(']
+                        excl_high = v[-1] in ['[', ')']
+                    else:
+                        low = v
+                        high = v
+                        excl_low = False
+                        excl_high = False
+                    complex_fdeps[k] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
+
             filtered_deps = []
             for dep in deps:
                 if dep['name'] not in filter_deps:
-                    filtered_deps.append(dep)
+                    if dep['name'] not in complex_fdeps.keys():
+                        filtered_deps.append(dep)
+                    else:
+                        # get the version specification
+                        spec = complex_fdeps[dep['name']]
+                        excl_low = spec['excl_low']
+                        low = LooseVersion(spec['low']) if spec['low'] else None
+                        excl_high = spec['excl_high']
+                        high = LooseVersion(spec['high']) if spec['high'] else None
+                        filtering = True
+                        version = LooseVersion(dep['version'])
+
+                        # test if version is lower than the lower bound
+                        if filtering and low:
+                            if version < low or (excl_low and version == low):
+                                filtering = False
+
+                        if filtering and high:
+                            if version > high or (excl_high and version == high):
+                                filtering = False
+
+                        if not filtering:
+                            filtered_deps.append(dep)
                 else:
                     self.log.info("filtered out dependency %s" % dep)
             self.log.debug("Dependencies AFTER filtering: %s" % filtered_deps)
