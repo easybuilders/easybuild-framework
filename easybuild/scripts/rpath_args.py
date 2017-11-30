@@ -38,7 +38,8 @@ import sys
 
 cmd = sys.argv[1]
 rpath_filter = sys.argv[2]
-args = sys.argv[3:]
+rpath_include = sys.argv[3]
+args = sys.argv[4:]
 
 # wheter or not to use -Wl to pass options to the linker
 if cmd in ['ld', 'ld.gold', 'ld.bfd']:
@@ -51,6 +52,8 @@ if rpath_filter:
     rpath_filter = re.compile('^%s$' % '|'.join(rpath_filter))
 else:
     rpath_filter = None
+
+rpath_include = rpath_include.split(',')
 
 version_mode = False
 cmd_args, cmd_args_rpath = [], []
@@ -106,13 +109,13 @@ while idx < len(args):
 # add -rpath flags in front
 cmd_args = cmd_args_rpath + cmd_args
 
+cmd_args_rpath = []
+for path in rpath_include:
+    cmd_args_rpath.append(flag_prefix + '-rpath=%s' % path)
+
+
 if not version_mode:
-    cmd_args = [
-        # always include '$ORIGIN/../lib' and '$ORIGIN/../lib64'
-        # $ORIGIN will be resolved by the loader to be the full path to the 'executable'
-        # see also https://linux.die.net/man/8/ld-linux;
-        flag_prefix + '-rpath=$ORIGIN/../lib',
-        flag_prefix + '-rpath=$ORIGIN/../lib64',
+    cmd_args = cmd_args_rpath + [
         # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
         flag_prefix + '--disable-new-dtags',
     ] + cmd_args
