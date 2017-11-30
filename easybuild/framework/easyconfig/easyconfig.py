@@ -610,27 +610,24 @@ class EasyConfig(object):
         filter_deps = build_option('filter_deps')
 
         if filter_deps:
-            # find if any of the filter_deps are in the form name=version or name=[low:high[
-            complex_fdeps_list = [x for x in filter_deps if "=" in x]
             complex_fdeps = { }
-            # convert list of k=v into dictionary
-            if complex_fdeps_list:
-                for s in complex_fdeps_list:
-                    k,v = s.split('=')
-                    
-                    # test whether this is a range
-                    if ":" in v:
-                        # remove range characters
-                        values = v.translate(None, '][()')
-                        low, high = values.split(":")
-                        excl_low = v[0] in [']', '(']
-                        excl_high = v[-1] in ['[', ')']
-                    else:
-                        low = v
-                        high = v
-                        excl_low = False
-                        excl_high = False
-                    complex_fdeps[k] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
+            # find if any of the filter_deps are in the form name=version or name=[low:high[
+            for dep_spec in [ x for x in filter_deps if "=" in x ]:
+                # convert list of k=v into dictionary
+                dep_name,dep_version = dep_spec.split('=')
+                
+                # test whether this is a range
+                if ":" in dep_version:
+                    # remove range characters
+                    values = dep_version.translate(None, '][()')
+                    low, high = values.split(":")
+                    excl_low = dep_version[0] in [']', '(']
+                    excl_high = dep_version[-1] in ['[', ')']
+                else:
+                    low, high = dep_version
+                    excl_low = False
+                    excl_high = False
+                complex_fdeps[k] = {'low':low, 'high':high, 'excl_low':excl_low, 'excl_high':excl_high}
 
             filtered_deps = []
             for dep in deps:
