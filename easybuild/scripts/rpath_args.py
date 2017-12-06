@@ -53,10 +53,10 @@ if rpath_filter:
 else:
     rpath_filter = None
 
-if not rpath_include:
-    rpath_include = []
-else:
+if rpath_include:
     rpath_include = rpath_include.split(',')
+else:
+    rpath_include = []
 
 version_mode = False
 cmd_args, cmd_args_rpath = [], []
@@ -112,11 +112,7 @@ while idx < len(args):
 # add -rpath flags in front
 cmd_args = cmd_args_rpath + cmd_args
 
-cmd_args_rpath = []
-if rpath_include:
-    for path in rpath_include:
-        cmd_args_rpath.append(flag_prefix + '-rpath=%s' % path)
-
+cmds_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
 
 if not version_mode:
     cmd_args = cmd_args_rpath + [
