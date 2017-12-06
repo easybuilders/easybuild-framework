@@ -42,7 +42,6 @@ import difflib
 import fileinput
 import glob
 import hashlib
-import imp
 import os
 import re
 import shutil

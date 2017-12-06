@@ -72,7 +72,9 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_f
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
 from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
-from easybuild.tools.hooks import run_hook
+from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
+from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
+from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -87,23 +89,6 @@ from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
-
-BUILD_STEP = 'build'
-CLEANUP_STEP = 'cleanup'
-CONFIGURE_STEP = 'configure'
-EXTENSIONS_STEP = 'extensions'
-FETCH_STEP = 'fetch'
-MODULE_STEP = 'module'
-PACKAGE_STEP = 'package'
-PATCH_STEP = 'patch'
-PERMISSIONS_STEP = 'permissions'
-POSTPROC_STEP = 'postproc'
-PREPARE_STEP = 'prepare'
-READY_STEP = 'ready'
-SANITYCHECK_STEP = 'sanitycheck'
-SOURCE_STEP = 'source'
-TEST_STEP = 'test'
-TESTCASES_STEP = 'testcases'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 
@@ -2529,7 +2514,7 @@ class EasyBlock(object):
             (False, lambda x: x.make_installdir),
             (True, lambda x: x.install_step),
         ]
-        install_step_spec = lambda initial: get_step('install', "installing", install_substeps, True, initial=initial)
+        install_step_spec = lambda init: get_step(INSTALL_STEP, "installing", install_substeps, True, initial=init)
 
         # format for step specifications: (stop_name: (description, list of functions, skippable))
 
