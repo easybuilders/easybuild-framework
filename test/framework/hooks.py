@@ -138,15 +138,21 @@ class HooksTest(EnhancedTestCase):
             '',
             'def there_is_no_such_hook():',
             '    pass',
+            'def stat_hook(self):',
+            '    pass',
             'def post_source_hook(self):',
             '    pass',
-            'def another_faulty_hook(self):',
+            'def install_hook(self):',
             '    pass',
         ])
 
         write_file(test_broken_hooks_pymod, test_hooks_txt)
 
-        error_msg_pattern = "Found one or more unknown hooks: another_faulty_hook, there_is_no_such_hook \(known hooks:"
+        error_msg_pattern = r"Found one or more unknown hooks:\n"
+        error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
+        error_msg_pattern += r"\* there_is_no_such_hook\n"
+        error_msg_pattern += r"\* install_hook \(did you mean 'pre_install_hook', or 'post_install_hook'\?\)\n\n"
+        error_msg_pattern += r"List of known hooks: .*"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 
 

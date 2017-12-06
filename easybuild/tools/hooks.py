@@ -27,6 +27,7 @@ Hook support.
 
 :author: Kenneth Hoste (Ghent University)
 """
+import difflib
 import imp
 import os
 from vsc.utils import fancylogger
@@ -104,8 +105,18 @@ def verify_hooks(hooks):
             unknown_hooks.append(key)
 
     if unknown_hooks:
-        raise EasyBuildError("Found one or more unknown hooks: %s (known hooks: %s)",
-                             ', '.join(unknown_hooks), ', '.join(KNOWN_HOOKS))
+        error_lines = ["Found one or more unknown hooks:"]
+
+        for unknown_hook in unknown_hooks:
+            error_lines.append("* %s" % unknown_hook)
+            # try to find close match, may be just a typo in the hook name
+            close_matching_hooks = difflib.get_close_matches(unknown_hook, KNOWN_HOOKS, 2, 0.8)
+            if close_matching_hooks:
+                error_lines[-1] += " (did you mean %s?)" % ', or '.join("'%s'" % h for h in close_matching_hooks)
+
+        error_lines.extend(['', "List of known hooks: %s" % ', '.join(KNOWN_HOOKS)])
+
+        raise EasyBuildError('\n'.join(error_lines))
     else:
         _log.info("Defined hooks verified, all known hooks: %s", ', '.join(h for h in hooks))
 
