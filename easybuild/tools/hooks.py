@@ -36,16 +36,35 @@ from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('hooks', fname=False)
 
-# this should be obtained via EasyBlock.get_steps(),
-# but we can't import from easybuild.framework.easyblock without introducing a cyclic dependency...
-STEP_NAMES = ['fetch', 'ready', 'source', 'patch', 'prepare', 'configure', 'build', 'test', 'install', 'extensions',
-              'postproc', 'sanitycheck', 'cleanup', 'module', 'permissions', 'package', 'testcases']
+BUILD_STEP = 'build'
+CLEANUP_STEP = 'cleanup'
+CONFIGURE_STEP = 'configure'
+EXTENSIONS_STEP = 'extensions'
+FETCH_STEP = 'fetch'
+INSTALL_STEP = 'install'
+MODULE_STEP = 'module'
+PACKAGE_STEP = 'package'
+PATCH_STEP = 'patch'
+PERMISSIONS_STEP = 'permissions'
+POSTPROC_STEP = 'postproc'
+PREPARE_STEP = 'prepare'
+READY_STEP = 'ready'
+SANITYCHECK_STEP = 'sanitycheck'
+SOURCE_STEP = 'source'
+TEST_STEP = 'test'
+TESTCASES_STEP = 'testcases'
+
+# list of names for steps in installation procedure (in order of execution)
+STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
+              INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
+              PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
+
 KNOWN_HOOKS = ['%s_hook' % h for h in ['start'] + [p + '_' + s for s in STEP_NAMES for p in ['pre', 'post']] + ['end']]
 
 
 def load_hooks(hooks_path):
     """Load defined hooks (if any)."""
-    hooks = []
+    hooks = {}
 
     if hooks_path:
         if not os.path.exists(hooks_path):
@@ -61,10 +80,10 @@ def load_hooks(hooks_path):
                     if attr.endswith('_hook'):
                         hook = getattr(imported_hooks, attr)
                         if callable(hook):
-                            hooks.append(hook)
+                            hooks.update({attr: hook})
                         else:
                             _log.debug("Skipping non-callable attribute '%s' when loading hooks", attr)
-                _log.debug("Found hooks: %s", hooks)
+                _log.info("Found hooks: %s", sorted(hooks.keys()))
             except ImportError as err:
                 raise EasyBuildError("Failed to import hooks implementation from %s: %s", hooks_path, err)
         else:
@@ -80,15 +99,15 @@ def load_hooks(hooks_path):
 def verify_hooks(hooks):
     """Check whether list of obtained hooks only includes known hooks."""
     unknown_hooks = []
-    for hook in hooks:
-        if hook.__name__ not in KNOWN_HOOKS:
-            unknown_hooks.append(hook.__name__)
+    for key in hooks:
+        if key not in KNOWN_HOOKS:
+            unknown_hooks.append(key)
 
     if unknown_hooks:
         raise EasyBuildError("Found one or more unknown hooks: %s (known hooks: %s)",
                              ', '.join(unknown_hooks), ', '.join(KNOWN_HOOKS))
     else:
-        _log.info("Defined hooks verified, all known hooks: %s", ', '.join(h.__name__ for h in hooks))
+        _log.info("Defined hooks verified, all known hooks: %s", ', '.join(h for h in hooks))
 
 
 def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
@@ -111,10 +130,10 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
 
     hook_name = hook_prefix + label + '_hook'
 
-    for hook in hooks:
-        if hook.__name__ == hook_name:
+    for key in hooks:
+        if key == hook_name:
             _log.info("Found %s hook", hook_name)
-            res = hook
+            res = hooks[key]
             break
 
     return res

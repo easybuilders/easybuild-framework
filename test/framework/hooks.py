@@ -68,17 +68,17 @@ class HooksTest(EnhancedTestCase):
         hooks = load_hooks(self.test_hooks_pymod)
 
         self.assertEqual(len(hooks), 3)
-        self.assertEqual(sorted(h.__name__ for h in hooks), ['post_configure_hook', 'pre_install_hook', 'start_hook'])
-        self.assertTrue(all(callable(h) for h in hooks))
+        self.assertEqual(sorted(hooks.keys()), ['post_configure_hook', 'pre_install_hook', 'start_hook'])
+        self.assertTrue(all(callable(h) for h in hooks.values()))
 
     def test_find_hook(self):
         """Test for find_hook function."""
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        post_configure_hook = [h for h in hooks if h.__name__ == 'post_configure_hook'][0]
-        pre_install_hook = [h for h in hooks if h.__name__ == 'pre_install_hook'][0]
-        start_hook = [h for h in hooks if h.__name__ == 'start_hook'][0]
+        post_configure_hook = [hooks[k] for k in hooks if k == 'post_configure_hook'][0]
+        pre_install_hook = [hooks[k] for k in hooks if k == 'pre_install_hook'][0]
+        start_hook = [hooks[k] for k in hooks if k == 'start_hook'][0]
 
         self.assertEqual(find_hook('configure', hooks), None)
         self.assertEqual(find_hook('configure', hooks, pre_step_hook=True), None)
