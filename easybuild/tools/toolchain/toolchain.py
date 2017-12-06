@@ -797,11 +797,8 @@ class Toolchain(object):
         rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
         self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
 
-        # figure out list of patterns to use in rpath include
-        # rpath_include = build_option('rpath_include')
-        rpath_include = ','.join(['%s' % d for d in rpath_include_dirs or []])
-        self.log.debug("Combined RPATH includes: '%s'", rpath_include)
-
+        rpath_include = ','.join(rpath_include_dirs or [])
+        self.log.debug("Combined RPATH include paths: '%s'", rpath_include)
 
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
@@ -831,8 +828,8 @@ class Toolchain(object):
                     'orig_cmd': orig_cmd,
                     'python': sys.executable,
                     'rpath_args_py': rpath_args_py,
-                    'rpath_include': rpath_include,
                     'rpath_filter': rpath_filter,
+                    'rpath_include': rpath_include,
                     'rpath_wrapper_log': rpath_wrapper_log,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)

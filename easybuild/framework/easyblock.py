@@ -1749,7 +1749,8 @@ class EasyBlock(object):
         self.rpath_include_dirs.append('$ORIGIN')
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs, rpath_include_dirs=self.rpath_include_dirs)
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs, 
+                               rpath_include_dirs=self.rpath_include_dirs)
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:
