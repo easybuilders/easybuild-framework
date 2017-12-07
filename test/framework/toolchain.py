@@ -1085,8 +1085,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         expected = '\n'.join([
             "CMD_ARGS=('foo.o')",
-            "RPATH_ARGS='--disable-new-dtags -rpath=%s/lib -rpath=%s/lib64 -rpath=$ORIGIN'" % (self.test_prefix, self.test_prefix),
-            ''
+            "RPATH_ARGS='--disable-new-dtags -rpath=%(prefix)s/lib -rpath=%(prefix)s/lib64 -rpath=$ORIGIN'" % 
+            {'prefix': self.test_prefix},''
         ])
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
