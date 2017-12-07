@@ -112,7 +112,7 @@ while idx < len(args):
 # add -rpath flags in front
 cmd_args = cmd_args_rpath + cmd_args
 
-cmds_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
+cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include]
 
 if not version_mode:
     cmd_args = cmd_args_rpath + [
