@@ -73,6 +73,7 @@ from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
+from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
@@ -515,6 +516,7 @@ class EasyBuildOptions(GeneralOption):
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs."),
                                            None, 'store_true', False),
+            'avail-hooks': ("Show list of known hooks", None, 'store_true', False),
             'avail-toolchain-opts': ("Show options for toolchain", 'str', 'store', None),
             'check-conflicts': ("Check for version conflicts in dependency graphs", None, 'store_true', False),
             'dep-graph': ("Create dependency graph", None, 'store', None, {'metavar': 'depgraph.<ext>'}),
@@ -729,6 +731,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
+                self.options.avail_hooks,
                 ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -909,6 +912,9 @@ class EasyBuildOptions(GeneralOption):
         # dump default moduleclasses with description
         if self.options.show_default_moduleclasses:
             msg += self.show_default_moduleclasses()
+
+        if self.options.avail_hooks:
+            msg += self.avail_list('hooks (in order of execution)', KNOWN_HOOKS)
 
         if self.options.unittest_file:
             self.log.info(msg)

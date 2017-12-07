@@ -114,7 +114,7 @@ def verify_hooks(hooks):
             if close_matching_hooks:
                 error_lines[-1] += " (did you mean %s?)" % ', or '.join("'%s'" % h for h in close_matching_hooks)
 
-        error_lines.extend(['', "List of known hooks: %s" % ', '.join(KNOWN_HOOKS)])
+        error_lines.extend(['', "Run 'eb --avail-hooks' to get an overview of known hooks"])
 
         raise EasyBuildError('\n'.join(error_lines))
     else:
