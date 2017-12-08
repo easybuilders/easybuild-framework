@@ -1726,12 +1726,14 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
-        # always include self.installdir+'/lib' and self.installdir+'/lib64' and $ORIGIN
+        # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
-        self.rpath_include_dirs.append(self.installdir+'/lib')
-        self.rpath_include_dirs.append(self.installdir+'/lib64')
+        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib'))
+        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib64'))
         self.rpath_include_dirs.append('$ORIGIN')
+        self.rpath_include_dirs.append('$ORIGIN/../lib')
+        self.rpath_include_dirs.append('$ORIGIN/../lib64')
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs, 
