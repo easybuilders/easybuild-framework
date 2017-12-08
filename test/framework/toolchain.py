@@ -1065,7 +1065,13 @@ class ToolchainTest(EnhancedTestCase):
         """Test rpath_args.py script"""
         script = find_eb_script('rpath_args.py')
 
-        rpath_inc = '%(prefix)s/lib,%(prefix)s/lib64,$ORIGIN' % {'prefix': self.test_prefix}
+        rpath_inc = ','.join([
+            os.path.join(self.test_prefix, 'lib'),
+            os.path.join(self.test_prefix, 'lib64'),
+            '$ORIGIN',
+            '$ORIGIN/../lib',
+            '$ORIGIN/../lib64',
+        ])
 
         # simplest possible compiler command
         out, ec = run_cmd("%s gcc '' '%s' -c foo.c" % (script, rpath_inc), simple=False)
@@ -1074,6 +1080,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
             "'-c'",
             "'foo.c'",
@@ -1083,15 +1091,12 @@ class ToolchainTest(EnhancedTestCase):
         # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
         out, ec = run_cmd("%s ld '' '%s' --enable-new-dtags foo.o" % (script, rpath_inc), simple=False)
         self.assertEqual(ec, 0)
-        expected = '\n'.join([
-            "CMD_ARGS=('foo.o')",
-            "RPATH_ARGS='--disable-new-dtags -rpath=%(prefix)s/lib -rpath=%(prefix)s/lib64 -rpath=$ORIGIN'" % 
-            {'prefix': self.test_prefix},''
-        ])
         cmd_args = [
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
             "'-rpath=$ORIGIN'",
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
             "'--disable-new-dtags'",
             "'foo.o'",
@@ -1105,6 +1110,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
         ]
         self.assertEqual(out.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
@@ -1116,6 +1123,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
             "'-rpath=$ORIGIN'",
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
             "''",
         ]
@@ -1128,6 +1137,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
             "'-Wl,-rpath=/foo'",
             "'foo.c'",
@@ -1143,6 +1154,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
             "'foo.c'",
             "'-L../lib'",
@@ -1157,6 +1170,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
             "'-Wl,-rpath=/foo'",
             "'foo.c'",
@@ -1172,6 +1187,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
             "'-rpath=$ORIGIN'",
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
             "'-rpath=/foo'",
             "'-rpath=/lib64'",
@@ -1194,6 +1211,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-rpath=%s/lib'" % self.test_prefix,
             "'-rpath=%s/lib64'" % self.test_prefix,
             "'-rpath=$ORIGIN'",
+            "'-rpath=$ORIGIN/../lib'",
+            "'-rpath=$ORIGIN/../lib64'",
             "'--disable-new-dtags'",
             "'-rpath=/lib64'",
             "'-L/foo'",
@@ -1228,6 +1247,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
             "'-Wl,-rpath=/icc/lib/intel64'",
             "'-Wl,-rpath=/imkl/lib'",
@@ -1271,6 +1292,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
             "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
             "'-Wl,--disable-new-dtags'",
             "'-DHAVE_CONFIG_H'",
             "'-I.'",
