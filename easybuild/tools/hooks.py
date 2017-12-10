@@ -55,12 +55,19 @@ SOURCE_STEP = 'source'
 TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
+START = 'start'
+END = 'end'
+
+PRE_PREF = 'pre_'
+POST_PREF = 'post_'
+HOOK_SUFF = '_hook'
+
 # list of names for steps in installation procedure (in order of execution)
 STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
               INSTALL_STEP, EXTENSIONS_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
-KNOWN_HOOKS = ['%s_hook' % h for h in ['start'] + [p + '_' + s for s in STEP_NAMES for p in ['pre', 'post']] + ['end']]
+KNOWN_HOOKS = [h + HOOK_SUFF for h in [START] + [p + s for s in STEP_NAMES for p in [PRE_PREF, POST_PREF]] + [END]]
 
 
 def load_hooks(hooks_path):
@@ -78,7 +85,7 @@ def load_hooks(hooks_path):
                 # import module that defines hooks, and collect all functions of which name ends with '_hook'
                 imported_hooks = imp.load_source(hooks_filename, hooks_path)
                 for attr in dir(imported_hooks):
-                    if attr.endswith('_hook'):
+                    if attr.endswith(HOOK_SUFF):
                         hook = getattr(imported_hooks, attr)
                         if callable(hook):
                             hooks.update({attr: hook})
@@ -133,13 +140,13 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     res = None
 
     if pre_step_hook:
-        hook_prefix = 'pre_'
+        hook_prefix = PRE_PREF
     elif post_step_hook:
-        hook_prefix = 'post_'
+        hook_prefix = POST_PREF
     else:
         hook_prefix = ''
 
-    hook_name = hook_prefix + label + '_hook'
+    hook_name = hook_prefix + label + HOOK_SUFF
 
     for key in hooks:
         if key == hook_name:
