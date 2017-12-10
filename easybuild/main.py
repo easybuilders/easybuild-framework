@@ -61,7 +61,7 @@ from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import new_pr, merge_pr, update_pr
-from easybuild.tools.hooks import load_hooks, run_hook
+from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -119,7 +119,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, ho
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
-    run_hook('start', hooks)
+    run_hook(START, hooks)
 
     res = []
     for ec in ecs:
@@ -164,7 +164,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, ho
 
         res.append((ec, ec_res))
 
-    run_hook('end', hooks)
+    run_hook(END, hooks)
 
     return res
 
@@ -466,7 +466,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
-        exit_on_failure = not options.dump_test_report and not options.upload_test_report
+        exit_on_failure = not (options.dump_test_report or options.upload_test_report)
         hooks = load_hooks(options.hooks)
 
         ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
