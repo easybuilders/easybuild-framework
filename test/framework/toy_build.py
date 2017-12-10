@@ -1644,10 +1644,40 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
-        self.test_toy_build(extra_args=['--rpath', '--experimental'], raise_error=True)
+        def grab_gcc_rpath_wrapper_filter_arg():
+            """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
+            rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
+            gcc_rpath_wrapper_txt = read_file(os.path.join(rpath_wrappers_dir, 'gcc'))
+
+            rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '([^ ]*)'.*", re.M)
+            res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
+            self.assertTrue(res, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
+
+            shutil.rmtree(rpath_wrappers_dir)
+
+            return res.group(1)
+
+        args = ['--rpath', '--experimental']
+        self.test_toy_build(extra_args=args, raise_error=True)
+
+        # by default, /lib and /usr are included in RPATH filter,
+        # together with temporary directory and build directory
+        rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
+        self.assertTrue('/lib.*' in rpath_filter_paths)
+        self.assertTrue('/usr.*' in rpath_filter_paths)
+        self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
+        self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
         # also test use of --rpath-filter
-        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/test.*,/foo.*', '--experimental'], raise_error=True)
+        args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
+        outtxt = self.test_toy_build(extra_args=args, raise_error=True)
+
+        # check whether rpath filter was set correctly
+        rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
+        self.assertTrue('/test.*' in rpath_filter_paths)
+        self.assertTrue('/foo/bar.*' in rpath_filter_paths)
+        self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
+        self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
         # test use of rpath toolchain option
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
