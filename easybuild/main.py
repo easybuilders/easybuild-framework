@@ -105,14 +105,14 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, hooks=None, exit_on_failure=True):
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True, hooks=None):
     """
     Build and install software for all provided parsed easyconfig files.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
-    :param hooks: list of defined pre- and post-step hooks
     :param exit_on_failure: whether or not to exit on installation failure
+    :param hooks: list of defined pre- and post-step hooks
     """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
@@ -469,8 +469,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         exit_on_failure = not options.dump_test_report and not options.upload_test_report
         hooks = load_hooks(options.hooks)
 
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, hooks=hooks,
-                                                  exit_on_failure=exit_on_failure)
+        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                  exit_on_failure=exit_on_failure, hooks=hooks)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
