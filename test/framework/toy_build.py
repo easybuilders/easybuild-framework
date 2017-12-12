@@ -1773,6 +1773,49 @@ class ToyBuildTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
+    def test_toy_build_hooks(self):
+        """Test use of --hooks."""
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = '\n'.join([
+            "import os",
+            '',
+            "def start_hook():",
+            "   print('start hook triggered')",
+            '',
+            "def pre_configure_hook(self):",
+            "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
+            '',
+            "def post_configure_hook(self):",
+            "    print('post-configure: toy.source: %s' % os.path.exists('toy.source'))",
+            '',
+            "def post_install_hook(self):",
+            "    print('in post-install hook for %s v%s' % (self.name, self.version))",
+            "    print(', '.join(sorted(os.listdir(self.installdir))))",
+            '',
+            "def end_hook():",
+            "   print('end hook triggered, all done!')",
+        ])
+        write_file(hooks_file, hooks_file_txt)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file])
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        expected_output = '\n'.join([
+            "start hook triggered",
+            "pre-configure: toy.source: True",
+            "post-configure: toy.source: False",
+            "in post-install hook for toy v0.0",
+            "bin, lib",
+            "end hook triggered, all done!",
+        ])
+        self.assertEqual(stdout.strip(), expected_output)
+
 
 def suite():
     """ return all the tests in this file """

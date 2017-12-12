@@ -1,4 +1,4 @@
-
+# #
 # Copyright 2009-2017 Ghent University
 #
 # This file is part of EasyBuild,
