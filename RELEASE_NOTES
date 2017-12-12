@@ -8,6 +8,7 @@ v3.5.0 (December 12th 2017)
 
 feature release
 - add support for implementing pre- and post-step hooks (#2343)
+  - documentation available at http://easybuild.readthedocs.io/en/latest/Hooks.html
 - various enhancements, including:
   - add support for foss-like toolchain with Spectrum MPI: gsolf (#2329)
   - add support for --preview-pr (#2331, #2337, #2348)
