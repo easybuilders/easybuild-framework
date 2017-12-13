@@ -24,6 +24,7 @@ feature release
   - install paramiko version < 2.4.0 for Python 2.6 in Travis config (#2344)
   - disable broken log rotation, avoid duplicate logging of output of executed commands under '--debug' (#2347)
   - also include $ORIGIN and absolute paths to 'lib' and 'lib64' subdirectories in RPATH locations (#2358)
+  - fix repo references in install-EasyBuild-develop.sh script (#2360)
 
 
 v3.4.1 (October 17th 2017)
