@@ -28,11 +28,20 @@ github_clone_branch()
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
     git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
 
-    echo "=== Adding and fetching HPC-UGent GitHub repository @ easybuilders/${REPO} ..."
-    cd "${REPO}"
-    git remote add "github_easybuilders" "git@github.com/easybuilders/${REPO}.git"
-    git fetch github_easybuilders
-    git branch --set-upstream "${BRANCH}" "github_easybuilders/${BRANCH}"
+    if [[ "$REPO" == "vsc"* ]]
+    then
+	echo "=== Adding and fetching HPC-UGent GitHub repository @ hpcugent/${REPO} ..."
+	cd "${REPO}"
+	git remote add "github_hpcugent" "git@github.com:hpcugent/${REPO}.git"
+	git fetch github_hpcugent
+	git branch --set-upstream "${BRANCH}" "github_hpcugent/${BRANCH}"
+    else
+	echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
+	cd "${REPO}"
+	git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
+	git fetch github_easybuilders
+	git branch --set-upstream "${BRANCH}" "github_easybuilders/${BRANCH}"
+    fi
 }
 
 # Print the content of the module
@@ -116,7 +125,7 @@ github_clone_branch "easybuild-easyconfigs" "develop"
 github_clone_branch "easybuild" "develop"
 
 # Clone wiki repository with the 'master' branch
-github_clone_branch "easybuild-wiki" "master"
+#github_clone_branch "easybuild-wiki" "master"
 
 # Create the module file
 EB_DEVEL_MODULE_NAME="EasyBuild-develop"
