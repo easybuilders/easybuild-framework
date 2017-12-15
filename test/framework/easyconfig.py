@@ -310,13 +310,13 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_default_options = {',
+            '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
+            '}',
             'exts_list = [',
-            '   ("ext1", "ext_ver1", {',
-            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
-            '       "source_urls": ["http://example.com/"]',
-            '   }),',
-            '   ("ext2", "ext_ver2", {',
-            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '   ("ext1", "1.0"),',
+            '   ("ext2", "2.0", {',
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
@@ -333,9 +333,26 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
 
+        self.assertEqual(len(exts_sources), 2)
+        self.assertEqual(exts_sources[0]['name'], 'ext1')
+        self.assertEqual(exts_sources[0]['version'], '1.0')
+        self.assertEqual(exts_sources[0]['options'], {
+            'source_tmpl': 'gzip-1.4.eb',
+            'source_urls': ['http://example.com/%(name)s/%(version)s'],
+        })
+        self.assertEqual(exts_sources[1]['name'], 'ext2')
+        self.assertEqual(exts_sources[1]['version'], '2.0')
+        self.assertEqual(exts_sources[1]['options'], {
+            'checksums': ['6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09',
+                          '044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074'],
+            'patches': ['toy-0.0.eb'],
+            'source_tmpl': 'gzip-1.4.eb',
+            'source_urls': [('http://example.com', 'suffix')],
+        })
+
         modfile = os.path.join(eb.make_module_step(), 'pi', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
-        regex = re.compile('EBEXTSLISTPI.*ext1-ext_ver1,ext2-ext_ver2')
+        regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
     def test_suggestions(self):

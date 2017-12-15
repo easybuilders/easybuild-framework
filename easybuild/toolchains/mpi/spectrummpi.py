@@ -1,5 +1,5 @@
-##
-# Copyright 2013-2017 Ghent University
+# #
+# Copyright 2012-2017 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,20 +21,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
-EasyBuild support for giolf compiler toolchain (includes GCC, IntelMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+Support for Spectrum MPI as toolchain MPI library.
 
-:author: Kenneth Hoste (Ghent University)
+:author: Alan O'Cais (Juelich Supercomputing Centre)
 """
 
-from easybuild.toolchains.gimpi import Gimpi
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.openblas import OpenBLAS
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Giolf(Gimpi, OpenBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, IntelMPI, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'giolf'
-    SUBTOOLCHAIN = Gimpi.NAME
+class SpectrumMPI(OpenMPI):
+    """Spectrum MPI class"""
+    MPI_MODULE_NAME = ['SpectrumMPI']

@@ -75,7 +75,8 @@ try:
     sys.path.append('..')
     sys.path.append('/usr/lib/graphviz/python/')
     sys.path.append('/usr/lib64/graphviz/python/')
-    # https://pypi.python.org/pypi/pygraphviz
+    # Python bindings to Graphviz (http://www.graphviz.org/),
+    # see https://pypi.python.org/pypi/graphviz-python
     # graphviz-python (yum) or python-pygraphviz (apt-get)
     # or brew install graphviz --with-bindings (OS X)
     import gv
@@ -225,7 +226,7 @@ def _dep_graph_dump(dgr, filename):
         _dep_graph_gv(dottxt, filename)
 
 
-@only_if_module_is_available('gv', pkgname='graphviz')
+@only_if_module_is_available('gv', pkgname='graphviz-python')
 def _dep_graph_gv(dottxt, filename):
     """Render dependency graph to file using graphviz."""
     # try and render graph in specified file format
@@ -474,10 +475,11 @@ def find_related_easyconfigs(path, ec):
     return sorted(res)
 
 
-def review_pr(pr, colored=True, branch='develop'):
+def review_pr(paths=None, pr=None, colored=True, branch='develop'):
     """
-    Print multi-diff overview between easyconfigs in specified PR and specified branch.
+    Print multi-diff overview between specified easyconfigs or PR and specified branch.
     :param pr: pull request number in easybuild-easyconfigs repo to review
+    :param paths: path tuples (path, generated) of easyconfigs to review
     :param colored: boolean indicating whether a colored multi-diff should be generated
     :param branch: easybuild-easyconfigs branch to compare with
     """
@@ -485,13 +487,23 @@ def review_pr(pr, colored=True, branch='develop'):
 
     download_repo_path = download_repo(branch=branch, path=tmpdir)
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+
+    if pr:
+        pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    elif paths:
+        pr_files = paths
+    else:
+        raise EasyBuildError("No PR # or easyconfig path specified")
 
     lines = []
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
-        _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
+        if pr:
+            pr_msg = "PR#%s" % pr
+        else:
+            pr_msg = "new PR"
+        _log.debug("File in %s %s has these related easyconfigs: %s" % (pr_msg, ec['spec'], files))
         if files:
             lines.append(multidiff(ec['spec'], files, colored=colored))
         else:

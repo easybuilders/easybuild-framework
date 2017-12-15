@@ -89,6 +89,34 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
 
+    def test_find_extension(self):
+        """Test find_extension function."""
+        tests = [
+            ('test.zip', '.zip'),
+            ('/some/path/test.tar', '.tar'),
+            ('test.tar.gz', '.tar.gz'),
+            ('test.TAR.GZ', '.TAR.GZ'),
+            ('test.tgz', '.tgz'),
+            ('test.gtgz', '.gtgz'),
+            ('test.bz2', '.bz2'),
+            ('/some/path/test.bz2', '.bz2'),
+            ('test.tbz', '.tbz'),
+            ('test.tbz2', '.tbz2'),
+            ('test.tb2', '.tb2'),
+            ('test.tar.bz2', '.tar.bz2'),
+            ('test.gz', '.gz'),
+            ('untar.gz', '.gz'),
+            ("/some/path/test.gz", '.gz'),
+            ('test.xz', '.xz'),
+            ('test.tar.xz', '.tar.xz'),
+            ('test.txz', '.txz'),
+            ('test.iso', '.iso'),
+            ('test.tar.Z', '.tar.Z'),
+        ]
+        for (fn, expected_ext) in tests:
+            cmd = ft.find_extension(fn)
+            self.assertEqual(expected_ext, cmd)
+
     def test_convert_name(self):
         """Test convert_name function."""
         name = ft.convert_name("test+test-test.mpi")

@@ -2185,6 +2185,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
         self.assertTrue(os.path.exists(os.path.join(tweaked_dir, 'toy-1.0.eb')))
 
+    def test_preview_pr(self):
+        """Test --preview-pr."""
+        if self.github_token is None:
+            print "Skipping test_preview_pr, no GitHub token available?"
+            return
+
+        self.mock_stdout(True)
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        eb_file = os.path.join(test_ecs_path, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb')
+        args = [
+            '--color=never',
+            '--preview-pr',
+            eb_file,
+        ]
+        self.eb_main(args, raise_error=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+        regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.6")
+        self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
+
     def test_review_pr(self):
         """Test --review-pr."""
         if self.github_token is None:
@@ -3361,18 +3382,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
         warning_msg = "WARNING: Found existing checksums in test.eb, overwriting them (due to use of --force)..."
         self.assertEqual(stderr, warning_msg)
 
-        # make sure checksums are only there once...
         ec_txt = read_file(test_ec)
+
+        # some checks on 'raw' easyconfig contents
+        # single-line checksum for barbar extension since there's only one
+        self.assertTrue("'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c']," in ec_txt)
+        # name/version of toy should NOT be hardcoded in exts_list, 'name'/'version' parameters should be used
+        self.assertTrue('    (name, version, {' in ec_txt)
+
+        # make sure checksums are only there once...
         # exactly one definition of 'checksums' easyconfig parameter
         self.assertEqual(re.findall('^checksums', ec_txt, re.M), ['checksums'])
-        # exactly two checksum specs for extensions, one list of checksums for each extension
-        self.assertEqual(re.findall("[ ]*'checksums'", ec_txt, re.M), ["        'checksums'", "        'checksums'"])
+        # exactly three checksum specs for extensions, one list of checksums for each extension
+        self.assertEqual(re.findall("[ ]*'checksums'", ec_txt, re.M), ["        'checksums'"] * 3)
+
+        # there should be only one hit for 'source_urls', i.e. the one in exts_default_options
+        self.assertEqual(len(re.findall('source_urls*.*$', ec_txt, re.M)), 1)
 
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['sources'], ['%(name)s-%(version)s.tar.gz'])
         self.assertEqual(ec['patches'], ['toy-0.0_typo.patch'])
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
+        self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
@@ -3385,7 +3417,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
         }))
         self.assertEqual(ec['exts_list'][1], ('barbar', '0.0', {
-            'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c']
+            'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c'],
         }))
 
         # backup of easyconfig was created
