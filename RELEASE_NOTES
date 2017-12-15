@@ -3,6 +3,30 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.5.0 (December 15th 2017)
+---------------------------
+
+feature release
+- add support for implementing pre- and post-step hooks (#2343)
+  - documentation available at http://easybuild.readthedocs.io/en/latest/Hooks.html
+- various enhancements, including:
+  - add support for foss-like toolchain with Spectrum MPI: gsolf (#2329)
+  - add support for --preview-pr (#2331, #2337, #2348)
+    - see also http://easybuild.readthedocs.io/en/latest/Integration_with_GitHub.html#previewing-easyconfig-pull-requests-preview-pr
+  - flesh out find_extension function, hoist dict with extract commands into a constant (#2336)
+  - add support for using self.start_dir rather than using self.cfg['start_dir'] (#2339)
+  - add support for 'exts_default_options' easyconfig parameter (#2345, #2346)
+  - allow use of 'start_dir' easyconfig parameter in extensions (#2353)
+- various bug fixes, including:
+  - fix typo in 'giolf' toolchain definition (#2327)
+  - fix minor issues with --inject-checksums (#2333)
+  - fix error message when 'gv' Python package is not available (#2340)
+  - install paramiko version < 2.4.0 for Python 2.6 in Travis config (#2344)
+  - disable broken log rotation, avoid duplicate logging of output of executed commands under '--debug' (#2347)
+  - also include $ORIGIN and absolute paths to 'lib' and 'lib64' subdirectories in RPATH locations (#2358)
+  - fix repo references in install-EasyBuild-develop.sh script (#2360)
+
+
 v3.4.1 (October 17th 2017)
 --------------------------
 
