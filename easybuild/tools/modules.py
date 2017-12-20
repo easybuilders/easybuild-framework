@@ -144,6 +144,8 @@ class ModulesTool(object):
     VERSION_OPTION = '--version'
     # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
     REQ_VERSION = None
+    # maximum version allowed (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
+    MAX_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
     # modules tool user cache directory
@@ -237,14 +239,30 @@ class ModulesTool(object):
         except (OSError), err:
             raise EasyBuildError("Failed to check version: %s", err)
 
-        if self.REQ_VERSION is None:
-            self.log.debug("No version requirement defined.")
+        if self.REQ_VERSION is None and self.MAX_VERSION is None:
+                self.log.debug("No version requirement defined.")
         else:
-            if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
-                raise EasyBuildError("EasyBuild requires v%s >= v%s (no rc), found v%s",
-                                     self.__class__.__name__, self.REQ_VERSION, self.version)
+            if self.REQ_VERSION is None: # MAX_VERSION is not None
+                self.log.debug("No required minimum version defined.")
+                if StrictVersion(self.version) > StrictVersion(self.MAX_VERSION):
+                    raise EasyBuildError("EasyBuild requires v%s <= v%s (no rc), found v%s",
+                                         self.__class__.__name__, self.version, self.MAX_VERSION)
+                else:
+                    self.log.debug('Version %s matches requirement <= %s' % (self.version, self.MAX_VERSION))
+            elif self.MAX_VERSION is None: # REQ_VERSION is not None
+                self.log.debug("No allowed maximum version defined.")
+                if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
+                    raise EasyBuildError("EasyBuild requires v%s >= v%s (no rc), found v%s",
+                                         self.__class__.__name__, self.REQ_VERSION, self.version)
+                else:
+                    self.log.debug('Version %s matches requirement >= %s' % (self.version, self.REQ_VERSION))
             else:
-                self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
+                self.log.debug("Required minimum version and maximum allowed version defined.")
+                # Check that we have not made a mistake and set REQ_VERSION > MAX_VERSION
+                if StrictVersion(self.REQ_VERSION) > StrictVersion(self.MAX_VERSION):
+                    raise EasyBuildError("v%s, REQ_VERSION must be <= MAX_VERSION", self.__class__)
+                else:
+                    self.log.debug('Version %s matches requirements >= %s, <= %s' % (self.version, self.REQ_VERSION, self.MAX_VERSION))
 
         MODULE_VERSION_CACHE[self.COMMAND] = self.version
 
@@ -997,12 +1015,18 @@ class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
+    MAX_VERSION = '3.2.10'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def update(self):
         """Update after new modules were added."""
         pass
 
+class EnvironmentModules4(EnvironmentModulesC):
+    """Interface to environment modules 4+."""
+    REQ_VERSION = '4.0.0'
+    MAX_VERSION = None
+    VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
@@ -1014,6 +1038,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     COMMAND_SHELL = ['tclsh']
     VERSION_OPTION = ''
     REQ_VERSION = None
+    MAX_VERSION = '1.923'
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
     def set_path_env_var(self, key, paths):
