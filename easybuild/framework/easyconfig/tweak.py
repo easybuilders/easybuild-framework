@@ -107,6 +107,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             else:
                 raise EasyBuildError("Failed to isolate toolchain '%s' in dependency graph: %s", tcname, orig_ecs)
 
+            # FIXME: need to actually construct dep graph without toolchain,
+            #        since some dependencies of toolchain may also be needed for dependencies of software...
             # determine full dep graph for toolchain itself
             tc_dep_mod_names = set()
             tc_deps = [tc_ec]
