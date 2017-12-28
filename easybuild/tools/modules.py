@@ -1090,11 +1090,12 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 class EnvironmentModules(EnvironmentModulesTcl):
     """Interface to environment modules 4.0+"""
-    COMMAND = os.environ['MODULESHOME'] + '/libexec/modulecmd.tcl'
+    COMMAND = os.path.join(os.environ['MODULESHOME'], 'libexec', 'modulecmd.tcl')
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
-    
+
+
 class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
