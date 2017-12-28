@@ -1026,7 +1026,6 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     COMMAND_SHELL = ['tclsh']
     VERSION_OPTION = ''
     REQ_VERSION = None
-    MAX_VERSION = '1.923'
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
     def set_path_env_var(self, key, paths):
