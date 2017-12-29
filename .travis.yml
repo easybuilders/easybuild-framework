@@ -11,6 +11,7 @@ env:
     - LMOD_VERSION=7.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    - ENV_MOD_VERSION=4.0.0 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules
 matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
@@ -44,6 +45,8 @@ before_install:
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install pydot==1.1.0; else pip install pydot; fi
     # paramiko (dep for GC3Pie) 2.4.0 & more recent doesn't work with Python 2.6
     - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'paramiko<2.4.0'; else pip install paramiko; fi
+    # SQLAlchemy (dep for GC3Pie) 1.2.0 & more recent doesn't work with Python 2.6
+    - if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ]; then pip install 'SQLAlchemy<1.2.0'; else pip install SQLAlchemy; fi
     # optional Python packages for EasyBuild
     - pip install autopep8 GC3Pie pycodestyle python-graph-dot python-hglib PyYAML
     # git config is required to make actual git commits (cfr. tests for GitRepository)
@@ -62,7 +65,7 @@ script:
     # make sure 'ml' alias is defined, otherwise sourcing the init script fails (silently) for Lmod (< 5.9.3)
     - if [ ! -z $MOD_INIT ] && [ ! -z $LMOD_VERSION ]; then alias ml=foobar; fi
     # set up environment for modules tool (if $MOD_INIT is defined)
-    - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
+    - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; type module; fi
     # install GitHub token
     - if [ ! -z $GITHUB_TOKEN ]; then
         if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
