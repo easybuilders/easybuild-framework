@@ -1090,7 +1090,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 class EnvironmentModules(EnvironmentModulesTcl):
     """Interface to environment modules 4.0+"""
-    COMMAND = os.path.join(os.getenv('MODULESHOME'), 'libexec', 'modulecmd.tcl')
+    COMMAND = os.path.join(os.getenv('MODULESHOME', 'MODULESHOME_NOT_DEFINED'), 'libexec', 'modulecmd.tcl')
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
