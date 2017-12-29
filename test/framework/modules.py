@@ -99,7 +99,7 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available('GCC')
         expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2']
         # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C does prefix matching
-        if not isinstance(self.modtool, EnvironmentModulesTcl) or not isinstance(self.modtool, EnvironmentModules):
+        if not isinstance(self.modtool, EnvironmentModulesTcl) and not isinstance(self.modtool, EnvironmentModules):
             expected.append('GCCcore/6.2.0')
         self.assertEqual(ms, expected)
 
