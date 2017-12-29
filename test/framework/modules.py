@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
-from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
