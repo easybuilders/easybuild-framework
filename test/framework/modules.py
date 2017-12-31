@@ -98,8 +98,9 @@ class ModulesTest(EnhancedTestCase):
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
         expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2']
-        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C does prefix matching
-        # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to ModulesC, so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
+        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C do prefix matching
+        # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to Tcl/C impl.,
+        # so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
         if not isinstance(self.modtool, EnvironmentModulesTcl) or isinstance(self.modtool, EnvironmentModules):
             expected.append('GCCcore/6.2.0')
         self.assertEqual(ms, expected)
@@ -192,13 +193,19 @@ class ModulesTest(EnhancedTestCase):
 
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/4.6.4'])
-        self.assertTrue(os.environ.get('EBROOTGCC'))
+
+        # environment modules v4.0 does not reload already loaded modules, will be changed in v4.2
+        modtool_ver = StrictVersion(self.modtool.version)
+        if not isinstance(self.modtool, EnvironmentModules) or modtool_ver >= StrictVersion('4.2'):
+            self.assertTrue(os.environ.get('EBROOTGCC'))
+
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
             self.assertTrue(self.modtool.loaded_modules()[-1] == 'GCC/4.6.4')
 
         # set things up for checking that GCC does *not* get reloaded when requested
-        del os.environ['EBROOTGCC']
+        if 'EBROOTGCC' in os.environ:
+            del os.environ['EBROOTGCC']
         self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
