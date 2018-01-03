@@ -180,7 +180,7 @@ _init_fancylog = fancylogger.getLogger(fname=False)
 del _init_fancylog.manager.loggerDict[_init_fancylog.name]
 
 # we need to make sure there is a handler
-fancylogger.logToFile(filename=os.devnull)
+fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 
 # EasyBuildLog
 _init_easybuildlog = fancylogger.getLogger(fname=False)
@@ -197,7 +197,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             os.chmod(logfile, 0644)
             os.close(fd)
 
-        fancylogger.logToFile(logfile)
+        fancylogger.logToFile(logfile, max_bytes=0)
         print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
 
     log = fancylogger.getLogger(fname=False)
