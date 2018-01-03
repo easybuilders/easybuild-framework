@@ -168,6 +168,13 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         tweaks.update({'toolchain': TcDict({'name': toolchain['name'], 'version': toolchain['version']})})
         _log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
 
+    if 'toolchainopts' in keys:
+        tco_regexp = re.compile(r"^\s*toolchainopts\s*=\s*(.*)$", re.M)
+        res = tco_regexp.search(ectxt)
+        toolchainopts = eval(res.group(1))
+        toolchainopts.update(tweaks['toolchainopts'])
+        tweaks.update({'toolchainopts': toolchainopts})
+
     additions = []
 
     # automagically clear out list of checksums if software version is being tweaked 
@@ -176,7 +183,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         _log.warning("Tweaking version: checksums cleared, verification disabled.")
 
     # we need to treat list values seperately, i.e. we prepend to the current value (if any)
-    for (key, val) in tweaks.items():
+    for (key, val) in tweaks.items():            
 
         if isinstance(val, list):
             # use non-greedy matching for list value using '*?' to avoid including other parameters in match,

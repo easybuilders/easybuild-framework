@@ -321,6 +321,7 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
+            'additional-toolchain-opts': ("List of toolchain options to add", 'strlist', 'store', []),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
@@ -1177,6 +1178,16 @@ def process_software_build_specs(options):
             if ',' in value:
                 value = value.split(',')
             build_specs.update({param: value})
+
+    # process --additional-toolchain-opts
+    if options.additional_toolchain_opts:
+        try_to_generate = True
+
+        toolchainopts = {}
+        for spec in options.additional_toolchain_opts:
+            param, value = spec.split('=')
+            toolchainopts.update({param: value})
+        build_specs.update({'toolchainopts': toolchainopts})
 
     return (try_to_generate, build_specs)
 
