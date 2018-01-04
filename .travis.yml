@@ -96,8 +96,12 @@ script:
     - EB_BOOTSTRAP_EXPECTED="20170808.01 b78eac49374b26c78a16ea41efcde8c03d21649087f650e08f5339e8e48d7c6e"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
-    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
+    - if [ "x$TEST_EASYBUILD_MODULES_TOOL" != 'xEnvironmentModules' ]; then
+        python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap;
+      fi;
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
-    - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version
+    - if [ "x$TEST_EASYBUILD_MODULES_TOOL" != 'xEnvironmentModules' ]; then
+        module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version;
+      fi;
