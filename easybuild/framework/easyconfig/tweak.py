@@ -169,10 +169,12 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         _log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
 
     if 'toolchainopts' in keys:
+        extra_toolchainopts = tweaks['toolchainopts']
         tco_regexp = re.compile(r"^\s*toolchainopts\s*=\s*(.*)$", re.M)
         res = tco_regexp.search(ectxt)
-        toolchainopts = eval(res.group(1))
-        toolchainopts.update(tweaks['toolchainopts'])
+        toolchainopts = {} if not res else eval(res.group(1))
+        _log.debug("Appending %s toolchainopts to %s" % (extra_toolchainopts, toolchainopts))
+        toolchainopts.update(extra_toolchainopts)
         tweaks.update({'toolchainopts': toolchainopts})
 
     additions = []

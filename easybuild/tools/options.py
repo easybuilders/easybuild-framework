@@ -321,7 +321,6 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
-            'additional-toolchain-opts': ("List of toolchain options to add", 'strlist', 'store', []),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
@@ -356,6 +355,7 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'extra-toolchainopts': ("List of toolchain options to add", 'strlist', 'store', []),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
@@ -1179,12 +1179,12 @@ def process_software_build_specs(options):
                 value = value.split(',')
             build_specs.update({param: value})
 
-    # process --additional-toolchain-opts
-    if options.additional_toolchain_opts:
+    # process --extra-toolchainopts
+    if options.extra_toolchainopts:
         try_to_generate = True
 
         toolchainopts = {}
-        for spec in options.additional_toolchain_opts:
+        for spec in options.extra_toolchainopts:
             param, value = spec.split('=')
             toolchainopts.update({param: value})
         build_specs.update({'toolchainopts': toolchainopts})
