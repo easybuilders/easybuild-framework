@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2017 Ghent University
+# Copyright 2015-2018 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
