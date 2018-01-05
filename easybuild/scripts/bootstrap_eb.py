@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20170808.01'
+EB_BOOTSTRAP_VERSION = '20180105.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -240,7 +240,7 @@ def check_module_command(tmpdir):
 
     def check_cmd_help(modcmd):
         """Check 'help' output for specified command."""
-        modcmd_re = re.compile(r'module\s.*command\s')
+        modcmd_re = re.compile(r'module\s.*command')
         cmd = "%s python help" % modcmd
         os.system("%s > %s 2>&1" % (cmd, out))
         txt = open(out, 'r').read()
@@ -249,6 +249,7 @@ def check_module_command(tmpdir):
 
     # order matters, which is why we don't use a dict
     known_module_commands = [
+        ('modulecmd.tcl', 'EnvironmentModules'),
         ('lmod', 'Lmod'),
         ('modulecmd', 'EnvironmentModulesC'),
         ('modulecmd.tcl', 'EnvironmentModulesTcl'),
@@ -266,6 +267,14 @@ def check_module_command(tmpdir):
             if modcmd and check_cmd_help(modcmd):
                 easybuild_modules_tool = modtool
                 info("Found module command '%s' via $LMOD_CMD (%s), so using it." % (modcmd, modtool))
+                break
+        elif modtool == 'EnvironmentModules':
+            # check value of $MODULESHOME as fallback
+            moduleshome = os.environ.get('MODULESHOME', 'MODULESHOME_NOT_DEFINED')
+            modcmd = os.path.join(moduleshome, 'libexec', 'modulecmd.tcl')
+            if os.path.exists(modcmd) and check_cmd_help(modcmd):
+                easybuild_modules_tool = modtool
+                info("Found module command '%s' via $MODULESHOME (%s), so using it." % (modcmd, modtool))
                 break
 
     if easybuild_modules_tool is None:
