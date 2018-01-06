@@ -624,6 +624,7 @@ class EasyBuildOptions(GeneralOption):
 	    'bootstrap-imagepath': ("Image path used for localimage bootstrap type", None, 'store',None),
             'singularity-os': ("Singularity container operating system ", None, 'store', DEFAULT_SINGULARITY_OS_TYPE),
             'singularity-os-release': ("Singularity container operating system release ", None, 'store', DEFAULT_SINGULARITY_OS_RELEASE),
+	    'container-path':("Path where container will be written. Defaults to $EASYBUILD_PACKAGEPATH", None, 'store', None),
 	    'container-size': ("Size of container to allocate before building. Units in MB", None, 'store', DEFAULT_CONTAINER_SIZE),
 	    'build-container': ("Build container will require sudo privileges! ", None, 'store', False)
 

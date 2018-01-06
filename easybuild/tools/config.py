@@ -119,6 +119,7 @@ BUILD_OPTIONS_CMDLINE = {
         'aggregate_regtest',
         'backup_modules',
 	'bootstrap_imagepath',
+	'container_path',
         'download_timeout',
         'dump_test_report',
         'easyblock',

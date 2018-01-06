@@ -73,10 +73,24 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
     singularity_bootstrap = build_option('singularity_bootstrap')
     bootstrap_imagepath = build_option('bootstrap_imagepath')
     container_size = build_option('container_size')
+    container_path = build_option('container_path')
     build_container= build_option('build_container')
     image_name = build_option('image_name')
 
-    packagepath_dir = package_path()
+    # calculate path where to write container, defaults to $EASYBUILD_PACKAGEPATH
+    # if --container-path is not specified
+    if container_path:
+    	if os.path.exists(container_path):
+	    	container_writepath = container_path
+	else:
+		msg = "Invalid path: " +  container_path +  " please specify a valid directory path"
+		print msg
+		EasyBuildError(msg)
+		sys.exit(1)
+
+    else:
+	container_writepath = package_path()
+
     modulepath = ""
 
     appname,appver = software
@@ -92,7 +106,7 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
     if bootstrap_imagepath != None:
 	if os.path.exists(bootstrap_imagepath):
 		image_ext = os.path.splitext(bootstrap_imagepath)[1]
-		if image_ext == ".img" or image_ext != ".simg":
+		if image_ext == ".img" or image_ext == ".simg":
     			_log.debug("Image Extension from --bootstrap-imagepath is OK")
 			bootstrap_localimage = "True"
 		else:
@@ -175,10 +189,10 @@ eval "$@"
     label_content += "CPU  " + system_info['cpu_model'] + "\n"
 
     content = bootstrap_content + post_content + runscript_content + environment_content + label_content
-    change_dir(packagepath_dir)
+    change_dir(container_writepath)
     write_file(def_file,content)
 
-    print "Writing Singularity Definition File: %s" % os.path.join(packagepath_dir,def_file)
+    print "Writing Singularity Definition File: %s" % os.path.join(container_writepath,def_file)
 
     # if easybuild will create and build container
     if build_container:
