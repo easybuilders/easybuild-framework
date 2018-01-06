@@ -76,6 +76,7 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
     container_path = build_option('container_path')
     build_container= build_option('build_container')
     image_name = build_option('image_name')
+    image_format = build_option('image_format')
 
     # calculate path where to write container, defaults to $EASYBUILD_PACKAGEPATH
     # if --container-path is not specified
@@ -209,10 +210,26 @@ eval "$@"
 
 		    container_name = image_name
 	    else:
-		    container_name = os.path.splitext(def_file)[0] + ".img"
 
-   	    os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
-	    os.system("sudo singularity build " + container_name + " " + def_file)
+		container_name = os.path.splitext(def_file)[0]
+		#squash image format
+		if image_format == "squashfs":
+			container_name += ".simg"
+
+   	    		os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
+			os.system("sudo singularity build " + container_name + " " + def_file)
+
+		# ext3 image format, creating as writable container 
+		elif image_format == "ext3":
+			container_name += ".img"
+   	    		os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
+			os.system("sudo singularity build --writable " + container_name + " " + def_file)
+
+		# sandbox image format, creates as a directory but acts like a container
+		elif image_format == "sandbox":
+			os.system("sudo singularity build --sandbox " + container_name + " " + def_file)
+
+
     return 
 
 

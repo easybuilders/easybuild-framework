@@ -70,6 +70,8 @@ DEFAULT_SINGULARITY_BOOTSTRAP_TYPE = 'shub'
 DEFAULT_SINGULARITY_OS_TYPE = 'centos'
 DEFAULT_SINGULARITY_OS_RELEASE = '7.3.1611'
 DEFAULT_CONTAINER_SIZE = 1024
+DEFAULT_SINGULARITY_IMAGE_FORMAT = "squashfs"
+SINGULARITY_IMAGE_FORMAT_LIST = [ "squashfs", "ext3", "sandbox" ]
 
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -236,6 +238,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_CONTAINER_SIZE: [
 	'container_size',
+    ],
+    DEFAULT_SINGULARITY_IMAGE_FORMAT: [
+    	'image_format',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
