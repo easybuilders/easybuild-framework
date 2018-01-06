@@ -705,6 +705,9 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     from easybuild.main import main as easybuild_main
     easybuild_main()
 
+    if print_debug:
+        os.environ['EASYBUILD_DEBUG'] = '1'
+
     # make sure the EasyBuild module was actually installed
     # EasyBuild configuration options that are picked up from configuration files/environment may break the bootstrap,
     # for example by having $EASYBUILD_VERSION defined or via a configuration file specifies a value for 'stop'...
