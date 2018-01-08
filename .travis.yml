@@ -93,7 +93,7 @@ script:
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20170808.01 b78eac49374b26c78a16ea41efcde8c03d21649087f650e08f5339e8e48d7c6e"
+    - EB_BOOTSTRAP_EXPECTED="20170808.01 7a22faf5ee9d249807fd883e435008fb84c11129425ec09d3cc76918b36ef3d5"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
     - if [ "x$TEST_EASYBUILD_MODULES_TOOL" != 'xEnvironmentModules' ]; then
