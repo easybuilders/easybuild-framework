@@ -110,6 +110,7 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
+        'continue',
         'download_timeout',
         'dump_test_report',
         'easyblock',
