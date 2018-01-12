@@ -219,6 +219,15 @@ class GC3Pie(JobBackend):
         # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
         self._engine.retrieve_overwrites = True
 
+        # `Engine.stats()` (which is used later on in `_print_status_report()`)
+        # changed between 2.4.2 and 2.5.0.dev -- make sure we stay compatible
+        # with both
+        try:
+            self._engine.init_stats_for(Application)
+        except AttributeError:
+            _log.debug("No `init_stats_for` method in the Engine class;"
+                       " assuming pre-2.5.0 GC3Pie and ignoring error.")
+
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
