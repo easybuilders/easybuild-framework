@@ -923,6 +923,10 @@ class EasyBlock(object):
         WARNING: you cannot unload using $EBDEVELNAME (for now: use module unload `basename $EBDEVELNAME`)
         """
 
+        if not ActiveMNS().mns.det_generate_devel_module():
+            self.log.info("Skipping devel module...")
+            return
+
         self.log.info("Making devel module...")
 
         # load fake module
