@@ -249,16 +249,18 @@ def check_module_command(tmpdir):
 
     # order matters, which is why we don't use a dict
     known_module_commands = [
-        ('modulecmd.tcl', 'EnvironmentModules'),
         ('lmod', 'Lmod'),
         ('modulecmd', 'EnvironmentModulesC'),
-        ('modulecmd.tcl', 'EnvironmentModulesTcl'),
+        ('modulecmd.tcl', 'EnvironmentModules'),
     ]
     out = os.path.join(tmpdir, 'module_command.out')
     modtool = None
     for modcmd, modtool in known_module_commands:
         if check_cmd_help(modcmd):
-            easybuild_modules_tool = modtool
+            if 'MODULESHOME' in os.environ:
+                easybuild_modules_tool = 'EnvironmentModules'
+            else:
+                easybuild_modules_tool = 'EnvironmentModulesTcl'
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
         elif modcmd == 'lmod':
