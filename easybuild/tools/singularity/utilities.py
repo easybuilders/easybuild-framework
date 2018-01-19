@@ -66,20 +66,48 @@ def architecture_query(model_num):
 		return None
 
 
-def generate_singularity_recipe(software,toolchain, system_info,arch_name):
+def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
 
-    singularity_os = build_option('singularity_os')
-    singularity_os_release = build_option('singularity_os_release')
-    singularity_bootstrap = build_option('singularity_bootstrap')
-    bootstrap_imagepath = build_option('bootstrap_imagepath')
-    container_size = build_option('container_size')
-    container_path = build_option('container_path')
-    build_container= build_option('build_container')
-    image_name = build_option('image_name')
-    image_format = build_option('image_format')
+    container_size = build_option('imagesize')
+    container_path = build_option('imagepath')
+    image_name = build_option('imagename')
+    image_format = build_option('imageformat')
+    build_image = build_option('buildimage')
+
+    print "build_image:", build_image
+     
+    #print ordered_ecs
+    bootstrap_list = bootstrap_opts.split(":")
+    # checking format of --singularity-bootstrap
+    if len(bootstrap_list) > 3 or len(bootstrap_list) <= 1:
+    	print """ Invalid Format for --singularity-bootstrap 
+		  
+		  Must be one of the following
+
+		  --singularity-bootstrap localimage:/path/to/image
+		  --singularity-bootstrap shub:<image>:<tag>
+		  --singularity-bootstrap docker:<image>:<tag>
+		  """
+	sys.exit(1)
+    # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
+    bootstrap_type = bootstrap_list[0]
+
+    # check bootstrap type value and ensure it is localimage, shub, docker
+    if bootstrap_type != "localimage" and bootstrap_type != "shub" and bootstrap_type != "docker":
+    	print " bootstrap type must be localimage, shub, or docker "
+	sys.exit(1)
+
+    # extracting application name,version, version suffix, toolchain name, toolchain version from
+    # easyconfig class
+    appname = ordered_ecs[0]['ec']['name']
+    appver = ordered_ecs[0]['ec']['version']
+    appversuffix = ordered_ecs[0]['ec']['versionsuffix']
+
+    tcname = ordered_ecs[0]['ec']['toolchain']['name']
+    tcver = ordered_ecs[0]['ec']['toolchain']['version']
 
     # calculate path where to write container, defaults to $EASYBUILD_PACKAGEPATH
-    # if --container-path is not specified
+    # if --imagepath is not specified
     if container_path:
     	if os.path.exists(container_path):
 	    	container_writepath = container_path
@@ -94,25 +122,19 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
 
     modulepath = ""
 
-    appname,appver = software
 
-    if toolchain == None:
-	tcname = None 
-    else:
-	tcname,tcver = toolchain
-	
-    bootstrap_localimage = "False"
-	
-    # check if bootstrap imagepath is valid path and extension is ".img or .simg"
-    if bootstrap_imagepath != None:
+    # with localimage it only takes 2 arguments. --singularity-bootstrap localimage:/path/to/image
+    # checking if path to image is valid and verify image extension is".img or .simg"
+    if bootstrap_type == "localimage":
+    	bootstrap_imagepath = bootstrap_list[1]
 	if os.path.exists(bootstrap_imagepath):
+		# get the extension of container image
 		image_ext = os.path.splitext(bootstrap_imagepath)[1]
 		if image_ext == ".img" or image_ext == ".simg":
-    			_log.debug("Image Extension from --bootstrap-imagepath is OK")
-			bootstrap_localimage = "True"
+    			_log.debug("Image Extension is OK")
 		else:
-			print "Invalid image extension %s", image_ext
-			EasyBuildError("Invalid image extension %s", image_ext)
+			print "Invalid image extension %s, must be .img or .simg", image_ext
+			EasyBuildError("Invalid image extension %s must be .img or .simg", image_ext)
 			sys.exit(1)
 	else:
 		
@@ -120,16 +142,28 @@ def generate_singularity_recipe(software,toolchain, system_info,arch_name):
 		EasyBuildError("Can't find image path %s", bootstrap_imagepath)
 		sys.exit(1)
 
+    # if option is shub or docker		
+    else:
+	bootstrap_image = bootstrap_list[1]
+        image_tag = "NONE"
+    	# format --singularity-bootstrap shub:<image>:<tag>
+        if len(bootstrap_list) == 3:
+		image_tag = bootstrap_list[2]
+
     module_scheme = get_module_naming_scheme()
     
     # bootstrap from local image
-    if bootstrap_localimage == "True":
-	bootstrap_content = "Bootstrap: localimage \n"
+    if bootstrap_type == "localimage":
+	bootstrap_content = "Bootstrap: " + bootstrap_type + " \n"
 	bootstrap_content += "From: " + bootstrap_imagepath + "\n" 
-    # default bootstrap is shub
+    # default bootstrap is shub or docker
     else:
-	    bootstrap_content = "BootStrap: " + singularity_bootstrap + "\n" 
-	    bootstrap_content += "From: shahzebsiddiqui/easybuild-framework:" + singularity_os + "-" + singularity_os_release + "\n"
+	    bootstrap_content = "BootStrap: " + bootstrap_type + "\n" 
+
+	    if image_tag == "NONE":
+		    bootstrap_content += "From: " + bootstrap_image  + "\n"
+	    else:
+		    bootstrap_content += "From: " + bootstrap_image + ":" + image_tag  + "\n"
     
     if module_scheme == "HierarchicalMNS":
 	    modulepath = "/app/modules/all/Core"
@@ -147,30 +181,34 @@ source /etc/profile
 
 
     # check if toolchain is specified, that affects how to invoke eb and module load is affected based on module naming scheme
-    if tcname != None:
-        post_content += "eb " + appname + "-" + appver + "-" + tcname + "-" + tcver + ".eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
+    if tcname != "dummy":
 
-        def_file  = appname + "-" + appver + "-" + tcname + "-" + tcver + ".def"
+        def_file  = appname + "-" + appver + "-" + tcname + "-" + tcver +  appversuffix + ".def"
+	ebfile = os.path.splitext(def_file)[0] + ".eb"
+        post_content += "eb " + ebfile  + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
 
+	# This would be an example like running eb R-3.3.1-intel2017a.eb --module-naming-scheme=HierarchicalMNS. In HMNS you need to load intel/2017a first then R/3.3.1
         if module_scheme == "HierarchicalMNS":
                 environment_content += "module use " + modulepath + "\n" 
-		environment_content += "module load " + os.path.join(appname,appver) + "\n"
+        	environment_content +=  "module load " + os.path.join(tcname,tcver) + "\n"
+        	environment_content +=  "module load " + os.path.join(appname,appver+appversuffix) + "\n"
+	# This would be an example of running eb R-3.3.1-intel2017a.eb with default naming scheme, that will result in only one module load and moduletree will be different	
         else:
 
                 environment_content += "module use " +  modulepath + "\n" 
-                environment_content += "module load " + os.path.join(appname,appver+"-"+tcname+"-"+tcver) + "\n"
+                environment_content += "module load " + os.path.join(appname,appver+"-"+tcname+"-"+tcver+appversuffix) + "\n"
+    # for dummy toolchain module load will be same for EasybuildMNS and HierarchicalMNS but moduletree will not		
     else:
-        post_content += "eb " + appname + "-" + appver + ".eb --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
+	# this would be an example like eb bzip2-1.0.6.eb. Also works with version suffix easyconfigs
+        def_file  = appname + "-" + appver + appversuffix + ".def"
+	ebfile = os.path.splitext(def_file)[0] + ".eb"
+        post_content += "eb " + ebfile + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
 	
-        if module_scheme == "HierarchicalMNS":
-                environment_content += "module use " +  modulepath + "\n"
-	else:
-                environment_content += "module use " +  modulepath + "\n"
+        environment_content += "module use " +  modulepath + "\n"
+        environment_content +=  "module load " + os.path.join(appname,appver+appversuffix) + "\n"
 
-        environment_content +=  "module load " + os.path.join(appname,appver) + "\n"
-        def_file  = appname + "-" + appver + ".def"
-
-
+	
+    # cleaning up directories in container after build	
     post_content += """exit
 rm -rf /scratch/tmp/*
 rm -rf /scratch/build
@@ -185,10 +223,13 @@ eval "$@"
 """
 
     label_content = "\n%labels \n"
-    label_content += "Architecture " + arch_name + "\n"
-    label_content += "Host " + system_info['hostname'] + "\n"
-    label_content += "CPU  " + system_info['cpu_model'] + "\n"
 
+# uncomment section below to add architecture details in %labels 
+#    label_content += "Architecture " + arch_name + "\n"
+#    label_content += "Host " + system_info['hostname'] + "\n"
+#    label_content += "CPU  " + system_info['cpu_model'] + "\n"
+
+    # adding all the regions for writing the  Singularity definition file
     content = bootstrap_content + post_content + runscript_content + environment_content + label_content
     change_dir(container_writepath)
     write_file(def_file,content)
@@ -196,38 +237,38 @@ eval "$@"
     print "Writing Singularity Definition File: %s" % os.path.join(container_writepath,def_file)
 
     # if easybuild will create and build container
-    if build_container:
-	    container_name = ""
+    print "name=",image_name
+    if build_image:
+    	container_name = ""
 
-	    if image_name != None:
-		    ext =  os.path.splitext(image_name)[1] 
-		    if ext == ".img" or ext == ".simg":
+	if image_name != None:
+		ext =  os.path.splitext(image_name)[1] 
+		if ext == ".img" or ext == ".simg":
 			_log.debug("Extension for image is okay from --image-name")
-		    else:
-			print "Invalid Extension for --image-name ", ext
-			EasyBuildError("Invalid Extension for --image-name %s", ext)
+		else:
+			print "Invalid Extension for --imagename ", ext
+			EasyBuildError("Invalid Extension for --imagename %s", ext)
 			sys.exit(1)
 
-		    container_name = image_name
-	    else:
-
+		container_name = image_name
+	else:
 		container_name = os.path.splitext(def_file)[0]
-		#squash image format
-		if image_format == "squashfs":
-			container_name += ".simg"
+	    
+	#squash image format
+	if image_format == "squashfs":
+		container_name += ".simg"
+		os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
+		os.system("sudo singularity build " + container_name + " " + def_file)
 
-   	    		os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
-			os.system("sudo singularity build " + container_name + " " + def_file)
+	# ext3 image format, creating as writable container 
+	elif image_format == "ext3":
+	    	container_name += ".img"
+		os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
+		os.system("sudo singularity build --writable " + container_name + " " + def_file)
 
-		# ext3 image format, creating as writable container 
-		elif image_format == "ext3":
-			container_name += ".img"
-   	    		os.system("sudo singularity image.create -s " + str(container_size) + " " + container_name)
-			os.system("sudo singularity build --writable " + container_name + " " + def_file)
-
-		# sandbox image format, creates as a directory but acts like a container
-		elif image_format == "sandbox":
-			os.system("sudo singularity build --sandbox " + container_name + " " + def_file)
+	# sandbox image format, creates as a directory but acts like a container
+	elif image_format == "sandbox":
+	     	os.system("sudo singularity build --sandbox " + container_name + " " + def_file)
 
 
     return 
@@ -235,10 +276,11 @@ eval "$@"
 
 
 
-def check_singularity(software, toolchain):
+def check_singularity(ordered_ecs,bootstrap_opts):
     """
     Return build statistics for this build
     """
+
     singularity_path = which("singularity")
     singularity_version = 0
     if singularity_path:
@@ -257,16 +299,18 @@ def check_singularity(software, toolchain):
 	print "Singularity version is 2.4 or higher ... OK"
 	print "Singularity Version is " + singularity_version
 
-    buildsystem_session = session_state()
-    system_info = buildsystem_session['system_info']
+# ---------- uncomment section below when enabling architecture detection and labels in singularity
 
-    ret = subprocess.Popen("""lscpu | grep Model: | cut -f2 -d ":" """,shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    model_num = int(ret.communicate()[0])
+    #buildsystem_session = session_state()
+    #system_info = buildsystem_session['system_info']
+
+    #ret = subprocess.Popen("""lscpu | grep Model: | cut -f2 -d ":" """,shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    #model_num = int(ret.communicate()[0])
 
     # convert decimal to hex. Output like  0x3e. Take everything after x and convert to uppercase
-    model_num = hex(model_num).split('x')[-1].upper()
-    arch_name = architecture_query(model_num)
+    #model_num = hex(model_num).split('x')[-1].upper()
+    #arch_name = architecture_query(model_num)
 
-    generate_singularity_recipe(software,toolchain, system_info, arch_name)
+    generate_singularity_recipe(ordered_ecs, bootstrap_opts)
 
     return 

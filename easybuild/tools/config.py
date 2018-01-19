@@ -66,9 +66,6 @@ PKG_TYPE_DEF = 'def'
 PKG_TYPE_IMG = 'img'
 PKG_TYPE_RPM = 'rpm'
 
-DEFAULT_SINGULARITY_BOOTSTRAP_TYPE = 'shub'
-DEFAULT_SINGULARITY_OS_TYPE = 'centos'
-DEFAULT_SINGULARITY_OS_RELEASE = '7.3.1611'
 DEFAULT_CONTAINER_SIZE = 1024
 DEFAULT_SINGULARITY_IMAGE_FORMAT = "squashfs"
 SINGULARITY_IMAGE_FORMAT_LIST = [ "squashfs", "ext3", "sandbox" ]
@@ -120,8 +117,7 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
-	'bootstrap_imagepath',
-	'container_path',
+	'imagepath',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -141,7 +137,7 @@ BUILD_OPTIONS_CMDLINE = {
         'github_org',
         'group',
         'ignore_dirs',
-	'image_name',
+	'imagename',
         'job_backend_config',
         'job_cores',
         'job_max_walltime',
@@ -168,7 +164,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
-	'build_container',
+	'buildimage',
         'consider_archived_easyconfigs',
         'debug',
         'debug_lmod',
@@ -227,20 +223,14 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_PKG_TYPE: [
         'package_type',
     ],
-    DEFAULT_SINGULARITY_BOOTSTRAP_TYPE: [
-	'singularity_bootstrap',
-    ],
-    DEFAULT_SINGULARITY_OS_TYPE: [
-	'singularity_os',
-    ],
-    DEFAULT_SINGULARITY_OS_RELEASE: [
-	'singularity_os_release',
-    ],
+#    DEFAULT_SINGULARITY_BOOTSTRAP_TYPE: [
+#	'singularity_bootstrap',
+#    ],
     DEFAULT_CONTAINER_SIZE: [
-	'container_size',
+	'imagesize',
     ],
     DEFAULT_SINGULARITY_IMAGE_FORMAT: [
-    	'image_format',
+    	'imageformat',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
