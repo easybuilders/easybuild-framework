@@ -165,9 +165,10 @@ class ModuleNamingScheme(object):
 
         return res
 
-    def det_generate_devel_module(self):
+    def det_make_devel_module(self):
         """
-        Determine if a devel module should be generated. Can be used to create a separate set of modules with a different naming scheme.
+        Determine if a devel module should be generated.
+        Can be used to create a separate set of modules with a different naming scheme.
         Software is already installed beforehand with one naming scheme, including development module.
         """
         return True

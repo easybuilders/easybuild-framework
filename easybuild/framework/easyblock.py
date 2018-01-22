@@ -923,10 +923,6 @@ class EasyBlock(object):
         WARNING: you cannot unload using $EBDEVELNAME (for now: use module unload `basename $EBDEVELNAME`)
         """
 
-        if not ActiveMNS().mns.det_generate_devel_module():
-            self.log.info("Skipping devel module...")
-            return
-
         self.log.info("Making devel module...")
 
         # load fake module
@@ -2328,8 +2324,11 @@ class EasyBlock(object):
             mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
-            if not fake:
+            if ActiveMNS().mns.det_make_devel_module() and not fake:
                 self.make_devel_module()
+            else:
+                self.log.info("Skipping devel module...")
+
 
         if build_option('set_default_module'):
             self._set_module_as_default()
