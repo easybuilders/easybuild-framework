@@ -74,7 +74,6 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
     image_format = build_option('imageformat')
     build_image = build_option('buildimage')
 
-    print "build_image:", build_image
      
     #print ordered_ecs
     bootstrap_list = bootstrap_opts.split(":")
@@ -99,6 +98,7 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
 
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
+
     appname = ordered_ecs[0]['ec']['name']
     appver = ordered_ecs[0]['ec']['version']
     appversuffix = ordered_ecs[0]['ec']['versionsuffix']
@@ -106,6 +106,7 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
     tcname = ordered_ecs[0]['ec']['toolchain']['name']
     tcver = ordered_ecs[0]['ec']['toolchain']['version']
 
+    osdeps = ordered_ecs[0]['ec']['osdependencies']
     # calculate path where to write container, defaults to $EASYBUILD_PACKAGEPATH
     # if --imagepath is not specified
     if container_path:
@@ -172,19 +173,33 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
 
     post_content = """
 %post
-su - easybuild
 """
+    # if there is osdependencies in easyconfig then add them to Singularity recipe	
+    if len(osdeps) > 0:
+    	# format: osdependencies = ['libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel']
+        if isinstance(osdeps[0],basestring):
+	     	for os_package in osdeps:
+		     	post_content += "yum install -y " + os_package + " || true \n"
+	# format: osdependencies = [('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel')]		
+	else:		
+	     	for os_package in osdeps[0]:
+		     	post_content += "yum install -y " + os_package + " || true \n"
+
+    post_content += "su - easybuild \n"
+ 
     environment_content = """
 %environment
 source /etc/profile
 """
-
-
+    
     # check if toolchain is specified, that affects how to invoke eb and module load is affected based on module naming scheme
     if tcname != "dummy":
+	# name of easyconfig to build
+        easyconfig  = appname + "-" + appver + "-" + tcname + "-" + tcver +  appversuffix + ".eb"
+	# name of Singularity defintiion file 
+        def_file  = "Singularity." + appname + "-" + appver + "-" + tcname + "-" + tcver +  appversuffix
 
-        def_file  = appname + "-" + appver + "-" + tcname + "-" + tcver +  appversuffix + ".def"
-	ebfile = os.path.splitext(def_file)[0] + ".eb"
+	ebfile = os.path.splitext(easyconfig)[0] + ".eb"
         post_content += "eb " + ebfile  + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
 
 	# This would be an example like running eb R-3.3.1-intel2017a.eb --module-naming-scheme=HierarchicalMNS. In HMNS you need to load intel/2017a first then R/3.3.1
@@ -200,8 +215,14 @@ source /etc/profile
     # for dummy toolchain module load will be same for EasybuildMNS and HierarchicalMNS but moduletree will not		
     else:
 	# this would be an example like eb bzip2-1.0.6.eb. Also works with version suffix easyconfigs
-        def_file  = appname + "-" + appver + appversuffix + ".def"
-	ebfile = os.path.splitext(def_file)[0] + ".eb"
+
+	# name of easyconfig to build
+        easyconfig  = appname + "-" + appver + appversuffix + ".eb"
+
+	# name of Singularity defintiion file 
+        def_file  = "Singularity." + appname + "-" + appver + appversuffix
+
+	ebfile = os.path.splitext(easyconfig)[0] + ".eb"
         post_content += "eb " + ebfile + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
 	
         environment_content += "module use " +  modulepath + "\n"
@@ -237,7 +258,6 @@ eval "$@"
     print "Writing Singularity Definition File: %s" % os.path.join(container_writepath,def_file)
 
     # if easybuild will create and build container
-    print "name=",image_name
     if build_image:
     	container_name = ""
 
@@ -252,7 +272,9 @@ eval "$@"
 
 		container_name = image_name
 	else:
-		container_name = os.path.splitext(def_file)[0]
+		# definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
+		pos = def_file.find('.')
+		container_name = def_file[pos+1:]
 	    
 	#squash image format
 	if image_format == "squashfs":
