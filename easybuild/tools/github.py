@@ -1073,6 +1073,13 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                                                                                    start_account=pr_target_account,
                                                                                    commit_msg=commit_msg)
 
+    # label easyconfigs for new software and/or new easyconfigs for existing software
+    labels = []
+    if any(file_info['new_folder']):
+        labels.append('new')
+    if any(file_info['new_file_in_existing_folder']):
+        labels.append('update')
+
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
     toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
@@ -1112,6 +1119,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         "* target: %s/%s:%s" % (pr_target_account, pr_target_repo, pr_target_branch),
         "* from: %s/%s:%s" % (github_account, pr_target_repo, branch),
         "* title: \"%s\"" % title,
+        "* labels: %s" % labels,
         "* description:",
         '"""',
         full_descr,
@@ -1135,6 +1143,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch, status, data)
 
         print_msg("Opened pull request: %s" % data['html_url'], log=_log, prefix=False)
+
+        # post labels
+        pr = data['html_url'].split('/')[-1]
+        pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
+        status, data = pr_url.labels.post(body=labels)
+        if not status == HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
+
+        print_msg("Added labels %s to PR#%s" % (labels, pr), log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')

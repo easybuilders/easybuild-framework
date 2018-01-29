@@ -1541,6 +1541,8 @@ def copy_easyconfigs(paths, target_dir):
         'ecs': [],
         'paths_in_repo': [],
         'new': [],
+        'new_folder': [],
+        'new_file_in_existing_folder': [],
     }
 
     for path in paths:
@@ -1554,6 +1556,11 @@ def copy_easyconfigs(paths, target_dir):
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
             file_info['new'].append(not os.path.exists(target_path))
+
+            file_info['new_folder'].append(not os.path.exists(os.path.dirname(target_path)))
+
+            file_info['new_file_in_existing_folder'].append(file_info['new'][-1] and not file_info['new_folder'][-1])
+
             copy_file(path, target_path, force_in_dry_run=True)
 
             file_info['paths_in_repo'].append(target_path)
