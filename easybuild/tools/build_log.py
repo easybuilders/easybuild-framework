@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -180,7 +180,7 @@ _init_fancylog = fancylogger.getLogger(fname=False)
 del _init_fancylog.manager.loggerDict[_init_fancylog.name]
 
 # we need to make sure there is a handler
-fancylogger.logToFile(filename=os.devnull)
+fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 
 # EasyBuildLog
 _init_easybuildlog = fancylogger.getLogger(fname=False)
@@ -196,7 +196,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
             os.close(fd)
 
-        fancylogger.logToFile(logfile)
+        fancylogger.logToFile(logfile, max_bytes=0)
         print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=silent)
 
     log = fancylogger.getLogger(fname=False)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,15 +35,15 @@ import re
 import signal
 import stat
 import sys
+import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.utilities
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
-from easybuild.tools.run import _log as run_log
 
 
 class RunTest(EnhancedTestCase):
@@ -67,6 +67,41 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
+
+    def test_run_cmd_log(self):
+        """Test logging of executed commands."""
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+
+        regex = re.compile('cmd "echo hello" exited with exit code [0-9]* and output:')
+
+        # command output is not logged by default without debug logging
+        init_logging(logfile, silent=True)
+        self.assertTrue(run_cmd("echo hello"))
+        stop_logging(logfile)
+        self.assertEqual(len(regex.findall(read_file(logfile))), 0)
+        write_file(logfile, '')
+
+        init_logging(logfile, silent=True)
+        self.assertTrue(run_cmd("echo hello", log_all=True))
+        stop_logging(logfile)
+        self.assertEqual(len(regex.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
+
+        # with debugging enabled, exit code and output of command should only get logged once
+        setLogLevelDebug()
+
+        init_logging(logfile, silent=True)
+        self.assertTrue(run_cmd("echo hello"))
+        stop_logging(logfile)
+        self.assertEqual(len(regex.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
+
+        init_logging(logfile, silent=True)
+        self.assertTrue(run_cmd("echo hello", log_all=True))
+        stop_logging(logfile)
+        self.assertEqual(len(regex.findall(read_file(logfile))), 1)
+        write_file(logfile, '')
 
     def test_run_cmd_negative_exit_code(self):
         """Test run_cmd function with command that has negative exit code."""

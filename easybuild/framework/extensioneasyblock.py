@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -32,7 +32,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import apply_patch, extract_file
+from easybuild.tools.filetools import apply_patch, change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars
 
 
@@ -81,6 +81,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
+            # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
+            # It should be specified for the extension specifically, or be empty (so it is auto-derived).
+            self.cfg['start_dir'] = self.ext.get('options', {}).get('start_dir', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
@@ -100,6 +103,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
+
+            if self.start_dir and os.path.isdir(self.start_dir):
+                self.log.debug("Using start_dir: %s", self.start_dir)
+                change_dir(self.start_dir)
 
         # patch if needed
         if self.patches:
