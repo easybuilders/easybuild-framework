@@ -33,6 +33,7 @@ import os
 import sys
 import tempfile
 from unittest import TextTestRunner, TestSuite
+from distutils.version import LooseVersion
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import nub
 
@@ -282,6 +283,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends_on
+            lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
+            lmod_depends_on_min = '7.6'
+            if (lmod_version != 'NOT_FOUND' and
+                LooseVersion(lmod_version) >= LooseVersion(lmod_depends_on_min)):
+                expected = '\n'.join([
+                    '',
+                    'depends_on("mod_name")',
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload="depends_on"))
+                init_config(build_options={'recursive_mod_unload_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
     def test_unload(self):
         """Test unload part in generated module file."""

@@ -474,6 +474,8 @@ class EasyBuildOptions(GeneralOption):
                        None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
                                         None, 'store_true', False),
+            'recursive-module-unload-depends-on': ("Use depends_on (Lmod 7.6+) for dependencies in all generated modules.",
+                                        None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
                            'choice', 'store', DEFAULT_REPOSITORY, sorted(avail_repositories().keys())),
             'repositorypath': (("Repository path, used by repository "
