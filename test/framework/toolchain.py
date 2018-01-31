@@ -481,7 +481,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -march=native")
+            self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native")
 
         # check other precision flags
         prec_flags = {
@@ -498,9 +498,9 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native %s" % prec_flags[prec])
+                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native %s" % prec_flags[prec])
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -march=native")
+                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native")
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -580,7 +580,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
+            r'-Xcompiler="-O2 -ftree-vectorize -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -905,7 +905,7 @@ class ToolchainTest(EnhancedTestCase):
             'CrayCCE': "-O2 -homp -craype-verbose",
             'CrayGNU': "-O2 -fopenmp -craype-verbose",
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-            'GCC': "-O2 -test -fopenmp",
+            'GCC': "-O2 -ftree-vectorize -test -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
         }
 
