@@ -797,6 +797,15 @@ class ModuleGeneratorLua(ModuleGenerator):
             body.extend([self.unload_module(m).strip() for m in unload_modules])
         body.append(self.LOAD_TEMPLATE)
 
+        # Lmod 7.6+ supports depends_on which does this most nicely:
+        if (build_option('recursive_mod_unload_depends_on') or
+            recursive_unload == 'depends_on'):
+            lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
+            lmod_depends_on_min = '7.6'
+            if (lmod_version != 'NOT_FOUND' and
+                LooseVersion(lmod_version) >= LooseVersion(lmod_depends_on_min)):
+                return '\ndepends_on("%(mod_name)s")\n' % {'mod_name': mod_name}
+
         if build_option('recursive_mod_unload') or recursive_unload:
             # wrapping the 'module load' with an 'is-loaded or mode == unload'
             # guard ensures recursive unloading while avoiding load storms,
