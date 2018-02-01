@@ -277,7 +277,7 @@ class ToolchainTest(EnhancedTestCase):
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
                 flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP[opt]
                 for var in flag_vars:
-                    flags = tc.get_variable(var)
+                    flags = tc.get_variable(var).split()
                     if enable:
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
