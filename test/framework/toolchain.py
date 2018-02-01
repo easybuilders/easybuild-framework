@@ -387,16 +387,18 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
-        gcc_options = [('gccflag', 'gccflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
-        toolchains = [('iccifort', '2011.13.367'), ('GCC', '4.7.2'), ('PGI', '16.7-GCC-5.4.0-2.26')]
+        gcc_options = [('gccflag', 'gccflag'), ('-ftree-vectorize', '-ftree-vectorize'), ('', '')]
+        gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
+        toolchains = [('iccifort', '2011.13.367'), ('GCC', '4.7.2'), ('GCCcore', '6.2.0'), ('PGI', '16.7-GCC-5.4.0-2.26')]
         enabled = [True, False]
 
-        test_cases = product(intel_options, gcc_options, toolchains, enabled)
+        test_cases = product(intel_options, gcc_options, gcccore_options, toolchains, enabled)
 
-        for (intel_flags, intel_flags_exp), (gcc_flags, gcc_flags_exp), (toolchain, toolchain_ver), enable in test_cases:
+        for (intel_flags, intel_flags_exp), (gcc_flags, gcc_flags_exp), (gcccore_flags, gcccore_flags_exp), (toolchain, toolchain_ver), enable in test_cases:
             optarch_var = {}
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
+            optarch_var['GCCcore'] = gcccore_flags
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
             tc = self.get_toolchain(toolchain, version=toolchain_ver)
@@ -407,6 +409,8 @@ class ToolchainTest(EnhancedTestCase):
                 flags = intel_flags_exp
             elif toolchain == 'GCC':
                 flags = gcc_flags_exp
+            elif toolchain == 'GCCcore':
+                flags = gcccore_flags_exp
             else: # PGI as an example of compiler not set
                 # default optarch flag, should be the same as the one in
                 # tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch,tc.cpu_family)]
@@ -423,6 +427,8 @@ class ToolchainTest(EnhancedTestCase):
                     intel_options[1][1],
                     gcc_options[0][1],
                     gcc_options[1][1],
+                    gcccore_options[0][1],
+                    gcccore_options[1][1],
                     'xHost', # default optimal for Intel
                     'march=native', # default optimal for GCC
                 ]
