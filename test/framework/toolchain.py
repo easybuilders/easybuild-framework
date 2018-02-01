@@ -387,7 +387,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether specifying optarch on a per compiler basis works."""
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
         intel_options = [('intelflag', 'intelflag'), ('GENERIC', 'xSSE2'), ('', '')]
-        gcc_options = [('gccflag', 'gccflag'), ('-ftree-vectorize', '-ftree-vectorize'), ('', '')]
+        gcc_options = [('gccflag', 'gccflag'), ('march=nocona', 'march=nocona'), ('', '')]
         gcccore_options = [('gcccoreflag', 'gcccoreflag'), ('GENERIC', 'march=x86-64 -mtune=generic'), ('', '')]
         toolchains = [('iccifort', '2011.13.367'), ('GCC', '4.7.2'), ('GCCcore', '6.2.0'), ('PGI', '16.7-GCC-5.4.0-2.26')]
         enabled = [True, False]
