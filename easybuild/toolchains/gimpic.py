@@ -23,22 +23,18 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
-Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
+EasyBuild support for gimpic compiler toolchain (includes GCC and IntelMPI and CUDA).
 
-:author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
+:author: Fotis Georgatos (Uni.Lu, NTUA)
+:author: Ake Sandgren (HPC2N, Umea University)
 """
 
-from easybuild.toolchains.iimpi import Iimpi
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.toolchains.gcccuda import GccCUDA
+from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 
-class Intel(Iimpi, IntelMKL, IntelFFTW):
-    """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
-    """
-    NAME = 'intel'
-    SUBTOOLCHAIN = Iimpi.NAME
+class Gimpic(GccCUDA, IntelMPI):
+    """Compiler toolchain with GCC+CUDA and IntelMPI."""
+    NAME = 'gimpic'
+    SUBTOOLCHAIN = GccCUDA.NAME
