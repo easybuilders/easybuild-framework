@@ -35,7 +35,6 @@ import sys
 import tempfile
 from unittest import TextTestRunner
 from urllib2 import URLError
-from distutils.version import LooseVersion
 
 import easybuild.main
 import easybuild.tools.build_log
@@ -1143,10 +1142,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for existing module
         lastargs = ['--recursive-module-unload']
-        lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
-        lmod_depends_on_min = '7.6'
-        if (lmod_version != 'NOT_FOUND' and
-            LooseVersion(lmod_version) >= LooseVersion(lmod_depends_on_min)):
+        if self.modtool.has_depends_on:
             lastargs.append(lastargs[0]+'-depends-on')
         for lastarg in lastargs:
             args = [

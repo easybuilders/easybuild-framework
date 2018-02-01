@@ -209,8 +209,11 @@ class ModulesTool(object):
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
+        lmod_depends_on_min = '7.6.1'
         if self.COMMAND in MODULE_VERSION_CACHE:
             self.version = MODULE_VERSION_CACHE[self.COMMAND]
+            self.has_depends_on = (isinstance(self, Lmod) and
+                                   StrictVersion(self.version) >= StrictVersion(lmod_depends_on_min))
             self.log.debug("Found cached version for %s: %s", self.COMMAND, self.version)
             return
 
@@ -259,6 +262,8 @@ class ModulesTool(object):
                 self.log.debug('Version %s matches requirement <= %s', self.version, self.MAX_VERSION)
 
         MODULE_VERSION_CACHE[self.COMMAND] = self.version
+        self.has_depends_on = (isinstance(self, Lmod) and
+                               StrictVersion(self.version) >= StrictVersion(lmod_depends_on_min))
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
