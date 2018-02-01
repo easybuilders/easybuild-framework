@@ -291,7 +291,7 @@ class Compiler(Toolchain):
 
             # optarch has been validated as complex string with multiple compilers and converted to a dictionary
             elif isinstance(optarch, dict):
-                # first try module names, than the family in optarch
+                # first try module names, then the family in optarch
                 current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
                                           [getattr(self, 'COMPILER_FAMILY', None)])
                 for current_compiler in current_compiler_names:
@@ -300,7 +300,7 @@ class Compiler(Toolchain):
                         break
                 if optarch == OPTARCH_GENERIC:
                     use_generic = True
-                # no option for this compiler
+                # still a dict: no option for this compiler
                 if isinstance(optarch, dict):
                     optarch = None
                     self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", 
