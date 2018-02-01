@@ -507,14 +507,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
         if unload_modules:
             body.extend([self.unload_module(m).strip() for m in unload_modules])
         load_template = self.LOAD_TEMPLATE
-        # Lmod 7.6+ supports depends_on which does this most nicely:
+        # Lmod 7.6.1+ supports depends-on which does this most nicely:
         if (build_option('recursive_mod_unload_depends_on') or
-            recursive_unload == 'depends_on'):
-            lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
-            lmod_depends_on_min = '7.6'
-            if (lmod_version != 'NOT_FOUND' and
-                LooseVersion(lmod_version) >= LooseVersion(lmod_depends_on_min)):
-                load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+            recursive_unload == 'depends_on') and modules_tool().has_depends_on:
+            load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
 
         if (build_option('recursive_mod_unload') or recursive_unload or
@@ -811,12 +807,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
         if (build_option('recursive_mod_unload_depends_on') or
-            recursive_unload == 'depends_on'):
-            lmod_version = os.environ.get('LMOD_VERSION', 'NOT_FOUND')
-            lmod_depends_on_min = '7.6'
-            if (lmod_version != 'NOT_FOUND' and
-                LooseVersion(lmod_version) >= LooseVersion(lmod_depends_on_min)):
-                load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+            recursive_unload == 'depends_on') and modules_tool().has_depends_on:
+            load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
         body.append(load_template)
         if load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
