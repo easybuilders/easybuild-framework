@@ -280,31 +280,29 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        use_generic = False
         optarch = build_option('optarch') 
         # --optarch is specified with flags to use
+        if optarch is not None and isinstance(optarch, dict):
+            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
+            # first try module names, then the family in optarch
+            current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
+                                      [getattr(self, 'COMPILER_FAMILY', None)])
+            for current_compiler in current_compiler_names:
+                if current_compiler in optarch:
+                    optarch = optarch[current_compiler]
+                    break
+            # still a dict: no option for this compiler
+            if isinstance(optarch, dict):
+                optarch = None
+                self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
+                              current_compiler)
+
+        use_generic = False
         if optarch is not None:
             # optarch has been parsed as a simple string
             if isinstance(optarch, basestring):
                 if optarch == OPTARCH_GENERIC:
                     use_generic = True
-
-            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
-            elif isinstance(optarch, dict):
-                # first try module names, then the family in optarch
-                current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
-                                          [getattr(self, 'COMPILER_FAMILY', None)])
-                for current_compiler in current_compiler_names:
-                    if current_compiler in optarch:
-                        optarch = optarch[current_compiler]
-                        break
-                if optarch == OPTARCH_GENERIC:
-                    use_generic = True
-                # still a dict: no option for this compiler
-                if isinstance(optarch, dict):
-                    optarch = None
-                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.", 
-                            current_compiler)
             else:
                 raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 
