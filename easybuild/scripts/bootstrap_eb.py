@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180117.01'
+EB_BOOTSTRAP_VERSION = '20180201.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -247,6 +247,15 @@ def check_module_command(tmpdir):
         debug("Output from %s: %s" % (cmd, txt))
         return modcmd_re.search(txt)
 
+    def is_modulecmd_tcl_modulestcl():
+        """Determine if modulecmd.tcl is EnvironmentModulesTcl."""
+        modcmd_re = re.compile('Modules Release Tcl')
+        cmd = "modulecmd.tcl python --version"
+        os.system("%s > %s 2>&1" % (cmd, out))
+        txt = open(out, 'r').read()
+        debug("Output from %s: %s" % (cmd, txt))
+        return modcmd_re.search(txt)
+
     # order matters, which is why we don't use a dict
     known_module_commands = [
         ('lmod', 'Lmod'),
@@ -257,10 +266,10 @@ def check_module_command(tmpdir):
     modtool = None
     for modcmd, modtool in known_module_commands:
         if check_cmd_help(modcmd):
-            if 'MODULESHOME' in os.environ:
-                easybuild_modules_tool = 'EnvironmentModules'
-            else:
-                easybuild_modules_tool = 'EnvironmentModulesTcl'
+            # distinguish between EnvironmentModulesTcl and EnvironmentModules
+            if modcmd == 'modulecmd.tcl' and is_modulecmd_tcl_modulestcl():
+                modtool = 'EnvironmentModulesTcl'
+            easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
         elif modcmd == 'lmod':
