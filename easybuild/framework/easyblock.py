@@ -1179,12 +1179,10 @@ class EasyBlock(object):
             if user_modpath:
                 # If a mod_path_suffix is being used, we should respect it
                 mod_path_suffix = build_option('suffix_modules_path')
-                user_modpath = os.path.join(user_modpath, mod_path_suffix)
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
-                user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
-                                                 guarded=True)
+                     guarded=True, user_modpath=user_modpath, mod_path_suffix=mod_path_suffix)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
