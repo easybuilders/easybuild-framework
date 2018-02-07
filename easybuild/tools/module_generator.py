@@ -307,7 +307,7 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None, arch_env_name=None):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
@@ -315,7 +315,6 @@ class ModuleGenerator(object):
         :param guarded: use statements will be guarded to only apply if path exists
         :param user_modpath: optional user subdir
         :param mod_path_suffix: optional path suffix
-        :param arch_env_name: optional name of environment variable to use
         """
         raise NotImplementedError
 
@@ -639,7 +638,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None, arch_env_name=None):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
@@ -647,7 +646,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param guarded: use statements will be guarded to only apply if path exists
         :param user_modpath: optional user subdir
         :param mod_path_suffix: optional path suffix
-        :param arch_env_name: optional name of environment variable to use
         """
         use_statements = []
         for path in paths:
@@ -942,21 +940,38 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None, arch_env_name=None):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
         :param user_modpath: optional user subdir path
-        :param arch_env_name: optional name of environment variable to use, only used with user_modpath
         :param mod_path_suffix: optional path suffix, only used with user_modpath
         """
         use_statements = []
         if user_modpath:
-            user_modpath = quote_str(user_modpath)
-            if arch_env_name:
-                user_modpath = 'pathJoin(%s, os.getenv("%s"))' % (user_modpath, arch_env_name)
+            # Check for occurenses of {RUNTIME_ENV::SOME_ENV_VAR}
+            # SOME_ENV_VAR will be expanded at module load time.
+            runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
+            sub_paths = []
+            expanded_user_modpath = ''
+            for sub_path in re.split(os.path.sep, user_modpath):
+                matched_re = runtime_env_re.match(sub_path)
+                if matched_re:
+                    path = os.path.join(*sub_paths)
+                    sub_paths = []
+                    if expanded_user_modpath:
+                        expanded_user_modpath = 'pathJoin(%s, %s, os.getenv(%s))' % (expanded_user_modpath, quote_str(path), quote_str(matched_re.group(1)))
+                    else:
+                        expanded_user_modpath = 'pathJoin(%s, os.getenv(%s))' % (quote_str(path), quote_str(matched_re.group(1)))
+                else:
+                    sub_paths.append(sub_path)
+            if sub_paths:
+                path = os.path.join(*sub_paths)
+                expanded_user_modpath = 'pathJoin(%s, %s)' % (expanded_user_modpath, quote_str(path))
+
+            user_modpath = expanded_user_modpath
             if mod_path_suffix:
                 user_modpath = 'pathJoin(%s, %s)' % (user_modpath, quote_str(mod_path_suffix))
         for path in paths:
