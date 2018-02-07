@@ -955,25 +955,22 @@ class ModuleGeneratorLua(ModuleGenerator):
             # SOME_ENV_VAR will be expanded at module load time.
             runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
             sub_paths = []
-            expanded_user_modpath = ''
+            expanded_user_modpath = []
             for sub_path in re.split(os.path.sep, user_modpath):
                 matched_re = runtime_env_re.match(sub_path)
                 if matched_re:
-                    path = os.path.join(*sub_paths)
-                    sub_paths = []
-                    if expanded_user_modpath:
-                        expanded_user_modpath = 'pathJoin(%s, %s, os.getenv(%s))' % (expanded_user_modpath, quote_str(path), quote_str(matched_re.group(1)))
-                    else:
-                        expanded_user_modpath = 'pathJoin(%s, os.getenv(%s))' % (quote_str(path), quote_str(matched_re.group(1)))
+		    if sub_paths:
+			path = quote_str(os.path.join(*sub_paths))
+                        expanded_user_modpath.extend([path])
+			sub_paths = []
+		    expanded_user_modpath.extend(['os.getenv(%s)' % quote_str(matched_re.group(1))])
                 else:
                     sub_paths.append(sub_path)
             if sub_paths:
-                path = os.path.join(*sub_paths)
-                expanded_user_modpath = 'pathJoin(%s, %s)' % (expanded_user_modpath, quote_str(path))
-
-            user_modpath = expanded_user_modpath
+                expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
             if mod_path_suffix:
-                user_modpath = 'pathJoin(%s, %s)' % (user_modpath, quote_str(mod_path_suffix))
+                expanded_user_modpath.extend([quote_str(mod_path_suffix)])
+            user_modpath = ', '.join(expanded_user_modpath)
         for path in paths:
             quoted_path = quote_str(path)
             if user_modpath:
