@@ -937,6 +937,8 @@ class EasyBlock(object):
         # capture all the EBDEVEL vars
         # these should be all the dependencies and we should load them
         recursive_unload = self.cfg['recursive_module_unload']
+        if self.cfg['recursive_module_unload_depends_on']:
+            recursive_unload = 'depends_on'
         for key in os.environ:
             # legacy support
             if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX):
@@ -1054,12 +1056,15 @@ class EasyBlock(object):
         deps = [d for d in deps if d not in excluded_deps]
 
         # include load statements for retained dependencies
+        recursive_unload = self.cfg['recursive_module_unload']
+        if self.cfg['recursive_module_unload_depends_on']:
+            recursive_unload = 'depends_on'
         loads = []
         for dep in deps:
             unload_modules = []
             if dep in unload_info:
                 unload_modules.append(unload_info[dep])
-            loads.append(self.module_generator.load_module(dep, recursive_unload=self.cfg['recursive_module_unload'],
+            loads.append(self.module_generator.load_module(dep, recursive_unload=recursive_unload,
                                                            unload_modules=unload_modules))
 
         # Force unloading any other modules

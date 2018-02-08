@@ -1141,23 +1141,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
 
         # check log message with --skip for existing module
-        args = [
-            eb_file,
-            '--sourcepath=%s' % self.test_sourcepath,
-            '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
-            '--debug',
-            '--force',
-            '--recursive-module-unload',
-        ]
-        self.eb_main(args, do_build=True, verbose=True)
+        lastargs = ['--recursive-module-unload']
+        if self.modtool.has_depends_on:
+            lastargs.append(lastargs[0]+'-depends-on')
+        for lastarg in lastargs:
+            args = [
+                eb_file,
+                '--sourcepath=%s' % self.test_sourcepath,
+                '--buildpath=%s' % self.test_buildpath,
+                '--installpath=%s' % self.test_installpath,
+                '--debug',
+                '--force',
+                lastarg,
+            ]
+            self.eb_main(args, do_build=True, verbose=True)
 
-        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
-        if get_module_syntax() == 'Lua':
-            toy_module += '.lua'
-        toy_module_txt = read_file(toy_module)
-        is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
-        self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
+            toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+            if get_module_syntax() == 'Lua':
+                toy_module += '.lua'
+            toy_module_txt = read_file(toy_module)
+            is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
+            self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
 
     def test_tmpdir(self):
         """Test setting temporary directory to use by EasyBuild."""
