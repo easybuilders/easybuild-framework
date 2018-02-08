@@ -65,6 +65,7 @@ class Gcc(Compiler):
         'defaultprec':[],
         'loose': ['mrecip', 'mno-ieee-fp'],
         'veryloose': ['mrecip=all', 'mno-ieee-fp'],
+        'defaultopt': ['O2', 'ftree-vectorize'],
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
