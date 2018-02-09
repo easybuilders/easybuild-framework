@@ -641,8 +641,10 @@ def get_glibc_version():
             _log.debug("Found glibc version %s" % glibc_version)
             return glibc_version
         else:
-            raise EasyBuildError("Failed to determine glibc version from '%s' using pattern '%s'.",
-                                 glibc_ver_str, glibc_ver_regex.pattern)
+            # no glibc on this Linux
+            _log.warning("No glibc on this Linux system, so can't determine version.")
+            return UNKNOWN
+        
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
