@@ -342,7 +342,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
         st.platform.uname = self.orig_platform_uname
-        self.get_tool_version = self.orig_get_tool_version
+        st.get_tool_version = self.orig_get_tool_version
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
