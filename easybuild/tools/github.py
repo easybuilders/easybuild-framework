@@ -976,7 +976,7 @@ def close_pr(pr, reason):
     """
     github_user = build_option('github_user')
     if github_user is None:
-        raise EasyBuildError("GitHub user must be specified to use --merge-pr")
+        raise EasyBuildError("GitHub user must be specified to use --close-pr")
 
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
@@ -999,7 +999,8 @@ def close_pr(pr, reason):
     if not reason:
         reason = "unspecified"
 
-    comment = "@%s, this PR is being closed for the following reason: %s. Do reopen if the PR is still relevant." % (pr_data['user']['login'], reason)
+    comment = "@%s, this PR is being closed for the following reason: %s." % (pr_data['user']['login'], reason)
+    comment += " Do reopen if the PR is still relevant."
     post_comment_in_issue(pr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
     
     if dry_run:
