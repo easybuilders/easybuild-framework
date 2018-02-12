@@ -562,6 +562,7 @@ class EasyBuildOptions(GeneralOption):
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
+            'list-prs': ("List pull requests", str, 'store', None),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",

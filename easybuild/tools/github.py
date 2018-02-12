@@ -958,6 +958,26 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
+def list_prs(parameters, max_results=100):
+    """
+    List PRs
+    
+    :param parameters: https://developer.github.com/v3/pulls/#parameters
+    """
+
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
+
+    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls
+    status, pr_data = github_api_get_request(pr_url, None, **parameters)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, pr_data)
+
+    for pr in pr_data[:max_results]:
+        print("PR #%s: %s" % (pr['number'], pr['title']))
+    
+
 def merge_pr(pr):
     """
     Merge specified pull request

@@ -60,7 +60,7 @@ from easybuild.tools.config import find_last_log, get_repository, get_repository
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
-from easybuild.tools.github import new_pr, merge_pr, update_pr
+from easybuild.tools.github import list_prs, new_pr, merge_pr, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
@@ -284,6 +284,28 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     elif options.install_github_token:
         install_github_token(options.github_user, silent=build_option('silent'))
 
+    elif options.list_prs:
+
+        if options.list_prs == 'closed':
+            state = 'closed'
+        else:
+            state = 'open'
+
+        if 'active' in options.list_prs:
+            sort = 'updated'
+        elif 'popular' in options.list_prs:
+            sort = 'popularity'
+        else:
+            sort = 'created'
+
+        if options.list_prs == 'old' or options.list_prs == 'inactive' or options.list_prs == 'unpopular':
+            direction = 'asc'
+        else:
+            direction = 'desc'
+
+        parameters = {'state': state, 'sort': sort, 'direction': direction}
+        list_prs(parameters)
+
     elif options.merge_pr:
         merge_pr(options.merge_pr)
 
@@ -303,6 +325,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         options.install_github_token,
         options.list_installed_software,
         options.list_software,
+        options.list_prs,
         options.merge_pr,
         options.review_pr,
         options.terse,
