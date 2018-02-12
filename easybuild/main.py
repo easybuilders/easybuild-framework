@@ -286,24 +286,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     elif options.list_prs:
 
-        if options.list_prs == 'closed':
-            state = 'closed'
-        else:
-            state = 'open'
-
-        if 'active' in options.list_prs:
-            sort = 'updated'
-        elif 'popular' in options.list_prs:
-            sort = 'popularity'
-        else:
-            sort = 'created'
-
-        if options.list_prs == 'old' or options.list_prs == 'inactive' or options.list_prs == 'unpopular':
-            direction = 'asc'
-        else:
-            direction = 'desc'
-
-        parameters = {'state': state, 'sort': sort, 'direction': direction}
+        parameters = {'state': options.list_prs_state, 'sort': options.list_prs_sort, 'direction': options.list_prs_direction}
         list_prs(parameters)
 
     elif options.merge_pr:
