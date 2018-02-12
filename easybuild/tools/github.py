@@ -958,12 +958,14 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
-def list_prs(parameters, max_results=100):
+def list_prs(parameters):
     """
     List PRs
     
     :param parameters: https://developer.github.com/v3/pulls/#parameters
     """
+
+    parameters.update({'per_page': GITHUB_MAX_PER_PAGE})
 
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
@@ -974,7 +976,7 @@ def list_prs(parameters, max_results=100):
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
 
-    for pr in pr_data[:max_results]:
+    for pr in pr_data:
         print("PR #%s: %s" % (pr['number'], pr['title']))
     
 
