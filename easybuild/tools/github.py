@@ -970,6 +970,52 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
+def close_pr(pr, reason):
+    """
+    Close specified pull request
+    """
+    github_user = build_option('github_user')
+    if github_user is None:
+        raise EasyBuildError("GitHub user must be specified to use --merge-pr")
+
+    pr_target_account = build_option('pr_target_account')
+    pr_target_repo = build_option('pr_target_repo')
+
+    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
+    status, pr_data = github_api_get_request(pr_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, pr_data)
+    
+    if pr_data['state'] == 'closed':
+        raise EasyBuildError("PR #%d from %s/%s is already closed.", pr, pr_target_account, pr_target_repo)
+
+    msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
+    msg += "you are using GitHub account '%s'\n" % github_user
+    print_msg(msg, prefix=False)
+
+    dry_run = build_option('dry_run') or build_option('extended_dry_run')
+
+    if not reason:
+        reason = "unspecified"
+
+    comment = "@%s, this PR is being closed for the following reason: %s. Do reopen if the PR is still relevant." % (pr_data['user']['login'], reason)
+    post_comment_in_issue(pr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
+    
+    if dry_run:
+        print_msg("[DRY RUN] Closed %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
+    else:
+        github_token = fetch_github_token(github_user)
+        if github_token is None:
+            raise EasyBuildError("GitHub token for user '%s' must be available to use --close-pr", github_user)        
+        g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
+        pull_url = g.repos[pr_target_account][pr_target_repo].pulls[pr]
+        body = {'state': 'closed'}
+        status, data = pull_url.post(body=body)
+        if not status == HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to close PR #%s; status %s, data: %s", pr, status, data)
+
+
 def merge_pr(pr):
     """
     Merge specified pull request
