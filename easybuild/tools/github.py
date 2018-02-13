@@ -961,7 +961,7 @@ def check_pr_eligible_to_merge(pr_data):
 def list_prs(parameters):
     """
     List PRs
-    
+
     :param parameters: Selection parameters for PRs, see https://developer.github.com/v3/pulls/#parameters
     """
 
@@ -978,7 +978,7 @@ def list_prs(parameters):
 
     for pr in pr_data:
         print("PR #%s: %s" % (pr['number'], pr['title']))
-    
+
 
 def merge_pr(pr):
     """
