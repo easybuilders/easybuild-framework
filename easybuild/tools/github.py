@@ -986,7 +986,7 @@ def close_pr(pr, reason):
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
-    
+
     if pr_data['state'] == 'closed':
         raise EasyBuildError("PR #%d from %s/%s is already closed.", pr, pr_target_account, pr_target_repo)
 
@@ -997,12 +997,14 @@ def close_pr(pr, reason):
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if not reason:
-        reason = "unspecified"
+        reason = "(no reason specified)"
 
-    comment = "@%s, this PR is being closed for the following reason: %s." % (pr_data['user']['login'], reason)
-    comment += " Do reopen if the PR is still relevant."
+    comment = "@%s, this PR is being closed for the following reason: %s.\n" % (pr_data['user']['login'], reason)
+    comment += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
+    comment += "For more information on our policy w.r.t. closing PRs, see "
+    comment += "https://easybuild.readthedocs.io/en/latest/Contributing.html#why-a-pull-request-may-be-closed-by-a-maintainer"
     post_comment_in_issue(pr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
-    
+
     if dry_run:
         print_msg("[DRY RUN] Closed %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
     else:
