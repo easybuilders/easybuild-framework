@@ -962,7 +962,7 @@ def list_prs(parameters):
     """
     List PRs
     
-    :param parameters: https://developer.github.com/v3/pulls/#parameters
+    :param parameters: Selection parameters for PRs, see https://developer.github.com/v3/pulls/#parameters
     """
 
     parameters.update({'per_page': GITHUB_MAX_PER_PAGE})
@@ -973,8 +973,8 @@ def list_prs(parameters):
     pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls
     status, pr_data = github_api_get_request(pr_url, None, **parameters)
     if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, pr_data)
+        raise EasyBuildError("Failed to get PR data from %s/%s (parameters: %s, status: %d %s)",
+                             pr_target_account, pr_target_repo, parameters, status, pr_data)
 
     for pr in pr_data:
         print("PR #%s: %s" % (pr['number'], pr['title']))

@@ -550,6 +550,10 @@ class EasyBuildOptions(GeneralOption):
 
     def github_options(self):
         """GitHub integration configuration options."""
+        github_list_pr_states = ['open', 'closed']
+        github_list_pr_orders = ['created', 'updated', 'popularity', 'long-running']
+        github_list_pr_directions = ['asc', 'desc']
+
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
@@ -563,9 +567,9 @@ class EasyBuildOptions(GeneralOption):
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'list-prs': ("List pull requests", None, 'store_true', None),
-            'list-prs-state': ("List pull requests in state open/closed", str, 'store', 'open'),
-            'list-prs-sort': ("Sort pull requests by created/updated/popularity", str, 'store', 'created'),
-            'list-prs-direction': ("Sorting pull requests in asc/desc order", str, 'store', 'desc'),
+            'list-prs-state': ("State for listing pull requests", 'choice', 'store', 'open', github_list_pr_states),
+            'list-prs-order': ("Order for sorting pull requests", 'choice', 'store', 'created', github_list_pr_orders),
+            'list-prs-direction': ("Direction for sorting pull requests", 'choice', 'store', 'desc', github_list_pr_directions),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",

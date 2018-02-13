@@ -285,8 +285,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.list_prs:
-
-        parameters = {'state': options.list_prs_state, 'sort': options.list_prs_sort, 'direction': options.list_prs_direction}
+        parameters = {
+            'direction': options.list_prs_direction,
+            'sort': options.list_prs_order,
+            'state': options.list_prs_state,
+            }
         list_prs(parameters)
 
     elif options.merge_pr:
