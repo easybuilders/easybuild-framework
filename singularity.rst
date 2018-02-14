@@ -13,7 +13,9 @@ To use easybuild with singularity see the following examples
         eb Anaconda3-5.0.1.eb --singularity --singularity-bootstrap shub:shahzebsiddiqui/eb-singularity:centos-7.4.1708
 
 Support for HierarchicalMNS
+
 .. code::
+
         # Hierarchical MNS
         eb Anaconda3-5.0.1.eb --singularity --singularity-bootstrap shub:shahzebsiddiqui/eb-singularity:centos-7.3.1611 --module-naming-scheme=HierarchicalMNS
 
@@ -21,6 +23,7 @@ Support for HierarchicalMNS
 To use an alternative bootstrap such as localimage
 
 .. code::
+
         # local bootstrap
         eb Anaconda3-5.0.1.eb --singularity --singularity-bootstrap localimage:/lustre/workspace/home/siddis14/eb_images/GCC-5.4.0-2.26.simg
 
@@ -31,13 +34,14 @@ To build singuality image use --buildimage
 
         eb M4-1.4.18.eb --singularity --singularity-bootstrap shub:shahzebsiddiqui/eb-singularity:centos-7.3.1611 --buildimage
 
-Example using image format ext3
+Example using ext3 image format
 
 .. code::
 
         # ext3 image format
         eb M4-1.4.18.eb --singularity --singularity-bootstrap shub:shahzebsiddiqui/eb-singularity:centos-7.3.1611 --buildimage --imageformat=ext3
 
+Example using sandbox image format
 
 .. code::
 
