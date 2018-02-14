@@ -999,7 +999,7 @@ def close_pr(pr, reason):
     if not reason:
         reason = "(no reason specified)"
 
-    comment = "@%s, this PR is being closed for the following reason: %s.\n" % (pr_data['user']['login'], reason)
+    comment = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reason)
     comment += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
     comment += "For more information on our policy w.r.t. closing PRs, see "
     comment += "https://easybuild.readthedocs.io/en/latest/Contributing.html#why-a-pull-request-may-be-closed-by-a-maintainer"
