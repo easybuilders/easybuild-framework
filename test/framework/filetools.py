@@ -62,7 +62,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_extract_cmd(self):
         """Test various extract commands."""
         tests = [
-            ('test.zip', "unzip -qq test.zip"),
+            ('test.zip', "unzip -qq  test.zip"),
             ('/some/path/test.tar', "tar xf /some/path/test.tar"),
             ('test.tar.gz', "tar xzf test.tar.gz"),
             ('test.TAR.GZ', "tar xzf test.TAR.GZ"),
