@@ -64,7 +64,7 @@ from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS
 from easybuild.tools.config import ERROR, IGNORE, FORCE_DOWNLOAD_CHOICES, LOADED_MODULES_ACTIONS, WARN
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
-from easybuild.tools.config import DEFAULT_CONTAINER_SIZE, DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST
+from easybuild.tools.config import  DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -479,6 +479,8 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
+
+	    'singularitypath':("Path where definition and container will be written. ", None, 'store', mk_full_default_path('singularitypath')),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
@@ -622,8 +624,7 @@ class EasyBuildOptions(GeneralOption):
             'singularity-bootstrap': (" Singularity bootstrap agent. 	Format: --singularity-bootstrap localimage:/path/to/image.img --singularity-bootstrap shub:<image>:<tag> --singularity-bootstrap docker:<image>:<tag> ", str, 'store', ''),
 	    'imagename': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
 	    'imageformat': ("Image format for singularity container.", 'choice', 'store', DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST),
-	    'imagepath':("Path where container will be written. Defaults to $EASYBUILD_PACKAGEPATH", None, 'store', None),
-	    'imagesize': ("Size of container to allocate before building. Units in MB", None, 'store', DEFAULT_CONTAINER_SIZE),
+	 #   'singularitypath':("Path where definition and container will be written. ", None, 'store', mk_full_default_path('singularitypath')),
 	    'buildimage': ("Build container will require sudo privileges! ", None, 'store_true', False)
 
         })

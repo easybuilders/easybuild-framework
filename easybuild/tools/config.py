@@ -66,7 +66,6 @@ PKG_TYPE_DEF = 'def'
 PKG_TYPE_IMG = 'img'
 PKG_TYPE_RPM = 'rpm'
 
-DEFAULT_CONTAINER_SIZE = 1024
 DEFAULT_SINGULARITY_IMAGE_FORMAT = "squashfs"
 SINGULARITY_IMAGE_FORMAT_LIST = [ "squashfs", "ext3", "sandbox" ]
 
@@ -80,6 +79,7 @@ DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
     'packagepath': 'packages',
+    'singularitypath': 'singularity',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
@@ -117,7 +117,6 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
-	'imagepath',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -153,6 +152,7 @@ BUILD_OPTIONS_CMDLINE = {
         'parallel',
         'rpath_filter',
         'regtest_output_dir',
+#	'singularitypath',
         'skip',
         'stop',
         'subdir_user_modules',
@@ -222,12 +222,6 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
-    ],
-#    DEFAULT_SINGULARITY_BOOTSTRAP_TYPE: [
-#	'singularity_bootstrap',
-#    ],
-    DEFAULT_CONTAINER_SIZE: [
-	'imagesize',
     ],
     DEFAULT_SINGULARITY_IMAGE_FORMAT: [
     	'imageformat',
@@ -319,6 +313,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'prefix',
         'repository',
         'repositorypath',
+	'singularitypath',
         'sourcepath',
         'subdir_modules',
         'subdir_software',
@@ -510,6 +505,13 @@ def package_path():
     Return the path where built packages are copied to
     """
     return ConfigurationVariables()['packagepath']
+
+
+def singularity_path():
+    """
+    Return the path for singularity definition and image directory are copied to
+    """
+    return ConfigurationVariables()['singularitypath']
 
 
 def get_modules_tool():
