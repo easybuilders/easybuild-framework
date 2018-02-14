@@ -550,7 +550,7 @@ class EasyBuildOptions(GeneralOption):
 
     def github_options(self):
         """GitHub integration configuration options."""
-        github_list_pr_states = ['open', 'closed']
+        github_list_pr_states = ['open', 'closed', 'all']
         github_list_pr_orders = ['created', 'updated', 'popularity', 'long-running']
         github_list_pr_directions = ['asc', 'desc']
 
