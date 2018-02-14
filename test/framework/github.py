@@ -114,6 +114,25 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_list_prs(self):
+        """Test fetch_easyconfigs_from_pr function."""
+        if self.github_token is None:
+            print "Skipping test_list_prs, no GitHub token available?"
+            return
+
+        parameters = {'state': 'closed', 'sort': 'created', 'direction': 'asc', 'per_page': 1}
+
+        init_config(build_options={'pr_target_account': GITHUB_USER,
+                                   'pr_target_repo': GITHUB_REPO})
+
+        expected = "PR #1: a pr"
+
+        try:
+            output = gh.list_prs(parameters)
+            self.assertEqual(expected, output)
+        except Exception as err:
+            print err
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:

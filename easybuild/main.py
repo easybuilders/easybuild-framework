@@ -290,7 +290,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             'sort': options.list_prs_order,
             'state': options.list_prs_state,
             }
-        list_prs(parameters)
+        print list_prs(parameters)
 
     elif options.merge_pr:
         merge_pr(options.merge_pr)

@@ -965,7 +965,8 @@ def list_prs(parameters):
     :param parameters: Selection parameters for PRs, see https://developer.github.com/v3/pulls/#parameters
     """
 
-    parameters.update({'per_page': GITHUB_MAX_PER_PAGE})
+    if 'per_page' not in parameters:
+        parameters.update({'per_page': GITHUB_MAX_PER_PAGE})
 
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
@@ -976,8 +977,11 @@ def list_prs(parameters):
         raise EasyBuildError("Failed to get PR data from %s/%s (parameters: %s, status: %d %s)",
                              pr_target_account, pr_target_repo, parameters, status, pr_data)
 
+    lines = []
     for pr in pr_data:
-        print("PR #%s: %s" % (pr['number'], pr['title']))
+        lines.append("PR #%s: %s" % (pr['number'], pr['title']))
+
+    return '\n'.join(lines)
 
 
 def merge_pr(pr):
