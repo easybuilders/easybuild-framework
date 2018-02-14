@@ -409,7 +409,6 @@ def init_build_options(build_options=None, cmdline_options=None):
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
     build_options = BuildOptions()
-    print build_options
     if key in build_options:
         return build_options[key]
     elif 'default' in kwargs:

@@ -87,6 +87,8 @@ class FileToolsTest(EnhancedTestCase):
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
 
+        self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
+
         # check whether timestamp option works
         build_options = {
             'keep_current_timestamp': True,
@@ -111,8 +113,6 @@ class FileToolsTest(EnhancedTestCase):
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
-
-        self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
 
     def test_find_extension(self):
         """Test find_extension function."""
