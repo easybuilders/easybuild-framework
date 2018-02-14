@@ -168,6 +168,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hidden',
         'ignore_checksums',
         'install_latest_eb_release',
+        'keep_current_timestamp',
         'minimal_toolchains',
         'module_only',
         'package',
@@ -408,6 +409,7 @@ def init_build_options(build_options=None, cmdline_options=None):
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
     build_options = BuildOptions()
+    print build_options
     if key in build_options:
         return build_options[key]
     elif 'default' in kwargs:

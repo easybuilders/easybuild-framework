@@ -376,6 +376,7 @@ class EasyBuildOptions(GeneralOption):
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'keep-current-timestamp': ("Keep current timestamp of extracted files", None, 'store_true', False),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
