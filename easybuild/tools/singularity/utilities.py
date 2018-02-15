@@ -326,11 +326,12 @@ def check_singularity(ordered_ecs,bootstrap_opts):
 	singularity_version = ret.communicate()[0].split("-")[0]
     else:
 	print "Singularity not found in your system."
- 	EasyBuildError("Singularity not found in your system")
+ 	raise EasyBuildError("Singularity not found in your system")
 
 
     if float(singularity_version) < 2.4:
-    	EasyBuildError("Please upgrade singularity instance to version 2.4 or higher")
+    	raise EasyBuildError("Please upgrade singularity instance to version 2.4 or higher")
+
     else:
 	print "Singularity version is 2.4 or higher ... OK"
 	print "Singularity Version is " + singularity_version
