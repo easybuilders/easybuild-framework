@@ -87,7 +87,7 @@ class FileToolsTest(EnhancedTestCase):
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
 
-        self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
+        self.assertEqual("unzip -qq -o  test.zip", ft.extract_cmd('test.zip', True))
 
         # check whether timestamp option works
         build_options = {
