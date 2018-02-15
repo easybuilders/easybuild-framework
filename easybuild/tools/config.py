@@ -152,7 +152,6 @@ BUILD_OPTIONS_CMDLINE = {
         'parallel',
         'rpath_filter',
         'regtest_output_dir',
-#	'singularitypath',
         'skip',
         'stop',
         'subdir_user_modules',
@@ -505,7 +504,6 @@ def package_path():
     Return the path where built packages are copied to
     """
     return ConfigurationVariables()['packagepath']
-
 
 def singularity_path():
     """

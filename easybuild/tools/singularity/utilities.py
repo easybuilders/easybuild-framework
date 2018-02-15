@@ -66,14 +66,15 @@ def architecture_query(model_num):
 		return None
 
 
-def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
+def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo):
 
     image_name = build_option('imagename')
     image_format = build_option('imageformat')
     build_image = build_option('buildimage')
-    #sing_path = build_option('singularitypath')
+    import_ec_repo = easyconfig_repo
     sing_path = singularity_path()
-    print "singularity path:" +  sing_path
+    ec_repo = ""
+    branch = ""
 
     # check if --singularitypath is valid path and a directory
     if os.path.exists(sing_path) and os.path.isdir(sing_path):
@@ -84,7 +85,6 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
 	EasyBuildError(msg)
 	sys.exit(0)
 
-    #print ordered_ecs
     bootstrap_list = bootstrap_opts.split(":")
     # checking format of --singularity-bootstrap
     if len(bootstrap_list) > 3 or len(bootstrap_list) <= 1:
@@ -97,6 +97,16 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
 		  --singularity-bootstrap docker:<image>:<tag>
 		  """
 	sys.exit(1)
+    	
+    if len(easyconfig_repo.split(":")) != 3:
+    	print "Invalid format for --import-easyconfig-repo ", easyconfig_repo 
+	sys.exit(1)
+    else:
+    	easyconfig_repo_split_str = easyconfig_repo.split(":")
+	ec_repo =  easyconfig_repo_split_str[0] + ":" + easyconfig_repo_split_str[1]
+	branch =  easyconfig_repo.split(":")[2]
+
+
     # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
     bootstrap_type = bootstrap_list[0]
 
@@ -183,6 +193,10 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts):
 
     post_content += "su - easybuild \n"
  
+    # clone git repo with user easybuild inside container 
+    if ec_repo:
+    	post_content += "git clone -b " + branch + " " + ec_repo + "\n" 
+    	post_content += "export EASYBUILD_ROBOT_PATHS=/home/easybuild/easybuild-easyconfigs/easybuild/easyconfigs \n" 
     environment_content = """
 %environment
 source /etc/profile
@@ -224,7 +238,9 @@ source /etc/profile
         environment_content += "module use " +  modulepath + "\n"
         environment_content +=  "module load " + os.path.join(appname,appver+appversuffix) + "\n"
 
-	
+    if ec_repo:
+    	post_content += "rm -rf easybuild-easyconfigs \n"
+
     # cleaning up directories in container after build	
     post_content += """exit
 rm -rf /scratch/tmp/*
@@ -312,7 +328,7 @@ eval "$@"
 
 
 
-def check_singularity(ordered_ecs,bootstrap_opts):
+def check_singularity(ordered_ecs,bootstrap_opts,easyconfig_repo):
     """
     Return build statistics for this build
     """
@@ -348,6 +364,6 @@ def check_singularity(ordered_ecs,bootstrap_opts):
     #model_num = hex(model_num).split('x')[-1].upper()
     #arch_name = architecture_query(model_num)
 
-    generate_singularity_recipe(ordered_ecs, bootstrap_opts)
+    generate_singularity_recipe(ordered_ecs, bootstrap_opts,easyconfig_repo)
 
     return 

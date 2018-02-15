@@ -408,7 +408,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
 
     if options.singularity:
-	check_singularity(ordered_ecs,options.singularity_bootstrap)
+	check_singularity(ordered_ecs,options.singularity_bootstrap,options.import_easyconfig_repo)
 	sys.exit(0)
 
     # creating/updating PRs
