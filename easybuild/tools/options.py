@@ -625,6 +625,7 @@ class EasyBuildOptions(GeneralOption):
 	    'imagename': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
 	    'imageformat': ("Image format for singularity container.", 'choice', 'store', DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST),
 	    'import-easyconfig-repo': ("Import easyconfig repo in the container build. Format: --import-easyconfig-repo=https://github.com/GITUSER/easybuild-easyconfigs:<BRANCH>", str, 'store',''),
+	    'import-easyblock-repo': ("Import easyblock repo in the container build. Format: --import-easyblock-repo=https://github.com/GITUSER/easybuild-easyblock:<BRANCH>", str, 'store',''),
 	    'buildimage': ("Build container will require sudo privileges! ", None, 'store_true', False)
 
         })

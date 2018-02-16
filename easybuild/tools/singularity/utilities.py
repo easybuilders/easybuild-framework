@@ -66,7 +66,7 @@ def architecture_query(model_num):
 		return None
 
 
-def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo):
+def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyblock_repo):
 
     image_name = build_option('imagename')
     image_format = build_option('imageformat')
@@ -74,7 +74,11 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo):
     import_ec_repo = easyconfig_repo
     sing_path = singularity_path()
     ec_repo = ""
-    branch = ""
+    eb_repo = ""
+    ec_branch = ""
+    eb_branch = ""
+    easyblock_file = ""
+
 
     # check if --singularitypath is valid path and a directory
     if os.path.exists(sing_path) and os.path.isdir(sing_path):
@@ -97,14 +101,25 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo):
 		  --singularity-bootstrap docker:<image>:<tag>
 		  """
 	sys.exit(1)
-    	
+    
+    # sanity check for --import-easyconfig-repo 
     if len(easyconfig_repo.split(":")) != 3:
     	print "Invalid format for --import-easyconfig-repo ", easyconfig_repo 
 	sys.exit(1)
     else:
     	easyconfig_repo_split_str = easyconfig_repo.split(":")
 	ec_repo =  easyconfig_repo_split_str[0] + ":" + easyconfig_repo_split_str[1]
-	branch =  easyconfig_repo.split(":")[2]
+	ec_branch =  easyconfig_repo.split(":")[2]
+
+    # sanity check for --import-easyblock-repo 
+    if len(easyblock_repo.split(":")) != 4:
+    	print "Invalid format for --import-easyblock-repo ", easyblock_repo 
+	sys.exit(1)
+    else:
+    	easyblock_repo_split_str = easyblock_repo.split(":")
+	eb_repo =  easyblock_repo_split_str[0] + ":" + easyblock_repo_split_str[1]
+	eb_branch =  easyblock_repo.split(":")[2]
+	easyblock_file = easyblock_repo.split(":")[3]
 
 
     # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
@@ -193,10 +208,18 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo):
 
     post_content += "su - easybuild \n"
  
-    # clone git repo with user easybuild inside container 
+    # clone easyconfig repo with user easybuild inside container 
     if ec_repo:
-    	post_content += "git clone -b " + branch + " " + ec_repo + "\n" 
+    	post_content += "git clone -b " + ec_branch + " " + ec_repo + "\n" 
     	post_content += "export EASYBUILD_ROBOT_PATHS=/home/easybuild/easybuild-easyconfigs/easybuild/easyconfigs \n" 
+   
+    
+    # clone easyblock repo with user easybuild inside container 
+    if eb_repo:
+    	post_content += "git clone -b " + eb_branch + " " + eb_repo + "\n" 
+    	post_content += "export EASYBUILD_INCLUDE_EASYBLOCKS="  + os.path.join("/home/easybuild/easybuild-easyblocks/easybuild/easyblocks",easyblock_file) + " \n" 
+
+
     environment_content = """
 %environment
 source /etc/profile
@@ -240,6 +263,9 @@ source /etc/profile
 
     if ec_repo:
     	post_content += "rm -rf easybuild-easyconfigs \n"
+
+    if eb_repo:
+    	post_content += "rm -rf easybuild-easyblocks \n"
 
     # cleaning up directories in container after build	
     post_content += """exit
@@ -328,7 +354,7 @@ eval "$@"
 
 
 
-def check_singularity(ordered_ecs,bootstrap_opts,easyconfig_repo):
+def check_singularity(ordered_ecs,bootstrap_opts,easyconfig_repo,easyblock_repo):
     """
     Return build statistics for this build
     """
@@ -364,6 +390,6 @@ def check_singularity(ordered_ecs,bootstrap_opts,easyconfig_repo):
     #model_num = hex(model_num).split('x')[-1].upper()
     #arch_name = architecture_query(model_num)
 
-    generate_singularity_recipe(ordered_ecs, bootstrap_opts,easyconfig_repo)
+    generate_singularity_recipe(ordered_ecs, bootstrap_opts,easyconfig_repo,easyblock_repo)
 
     return 
