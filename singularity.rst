@@ -60,3 +60,9 @@ Example using --imagename
 
         # imagename
         eb Bison-3.0.4.eb --singularity --singularity-bootstrap shub:shahzebsiddiqui/eb-singularity:centos-7.3.1611 --buildimage --imagename=Bison.img
+
+custom easyconfig and easyblock inside singularity container
+
+.. code::
+
+   eb CUDA-9.0.176.eb --singularity --import-easyconfig-repo https://github.com/shahzebsiddiqui/easybuild-easyconfigs:master --import-easyblock-repo https://github.com/shahzebsiddiqui/easybuild-easyblocks:master:c/cuda.py --singularity-bootstrap shub:shahzebsiddiqui/eb-singularity:centos-7.3.1611

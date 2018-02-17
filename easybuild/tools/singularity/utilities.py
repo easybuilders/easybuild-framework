@@ -86,8 +86,7 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyb
     else:
 	msg = "Invalid path: " +  sing_path +  " please specify a valid directory path"
 	print msg
-	EasyBuildError(msg)
-	sys.exit(0)
+	raise EasyBuildError(msg)
 
     bootstrap_list = bootstrap_opts.split(":")
     # checking format of --singularity-bootstrap
@@ -100,6 +99,7 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyb
 		  --singularity-bootstrap shub:<image>:<tag>
 		  --singularity-bootstrap docker:<image>:<tag>
 		  """
+
 	sys.exit(1)
     
     # sanity check for --import-easyconfig-repo 
@@ -156,13 +156,11 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyb
     			_log.debug("Image Extension is OK")
 		else:
 			print "Invalid image extension %s, must be .img or .simg", image_ext
-			EasyBuildError("Invalid image extension %s must be .img or .simg", image_ext)
-			sys.exit(1)
+			raise EaasyBuildError("Invalid image extension %s must be .img or .simg", image_ext)
 	else:
 		
 		print "Can't find image path ", bootstrap_imagepath
-		EasyBuildError("Can't find image path %s", bootstrap_imagepath)
-		sys.exit(1)
+		raise EasyBuildError("Can't find image path %s", bootstrap_imagepath)
 
     # if option is shub or docker		
     else:
@@ -294,10 +292,12 @@ eval "$@"
     write_file(def_file,content)
 
     print "Writing Singularity Definition File: %s" % os.path.join(singularity_writepath,def_file)
+    _log.info("Writing Singularity Definition File: %s" % os.path.join(singularity_writepath,def_file))
 
     # if easybuild will build container
     if build_image:
-    	container_name = ""
+
+        container_name = ""
 
 	if image_name != None:
 		ext =  os.path.splitext(image_name)[1] 
@@ -305,8 +305,7 @@ eval "$@"
 			_log.debug("Extension for image is okay from --image-name")
 		else:
 			print "Invalid Extension for --imagename ", ext
-			EasyBuildError("Invalid Extension for --imagename %s", ext)
-			sys.exit(1)
+			raise EasyBuildError("Invalid Extension for --imagename %s", ext)
 
 		container_name = image_name
 	else:
@@ -320,8 +319,7 @@ eval "$@"
 		if os.path.exists(container_name):
 			errmsg = "Image already exist at " + os.path.join(singularity_writepath,container_name) 
 			print errmsg
-			EasyBuildError(errmsg)
-			sys.exit(0)
+			raise EasyBuildError(errmsg)
 
 		os.system("sudo singularity build " + container_name + " " + def_file)
 
@@ -332,8 +330,7 @@ eval "$@"
 		if os.path.exists(container_name):
 			errmsg = "Image already exist at " + os.path.join(singularity_writepath,container_name) 
 			print errmsg
-			EasyBuildError(errmsg)
-			sys.exit(0)
+			raise EasyBuildError(errmsg)
 
 		os.system("sudo singularity build --writable " + container_name + " " + def_file)
 
@@ -343,8 +340,7 @@ eval "$@"
 		if os.path.exists(container_name):
 			errmsg = "Image already exist at " + os.path.join(singularity_writepath,container_name) 
 			print errmsg
-			EasyBuildError(errmsg)
-			sys.exit(0)
+			raise EasyBuildError(errmsg)
 
 	     	os.system("sudo singularity build --sandbox " + container_name + " " + def_file)
 
