@@ -44,7 +44,7 @@ from easybuild.tools.config import PKG_TOOL_DOCKER, PKG_TOOL_FPM, PKG_TOOL_SINGU
 from easybuild.tools.config import PKG_TYPE_DEF, PKG_TYPE_IMG, PKG_TYPE_RPM
 from easybuild.tools.config import build_option, get_package_naming_scheme, log_path, package_path, get_module_naming_scheme
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import change_dir, which, write_file
+from easybuild.tools.filetools import change_dir, which
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME

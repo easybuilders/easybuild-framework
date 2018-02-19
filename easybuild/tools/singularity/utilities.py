@@ -30,6 +30,7 @@ and allow for reproducable builds
 import subprocess
 import os
 import sys
+import urllib2
 import easybuild.tools.options as eboptions
 
 from vsc.utils import fancylogger
@@ -66,32 +67,14 @@ def architecture_query(model_num):
 		return None
 
 
-def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyblock_repo):
-
-    image_name = build_option('imagename')
-    image_format = build_option('imageformat')
-    build_image = build_option('buildimage')
-    import_ec_repo = easyconfig_repo
-    sing_path = singularity_path()
-    ec_repo = ""
-    eb_repo = ""
-    ec_branch = ""
-    eb_branch = ""
-    easyblock_file = ""
-
-
-    # check if --singularitypath is valid path and a directory
-    if os.path.exists(sing_path) and os.path.isdir(sing_path):
-	singularity_writepath = singularity_path()
-    else:
-	msg = "Invalid path: " +  sing_path +  " please specify a valid directory path"
-	print msg
-	raise EasyBuildError(msg)
-
-    bootstrap_list = bootstrap_opts.split(":")
-    # checking format of --singularity-bootstrap
-    if len(bootstrap_list) > 3 or len(bootstrap_list) <= 1:
-    	print """ Invalid Format for --singularity-bootstrap 
+def check_bootstrap(options):
+    """ sanity check for --singularity-bootstrap option"""
+    if options.singularity_bootstrap:	
+    	bootstrap_opts = options.singularity_bootstrap
+	bootstrap_list = bootstrap_opts.split(":")
+    	# checking format of --singularity-bootstrap
+    	if len(bootstrap_list) > 3 or len(bootstrap_list) <= 1:
+		print """ Invalid Format for --singularity-bootstrap 
 		  
 		  Must be one of the following
 
@@ -100,8 +83,25 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyb
 		  --singularity-bootstrap docker:<image>:<tag>
 		  """
 
-	sys.exit(1)
+		sys.exit(1)
+    else:
+     	raise EasyBuildError("must specify --singularity-bootstrap option")
+
     
+    # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
+    bootstrap_type = bootstrap_list[0]
+
+    # check bootstrap type value and ensure it is localimage, shub, docker
+    if bootstrap_type != "localimage" and bootstrap_type != "shub" and bootstrap_type != "docker":
+    	raise EasyBuildError("bootstrap type must be localimage, shub, or docker ")
+
+
+    return bootstrap_type,bootstrap_list
+
+def check_easyconfig_repo(options):
+    """ sanity check for easyconfig repo """
+    easyconfig_repo = options.import_easyconfig_repo
+
     # sanity check for --import-easyconfig-repo 
     if len(easyconfig_repo.split(":")) != 3:
     	print "Invalid format for --import-easyconfig-repo ", easyconfig_repo 
@@ -109,26 +109,74 @@ def generate_singularity_recipe(ordered_ecs,bootstrap_opts,easyconfig_repo,easyb
     else:
     	easyconfig_repo_split_str = easyconfig_repo.split(":")
 	ec_repo =  easyconfig_repo_split_str[0] + ":" + easyconfig_repo_split_str[1]
-	ec_branch =  easyconfig_repo.split(":")[2]
+	ec_branch = easyconfig_repo_split_str[2]
+	
+	code = urllib2.urlopen(ec_repo).code
+	if code != 200:
+		raise EasyBuildError("invalid url: %s", ec_repo)
+	else:
+		_log.info("easyconfig URL %s is ok", ec_repo)
 
-    # sanity check for --import-easyblock-repo 
-    if len(easyblock_repo.split(":")) != 4:
-    	print "Invalid format for --import-easyblock-repo ", easyblock_repo 
-	sys.exit(1)
+	return ec_repo,ec_branch
+
+
+def check_easyblock_repo(options):
+    """ sanity check for easyblock repo """
+
+    if options.import_easyblock_repo:
+    	easyblock_repo = options.import_easyblock_repo
+    	# sanity check for --import-easyblock-repo 
+    	if len(easyblock_repo.split(":")) != 4:
+    		raise EasyBlockError("Invalid format for --import-easyblock-repo: %s ", easyblock_repo)
+
+    	else:
+    		easyblock_repo_split_str = easyblock_repo.split(":")
+		eb_repo =  easyblock_repo_split_str[0] + ":" + easyblock_repo_split_str[1]
+		eb_branch =  easyblock_repo.split(":")[2]
+		easyblock_file = easyblock_repo.split(":")[3]
+
+		code = urllib2.urlopen(eb_repo).code
+		if code != 200:
+			raise EasyBuildError("invalid url: %s", eb_repo)
+		else:
+			_log.info("easyblock URL %s is ok", eb_repo)
+
+		return eb_repo,eb_branch,easyblock_file	
+
+def generate_singularity_recipe(ordered_ecs,options):
+    """ main function to singularity recipe and containers"""
+
+    image_name = build_option('imagename')
+    image_format = build_option('imageformat')
+    build_image = build_option('buildimage')
+    sing_path = singularity_path()
+    ec_repo = ""
+    eb_repo = ""
+    ec_branch = ""
+    eb_branch = ""
+    easyblock_file = ""
+    bootstrap_opts = ""
+    easyconfig_repo = ""
+    easyblock_repo = ""
+
+    # check if --singularitypath is valid path and a directory
+    if os.path.exists(sing_path) and os.path.isdir(sing_path):
+	singularity_writepath = singularity_path()
     else:
-    	easyblock_repo_split_str = easyblock_repo.split(":")
-	eb_repo =  easyblock_repo_split_str[0] + ":" + easyblock_repo_split_str[1]
-	eb_branch =  easyblock_repo.split(":")[2]
-	easyblock_file = easyblock_repo.split(":")[3]
+	msg = "Invalid path: " +  sing_path +  " please specify a valid directory path"
+	print msg
+	raise EasyBuildError(msg)
+	
+    
+    bootstrap_type, bootstrap_list = check_bootstrap(options)
+
+    if options.import_easyconfig_repo:
+    	ec_repo, ec_branch = check_easyconfig_repo(options)
+
+    if options.import_easyblock_repo:
+	eb_repo,eb_branch, easyblock_file = check_easyblock_repo(options)
 
 
-    # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
-    bootstrap_type = bootstrap_list[0]
-
-    # check bootstrap type value and ensure it is localimage, shub, docker
-    if bootstrap_type != "localimage" and bootstrap_type != "shub" and bootstrap_type != "docker":
-    	print " bootstrap type must be localimage, shub, or docker "
-	sys.exit(1)
 
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
@@ -350,7 +398,7 @@ eval "$@"
 
 
 
-def check_singularity(ordered_ecs,bootstrap_opts,easyconfig_repo,easyblock_repo):
+def check_singularity(ordered_ecs,options):
     """
     Return build statistics for this build
     """
@@ -386,6 +434,6 @@ def check_singularity(ordered_ecs,bootstrap_opts,easyconfig_repo,easyblock_repo)
     #model_num = hex(model_num).split('x')[-1].upper()
     #arch_name = architecture_query(model_num)
 
-    generate_singularity_recipe(ordered_ecs, bootstrap_opts,easyconfig_repo,easyblock_repo)
+    generate_singularity_recipe(ordered_ecs, options)
 
     return 
