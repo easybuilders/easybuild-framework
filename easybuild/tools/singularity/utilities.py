@@ -342,19 +342,22 @@ eval "$@"
     print "Writing Singularity Definition File: %s" % os.path.join(singularity_writepath,def_file)
     _log.info("Writing Singularity Definition File: %s" % os.path.join(singularity_writepath,def_file))
 
+    print image_name
+
     # if easybuild will build container
     if build_image:
 
         container_name = ""
 
+	# if --imagename is specified
 	if image_name != None:
+		"""	
 		ext =  os.path.splitext(image_name)[1] 
 		if ext == ".img" or ext == ".simg":
 			_log.debug("Extension for image is okay from --image-name")
 		else:
-			print "Invalid Extension for --imagename ", ext
 			raise EasyBuildError("Invalid Extension for --imagename %s", ext)
-
+		"""
 		container_name = image_name
 	else:
 		# definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
