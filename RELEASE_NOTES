@@ -3,6 +3,18 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.5.1 (January 16th 2018)
+--------------------------
+
+bugfix release
+- various enhancements, including:
+  - add definition of giolfc toolchain (#2359)
+  - add support for Environment Modules 4 (#2365)
+- various bug fixes, including:
+  - install SQLAlchemy < 1.2.0 with Python 2.6 in Travis config (#2367)
+  - make code in easybuild/tools/job/gc3pie.py forward-compatible with GC3Pie 2.5 (#2373)
+
+
 v3.5.0 (December 15th 2017)
 ---------------------------
 

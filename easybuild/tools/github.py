@@ -473,7 +473,7 @@ def create_gist(txt, fn, descr=None, github_user=None):
     return data['html_url']
 
 
-def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
+def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
     """Post a comment in the specified PR."""
     if not isinstance(issue, int):
         try:
@@ -492,7 +492,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         github_token = fetch_github_token(github_user)
 
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-        pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
+        pr_url = g.repos[account][repo].issues[issue]
 
         status, data = pr_url.comments.post(body={'body': txt})
         if not status == HTTP_STATUS_CREATED:
@@ -1013,7 +1013,7 @@ def merge_pr(pr):
         print_msg("\nReview %s merging pull request!\n" % ("OK,", "FAILed, yet forcibly")[force], prefix=False)
 
         comment = "Going in, thanks @%s!" % pr_data['user']['login']
-        post_comment_in_issue(pr, comment, repo=pr_target_repo, github_user=github_user)
+        post_comment_in_issue(pr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
         if dry_run:
             print_msg("[DRY RUN] Merged %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
