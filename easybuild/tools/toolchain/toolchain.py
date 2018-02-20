@@ -831,6 +831,7 @@ class Toolchain(object):
                     'rpath_filter': rpath_filter,
                     'rpath_include': rpath_include,
                     'rpath_wrapper_log': rpath_wrapper_log,
+                    'wrapper_dir': wrapper_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
