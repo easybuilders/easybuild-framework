@@ -252,6 +252,8 @@ def generate_singularity_recipe(ordered_ecs,options):
 	     	for os_package in osdeps[0]:
 		     	post_content += "yum install -y " + os_package + " || true \n"
 
+   # upgrade easybuild package automatically in all Singularity builds
+    post_content += "pip install -U easybuild \n"
     post_content += "su - easybuild \n"
  
     # clone easyconfig repo with user easybuild inside container 
