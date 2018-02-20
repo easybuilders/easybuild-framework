@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -656,7 +656,7 @@ class Toolchain(object):
 
         return (c_comps, fortran_comps)
 
-    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None):
+    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None, rpath_include_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -668,6 +668,7 @@ class Toolchain(object):
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
+        :param rpath_include_dirs: extra directories to include in RPATH
         """
         if loadmod:
             self._load_modules(silent=silent)
@@ -702,7 +703,7 @@ class Toolchain(object):
 
         if build_option('rpath'):
             if self.options.get('rpath', True):
-                self.prepare_rpath_wrappers()
+                self.prepare_rpath_wrappers(rpath_filter_dirs, rpath_include_dirs)
                 self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
@@ -764,7 +765,7 @@ class Toolchain(object):
         calls_rpath_args = 'rpath_args.py $CMD' in read_file(path)
         return in_rpath_wrappers_dir and calls_rpath_args
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -796,6 +797,9 @@ class Toolchain(object):
         rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
         self.log.debug("Combined RPATH filter: '%s'", rpath_filter)
 
+        rpath_include = ','.join(rpath_include_dirs or [])
+        self.log.debug("Combined RPATH include paths: '%s'", rpath_include)
+
         # create wrappers
         for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
             orig_cmd = which(cmd)
@@ -825,6 +829,7 @@ class Toolchain(object):
                     'python': sys.executable,
                     'rpath_args_py': rpath_args_py,
                     'rpath_filter': rpath_filter,
+                    'rpath_include': rpath_include,
                     'rpath_wrapper_log': rpath_wrapper_log,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -71,8 +71,10 @@ from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
-from easybuild.tools.filetools import remove_file, rmtree2, write_file
-from easybuild.tools.filetools import verify_checksum, weld_paths
+from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
+from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
+from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
+from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
@@ -87,23 +89,6 @@ from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import quote_str, remove_unwanted_chars, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
-
-BUILD_STEP = 'build'
-CLEANUP_STEP = 'cleanup'
-CONFIGURE_STEP = 'configure'
-EXTENSIONS_STEP = 'extensions'
-FETCH_STEP = 'fetch'
-MODULE_STEP = 'module'
-PACKAGE_STEP = 'package'
-PATCH_STEP = 'patch'
-PERMISSIONS_STEP = 'permissions'
-POSTPROC_STEP = 'postproc'
-PREPARE_STEP = 'prepare'
-READY_STEP = 'ready'
-SANITYCHECK_STEP = 'sanitycheck'
-SOURCE_STEP = 'source'
-TEST_STEP = 'test'
-TESTCASES_STEP = 'testcases'
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
 
@@ -136,7 +121,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, ec):
+    def __init__(self, ec, hooks=None):
         """
         Initialize the EasyBlock instance.
         :param ec: a parsed easyconfig file (EasyConfig instance)
@@ -144,6 +129,9 @@ class EasyBlock(object):
 
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
+
+        # list of pre- and post-step hooks
+        self.hooks = hooks or []
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -194,6 +182,9 @@ class EasyBlock(object):
 
         # list of locations to include in RPATH filter used by toolchain
         self.rpath_filter_dirs = []
+
+        # list of locations to include in RPATH used by toolchain
+        self.rpath_include_dirs = []
 
         # logging
         self.log = None
@@ -1734,8 +1725,18 @@ class EasyBlock(object):
         if not self.build_in_installdir:
             self.rpath_filter_dirs.append(self.builddir)
 
+        # always include '<installdir>/lib', '<installdir>/lib64', $ORIGIN, $ORIGIN/../lib and $ORIGIN/../lib64
+        # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
+        # see also https://linux.die.net/man/8/ld-linux;
+        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib'))
+        self.rpath_include_dirs.append(os.path.join(self.installdir, 'lib64'))
+        self.rpath_include_dirs.append('$ORIGIN')
+        self.rpath_include_dirs.append('$ORIGIN/../lib')
+        self.rpath_include_dirs.append('$ORIGIN/../lib64')
+
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs)
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs, 
+                               rpath_include_dirs=self.rpath_include_dirs)
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:
@@ -2444,6 +2445,9 @@ class EasyBlock(object):
         """
         self.log.info("Starting %s step", step)
         self.update_config_template_run_step()
+
+        run_hook(step, self.hooks, pre_step_hook=True, args=[self])
+
         for step_method in step_methods:
             self.log.info("Running method %s part of step %s" % ('_'.join(step_method.func_code.co_names), step))
 
@@ -2466,6 +2470,8 @@ class EasyBlock(object):
                 # step_method is a lambda function that takes an EasyBlock instance as an argument,
                 # and returns the actual method, so use () to execute it
                 step_method(self)()
+
+        run_hook(step, self.hooks, post_step_hook=True, args=[self])
 
         if self.cfg['stop'] == step:
             self.log.info("Stopping after %s step.", step)
@@ -2509,7 +2515,7 @@ class EasyBlock(object):
             (False, lambda x: x.make_installdir),
             (True, lambda x: x.install_step),
         ]
-        install_step_spec = lambda initial: get_step('install', "installing", install_substeps, True, initial=initial)
+        install_step_spec = lambda init: get_step(INSTALL_STEP, "installing", install_substeps, True, initial=init)
 
         # format for step specifications: (stop_name: (description, list of functions, skippable))
 
@@ -2611,7 +2617,7 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env):
+def build_and_install_one(ecdict, init_env, hooks=None):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
@@ -2649,7 +2655,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         app_class = get_easyblock_class(easyblock, name=name)
 
-        app = app_class(ecdict['ec'])
+        app = app_class(ecdict['ec'], hooks=hooks)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),

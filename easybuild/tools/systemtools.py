@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2017 Ghent University
+# Copyright 2011-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -629,6 +629,7 @@ def get_glibc_version():
     """
     Find the version of glibc used on this system
     """
+    glibc_ver = UNKNOWN
     os_type = get_os_type()
 
     if os_type == LINUX:
@@ -637,16 +638,16 @@ def get_glibc_version():
         res = glibc_ver_regex.search(glibc_ver_str)
 
         if res is not None:
-            glibc_version = res.group(1)
-            _log.debug("Found glibc version %s" % glibc_version)
-            return glibc_version
+            glibc_ver = res.group(1)
+            _log.debug("Found glibc version %s" % glibc_ver)
         else:
-            raise EasyBuildError("Failed to determine glibc version from '%s' using pattern '%s'.",
-                                 glibc_ver_str, glibc_ver_regex.pattern)
+            _log.warning("Failed to determine glibc version from '%s' using pattern '%s'.",
+                         glibc_ver_str, glibc_ver_regex.pattern)
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
-        return UNKNOWN
+
+    return glibc_ver
 
 
 def get_system_info():

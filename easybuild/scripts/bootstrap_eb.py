@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20170808.01'
+EB_BOOTSTRAP_VERSION = '20180201.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -240,8 +240,17 @@ def check_module_command(tmpdir):
 
     def check_cmd_help(modcmd):
         """Check 'help' output for specified command."""
-        modcmd_re = re.compile(r'module\s.*command\s')
+        modcmd_re = re.compile(r'module\s.*command')
         cmd = "%s python help" % modcmd
+        os.system("%s > %s 2>&1" % (cmd, out))
+        txt = open(out, 'r').read()
+        debug("Output from %s: %s" % (cmd, txt))
+        return modcmd_re.search(txt)
+
+    def is_modulecmd_tcl_modulestcl():
+        """Determine if modulecmd.tcl is EnvironmentModulesTcl."""
+        modcmd_re = re.compile('Modules Release Tcl')
+        cmd = "modulecmd.tcl python --version"
         os.system("%s > %s 2>&1" % (cmd, out))
         txt = open(out, 'r').read()
         debug("Output from %s: %s" % (cmd, txt))
@@ -251,12 +260,15 @@ def check_module_command(tmpdir):
     known_module_commands = [
         ('lmod', 'Lmod'),
         ('modulecmd', 'EnvironmentModulesC'),
-        ('modulecmd.tcl', 'EnvironmentModulesTcl'),
+        ('modulecmd.tcl', 'EnvironmentModules'),
     ]
     out = os.path.join(tmpdir, 'module_command.out')
     modtool = None
     for modcmd, modtool in known_module_commands:
         if check_cmd_help(modcmd):
+            # distinguish between EnvironmentModulesTcl and EnvironmentModules
+            if modcmd == 'modulecmd.tcl' and is_modulecmd_tcl_modulestcl():
+                modtool = 'EnvironmentModulesTcl'
             easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
@@ -266,6 +278,14 @@ def check_module_command(tmpdir):
             if modcmd and check_cmd_help(modcmd):
                 easybuild_modules_tool = modtool
                 info("Found module command '%s' via $LMOD_CMD (%s), so using it." % (modcmd, modtool))
+                break
+        elif modtool == 'EnvironmentModules':
+            # check value of $MODULESHOME as fallback
+            moduleshome = os.environ.get('MODULESHOME', 'MODULESHOME_NOT_DEFINED')
+            modcmd = os.path.join(moduleshome, 'libexec', 'modulecmd.tcl')
+            if os.path.exists(modcmd) and check_cmd_help(modcmd):
+                easybuild_modules_tool = modtool
+                info("Found module command '%s' via $MODULESHOME (%s), so using it." % (modcmd, modtool))
                 break
 
     if easybuild_modules_tool is None:
@@ -695,6 +715,9 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     # install EasyBuild with EasyBuild
     from easybuild.main import main as easybuild_main
     easybuild_main()
+
+    if print_debug:
+        os.environ['EASYBUILD_DEBUG'] = '1'
 
     # make sure the EasyBuild module was actually installed
     # EasyBuild configuration options that are picked up from configuration files/environment may break the bootstrap,

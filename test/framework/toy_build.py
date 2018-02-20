@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2017 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1644,10 +1644,40 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_rpath(self):
         """Test toy build using --rpath."""
-        self.test_toy_build(extra_args=['--rpath', '--experimental'], raise_error=True)
+        def grab_gcc_rpath_wrapper_filter_arg():
+            """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
+            rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
+            gcc_rpath_wrapper_txt = read_file(os.path.join(rpath_wrappers_dir, 'gcc'))
+
+            rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '([^ ]*)'.*", re.M)
+            res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
+            self.assertTrue(res, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
+
+            shutil.rmtree(rpath_wrappers_dir)
+
+            return res.group(1)
+
+        args = ['--rpath', '--experimental']
+        self.test_toy_build(extra_args=args, raise_error=True)
+
+        # by default, /lib and /usr are included in RPATH filter,
+        # together with temporary directory and build directory
+        rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
+        self.assertTrue('/lib.*' in rpath_filter_paths)
+        self.assertTrue('/usr.*' in rpath_filter_paths)
+        self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
+        self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
         # also test use of --rpath-filter
-        self.test_toy_build(extra_args=['--rpath', '--rpath-filter=/test.*,/foo.*', '--experimental'], raise_error=True)
+        args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
+        outtxt = self.test_toy_build(extra_args=args, raise_error=True)
+
+        # check whether rpath filter was set correctly
+        rpath_filter_paths = grab_gcc_rpath_wrapper_filter_arg().split(',')
+        self.assertTrue('/test.*' in rpath_filter_paths)
+        self.assertTrue('/foo/bar.*' in rpath_filter_paths)
+        self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
+        self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
         # test use of rpath toolchain option
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -1742,6 +1772,49 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_toy_build_hooks(self):
+        """Test use of --hooks."""
+        hooks_file = os.path.join(self.test_prefix, 'my_hooks.py')
+        hooks_file_txt = '\n'.join([
+            "import os",
+            '',
+            "def start_hook():",
+            "   print('start hook triggered')",
+            '',
+            "def pre_configure_hook(self):",
+            "    print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))",
+            '',
+            "def post_configure_hook(self):",
+            "    print('post-configure: toy.source: %s' % os.path.exists('toy.source'))",
+            '',
+            "def post_install_hook(self):",
+            "    print('in post-install hook for %s v%s' % (self.name, self.version))",
+            "    print(', '.join(sorted(os.listdir(self.installdir))))",
+            '',
+            "def end_hook():",
+            "   print('end hook triggered, all done!')",
+        ])
+        write_file(hooks_file, hooks_file_txt)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        self.test_toy_build(extra_args=['--hooks=%s' % hooks_file])
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+
+        self.assertEqual(stderr, '')
+        expected_output = '\n'.join([
+            "start hook triggered",
+            "pre-configure: toy.source: True",
+            "post-configure: toy.source: False",
+            "in post-install hook for toy v0.0",
+            "bin, lib",
+            "end hook triggered, all done!",
+        ])
+        self.assertEqual(stdout.strip(), expected_output)
 
 
 def suite():

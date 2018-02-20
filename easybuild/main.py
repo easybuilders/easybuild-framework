@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -61,6 +61,7 @@ from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import new_pr, merge_pr, update_pr
+from easybuild.tools.hooks import START, END, load_hooks, run_hook
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
@@ -104,18 +105,27 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
-    """Build and install software for all provided parsed easyconfig files."""
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True, hooks=None):
+    """
+    Build and install software for all provided parsed easyconfig files.
+
+    :param ecs: easyconfig files to install software with
+    :param init_session_state: initial session state, to use in test reports
+    :param exit_on_failure: whether or not to exit on installation failure
+    :param hooks: list of defined pre- and post-step hooks
+    """
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
     init_env = copy.deepcopy(os.environ)
 
+    run_hook(START, hooks)
+
     res = []
     for ec in ecs:
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env, hooks=hooks)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
@@ -153,6 +163,8 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
+
+    run_hook(END, hooks)
 
     return res
 
@@ -453,9 +465,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when testing)
-    exit_on_failure = not options.dump_test_report and not options.upload_test_report
     if not testing or (testing and do_build):
-        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        exit_on_failure = not (options.dump_test_report or options.upload_test_report)
+        hooks = load_hooks(options.hooks)
+
+        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
+                                                  exit_on_failure=exit_on_failure, hooks=hooks)
     else:
         ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
