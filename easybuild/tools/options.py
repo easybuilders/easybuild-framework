@@ -481,6 +481,7 @@ class EasyBuildOptions(GeneralOption):
                                'strlist', 'store', self.default_repositorypath),
 
 	    'singularitypath':("Path where definition and container will be written. ", None, 'store', mk_full_default_path('singularitypath')),
+
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
@@ -624,8 +625,6 @@ class EasyBuildOptions(GeneralOption):
             'singularity-bootstrap': (" Singularity bootstrap agent. 	Format: --singularity-bootstrap localimage:/path/to/image.img --singularity-bootstrap shub:<image>:<tag> --singularity-bootstrap docker:<image>:<tag> ", str, 'store', ''),
 	    'imagename': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
 	    'imageformat': ("Image format for singularity container.", 'choice', 'store', DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST),
-	    'import-easyconfig-repo': ("Import easyconfig repo in the container build. Format: --import-easyconfig-repo=https://github.com/GITUSER/easybuild-easyconfigs:<BRANCH>", str, 'store',''),
-	    'import-easyblock-repo': ("Import easyblock repo in the container build. Format: --import-easyblock-repo=https://github.com/GITUSER/easybuild-easyblock:<BRANCH>:<FILE>", str, 'store',''),
 	    'buildimage': ("Build container will require sudo privileges! ", None, 'store_true', False)
 
         })

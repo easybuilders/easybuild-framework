@@ -40,6 +40,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.testing import  session_state
 _log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
 
+"""
 def architecture_query(model_num):
 	model_mapping = {
 		'4F': 'Broadwell',
@@ -66,6 +67,7 @@ def architecture_query(model_num):
 		print "Model Number: ", model_num, " not found in dictionary, please consider adding the model number and Architecture name"
 		return None
 
+"""
 
 def check_bootstrap(options):
     """ sanity check for --singularity-bootstrap option"""
@@ -98,8 +100,11 @@ def check_bootstrap(options):
 
     return bootstrap_type,bootstrap_list
 
-def check_easyconfig_repo(options):
-    """ sanity check for easyconfig repo """
+# disable easyconfig and easyblock repo check
+
+#def check_easyconfig_repo(options):
+#    """ sanity check for easyconfig repo """
+"""    
     easyconfig_repo = options.import_easyconfig_repo
 
     # sanity check for --import-easyconfig-repo 
@@ -118,11 +123,11 @@ def check_easyconfig_repo(options):
 		_log.info("easyconfig URL %s is ok", ec_repo)
 
 	return ec_repo,ec_branch
+"""
 
-
-def check_easyblock_repo(options):
-    """ sanity check for easyblock repo """
-
+#def check_easyblock_repo(options):
+#    """ sanity check for easyblock repo """
+"""
     if options.import_easyblock_repo:
     	easyblock_repo = options.import_easyblock_repo
     	# sanity check for --import-easyblock-repo 
@@ -142,6 +147,7 @@ def check_easyblock_repo(options):
 			_log.info("easyblock URL %s is ok", eb_repo)
 
 		return eb_repo,eb_branch,easyblock_file	
+"""
 
 def generate_singularity_recipe(ordered_ecs,options):
     """ main function to singularity recipe and containers"""
@@ -150,14 +156,18 @@ def generate_singularity_recipe(ordered_ecs,options):
     image_format = build_option('imageformat')
     build_image = build_option('buildimage')
     sing_path = singularity_path()
+    bootstrap_opts = ""
+
+    """
+    variables used for --import-easyconfig-repo --import-easyblock-repo. Feature disabled for now
     ec_repo = ""
     eb_repo = ""
     ec_branch = ""
     eb_branch = ""
     easyblock_file = ""
-    bootstrap_opts = ""
     easyconfig_repo = ""
     easyblock_repo = ""
+    """
 
     # check if --singularitypath is valid path and a directory
     if os.path.exists(sing_path) and os.path.isdir(sing_path):
@@ -170,13 +180,16 @@ def generate_singularity_recipe(ordered_ecs,options):
     
     bootstrap_type, bootstrap_list = check_bootstrap(options)
 
+    """
+
+    disable support for --import-easyconfig-repo --import-easyblock-repo
     if options.import_easyconfig_repo:
     	ec_repo, ec_branch = check_easyconfig_repo(options)
 
     if options.import_easyblock_repo:
 	eb_repo,eb_branch, easyblock_file = check_easyblock_repo(options)
 
-
+    """
 
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
@@ -255,7 +268,11 @@ def generate_singularity_recipe(ordered_ecs,options):
    # upgrade easybuild package automatically in all Singularity builds
     post_content += "pip install -U easybuild \n"
     post_content += "su - easybuild \n"
- 
+    
+    """
+
+    disable support for --import-easyconfig-repo --import-easyblock-repo
+
     # clone easyconfig repo with user easybuild inside container 
     if ec_repo:
     	post_content += "git clone -b " + ec_branch + " " + ec_repo + "\n" 
@@ -267,6 +284,7 @@ def generate_singularity_recipe(ordered_ecs,options):
     	post_content += "git clone -b " + eb_branch + " " + eb_repo + "\n" 
     	post_content += "export EASYBUILD_INCLUDE_EASYBLOCKS="  + os.path.join("/home/easybuild/easybuild-easyblocks/easybuild/easyblocks",easyblock_file) + " \n" 
 
+    """
 
     environment_content = """
 %environment
@@ -309,11 +327,18 @@ source /etc/profile
         environment_content += "module use " +  modulepath + "\n"
         environment_content +=  "module load " + os.path.join(appname,appver+appversuffix) + "\n"
 
+    """
+    
+    disable support for --import-easyconfig-repo --import-easyblock-repo
+
     if ec_repo:
     	post_content += "rm -rf easybuild-easyconfigs \n"
 
     if eb_repo:
     	post_content += "rm -rf easybuild-easyblocks \n"
+
+    """
+
 
     # cleaning up directories in container after build	
     post_content += """exit
@@ -343,8 +368,6 @@ eval "$@"
 
     print "Writing Singularity Definition File: %s" % os.path.join(singularity_writepath,def_file)
     _log.info("Writing Singularity Definition File: %s" % os.path.join(singularity_writepath,def_file))
-
-    print image_name
 
     # if easybuild will build container
     if build_image:

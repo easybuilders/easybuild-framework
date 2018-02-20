@@ -262,10 +262,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
-    #if options.singularity:
-    #	check_singularity(options.software,options.toolchain)
-    #	sys.exit(0)
-
     # search for easyconfigs, if a query is specified
     if search_query:
         search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
@@ -409,8 +405,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
 
     if options.singularity:
 
-	check_singularity(ordered_ecs,options)# options.singularity_bootstrap,options.import_easyconfig_repo,options.import_easyblock_repo)
-	#check_singularity(ordered_ecs,options.singularity_bootstrap,options.import_easyconfig_repo,options.import_easyblock_repo)
+	check_singularity(ordered_ecs,options)
 	sys.exit(0)
 
     # creating/updating PRs
