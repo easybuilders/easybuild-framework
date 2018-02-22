@@ -1647,7 +1647,7 @@ class ToyBuildTest(EnhancedTestCase):
         def grab_gcc_rpath_wrapper_filter_arg():
             """Helper function to grab filter argument from last RPATH wrapper for 'gcc'."""
             rpath_wrappers_dir = glob.glob(os.path.join(os.getenv('TMPDIR'), '*', '*', 'rpath_wrappers'))[0]
-            gcc_rpath_wrapper_txt = read_file(os.path.join(rpath_wrappers_dir, 'gcc'))
+            gcc_rpath_wrapper_txt = read_file(glob.glob(os.path.join(rpath_wrappers_dir, '*', 'gcc'))[0])
 
             rpath_args_regex = re.compile(r"^rpath_args_out=.*rpath_args.py \$CMD '([^ ]*)'.*", re.M)
             res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
