@@ -43,7 +43,9 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from pkg_resources import parse_version
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
@@ -52,7 +54,8 @@ from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, resolve_path, which, write_file
+from easybuild.tools.filetools import KNOWN_EXTS, download_file, find_easyconfigs, find_extension, is_patch_file
+from easybuild.tools.filetools import pypi_source_urls, read_file, resolve_path, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -82,6 +85,9 @@ try:
     import gv
 except ImportError:
     pass
+
+# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
+PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -594,3 +600,121 @@ def categorize_files_by_type(paths):
             res['easyconfigs'].append(path)
 
     return res
+
+
+def mk_src_regex(src, version):
+    """Create regex pattern based on given source filename."""
+    known_exts = sorted(KNOWN_EXTS, key=len, reverse=True)
+
+    # replace file extension with regex pattern for known extensions for source files
+    ext_regex = re.compile(find_extension(src).replace('.', '\\.') + '$')
+    src_pattern = ext_regex.sub('(' + '|'.join(known_exts) + ')', src) # '(?![a-zA-Z.]))', src)
+
+    # replace version with placeholder (which doesn't include dots)
+    version_placeholder = '@version@'
+    src_pattern = src_pattern.replace(version, version_placeholder)
+    # escape all dots to avoid that they match any character
+    src_pattern = src_pattern.replace('.', '\\.')
+    # replace version placeholder with regex pattern for versions;
+    # versions are assumed not to include a dot followed by a letter,
+    # to avoid including parts of an extension in the matched version
+    src_pattern = src_pattern.replace(version_placeholder, '(?P<version>([\w-]|\.(?![a-zA-Z]))*)')
+
+    return re.compile(src_pattern)
+
+
+def check_software_versions_via_url(name, src_pattern, url):
+    """Check available software versions via provided URL."""
+    versions = None
+    known_url_types = [
+        (PYPI_PKG_URL_PATTERN, check_software_versions_pypi),
+    ]
+    for url_pattern, url_handler in known_url_types:
+        if re.search(url_pattern, url):
+            versions = url_handler(name, src_pattern, url)
+            break
+
+    if not versions:
+        versions = check_software_versions_via_dir_listing(name, src_pattern, url)
+
+    return versions
+
+
+def check_software_versions_pypi(name, src_regex, _):
+    """Determine available software versions for specified PyPI URL."""
+    versions = []
+    pkg_urls = pypi_source_urls(name)
+    for pkg_url in pkg_urls:
+        res = src_regex.search(pkg_url)
+        if res:
+            versions.append(res.group('version'))
+
+    return versions
+
+
+def check_software_versions_via_dir_listing(name, src_regex, url):
+    """Try to determine available software versions by scraping URL as directory listing."""
+    versions = []
+
+    target = os.path.join(tempfile.mkdtemp(), 'dir.list')
+    if download_file(os.path.basename(target), url, target):
+        dir_list = read_file(target)
+        _log.debug("Directory listing @ %s:\n%s", url, dir_list)
+        for res in src_regex.finditer(dir_list):
+            _log.debug("Found match for source regex '%s': %s", src_regex.pattern, res.groups())
+            version = res.group('version')
+            versions.append(res.group('version'))
+
+    return versions
+
+
+def check_software_versions(easyconfigs):
+    """Check available software versions for each of the specified easyconfigs"""
+    lines = ['']
+    for ec in easyconfigs:
+        ec = ec['ec']
+        lines.extend([
+            "* available software versions for %s:" % ec['name'],
+            "  (based on %s)" % ec.path,
+        ])
+
+        versions = []
+
+        # check if easyblock has a custom way of determining available versions
+        app_class = get_easyblock_class(ec['easyblock'], name=ec['name'])
+        app = app_class(ec)
+        try:
+            versions = app.check_versions()
+        except NotImplementedError:
+            _log.debug("No custom method for determining versions implemented in %s", app_class)
+
+            # try to fall back to method based on type of source URL
+            for src_spec in ec['sources']:
+                if isinstance(src_spec, basestring):
+                    src = src_spec
+                elif isinstance(src_spec, (list, tuple)):
+                    src = src_spec[0]
+                elif isinstance(src_spec, dict):
+                    src = src_spec.get('download_filename') or src_spec.get('filename')
+                    if src is None:
+                        raise EasyBuildError("Failed to determine source filename from %s", src_spec)
+                else:
+                    raise EasyBuildError("Unknown type of source spec: %s", src_spec)
+
+                # FIXME version will be incorrect here for components...
+                src_regex = mk_src_regex(src, ec['version'])
+                for url in ec['source_urls']:
+                    versions.extend(check_software_versions_via_url(ec['name'], src_regex, url))
+
+        if versions:
+            # replace pre-release tags like 'rc1' with 'b9991' to get correct version ordering
+            # the '999' is added to try and ensure correct ordering against existing 'b<number>' versions
+            rc_regex = re.compile('rc([0-9])')
+            ordered_versions = nub(sorted(versions, key=lambda v: parse_version(v)))
+            lines.extend('\t* %s' % v for v in nub(ordered_versions))
+        else:
+            lines.append("\tNo versions found for %s! :(" % ec['name'])
+
+        # FIXME: also handle extensions
+
+    print_msg('\n'.join(lines) + '\n', prefix=False)

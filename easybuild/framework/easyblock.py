@@ -58,7 +58,7 @@ from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfi
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
-from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.tools import PYPI_PKG_URL_PATTERN, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -91,9 +91,6 @@ from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
 MODULE_ONLY_STEPS = [MODULE_STEP, PREPARE_STEP, READY_STEP, SANITYCHECK_STEP]
-
-# string part of URL for Python packages on PyPI that indicates needs to be rewritten (see derive_alt_pypi_url)
-PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 
 
 _log = fancylogger.getLogger('easyblock')
@@ -1385,6 +1382,10 @@ class EasyBlock(object):
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
     #
+
+    def check_versions(self):
+        """Check which versions are available for this software"""
+        raise NotImplementedError
 
     @property
     def start_dir(self):
