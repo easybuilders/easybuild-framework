@@ -403,7 +403,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
-    LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
+    LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
 
@@ -675,7 +675,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
-    LOAD_REGEX = r'^\s*load\("(\S+)"'
+    LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
 
