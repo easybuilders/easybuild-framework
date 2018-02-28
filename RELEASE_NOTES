@@ -10,7 +10,7 @@ bugfix release
 - various enhancements, including:
   - add functionality to skip devel module with naming scheme (#2374)
   - add pagination support in clean_gists.py (#2379)
-  - allow basic compiler modulenames to be specified as keys in optarch. (#2387)
+  - allow basic compiler modulenames to be specified as keys in optarch (#2387)
   - initial set of OHPC module meta data for EasyBuild (#2392)
   - allow different target account in post_comment_in_issue (#2399)
   - declare support for RPATH linking stable (#2409)
