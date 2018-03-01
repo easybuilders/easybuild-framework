@@ -769,15 +769,19 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     git_repo.index.commit(commit_msg)
 
     # push to GitHub
-    github_account =  build_option('github_org') or build_option('github_user')
-    github_url = 'git@github.com:%s/%s.git' % (github_account, pr_target_repo)
+    github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
     salt = ''.join(random.choice(string.letters) for _ in range(5))
-    remote_name = 'github_%s_%s' % (github_account, salt)
+    remote_name = 'github_%s_%s' % (target_account, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
+    push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (pr_branch, remote_name, github_url)
+    if dry_run:
+        push_branch_msg += ' [DRY RUN]'
+    print_msg(push_branch_msg)
+
     if not dry_run:
-        _log.debug("Pushing branch '%s' to remote '%s' (%s)", pr_branch, remote_name, github_url)
+        _log.debug(push_log_msg)
         try:
             my_remote = git_repo.create_remote(remote_name, github_url)
             res = my_remote.push(pr_branch)
