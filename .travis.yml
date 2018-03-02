@@ -9,9 +9,9 @@ env:
     - LMOD_VERSION=6.6.3 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - LMOD_VERSION=7.4
     - LMOD_VERSION=7.4 TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
+    #- ENV_MOD_VERSION=3.2.10 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesC TEST_EASYBUILD_MODULE_SYNTAX=Tcl
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl TEST_EASYBUILD_MODULE_SYNTAX=Tcl
-    - ENV_MOD_VERSION=4.0.0 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules
+    #- ENV_MOD_VERSION=4.0.0 TEST_EASYBUILD_MODULE_SYNTAX=Tcl TEST_EASYBUILD_MODULES_TOOL=EnvironmentModules
 matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
@@ -93,15 +93,11 @@ script:
     - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
     - EB_BOOTSTRAP_SHA256SUM=$(sha256sum $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py | cut -f1 -d' ')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_SHA256SUM"
-    - EB_BOOTSTRAP_EXPECTED="20170808.01 7a22faf5ee9d249807fd883e435008fb84c11129425ec09d3cc76918b36ef3d5"
+    - EB_BOOTSTRAP_EXPECTED="20180201.01 9d6278409b3d9ecf034bd28384da25c14ebfe773606d4fa800e51ed11667e851"
     - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" || (echo "Version check on bootstrap script failed $EB_BOOTSTRAP_FOUND" && exit 1)
     # test bootstrap script
-    - if [ "x$TEST_EASYBUILD_MODULES_TOOL" != 'xEnvironmentModules' ]; then
-        python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap;
-      fi;
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
-    - if [ "x$TEST_EASYBUILD_MODULES_TOOL" != 'xEnvironmentModules' ]; then
-        module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version;
-      fi;
+    - module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version

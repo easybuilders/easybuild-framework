@@ -473,7 +473,7 @@ def create_gist(txt, fn, descr=None, github_user=None):
     return data['html_url']
 
 
-def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
+def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
     """Post a comment in the specified PR."""
     if not isinstance(issue, int):
         try:
@@ -492,7 +492,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         github_token = fetch_github_token(github_user)
 
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-        pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
+        pr_url = g.repos[account][repo].issues[issue]
 
         status, data = pr_url.comments.post(body={'body': txt})
         if not status == HTTP_STATUS_CREATED:
@@ -769,15 +769,17 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     git_repo.index.commit(commit_msg)
 
     # push to GitHub
-    github_account =  build_option('github_org') or build_option('github_user')
-    github_url = 'git@github.com:%s/%s.git' % (github_account, pr_target_repo)
+    github_url = 'git@github.com:%s/%s.git' % (target_account, pr_target_repo)
     salt = ''.join(random.choice(string.letters) for _ in range(5))
-    remote_name = 'github_%s_%s' % (github_account, salt)
+    remote_name = 'github_%s_%s' % (target_account, salt)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    if not dry_run:
-        _log.debug("Pushing branch '%s' to remote '%s' (%s)", pr_branch, remote_name, github_url)
+    push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (pr_branch, remote_name, github_url)
+    if dry_run:
+        print_msg(push_branch_msg + ' [DRY RUN]', log=_log)
+    else:
+        print_msg(push_branch_msg, log=_log)
         try:
             my_remote = git_repo.create_remote(remote_name, github_url)
             res = my_remote.push(pr_branch)
@@ -1013,7 +1015,7 @@ def merge_pr(pr):
         print_msg("\nReview %s merging pull request!\n" % ("OK,", "FAILed, yet forcibly")[force], prefix=False)
 
         comment = "Going in, thanks @%s!" % pr_data['user']['login']
-        post_comment_in_issue(pr, comment, repo=pr_target_repo, github_user=github_user)
+        post_comment_in_issue(pr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
         if dry_run:
             print_msg("[DRY RUN] Merged %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
