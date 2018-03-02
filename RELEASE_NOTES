@@ -18,6 +18,7 @@ bugfix release
   - update bootstrap script to be compatible with Modules v4 (#2390)
   - avoid fatal error when determining glibc version on non-glibc Linux system (e.g. Alphine Linux) (#2398)
   - exclude location of RPATH wrappers from $PATH to avoid fork bomb (#2410)
+  - fix target account for --update-pr in case it's different from GitHub account being used to push branch (#2419)
 
 
 v3.5.1 (January 16th 2018)
