@@ -778,10 +778,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (pr_branch, remote_name, github_url)
     if dry_run:
         push_branch_msg += ' [DRY RUN]'
-    print_msg(push_branch_msg)
+    print_msg(push_branch_msg, log=_log)
 
     if not dry_run:
-        _log.debug(push_log_msg)
         try:
             my_remote = git_repo.create_remote(remote_name, github_url)
             res = my_remote.push(pr_branch)
