@@ -777,7 +777,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
 
     push_branch_msg = "pushing branch '%s' to remote '%s' (%s)" % (pr_branch, remote_name, github_url)
     if dry_run:
-        print_msg(push_branch_msg + '[DRY RUN]', log=_log)
+        print_msg(push_branch_msg + ' [DRY RUN]', log=_log)
     else:
         print_msg(push_branch_msg, log=_log)
         try:
