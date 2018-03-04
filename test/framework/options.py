@@ -551,14 +551,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, logfile=dummylogfn)
             logtxt = read_file(self.logfile)
 
-            for pat in [
-                        r"EasyBlock\n",
-                        r"|--\s+EB_foo\n|\s+|--\s+EB_foofoo\n",
-                        r"|--\s+bar\n",
-                       ]:
-
-                msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
-                self.assertTrue(re.search(pat, logtxt), msg)
+            expected = '\n'.join([
+                r'EasyBlock',
+                r'\|-- bar',
+                r'\|-- ConfigureMake',
+                r'\|-- EB_foo',
+                r'\|   \|-- EB_foofoo',
+                r'\|-- EB_GCC',
+                r'\|-- EB_HPL',
+                r'\|-- EB_ScaLAPACK',
+                r'\|-- EB_toy_buggy',
+                r'\|-- ExtensionEasyBlock',
+                r'\|   \|-- DummyExtension',
+                r'\|   \|-- EB_toy',
+                r'\|   \|-- Toy_Extension',
+                r'\|-- Toolchain',
+                r'Extension',
+                r'\|-- ExtensionEasyBlock',
+                r'\|   \|-- DummyExtension',
+                r'\|   \|-- EB_toy',
+                r'\|   \|-- Toy_Extension',
+            ])
+            regex = re.compile(expected, re.M)
+            self.assertTrue(regex.search(logtxt), "Pattern '%s' found in: %s" % (regex.pattern, logtxt))
 
         # clear log
         write_file(self.logfile, '')
