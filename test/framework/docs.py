@@ -62,6 +62,17 @@ class DocsTest(EnhancedTestCase):
             '',
             "Dummy support for building and installing applications with configure/make/make install.",
             '',
+            "Extra easyconfig parameters specific to ``ConfigureMake`` easyblock",
+            "-------------------------------------------------------------------",
+            '',
+            "====================    ============    =============",
+            "easyconfig parameter    description     default value",
+            "====================    ============    =============",
+            '``test_123``            Test 1, 2, 3    ``""``       ',
+            "``test_bool``           Just a test     ``False``    ",
+            "``test_none``           Another test    ``None``     ",
+            "====================    ============    =============",
+            '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
             '',
@@ -74,7 +85,7 @@ class DocsTest(EnhancedTestCase):
             "====================    ================================================================",
         ])
 
-        self.assertTrue(check_configuremake in ebdoc)
+        self.assertTrue(check_configuremake in ebdoc, "Found '%s' in: %s" % (check_configuremake, ebdoc))
         names = []
 
         for mod in modules:
