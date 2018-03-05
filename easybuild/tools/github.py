@@ -621,7 +621,7 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
+def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_account=None, commit_msg=None):
     """
     Common code for new_pr and update_pr functions:
     * check whether all supplied paths point to existing files
@@ -633,9 +633,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
-    :param start_branch: name of branch to start from
+    :param start_branch: name of branch to use as base for PR
     :param pr_branch: name of branch to push to GitHub
-    :param target_account: name of target GitHub account for PR
+    :param start_account: name of GitHub account to use as base for PR
     :param commit_msg: commit message to use
     """
     # we need files to create the PR with
@@ -665,10 +665,18 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
     if start_branch is None:
+        # if start branch is not specified, we're opening a new PR
+        # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
+        target_account = build_option('github_org') or build_option('github_user')
+        # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
+    else:
+        # account to target is the one that owns the branch used to open PR
+        # (which may be different from account used to push update!)
+        target_account = start_account
 
     # set up repository
-    setup_repo(git_repo, target_account, pr_target_repo, start_branch)
+    setup_repo(git_repo, start_account, pr_target_repo, start_branch)
 
     _log.debug("git status: %s", git_repo.git.status())
 
@@ -1060,7 +1068,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     # create branch, commit files to it & push to GitHub
     file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, ecs,
                                                                                    pr_branch=pr_branch_name,
-                                                                                   target_account=pr_target_account,
+                                                                                   start_account=pr_target_account,
                                                                                    commit_msg=commit_msg)
 
     # only use most common toolchain(s) in toolchain label of PR title
@@ -1160,7 +1168,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
     _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch, pr_branch=branch,
-                                                   target_account=account, commit_msg=commit_msg)
+                                                   start_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
