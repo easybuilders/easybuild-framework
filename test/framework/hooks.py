@@ -116,9 +116,12 @@ class HooksTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         expected_stdout = '\n'.join([
+            "== Running start_hook hook...",
             "running start hook",
+            "== Running post_configure_hook hook...",
             "running post-configure hook",
             "running foo helper method",
+            "== Running pre_install_hook hook...",
             "running pre-install hook",
         ])
 

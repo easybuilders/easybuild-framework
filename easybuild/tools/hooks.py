@@ -172,5 +172,6 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None)
         if args is None:
             args = []
 
-        print_msg("Running %s hook (arguments: %s)..." % (hook.__name__, args), log=_log)
+        print_msg("Running %s hook..." % hook.__name__)
+        _log.info("Running %s hook (arguments: %s)...", hook.__name__, args)
         hook(*args)
