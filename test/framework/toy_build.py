@@ -1807,11 +1807,16 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
         expected_output = '\n'.join([
+            "== Running start hook...",
             "start hook triggered",
+            "== Running pre-configure hook...",
             "pre-configure: toy.source: True",
+            "== Running post-configure hook...",
             "post-configure: toy.source: False",
+            "== Running post-install hook...",
             "in post-install hook for toy v0.0",
             "bin, lib",
+            "== Running end hook...",
             "end hook triggered, all done!",
         ])
         self.assertEqual(stdout.strip(), expected_output)
