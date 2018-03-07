@@ -551,14 +551,29 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, logfile=dummylogfn)
             logtxt = read_file(self.logfile)
 
-            for pat in [
-                        r"EasyBlock\n",
-                        r"|--\s+EB_foo\n|\s+|--\s+EB_foofoo\n",
-                        r"|--\s+bar\n",
-                       ]:
-
-                msg = "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, logtxt)
-                self.assertTrue(re.search(pat, logtxt), msg)
+            expected = '\n'.join([
+                r'EasyBlock',
+                r'\|-- bar',
+                r'\|-- ConfigureMake',
+                r'\|-- EB_foo',
+                r'\|   \|-- EB_foofoo',
+                r'\|-- EB_GCC',
+                r'\|-- EB_HPL',
+                r'\|-- EB_ScaLAPACK',
+                r'\|-- EB_toy_buggy',
+                r'\|-- ExtensionEasyBlock',
+                r'\|   \|-- DummyExtension',
+                r'\|   \|-- EB_toy',
+                r'\|   \|-- Toy_Extension',
+                r'\|-- Toolchain',
+                r'Extension',
+                r'\|-- ExtensionEasyBlock',
+                r'\|   \|-- DummyExtension',
+                r'\|   \|-- EB_toy',
+                r'\|   \|-- Toy_Extension',
+            ])
+            regex = re.compile(expected, re.M)
+            self.assertTrue(regex.search(logtxt), "Pattern '%s' found in: %s" % (regex.pattern, logtxt))
 
         # clear log
         write_file(self.logfile, '')
@@ -1892,7 +1907,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ebopts = EasyBuildOptions(go_args=args, envvar_prefix='EASYBUILD')
         self.assertEqual(generate_cmd_line(ebopts), expected)
 
-    def test_include_easyblocks(self):
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks(self):
         """Test --include-easyblocks."""
         orig_local_sys_path = sys.path[:]
 
@@ -1954,7 +1971,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
 
-    def test_include_generic_easyblocks(self):
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_generic_easyblocks(self):
         """Test --include-easyblocks with a generic easyblock."""
         orig_local_sys_path = sys.path[:]
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')

@@ -29,7 +29,18 @@ i.e. configure/make/make install.
 @author: Kenneth Hoste (Ghent University)
 """
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import CUSTOM
 
 class ConfigureMake(EasyBlock):
     """Dummy support for building and installing applications with configure/make/make install."""
-    pass
+
+    @staticmethod
+    def extra_options(extra_vars=None):
+        """Extra easyconfig parameters specific to ConfigureMake."""
+        extra_vars = EasyBlock.extra_options(extra=extra_vars)
+        extra_vars.update({
+            'test_bool': [False, "Just a test", CUSTOM],
+            'test_none': [None, "Another test", CUSTOM],
+            'test_123': ['', "Test 1, 2, 3", CUSTOM],
+        })
+        return extra_vars
