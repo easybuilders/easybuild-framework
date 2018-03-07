@@ -1907,7 +1907,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ebopts = EasyBuildOptions(go_args=args, envvar_prefix='EASYBUILD')
         self.assertEqual(generate_cmd_line(ebopts), expected)
 
-    def test_include_easyblocks(self):
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_easyblocks(self):
         """Test --include-easyblocks."""
         orig_local_sys_path = sys.path[:]
 
@@ -1969,7 +1971,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
 
-    def test_include_generic_easyblocks(self):
+    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # cleaning up the imported easyblocks is quite difficult...
+    def test_xxx_include_generic_easyblocks(self):
         """Test --include-easyblocks with a generic easyblock."""
         orig_local_sys_path = sys.path[:]
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
