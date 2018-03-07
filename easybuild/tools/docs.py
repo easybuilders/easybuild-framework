@@ -490,7 +490,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
         children = cls.__subclasses__()
         classes.update({cls.__name__: {
             'module': cls.__module__,
-            'children': sorted([x.__name__ for x in children], key=lambda x: x.lower())
+            'children': sorted([c.__name__ for c in children], key=lambda x: x.lower())
         }})
         for child in children:
             add_class(classes, child)
