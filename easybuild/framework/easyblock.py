@@ -2342,8 +2342,11 @@ class EasyBlock(object):
             mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
-            if not fake:
+            if ActiveMNS().mns.det_make_devel_module() and not fake:
                 self.make_devel_module()
+            else:
+                self.log.info("Skipping devel module...")
+
 
         if build_option('set_default_module'):
             self._set_module_as_default()
