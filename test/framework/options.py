@@ -2441,7 +2441,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         test_ecs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
-        toy_patch = os.path.join(topdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(topdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         # purposely picked one with non-default toolchain/versionsuffix
         copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'), toy_ec)
 
@@ -2515,7 +2516,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs[-1] = r"^\s*2 files changed"
         regexs.remove(r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"")
         regexs.append(r"^\* title: \"just a test\"")
-        regexs.append(r".*/toy-0.0_typo.patch\s*\|")
+        regexs.append(r".*_fix-silly-typo-in-printf-statement.patch\s*\|")
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
@@ -2546,7 +2547,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
-            r".*/toy-0.0_typo.patch\s*\|",
+            r".*_fix-silly-typo-in-printf-statement.patch\s*\|",
             r"^\s*2 files changed",
         ]
         for regex in regexs:
@@ -3385,16 +3386,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         toy_source_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         toy_patch_sha256 = '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5'
+        bar_tar_gz_sha256 = 'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'
+        bar_patch = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
+        bar_patch_sha256 = '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab'
         patterns = [
             "^== injecting sha256 checksums in .*/test\.eb$",
             "^== fetching sources & patches for test\.eb\.\.\.$",
             "^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+\.\.\.$",
             "^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: %s$" % toy_source_sha256,
-            "^== \* toy-0\.0_typo\.patch: %s$" % toy_patch_sha256,
+            "^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: %s$" % toy_patch_sha256,
             "^== injecting sha256 checksums for extensions in test\.eb\.\.\.$",
-            "^==  \* bar-0\.0\.tar\.gz: f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7$",
-            "^==  \* bar-0\.0_typo\.patch: 84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab$",
+            "^==  \* bar-0\.0\.tar\.gz: %s$" % bar_tar_gz_sha256,
+            "^==  \* %s: %s$" % (bar_patch, bar_patch_sha256),
             "^==  \* barbar-0\.0\.tar\.gz: a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c$",
         ]
         for pattern in patterns:
@@ -3409,6 +3413,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # some checks on 'raw' easyconfig contents
         # single-line checksum for barbar extension since there's only one
         self.assertTrue("'checksums': ['a33100d1837d6d54edff7d19f195056c4bd9a4c8d399e72feaf90f0216c4c91c']," in ec_txt)
+
+        # single-line checksum entry for bar source tarball
+        regex = re.compile("^[ ]*'%s',  # bar-0.0.tar.gz$" % bar_tar_gz_sha256, re.M)
+        self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
+
+        # no single-line checksum entry for bar*.patch, since line would be > 120 chars
+        regex = re.compile("^[ ]*# %s\n[ ]*'%s',$" % (bar_patch, bar_patch_sha256), re.M)
+        self.assertTrue(regex.search(ec_txt), "Pattern '%s' found in: %s" % (regex.pattern, ec_txt))
+
         # name/version of toy should NOT be hardcoded in exts_list, 'name'/'version' parameters should be used
         self.assertTrue('    (name, version, {' in ec_txt)
 
@@ -3424,17 +3437,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # no parse errors for updated easyconfig file...
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['sources'], ['%(name)s-%(version)s.tar.gz'])
-        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch'])
+        self.assertEqual(ec['patches'], ['toy-0.0_fix-silly-typo-in-printf-statement.patch'])
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], ('bar', '0.0', {
             'buildopts': " && gcc bar.c -o anotherbar",
             'checksums': [
-                'f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7',
-                '84db53592e882b5af077976257f9c7537ed971cb2059003fd4faa05d02cae0ab',
+                bar_tar_gz_sha256,
+                bar_patch_sha256,
             ],
             'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
-            'patches': ['bar-0.0_typo.patch'],
+            'patches': [bar_patch],
             'toy_ext_param': "mv anotherbar bar_bis",
             'unknowneasyconfigparameterthatshouldbeignored': 'foo',
         }))
@@ -3499,7 +3512,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^== backup of easyconfig file saved to .*/test\.eb\.bak_[0-9]+\.\.\.$",
             "^== injecting md5 checksums for sources & patches in test\.eb\.\.\.$",
             "^== \* toy-0.0\.tar\.gz: be662daa971a640e40be5c804d9d7d10$",
-            "^== \* toy-0\.0_typo\.patch: e6785e1a721fc8bf79892e3ef41557c0$",
+            "^== \* toy-0\.0_fix-silly-typo-in-printf-statement\.patch: e6785e1a721fc8bf79892e3ef41557c0$",
             "^== \* toy-extra\.txt: 3b0787b3bf36603ae1398c4a49097893$",
         ]
         for pattern in patterns:

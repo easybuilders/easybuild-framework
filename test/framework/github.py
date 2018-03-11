@@ -270,7 +270,7 @@ class GithubTest(EnhancedTestCase):
             'validate': False,
         })
         self.mock_stdout(True)
-        ec = gh.find_software_name_for_patch('toy-0.0_typo.patch')
+        ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch')
         txt = self.get_stdout()
         self.mock_stdout(False)
 

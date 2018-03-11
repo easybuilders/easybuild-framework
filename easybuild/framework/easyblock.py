@@ -2957,8 +2957,10 @@ def inject_checksums(ecs, checksum_type):
             for fn, checksum in checksums:
                 check_line = "%s'%s',  # %s" % (INDENT_4SPACES, checksum, fn)
                 if len(check_line) > MAX_LINE_LENGTH:
-                    checksum_lines.append("%s# %s" % (INDENT_4SPACES, fn))
-                    checksum_lines.append("%s'%s'," % (INDENT_4SPACES, checksum))
+                    checksum_lines.extend([
+                        "%s# %s" % (INDENT_4SPACES, fn),
+                        "%s'%s'," % (INDENT_4SPACES, checksum),
+                    ])
                 else:
                     checksum_lines.append(check_line)
             checksum_lines.append(']\n')
