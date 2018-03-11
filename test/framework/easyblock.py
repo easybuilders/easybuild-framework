@@ -847,27 +847,28 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.fetch_patches()
         self.assertEqual(len(eb.patches), 2)
-        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertFalse('level' in eb.patches[0])
 
         # reset
         eb.patches = []
 
+        toy_patch = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         patches = [
-            ('toy-0.0_typo.patch', 0),  # should also be level 0 (not None or something else)
-            ('toy-0.0_typo.patch', 4),   # should be level 4
-            ('toy-0.0_typo.patch', 'foobar'),  # sourcepath should be set to 'foobar'
+            (toy_patch, 0),  # should also be level 0 (not None or something else)
+            (toy_patch, 4),   # should be level 4
+            (toy_patch, 'foobar'),  # sourcepath should be set to 'foobar'
             ('toy-0.0.tar.gz', 'some/path'),  # copy mode (not a .patch file)
         ]
         # check if patch levels are parsed correctly
         eb.fetch_patches(patch_specs=patches)
 
         self.assertEqual(len(eb.patches), 4)
-        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[0]['name'], toy_patch)
         self.assertEqual(eb.patches[0]['level'], 0)
-        self.assertEqual(eb.patches[1]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[1]['name'], toy_patch)
         self.assertEqual(eb.patches[1]['level'], 4)
-        self.assertEqual(eb.patches[2]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[2]['name'], toy_patch)
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
         self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
@@ -1061,7 +1062,7 @@ class EasyBlockTest(EnhancedTestCase):
         orig_sources = ec['ec']['sources'][:]
 
         toy_patches = [
-            'toy-0.0_typo.patch',  # test for applying patch
+            'toy-0.0_fix-silly-typo-in-printf-statement.patch',  # test for applying patch
             ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
         ]
         self.assertEqual(ec['ec']['patches'], toy_patches)

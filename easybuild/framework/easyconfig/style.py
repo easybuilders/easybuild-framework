@@ -53,6 +53,8 @@ EB_CHECK = '_eb_check_'
 COMMENT_REGEX = re.compile(r'^\s*#')
 PARAM_DEF_REGEX = re.compile(r"^(?P<key>[a-z_]+)\s*=\s*")
 
+MAX_LINE_LENGTH = 120
+
 
 # Any function starting with _eb_check_ (see EB_CHECK variable) will be
 # added to the tests if the test number is added to the select list.
@@ -126,7 +128,7 @@ def check_easyconfigs_style(easyconfigs, verbose=False):
     options = styleguide.options
     # we deviate from standard pep8 and allow 120 chars
     # on a line: the default of 79 is too narrow.
-    options.max_line_length = 120
+    options.max_line_length = MAX_LINE_LENGTH
     # we ignore some tests
     # note that W291 has been replaced by our custom W299
     options.ignore = (

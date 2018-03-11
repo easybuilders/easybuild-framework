@@ -58,6 +58,7 @@ from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfi
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -2955,9 +2956,11 @@ def inject_checksums(ecs, checksum_type):
             checksum_lines = ['checksums = [']
             for fn, checksum in checksums:
                 check_line = "%s'%s',  # %s" % (INDENT_4SPACES, checksum, fn)
-                if len(check_line) > 120:
-                    checksum_lines.append("%s# %s" % (INDENT_4SPACES, fn))
-                    checksum_lines.append("%s'%s'," % (INDENT_4SPACES, checksum))
+                if len(check_line) > MAX_LINE_LENGTH:
+                    checksum_lines.extend([
+                        "%s# %s" % (INDENT_4SPACES, fn),
+                        "%s'%s'," % (INDENT_4SPACES, checksum),
+                    ])
                 else:
                     checksum_lines.append(check_line)
             checksum_lines.append(']\n')
@@ -3050,7 +3053,15 @@ def inject_checksums(ecs, checksum_type):
                         else:
                             exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
                             for fn, checksum in ext_checksums:
-                                exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
+                                line_indent = INDENT_4SPACES * 3
+                                ext_checksum_line = "%s'%s',  # %s" % (line_indent, checksum, fn)
+                                if len(ext_checksum_line) > MAX_LINE_LENGTH:
+                                    exts_list_lines.extend([
+                                        "%s# %s" % (line_indent, fn),
+                                        "%s'%s'," % (line_indent, checksum),
+                                    ])
+                                else:
+                                    exts_list_lines.append(ext_checksum_line)
                             exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
 
                     if ext_options or ext_checksums:

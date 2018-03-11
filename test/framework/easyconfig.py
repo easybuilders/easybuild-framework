@@ -323,7 +323,7 @@ class EasyConfigTest(EnhancedTestCase):
                         # SHA256 checksum for source (gzip-1.4.eb)
             '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
-            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
+            '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
             '       ],',
             '   }),',
             ']',
@@ -344,7 +344,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(exts_sources[1]['version'], '2.0')
         self.assertEqual(exts_sources[1]['options'], {
             'checksums': ['6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09',
-                          '044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074'],
+                          'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
             'patches': ['toy-0.0.eb'],
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
@@ -1349,7 +1349,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
-        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
@@ -2009,7 +2010,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
-        toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', toy_patch_fn)
         paths = [
             'bzip2-1.0.6.eb',
             os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
