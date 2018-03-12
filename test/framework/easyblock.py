@@ -845,15 +845,15 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
 
+        toy_patch = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         eb.fetch_patches()
         self.assertEqual(len(eb.patches), 2)
-        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
+        self.assertEqual(eb.patches[0]['name'], toy_patch)
         self.assertFalse('level' in eb.patches[0])
 
         # reset
         eb.patches = []
 
-        toy_patch = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         patches = [
             (toy_patch, 0),  # should also be level 0 (not None or something else)
             (toy_patch, 4),   # should be level 4
