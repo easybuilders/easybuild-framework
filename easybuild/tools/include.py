@@ -29,11 +29,12 @@ Support for including additional Python modules, for easyblocks, module naming s
 :author: Kenneth Hoste (Ghent University)
 """
 import os
+import re
 import sys
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import expand_glob_paths, symlink
+from easybuild.tools.filetools import expand_glob_paths, read_file, symlink
 # these are imported just to we can reload them later
 import easybuild.tools.module_naming_scheme
 import easybuild.toolchains
@@ -142,6 +143,11 @@ def verify_imports(pymods, pypkg, from_path):
         _log.debug("Import of %s from %s verified", pymod_spec, from_path)
 
 
+def is_software_specific_easyblock(module):
+    """Determine whether Python module at specified location is a software-specific easyblock."""
+    return bool(re.search('^class EB_.*\(.*\):\s*$', read_file(module), re.M))
+
+
 def include_easyblocks(tmpdir, paths):
     """Include generic and software-specific easyblocks found in specified locations."""
     easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
@@ -155,12 +161,10 @@ def include_easyblocks(tmpdir, paths):
     for easyblock_module in allpaths:
         filename = os.path.basename(easyblock_module)
 
-        # generic easyblocks are expected to be in a directory named 'generic'
-        parent_dir = os.path.basename(os.path.dirname(easyblock_module))
-        if parent_dir == 'generic':
-            target_path = os.path.join(easyblocks_dir, 'generic', filename)
-        else:
+        if is_software_specific_easyblock(easyblock_module):
             target_path = os.path.join(easyblocks_dir, filename)
+        else:
+            target_path = os.path.join(easyblocks_dir, 'generic', filename)
 
         if not os.path.exists(target_path):
             symlink(easyblock_module, target_path)

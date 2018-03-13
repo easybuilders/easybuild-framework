@@ -2040,16 +2040,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
+        mod_pattern = 'easybuild.easyblocks.generic.generictest'
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
-                                    'generictest.py')
-        foo_regex = re.compile(r"^\|-- GenericTest \(easybuild.easyblocks.generictest @ %s\)"  % path_pattern, re.M)
+                                    'generic', 'generictest.py')
+        foo_regex = re.compile(r"^\|-- GenericTest \(%s @ %s\)"  % (mod_pattern, path_pattern), re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
         klass = get_easyblock_class('GenericTest')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of foo easyblock
-        del sys.modules['easybuild.easyblocks.generictest']
+        del sys.modules['easybuild.easyblocks.generic.generictest']
 
     def test_include_module_naming_schemes(self):
         """Test --include-module-naming-schemes."""

@@ -32,8 +32,10 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
+from easybuild.tools.include import is_software_specific_easyblock
 
 
 def up(path, cnt):
@@ -231,6 +233,20 @@ class IncludeTest(EnhancedTestCase):
         my_tc_pyc_path = easybuild.toolchains.my_tc.__file__
         my_tc_real_py_path = os.path.realpath(os.path.join(os.path.dirname(my_tc_pyc_path), 'my_tc.py'))
         self.assertTrue(os.path.samefile(up(my_tc_real_py_path, 1), my_toolchains))
+
+    def test_is_software_specific_easyblock(self):
+        """Test is_software_specific_easyblock function."""
+
+        self.assertErrorRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
+
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        test_easyblocks = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+
+        self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 'g', 'gcc.py')))
+        self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 't', 'toy.py')))
+
+        self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'configuremake.py')))
+        self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'toolchain.py')))
 
 
 def suite():
