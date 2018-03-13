@@ -2217,6 +2217,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         eb_file = os.path.join(test_ecs_path, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb')
         args = [
             '--color=never',
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--preview-pr',
             eb_file,
         ]
