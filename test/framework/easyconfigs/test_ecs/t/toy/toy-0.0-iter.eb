@@ -8,7 +8,7 @@ description = "Toy C program, 100% toy."
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
-patches = ['toy-0.0_typo.patch']
+patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 
 buildopts = [
     '',

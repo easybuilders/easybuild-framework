@@ -1026,10 +1026,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
-        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_typo.patch')
+        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.exists(patch_file))
 
-        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_typo.patch')
+        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
 
     def test_toy_module_fulltxt(self):
@@ -1759,7 +1759,7 @@ class ToyBuildTest(EnhancedTestCase):
         patterns = [
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
-            "^  >> applying patch toy-0\.0_typo\.patch$",
+            "^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
             "  >> command completed: exit 0, ran in .*",
             '^' + '\n'.join([

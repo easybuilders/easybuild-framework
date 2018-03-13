@@ -535,7 +535,8 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
-        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', toy_patch_fn)
         self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
         self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
 
@@ -1083,7 +1084,8 @@ class FileToolsTest(EnhancedTestCase):
         """Test for is_patch_file() function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')))
-        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)))
 
     def test_is_alt_pypi_url(self):
         """Test is_alt_pypi_url() function."""
@@ -1133,7 +1135,8 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
         path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
-        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
         self.assertTrue(ft.apply_patch(toy_patch, path))
         patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
@@ -1251,13 +1254,14 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         toy_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         gcc_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
 
         ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
 
         self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'GCC')))
-        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', 'toy-0.0_typo.patch']:
+        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', toy_patch_fn]:
             self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, filepath)))
 
         # test copying of a single file, to a non-existing directory
