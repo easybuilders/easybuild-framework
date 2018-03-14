@@ -1579,7 +1579,7 @@ def copy_patch_files(patch_specs, target_dir):
     }
     for patch_path, soft_name in patch_specs:
         target_path = det_location_for(patch_path, target_dir, soft_name, os.path.basename(patch_path))
-        copy_file(patch_path, target_path)
+        copy_file(patch_path, target_path, force_in_dry_run=True)
         patched_files['paths_in_repo'].append(target_path)
 
     return patched_files
