@@ -58,6 +58,7 @@ from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfi
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import INDENT_4SPACES
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -2920,11 +2921,24 @@ def inject_checksums(ecs, checksum_type):
     :param ecs: list of EasyConfig instances to inject checksums into corresponding files
     :param checksum_type: type of checksum to use
     """
+    def make_checksum_lines(checksums, indent_level):
+        line_indent = INDENT_4SPACES * indent_level
+        checksum_lines = []
+        for fn, checksum in checksums:
+            checksum_line = "%s'%s',  # %s" % (line_indent, checksum, fn)
+            if len(checksum_line) > MAX_LINE_LENGTH:
+                checksum_lines.extend([
+                    "%s# %s" % (line_indent, fn),
+                    "%s'%s'," % (line_indent, checksum),
+                ])
+            else:
+                checksum_lines.append(checksum_line)
+        return checksum_lines
+
     for ec in ecs:
         ec_fn = os.path.basename(ec['spec'])
         ectxt = read_file(ec['spec'])
         print_msg("injecting %s checksums in %s" % (checksum_type, ec['spec']), log=_log)
-
 
         # get easyblock instance and make sure all sources/patches are available by running fetch_step
         print_msg("fetching sources & patches for %s..." % ec_fn, log=_log)
@@ -2958,8 +2972,7 @@ def inject_checksums(ecs, checksum_type):
             checksum_lines = ["checksums = ['%s']\n" % checksums[0][1]]
         else:
             checksum_lines = ['checksums = [']
-            for fn, checksum in checksums:
-                checksum_lines.append("%s'%s',  # %s" % (INDENT_4SPACES, checksum, fn))
+            checksum_lines.extend(make_checksum_lines(checksums, indent_level=1))
             checksum_lines.append(']\n')
 
         checksums_txt = '\n'.join(checksum_lines)
@@ -3049,8 +3062,7 @@ def inject_checksums(ecs, checksum_type):
                             exts_list_lines.append("%s'checksums': ['%s']," % (INDENT_4SPACES * 2, checksum))
                         else:
                             exts_list_lines.append("%s'checksums': [" % (INDENT_4SPACES * 2))
-                            for fn, checksum in ext_checksums:
-                                exts_list_lines.append("%s'%s',  # %s" % (INDENT_4SPACES * 3, checksum, fn))
+                            exts_list_lines.extend(make_checksum_lines(ext_checksums, indent_level=3))
                             exts_list_lines.append("%s]," % (INDENT_4SPACES * 2))
 
                     if ext_options or ext_checksums:

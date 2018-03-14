@@ -46,17 +46,17 @@ class HooksTest(EnhancedTestCase):
         self.test_hooks_pymod = os.path.join(self.test_prefix, 'test_hooks.py')
         test_hooks_pymod_txt = '\n'.join([
             'def start_hook():',
-            '    print("running start hook")',
+            '    print("this is triggered at the very beginning")',
             '',
             'def foo():',
             '    print("running foo helper method")',
             '',
             'def post_configure_hook(self):',
-            '    print("running post-configure hook")',
+            '    print("this is run after configure step")',
             '    foo()',
             '',
             'def pre_install_hook(self):',
-            '    print("running pre-install hook")',
+            '    print("this is run before install step")',
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
 
@@ -116,10 +116,13 @@ class HooksTest(EnhancedTestCase):
         self.mock_stderr(False)
 
         expected_stdout = '\n'.join([
-            "running start hook",
-            "running post-configure hook",
+            "== Running start hook...",
+            "this is triggered at the very beginning",
+            "== Running post-configure hook...",
+            "this is run after configure step",
             "running foo helper method",
-            "running pre-install hook",
+            "== Running pre-install hook...",
+            "this is run before install step",
         ])
 
         self.assertEqual(stdout.strip(), expected_stdout)

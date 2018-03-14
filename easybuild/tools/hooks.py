@@ -32,7 +32,7 @@ import imp
 import os
 from vsc.utils import fancylogger
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 
 
 _log = fancylogger.getLogger('hooks', fname=False)
@@ -172,5 +172,11 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None)
         if args is None:
             args = []
 
-        _log.info("Running %s hook (arguments: %s)...", hook.__name__, args)
+        if pre_step_hook:
+            label = 'pre-' + label
+        elif post_step_hook:
+            label = 'post-' + label
+
+        print_msg("Running %s hook..." % label)
+        _log.info("Running '%s' hook function (arguments: %s)...", hook.__name__, args)
         hook(*args)
