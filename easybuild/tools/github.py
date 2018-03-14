@@ -689,9 +689,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if commit_msg:
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified easyconfigs at once: %s", cnt, commit_msg)
-    elif all(file_info['new']) and not paths['patch_files'] and not paths['files_to_delete']:
+    elif all(file_info['new']) and not paths['files_to_delete']:
         # automagically derive meaningful commit message if all easyconfig files are new
-        commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
+        commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo']+paths['patch_files'])
     else:
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
                              "modifying/deleting easyconfigs and/or specifying patches")
