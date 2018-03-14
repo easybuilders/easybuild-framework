@@ -67,8 +67,9 @@ def det_toolchain_element_details(tc, elem):
         _log.debug("Full list of toolchain specifications: %s" % tc_ec)
     tc_ec = tc_ec[0]['ec']
     tc_deps = tc_ec['dependencies']
+    tc_hiddendeps = tc_ec['hiddendependencies']
     tc_elem_details = None
-    for tc_dep in tc_deps:
+    for tc_dep in tc_deps + tc_hiddendeps:
         if tc_dep['name'] == elem:
             tc_elem_details = tc_dep
             _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))
