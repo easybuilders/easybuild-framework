@@ -634,7 +634,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'backend-config': ("Configuration file for job backend", None, 'store', None),
             'cores': ("Number of cores to request per job", 'int', 'store', None),
-            'max-jobs': ("Maximum number of concurrent jobs (queued or running)", 'int', 'store', 50),
+            'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
             'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
             'polling-interval': ("Interval between polls for status of jobs (in seconds)", float, 'store', 30.0),
