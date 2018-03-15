@@ -2497,10 +2497,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # a custom commit message is required when doing more than just adding new easyconfigs (e.g., adding a patch)
+        # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
-            toy_patch,
+            ':bzip2-1.0.6.eb',
         ])
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg"
 
@@ -2518,7 +2518,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs[-1] = r"^\s*2 files changed"
         regexs.remove(r"^\* title: \"\{tools\}\[gompi/1.3.12\] toy v0.0\"")
         regexs.append(r"^\* title: \"just a test\"")
-        regexs.append(r".*_fix-silly-typo-in-printf-statement.patch\s*\|")
+        regexs.append(r".*/bzip2-1.0.6.eb\s*\|")
+        regexs.append(r".*[0-9]+ deletions\(-\)")
         for regex in regexs:
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
@@ -2549,8 +2550,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
-            r".*_fix-silly-typo-in-printf-statement.patch\s*\|",
+            r".*/bzip2-1.0.6.eb\s*\|",
             r"^\s*2 files changed",
+            r".*[0-9]+ deletions\(-\)",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
