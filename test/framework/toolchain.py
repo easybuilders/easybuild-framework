@@ -476,20 +476,20 @@ class ToolchainTest(EnhancedTestCase):
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
-        # check default precision: no specific flag for GCC
+        # check default precision: -fno-math-errno flag for GCC
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
-            self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native")
+            self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
 
         # check other precision flags
         prec_flags = {
             'ieee': "-mieee-fp -fno-trapping-math",
             'strict': "-mieee-fp -mno-recip",
             'precise': "-mno-recip",
-            'loose': "-mrecip -mno-ieee-fp",
-            'veryloose': "-mrecip=all -mno-ieee-fp",
+            'loose': "-fno-math-errno -mrecip -mno-ieee-fp",
+            'veryloose': "-fno-math-errno -mrecip=all -mno-ieee-fp",
         }
         for prec in prec_flags:
             for enable in [True, False]:
@@ -500,7 +500,7 @@ class ToolchainTest(EnhancedTestCase):
                     if enable:
                         self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native %s" % prec_flags[prec])
                     else:
-                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native")
+                        self.assertEqual(os.getenv(var), "-O2 -ftree-vectorize -march=native -fno-math-errno")
                 self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -580,7 +580,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -ftree-vectorize -%s -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
+            r'-Xcompiler="-O2 -ftree-vectorize -%s -fno-math-errno -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -903,9 +903,9 @@ class ToolchainTest(EnhancedTestCase):
 
         tc_cflags = {
             'CrayCCE': "-O2 -homp -craype-verbose",
-            'CrayGNU': "-O2 -fopenmp -craype-verbose",
+            'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
             'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-            'GCC': "-O2 -ftree-vectorize -test -fopenmp",
+            'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
             'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
         }
 
