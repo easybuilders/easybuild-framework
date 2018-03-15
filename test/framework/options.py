@@ -2491,7 +2491,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
-            r"^\s*1 file changed",
+            r"^\s*1 file(s?) changed",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
