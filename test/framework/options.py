@@ -2491,7 +2491,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"\(created using `eb --new-pr`\)",  # description
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
-            r"^\s*1 file changed",
+            r"^\s*1 file(s?) changed",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -2610,7 +2610,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #2237: develop",
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
-            r"^\s*1 file changed",
+            r"^\s*1 file(s?) changed",
             "^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
             r"^Updated easybuilders/easybuild-easyconfigs PR #2237 by pushing to branch easybuilders/develop \[DRY RUN\]",
         ]
@@ -2671,7 +2671,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r'title: "delete bzip2-1.6.0"',
-            r"1 file changed, [0-9]+ deletions\(-\)",
+            r"1 file(s?) changed, [0-9]+ deletions\(-\)",
         ]
         for regex in regexs:
             regex = re.compile(regex, re.M)
