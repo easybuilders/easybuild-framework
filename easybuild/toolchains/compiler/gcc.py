@@ -62,9 +62,9 @@ class Gcc(Compiler):
         'ieee': ['mieee-fp', 'fno-trapping-math'],
         'strict': ['mieee-fp', 'mno-recip'],
         'precise':['mno-recip'],
-        'defaultprec':[],
-        'loose': ['mrecip', 'mno-ieee-fp'],
-        'veryloose': ['mrecip=all', 'mno-ieee-fp'],
+        'defaultprec':['fno-math-errno'],
+        'loose': ['fno-math-errno', 'mrecip', 'mno-ieee-fp'],
+        'veryloose': ['fno-math-errno', 'mrecip=all', 'mno-ieee-fp'],
         'defaultopt': ['O2', 'ftree-vectorize'],
     }
 
