@@ -240,7 +240,7 @@ class EBConfigObj(object):
         Returns a dict of (nested) Sections
 
         :param toparse: a Section (or ConfigObj) instance, basically a dict of (unparsed) sections
-        :param current: the current NestedDict 
+        :param current: the current NestedDict
         """
         # note: configobj already converts comma-separated strings in lists
         #
@@ -335,8 +335,8 @@ class EBConfigObj(object):
 
     def parse(self, configobj):
         """
-        Parse configobj using using recursive parse_sections. 
-        Then split off the default and supported sections. 
+        Parse configobj using using recursive parse_sections.
+        Then split off the default and supported sections.
 
         :param configobj: ConfigObj instance
         """
@@ -410,10 +410,10 @@ class EBConfigObj(object):
         """
         Project the multidimensional easyconfig (or subsection thereof) to single easyconfig
         Returns Squashed instance for the processed block.
-        :param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and 
+        :param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and
                             tcversion (toolchain version to keep)
         :param processed: easyconfig (Top)NestedDict
-        :param sanity: dictionary to keep track of section markers and detect conflicts 
+        :param sanity: dictionary to keep track of section markers and detect conflicts
         """
         version, tcname, tcversion = vt_tuple
         res_sections = {}
@@ -448,8 +448,8 @@ class EBConfigObj(object):
 
     def _squash_netsed_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
         """
-        Squash NestedDict instance, returns dict with already squashed data 
-            from possible higher sections 
+        Squash NestedDict instance, returns dict with already squashed data
+            from possible higher sections
         :param key: section key
         :param nested_dict: the nested_dict instance
         :param squashed: Squashed instance
@@ -488,8 +488,8 @@ class EBConfigObj(object):
 
     def _squash_versop(self, key, value, squashed, sanity, vt_tuple):
         """
-        Squash VERSION_OPERATOR_VALUE_TYPES value 
-            return None or new Squashed instance 
+        Squash VERSION_OPERATOR_VALUE_TYPES value
+            return None or new Squashed instance
         :param key: section key
         :param nested_dict: the nested_dict instance
         :param squashed: Squashed instance
