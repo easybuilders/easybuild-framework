@@ -2433,6 +2433,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         app.gen_installdir()
         self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
+    def _assert_regexs(self, regexs, txt, assert_true=True):
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            if assert_true:
+                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            else:
+                self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
+
     def test_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
         if self.github_token is None:
@@ -2493,9 +2501,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r".*/toy-0.0-gompi-1.3.12-test.eb\s*\|",
             r"^\s*1 file(s?) changed",
         ]
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
         args.extend([
@@ -2520,9 +2526,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs.append(r"^\* title: \"just a test\"")
         regexs.append(r".*/bzip2-1.0.6.eb\s*\|")
         regexs.append(r".*[0-9]+ deletions\(-\)")
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
         GITHUB_TEST_ORG = 'test-organization'
         args.extend([
@@ -2554,9 +2558,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\s*2 files changed",
             r".*[0-9]+ deletions\(-\)",
         ]
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
         # modifying an existing easyconfig requires a custom PR title
         gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb')
@@ -2614,9 +2616,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
             r"^Updated easybuilders/easybuild-easyconfigs PR #2237 by pushing to branch easybuilders/develop \[DRY RUN\]",
         ]
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
         # also check behaviour under --extended-dry-run/-x
         args.remove('-D')
@@ -2632,9 +2632,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\+\+\+\s*.*toy-0.0-gompi-1.3.12-test.eb",
             r"^\+name = 'toy'",
         ])
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
         # check whether comments/buildstats get filtered out
         regexs = [
@@ -2642,9 +2640,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "# Build statistics",
             "buildstats\s*=",
         ]
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt, assert_true=False)
 
     def test_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""
@@ -2673,9 +2669,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r'title: "delete bzip2-1.6.0"',
             r"1 file(s?) changed, [0-9]+ deletions\(-\)",
         ]
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
     def test_new_pr_dependencies(self):
         """Test use of --new-pr with automatic dependency lookup."""
@@ -2726,9 +2720,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\s*2 files changed",
         ]
 
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self._assert_regexs(regexs, txt)
 
     def test_merge_pr(self):
         """
