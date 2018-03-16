@@ -485,7 +485,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check other precision flags
         prec_flags = {
-            'ieee': "-mieee-fp -fno-trapping-math",
+            'ieee': "-fno-math-errno -mieee-fp -fno-trapping-math",
             'strict': "-mieee-fp -mno-recip",
             'precise': "-mno-recip",
             'loose': "-fno-math-errno -mrecip -mno-ieee-fp",
