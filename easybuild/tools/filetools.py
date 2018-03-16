@@ -154,7 +154,7 @@ class ZlibChecksum(object):
     """
     def __init__(self, algorithm):
         self.algorithm = algorithm
-        self.checksum = algorithm(r'')  # use the same starting point as the module
+        self.checksum = algorithm(b'')  # use the same starting point as the module
         self.blocksize = 64  # The same as md5/sha1
 
     def update(self, data):
@@ -653,7 +653,7 @@ def calc_block_checksum(path, algorithm):
 
     try:
         f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), r''):
+        for block in iter(lambda: f.read(blocksize), b''):
             algorithm.update(block)
         f.close()
     except IOError, err:
