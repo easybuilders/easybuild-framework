@@ -1,0 +1,4 @@
+# configuration for houndci, see https://houndci.com/configuration#python
+flake8:
+  enabled: true
+  config_file: .flake8.ini

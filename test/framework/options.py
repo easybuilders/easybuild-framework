@@ -1929,7 +1929,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_easyblocks = os.path.dirname(os.path.abspath(__file__))
         path_pattern = os.path.join(test_easyblocks, 'sandbox', 'easybuild', 'easyblocks', 'f', 'foo.py')
-        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
+        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
         # 'undo' import of foo easyblock
@@ -1961,7 +1961,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks', 'foo.py')
-        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)"  % path_pattern, re.M)
+        foo_regex = re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
         # easyblock is found via get_easyblock_class
@@ -2005,7 +2005,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
                                     'generic', 'foobar.py')
-        foo_regex = re.compile(r"^\|-- FooBar \(easybuild.easyblocks.generic.foobar @ %s\)"  % path_pattern, re.M)
+        foo_regex = re.compile(r"^\|-- FooBar \(easybuild.easyblocks.generic.foobar @ %s\)" % path_pattern, re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
         klass = get_easyblock_class('FooBar')
@@ -2043,7 +2043,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mod_pattern = 'easybuild.easyblocks.generic.generictest'
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks', 'easybuild', 'easyblocks',
                                     'generic', 'generictest.py')
-        foo_regex = re.compile(r"^\|-- GenericTest \(%s @ %s\)"  % (mod_pattern, path_pattern), re.M)
+        foo_regex = re.compile(r"^\|-- GenericTest \(%s @ %s\)" % (mod_pattern, path_pattern), re.M)
         self.assertTrue(foo_regex.search(logtxt), "Pattern '%s' found in: %s" % (foo_regex.pattern, logtxt))
 
         klass = get_easyblock_class('GenericTest')
