@@ -459,7 +459,7 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild',  "Accept" : "text/html"})
+    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild',  "Accept" : "*/*"})
 
     while not downloaded and attempt_cnt < max_attempts:
         try:
