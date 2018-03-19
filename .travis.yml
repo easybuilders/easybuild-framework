@@ -57,25 +57,25 @@ install:
     - easy_install vsc-base
     # install environment modules or Lmod
     - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
-    - if [ -n $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
-    - if [ -n $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
-    - if [ -n $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
-    - if [ -n $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
+    - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
+    - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
+    - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
+    - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
 script:
     # make sure 'ml' alias is defined, otherwise sourcing the init script fails (silently) for Lmod (< 5.9.3)
-    - if [ -n $MOD_INIT ] && [ -n $LMOD_VERSION ]; then alias ml=foobar; fi
+    - if [ ! -z $MOD_INIT ] && [ ! -z $LMOD_VERSION ]; then alias ml=foobar; fi
     # set up environment for modules tool (if $MOD_INIT is defined)
-    - if [ -n $MOD_INIT ]; then source $MOD_INIT; type module; fi
+    - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; type module; fi
     # install GitHub token
-    - if [ -n $GITHUB_TOKEN ]; then
+    - if [ ! -z $GITHUB_TOKEN ]; then
         if [ "x$TRAVIS_PYTHON_VERSION" == 'x2.6' ];
             then SET_KEYRING="keyring.set_keyring(keyring.backends.file.PlaintextKeyring())";
             else SET_KEYRING="import keyrings; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())";
         fi;
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
       fi
-    - if [ -n $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
-    - if [ -n $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # create 'source distribution' tarball, like we do when publishing a release to PyPI
     - cd $TRAVIS_BUILD_DIR; python setup.py sdist
     - ls -l $TRAVIS_BUILD_DIR/dist/
