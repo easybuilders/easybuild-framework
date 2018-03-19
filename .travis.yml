@@ -74,6 +74,8 @@ script:
         fi;
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
       fi
+    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then export EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then export EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # create 'source distribution' tarball, like we do when publishing a release to PyPI
     - cd $TRAVIS_BUILD_DIR; python setup.py sdist
     - ls -l $TRAVIS_BUILD_DIR/dist/
@@ -86,6 +88,8 @@ script:
     # to run tests on an *installed* version of the EasyBuild framework;
     # this is done to catch possible packaging issues
     - cd $HOME
+    # check GitHub configuration
+    - eb --check-github
     # run test suite
     - python -O -m test.framework.suite
     # check bootstrap script version
