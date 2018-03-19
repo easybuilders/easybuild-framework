@@ -1119,7 +1119,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         "* target: %s/%s:%s" % (pr_target_account, pr_target_repo, pr_target_branch),
         "* from: %s/%s:%s" % (github_account, pr_target_repo, branch),
         "* title: \"%s\"" % title,
-        "* labels: %s" % labels,
+        "* labels: %s" % (', '.join(labels) or '(none)'),
         "* description:",
         '"""',
         full_descr,
@@ -1144,14 +1144,15 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
 
         print_msg("Opened pull request: %s" % data['html_url'], log=_log, prefix=False)
 
-        # post labels
-        pr = data['html_url'].split('/')[-1]
-        pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
-        status, data = pr_url.labels.post(body=labels)
-        if not status == HTTP_STATUS_OK:
-            raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
+        if labels:
+            # post labels
+            pr = data['html_url'].split('/')[-1]
+            pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
+            status, data = pr_url.labels.post(body=labels)
+            if not status == HTTP_STATUS_OK:
+                raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
 
-        print_msg("Added labels %s to PR#%s" % (labels, pr), log=_log, prefix=False)
+            print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')

@@ -1555,11 +1555,11 @@ def copy_easyconfigs(paths, target_dir):
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
-            file_info['new'].append(not os.path.exists(target_path))
-
-            file_info['new_folder'].append(not os.path.exists(os.path.dirname(target_path)))
-
-            file_info['new_file_in_existing_folder'].append(file_info['new'][-1] and not file_info['new_folder'][-1])
+            new_file = not os.path.exists(target_path)
+            new_folder = not os.path.exists(os.path.dirname(target_path))
+            file_info['new'].append(new_file)
+            file_info['new_folder'].append(new_folder)
+            file_info['new_file_in_existing_folder'].append(new_file and not new_folder)
 
             copy_file(path, target_path, force_in_dry_run=True)
 
