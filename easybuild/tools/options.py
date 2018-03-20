@@ -72,6 +72,7 @@ from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
+from easybuild.tools.github import GITHUB_LIST_PR_STATES, GITHUB_LIST_PR_ORDERS, GITHUB_LIST_PR_DIRECTIONS
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -550,10 +551,6 @@ class EasyBuildOptions(GeneralOption):
 
     def github_options(self):
         """GitHub integration configuration options."""
-        github_list_pr_states = ['open', 'closed', 'all']
-        github_list_pr_orders = ['created', 'updated', 'popularity', 'long-running']
-        github_list_pr_directions = ['asc', 'desc']
-
         descr = ("GitHub integration options", "Integration with GitHub")
 
         opts = OrderedDict({
@@ -567,9 +564,9 @@ class EasyBuildOptions(GeneralOption):
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'list-prs': ("List pull requests", None, 'store_true', None),
-            'list-prs-state': ("State for listing pull requests", 'choice', 'store', 'open', github_list_pr_states),
-            'list-prs-order': ("Order for sorting pull requests", 'choice', 'store', 'created', github_list_pr_orders),
-            'list-prs-direction': ("Direction for sorting pull requests", 'choice', 'store', 'desc', github_list_pr_directions),
+            'list-prs-state': ("State for listing pull requests", 'choice', 'store', 'open', GITHUB_LIST_PR_STATES),
+            'list-prs-order': ("Order for sorting pull requests", 'choice', 'store', 'created', GITHUB_LIST_PR_ORDERS),
+            'list-prs-direction': ("Direction for sorting pull requests", 'choice', 'store', 'desc', GITHUB_LIST_PR_DIRECTIONS),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
