@@ -2434,6 +2434,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(app.installdir.endswith('software/toy/0.0'))
 
     def _assert_regexs(self, regexs, txt, assert_true=True):
+        """Helper function to assert presence/absence of list of regex patterns in a text"""
         for regex in regexs:
             regex = re.compile(regex, re.M)
             if assert_true:
@@ -2441,12 +2442,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             else:
                 self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
 
-    def _run_mock_eb(self, args, stdout=True, stderr=False, do_build=False, raise_error=False, verbose=False, testing=False, strip=False):
-        self.mock_stdout(stdout)
-        self.mock_stderr(stderr)
+    def _run_mock_eb(self, args, do_build=False, raise_error=False, verbose=False, testing=False, strip=False):
+        """Helper function to mock easybuild runs"""
+        self.mock_stdout(True)
+        self.mock_stderr(True)
         self.eb_main(args, do_build=do_build, raise_error=raise_error, verbose=verbose, testing=testing)
         stdout_txt = self.get_stdout()
-        stderr_txt = self.get_stderr() if stderr else ""
+        stderr_txt = self.get_stderr()
         self.mock_stdout(False)
         self.mock_stderr(False)
         if strip:
@@ -2725,7 +2727,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         # merged PR for EasyBuild-3.3.0.eb, is missing approved review
-        stdout, stderr = self._run_mock_eb(args, stderr=True, do_build=True, raise_error=True)
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True)
 
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4781 for merging...",
@@ -2745,7 +2747,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # full eligible merged PR
         args[1] = '4832'
 
-        stdour, stderr = self._run_mock_eb(args, stderr=True, do_build=True, raise_error=True)
+        stdour, stderr = self._run_mock_eb(args, do_build=True, raise_error=True)
 
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4832 for merging...",
@@ -2772,7 +2774,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
         ]
-        stdout, stderr = self._run_mock_eb(args, stderr=True, do_build=True, raise_error=True)
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyblocks PR #1206 for merging...",
@@ -3213,7 +3215,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # running as root is allowed under --allow-use-as-root, but does result in a warning being printed to stderr
         args = ['toy-0.0.eb', '--allow-use-as-root-and-accept-consequences']
-        _, stderr = self._run_mock_eb(args, stdout=False, stderr=True, raise_error=True, strip=True)
+        _, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         expected = "WARNING: Using EasyBuild as root is NOT recommended, please proceed with care!\n"
         expected += "(this is only allowed because EasyBuild was configured with "
@@ -3306,7 +3308,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         args.append('--force')
-        stdout, stderr = self._run_mock_eb(args, stderr=True, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         toy_source_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         toy_patch_sha256 = '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5'
@@ -3395,7 +3397,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ectxt = ectxt.replace(chksum, chksum[::-1])
         write_file(test_ec, ectxt)
 
-        stdout, stderr = self._run_mock_eb(args, stderr=True, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
@@ -3416,7 +3418,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, toy_ec_txt)
         args = [test_ec, '--inject-checksums=md5']
 
-        stdout, stderr = self._run_mock_eb(args, stderr=True, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
 
         patterns = [
             "^== injecting md5 checksums in .*/test\.eb$",
@@ -3478,7 +3480,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force-download',
             '--sourcepath=%s' % self.test_prefix,
         ]
-        stdout, stderr = self._run_mock_eb(args, stderr=True, do_build=True, raise_error=True, verbose=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
         self.assertEqual(stdout, '')
         regex = re.compile("^WARNING: Found file toy-0.0.tar.gz at .*, but re-downloading it anyway\.\.\.$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' matches: %s" % (regex.pattern, stderr))
