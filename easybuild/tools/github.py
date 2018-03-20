@@ -369,12 +369,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         mkdir(path, parents=True)
 
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
-    pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
 
-    status, pr_data = github_api_get_request(pr_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
+    status, pr_data, pr_url = fetch_pr_data(pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, github_user)
 
     # if PR is open and mergable, download develop and patch
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
@@ -981,16 +977,13 @@ def close_pr(pr, reason):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
-    status, pr_data = github_api_get_request(pr_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, pr_data)
+    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
 
-    if pr_data['state'] == 'closed':
+    if pr_data['state'] == GITHUB_STATE_CLOSED:
         raise EasyBuildError("PR #%d from %s/%s is already closed.", pr, pr_target_account, pr_target_repo)
 
-    msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
+    pr_owner = pr_data['user']['login']
+    msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_owner)
     msg += "you are using GitHub account '%s'\n" % github_user
     print_msg(msg, prefix=False)
 
@@ -1030,11 +1023,7 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
-    status, pr_data = github_api_get_request(pr_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, pr_data)
+    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
@@ -1224,11 +1213,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
-    status, pr_data = github_api_get_request(pr_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, pr_data)
+    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
     account = pr_data['head']['label'].split(':')[0]
@@ -1566,3 +1551,12 @@ def find_easybuild_easyconfig(github_user=None):
 
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
+
+def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user):
+    """Fetch PR data from GitHub"""
+    pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
+    status, pr_data = github_api_get_request(pr_url, github_user)
+    if status != HTTP_STATUS_OK:
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, pr_target_account, pr_target_repo, status, pr_data)
+    return status, pr_data, pr_url
