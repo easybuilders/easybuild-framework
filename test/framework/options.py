@@ -2925,7 +2925,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         os.chdir(self.test_prefix)
         args.append('--force')
-        self._run_mock_eb(args, do_build=True, raise_error=True)
+        self._run_mock_eb(args, do_build=True, raise_error=True, testing=True)
 
         # check contents of script
         env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
@@ -3169,7 +3169,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'GCC-4.9.2.eb',
             'toy-0.0.eb',
         ]
-        stdout, _ = self._run_mock_eb(args, raise_error=True)
+        stdout, _ = self._run_mock_eb(args, raise_error=True, testing=True)
 
         regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
@@ -3307,7 +3307,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         args.append('--force')
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, testing=True, strip=True)
 
         toy_source_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         toy_patch_sha256 = '45b5e3f9f495366830e1869bb2b8f4e7c28022739ce48d9f9ebb159b439823c5'
@@ -3396,7 +3396,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ectxt = ectxt.replace(chksum, chksum[::-1])
         write_file(test_ec, ectxt)
 
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, testing=True, strip=True)
 
         ec = EasyConfigParser(test_ec).get_config_dict()
         self.assertEqual(ec['checksums'], [toy_source_sha256, toy_patch_sha256])
@@ -3417,7 +3417,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, toy_ec_txt)
         args = [test_ec, '--inject-checksums=md5']
 
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, testing=True, strip=True)
 
         patterns = [
             "^== injecting md5 checksums in .*/test\.eb$",
@@ -3479,7 +3479,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force-download',
             '--sourcepath=%s' % self.test_prefix,
         ]
-        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, testing=True, strip=True)
         self.assertEqual(stdout, '')
         regex = re.compile("^WARNING: Found file toy-0.0.tar.gz at .*, but re-downloading it anyway\.\.\.$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' matches: %s" % (regex.pattern, stderr))
