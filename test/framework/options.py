@@ -2747,7 +2747,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # full eligible merged PR
         args[1] = '4832'
 
-        stdour, stderr = self._run_mock_eb(args, do_build=True, raise_error=True)
+        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True)
 
         expected_stdout = '\n'.join([
             "Checking eligibility of easybuilders/easybuild-easyconfigs PR #4832 for merging...",
@@ -2925,7 +2925,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         os.chdir(self.test_prefix)
         args.append('--force')
-        self._run_mock_eb(args, args, do_build=True, raise_error=True)
+        self._run_mock_eb(args, do_build=True, raise_error=True)
 
         # check contents of script
         env_script = os.path.join(self.test_prefix, '%s.env' % openmpi)
@@ -3068,7 +3068,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot-paths=%s' % test_ecs,
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True)
-
         expected = '\n'.join([
             "== Processed 5/5 easyconfigs...",
             "== Found 2 different software packages",
@@ -3170,7 +3169,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'GCC-4.9.2.eb',
             'toy-0.0.eb',
         ]
-        txt, _ = self._run_mock_eb(args, raise_error=True)
+        stdout, _ = self._run_mock_eb(args, raise_error=True)
 
         regex = re.compile(r"Running style check on 2 easyconfig\(s\)", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
