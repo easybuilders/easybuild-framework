@@ -3214,7 +3214,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # running as root is allowed under --allow-use-as-root, but does result in a warning being printed to stderr
         args = ['toy-0.0.eb', '--allow-use-as-root-and-accept-consequences']
-        _, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
+        _, stderr = self._run_mock_eb(args, raise_error=True, testing=True, strip=True)
 
         expected = "WARNING: Using EasyBuild as root is NOT recommended, please proceed with care!\n"
         expected += "(this is only allowed because EasyBuild was configured with "
