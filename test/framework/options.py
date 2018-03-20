@@ -2660,7 +2660,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
             r'title: "delete bzip2-1.6.0"',
-            r"1 file(s?) changed, [0-9]+ deletions\(-\)",
+            r"1 file(s?) changed,( 0 insertions\(\+\),)? [0-9]+ deletions\(-\)",
         ]
         self._assert_regexs(regexs, txt)
 
