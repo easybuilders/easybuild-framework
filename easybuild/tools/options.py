@@ -563,10 +563,9 @@ class EasyBuildOptions(GeneralOption):
             'github-user': ("GitHub username", str, 'store', None),
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
-            'list-prs': ("List pull requests", None, 'store_true', None),
-            'list-prs-state': ("State for listing pull requests", 'choice', 'store', 'open', GITHUB_LIST_PR_STATES),
-            'list-prs-order': ("Order for sorting pull requests", 'choice', 'store', 'created', GITHUB_LIST_PR_ORDERS),
-            'list-prs-direction': ("Direction for sorting pull requests", 'choice', 'store', 'desc', GITHUB_LIST_PR_DIRECTIONS),
+            'list-prs': ("List pull requests", str, 'store_or_None', 
+                         ":".join([GITHUB_LIST_PR_STATES[0], GITHUB_LIST_PR_ORDERS[0], GITHUB_LIST_PR_DIRECTIONS[1]]),
+                         {'metavar': 'STATE:ORDER:DIRECTION'}),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
@@ -785,6 +784,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
+        # make sure --list-format has a valid format
+        if self.options.list_prs:
+            self._postprocess_list_prs()
+
         # handle configuration options that affect other configuration options
         self._postprocess_config()
 
@@ -817,6 +820,29 @@ class EasyBuildOptions(GeneralOption):
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
                 self.log.info("Keeping optarch raw: %s", self.options.optarch)
+
+    def _postprocess_list_prs(self):
+        """Postprocess --list-prs options"""
+        list_prs_parts = self.options.list_prs.split(':')
+        nparts = len(list_prs_parts)
+
+        if nparts == 0:
+            list_prs_parts = [GITHUB_LIST_PR_STATES[0], GITHUB_LIST_PR_ORDERS[0], GITHUB_LIST_PR_DIRECTIONS[1]]
+        elif nparts == 1:
+            list_prs_parts.extend([GITHUB_LIST_PR_ORDERS[0], GITHUB_LIST_PR_DIRECTIONS[1]])
+        elif nparts == 2:
+            list_prs_parts.extend([GITHUB_LIST_PR_DIRECTIONS[1]])
+        elif nparts > 3:
+            raise EasyBuildError("Argument to --list-prs must be in the format state:order:direction")
+
+        if list_prs_parts[0] not in GITHUB_LIST_PR_STATES:
+            raise EasyBuildError("First element of --list-prs must be on of %s" % GITHUB_LIST_PR_STATES)
+        if list_prs_parts[1] not in GITHUB_LIST_PR_ORDERS:
+            raise EasyBuildError("Second element of --list-prs must be on of %s" % GITHUB_LIST_PR_ORDERS)
+        if list_prs_parts[2] not in GITHUB_LIST_PR_DIRECTIONS:
+            raise EasyBuildError("Third element of --list-prs must be on of %s" % GITHUB_LIST_PR_DIRECTIONS)
+
+        self.options.list_prs = list_prs_parts
 
     def _postprocess_include(self):
         """Postprocess --include options."""
