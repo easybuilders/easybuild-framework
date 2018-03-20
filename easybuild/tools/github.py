@@ -960,7 +960,7 @@ def check_pr_eligible_to_merge(pr_data):
 
 def list_prs(parameters):
     """
-    List PRs
+    List pull requests according to specified selection/order parameters
 
     :param parameters: Selection parameters for PRs, see https://developer.github.com/v3/pulls/#parameters
     """
