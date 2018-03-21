@@ -89,7 +89,7 @@ script:
     # this is done to catch possible packaging issues
     - cd $HOME
     # check GitHub configuration
-    - eb --check-github
+    - eb --check-github --github-user=easybuild_test
     # run test suite
     - python -O -m test.framework.suite
     # check bootstrap script version
