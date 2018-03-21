@@ -961,15 +961,19 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
-def list_prs(parameters):
+def list_prs(list_pr_opt, per_page=GITHUB_MAX_PER_PAGE):
     """
     List pull requests according to specified selection/order parameters
 
     :param parameters: Selection parameters for PRs, see https://developer.github.com/v3/pulls/#parameters
     """
-
-    if 'per_page' not in parameters:
-        parameters.update({'per_page': GITHUB_MAX_PER_PAGE})
+    parameters = {
+        'state': list_pr_opt[0],
+        'sort': list_pr_opt[1],
+        'direction': list_pr_opt[2],
+        'per_page': per_page,
+        }
+    print_msg("Listing PRs with parameters %s" % parameters)
 
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
