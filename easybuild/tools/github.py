@@ -1552,6 +1552,7 @@ def find_easybuild_easyconfig(github_user=None):
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
 
+
 def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user):
     """Fetch PR data from GitHub"""
     pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
