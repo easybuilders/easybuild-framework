@@ -114,6 +114,18 @@ class GithubTest(EnhancedTestCase):
         except (IOError, OSError):
             pass
 
+    def test_fetch_pr_data(self):
+        """Test fetch_pr_data function."""
+        if self.github_token is None:
+            print "Skipping test_fetch_pr_data, no GitHub token available?"
+            return
+
+        status, pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
+    
+        self.assertEquals(gh.HTTP_STATUS_OK, status)
+        self.assertEquals(pr_data['number'], 1)
+        self.assertEquals(pr_data['title'], "a pr")
+
     def test_fetch_easyconfigs_from_pr(self):
         """Test fetch_easyconfigs_from_pr function."""
         if self.github_token is None:
