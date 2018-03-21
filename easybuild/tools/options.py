@@ -73,6 +73,7 @@ from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import GITHUB_LIST_PR_STATES, GITHUB_LIST_PR_ORDERS, GITHUB_LIST_PR_DIRECTIONS
+from easybuild.tools.github import GITHUB_MAX_PER_PAGE
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -127,6 +128,9 @@ XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
 DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
+DEFAULT_LIST_PR_STATE = 'open'
+DEFAULT_LIST_PR_ORDER = 'created'
+DEFAULT_LIST_PR_DIREC = 'desc'
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -564,8 +568,8 @@ class EasyBuildOptions(GeneralOption):
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'list-prs': ("List pull requests", str, 'store_or_None', 
-                         ":".join([GITHUB_LIST_PR_STATES[0], GITHUB_LIST_PR_ORDERS[0], GITHUB_LIST_PR_DIRECTIONS[1]]),
-                         {'metavar': 'STATE:ORDER:DIRECTION'}),
+                         ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
+                         {'metavar': 'STATE,ORDER,DIRECTION'}),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
@@ -823,26 +827,24 @@ class EasyBuildOptions(GeneralOption):
 
     def _postprocess_list_prs(self):
         """Postprocess --list-prs options"""
-        list_prs_parts = self.options.list_prs.split(':')
-        nparts = len(list_prs_parts)
+        list_pr_parts = self.options.list_prs.split(',')
+        nparts = len(list_pr_parts)
 
-        if nparts == 0:
-            list_prs_parts = [GITHUB_LIST_PR_STATES[0], GITHUB_LIST_PR_ORDERS[0], GITHUB_LIST_PR_DIRECTIONS[1]]
-        elif nparts == 1:
-            list_prs_parts.extend([GITHUB_LIST_PR_ORDERS[0], GITHUB_LIST_PR_DIRECTIONS[1]])
-        elif nparts == 2:
-            list_prs_parts.extend([GITHUB_LIST_PR_DIRECTIONS[1]])
-        elif nparts > 3:
-            raise EasyBuildError("Argument to --list-prs must be in the format state:order:direction")
+        if nparts > 3:
+            raise EasyBuildError("Argument to --list-prs must be in the format state,order,direction")
 
-        if list_prs_parts[0] not in GITHUB_LIST_PR_STATES:
+        list_pr_state = list_pr_parts[0]
+        list_pr_order = list_pr_parts[1] if nparts > 1 else DEFAULT_LIST_PR_ORDER
+        list_pr_direc = list_pr_parts[2] if nparts > 2 else DEFAULT_LIST_PR_DIREC
+
+        if list_pr_state not in GITHUB_LIST_PR_STATES:
             raise EasyBuildError("First element of --list-prs must be on of %s" % GITHUB_LIST_PR_STATES)
-        if list_prs_parts[1] not in GITHUB_LIST_PR_ORDERS:
+        if list_pr_order not in GITHUB_LIST_PR_ORDERS:
             raise EasyBuildError("Second element of --list-prs must be on of %s" % GITHUB_LIST_PR_ORDERS)
-        if list_prs_parts[2] not in GITHUB_LIST_PR_DIRECTIONS:
+        if list_pr_direc not in GITHUB_LIST_PR_DIRECTIONS:
             raise EasyBuildError("Third element of --list-prs must be on of %s" % GITHUB_LIST_PR_DIRECTIONS)
 
-        self.options.list_prs = list_prs_parts
+        self.options.list_prs = (list_pr_state, list_pr_order, list_pr_direc, GITHUB_MAX_PER_PAGE)
 
     def _postprocess_include(self):
         """Postprocess --include options."""
