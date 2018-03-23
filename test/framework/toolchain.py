@@ -579,8 +579,10 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
+        archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+        optflags = "-O2 -ftree-vectorize -%s -fno-math-errno -fopenmp" % archflags
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -ftree-vectorize -%s -fno-math-errno -fopenmp"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)],
+            r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
