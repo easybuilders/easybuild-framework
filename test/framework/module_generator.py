@@ -260,7 +260,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # Lmod 7.6+ depends-on
-            if self.modtool.has_depends_on:
+            if self.modtool.supports_depends_on:
                 expected = '\n'.join([
                     '',
                     "depends-on mod_name",
@@ -295,7 +295,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # Lmod 7.6+ depends_on
-            if self.modtool.has_depends_on:
+            if self.modtool.supports_depends_on:
                 expected = '\n'.join([
                     '',
                     'depends_on("mod_name")',

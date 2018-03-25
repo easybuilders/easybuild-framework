@@ -509,7 +509,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
         if (build_option('recursive_mod_unload_depends_on') or
-            recursive_unload == 'depends_on') and modules_tool().has_depends_on:
+            recursive_unload == 'depends_on') and modules_tool().supports_depends_on:
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
 
@@ -807,7 +807,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
         if (build_option('recursive_mod_unload_depends_on') or
-            recursive_unload == 'depends_on') and modules_tool().has_depends_on:
+            recursive_unload == 'depends_on') and modules_tool().supports_depends_on:
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
         body.append(load_template)

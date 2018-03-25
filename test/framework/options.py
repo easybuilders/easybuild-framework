@@ -1157,7 +1157,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for existing module
         lastargs = ['--recursive-module-unload']
-        if self.modtool.has_depends_on:
+        if self.modtool.supports_depends_on:
             lastargs.append(lastargs[0]+'-depends-on')
         for lastarg in lastargs:
             args = [
