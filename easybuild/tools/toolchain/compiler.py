@@ -261,9 +261,9 @@ class Compiler(Toolchain):
             else:
                 vectflags = novectorize
             # avoid double use of such flags
-            for setting in novectorize, vectorize:
-                if setting in optflags[0]:
-                    optflags[0].remove(setting)
+            if isinstance(optflags[0], list):
+                optflags[0] = [setting for setting in optflags[0]
+                               if setting not in (novectorize, vectorize)]
             optflags.append(vectflags)
 
         optarchflags = []
