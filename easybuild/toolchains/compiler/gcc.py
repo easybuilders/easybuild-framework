@@ -65,6 +65,8 @@ class Gcc(Compiler):
         'defaultprec': ['fno-math-errno'],
         'loose': ['fno-math-errno', 'mrecip', 'mno-ieee-fp'],
         'veryloose': ['fno-math-errno', 'mrecip=all', 'mno-ieee-fp'],
+        'vectorize': 'ftree-vectorize',
+        'novectorize': 'fno-tree-vectorize',
         DEFAULT_OPT_LEVEL: ['O2', 'ftree-vectorize'],
     }
 

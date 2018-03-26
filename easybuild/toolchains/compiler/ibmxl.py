@@ -11,7 +11,7 @@ Support for IBM compilers (xlc, xlf) as toolchain compilers.
 from distutils.version import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.toolchain.compiler import Compiler
+from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
 
 
 TC_CONSTANT_IBMCOMP = "IBMXL"
@@ -35,6 +35,9 @@ class IBMXL(Compiler):
         'defaultprec': ['', '', ''],
         'loose': [''],
         'veryloose': [''],
+        'vectorize': 'qsimd=auto',
+        'novectorize': 'qsimd=noauto',
+        DEFAULT_OPT_LEVEL: ['O2', 'qsimd=auto'],
         'ibm-static': 'qstaticlink=xllibs',
         'pic': 'qpic',
         'shared': 'qmkshrobj',
