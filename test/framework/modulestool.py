@@ -43,17 +43,8 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which, write_file
-from easybuild.tools.modules import modules_tool, Lmod
+from easybuild.tools.modules import modules_tool, Lmod, MockModulesTool
 from test.framework.utilities import init_config
-
-
-class MockModulesTool(modules.ModulesTool):
-    """ MockModule class"""
-    COMMAND = 'echo'
-    VERSION_OPTION = '1.0'
-    VERSION_REGEXP = r'(?P<version>\d\S*)'
-    # redirect to stderr, ignore 'echo python' ($0 and $1)
-    COMMAND_SHELL = ["bash", "-c", "echo $2 $3 $4 1>&2"]
 
 
 class BrokenMockModulesTool(MockModulesTool):

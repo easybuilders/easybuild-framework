@@ -1384,3 +1384,13 @@ class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
+
+
+class MockModulesTool(modules.ModulesTool):
+    """ MockModule class"""
+    COMMAND = 'echo'
+    VERSION_OPTION = '1.0'
+    VERSION_REGEXP = r'(?P<version>\d\S*)'
+    # redirect to stderr, ignore 'echo python' ($0 and $1)
+    COMMAND_SHELL = ["bash", "-c", "echo $2 $3 $4 1>&2"]
+    
