@@ -297,6 +297,8 @@ class ToolchainTest(EnhancedTestCase):
                 tc.prepare()
                 if opt == 'optarch':
                     flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+                elif isinstance(tc.options.options_map[opt], dict):
+                    flag = '-%s' % tc.options.options_map[opt][True]
                 else:
                     flag = '-%s' % tc.options.options_map[opt]
                 for var in flag_vars:

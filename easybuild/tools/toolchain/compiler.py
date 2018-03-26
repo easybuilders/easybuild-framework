@@ -89,7 +89,6 @@ class Compiler(Toolchain):
         '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
         'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
-        'novectorize': (None, "Disable compiler auto-vectorization, default for noopt and lowopt"), # not set, only used to map
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
     }
@@ -254,16 +253,10 @@ class Compiler(Toolchain):
         # otherwise the individual compiler toolchain file should make sure that
         # vectorization is disabled for noopt and lowopt, and enabled otherwise.
         if self.options.get('vectorize') is not None:
-            novectorize = self.options.option('novectorize')
-            vectorize = self.options.option('vectorize')
-            if self.options['vectorize']:
-                vectflags = vectorize
-            else:
-                vectflags = novectorize
+            vectflags = self.options.option('vectorize')[self.options['vectorize']]
             # avoid double use of such flags
             if isinstance(optflags[0], list):
-                optflags[0] = [setting for setting in optflags[0]
-                               if setting not in (novectorize, vectorize)]
+                optflags[0] = [flag for flag in optflags[0] if flag not in self.options.option('vectorize').values()]
             optflags.append(vectflags)
 
         optarchflags = []
