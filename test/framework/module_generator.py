@@ -266,8 +266,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                     "depends-on mod_name",
                     '',
                 ])
-                self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload="depends_on"))
-                init_config(build_options={'recursive_mod_unload_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name", use_depends_on=True))
+                init_config(build_options={'mod_use_depends_on': 'True'})
                 self.assertEqual(expected, self.modgen.load_module("mod_name"))
         else:
             # default: guarded module load (which implies no recursive unloading)
@@ -301,8 +301,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                     'depends_on("mod_name")',
                     '',
                 ])
-                self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload="depends_on"))
-                init_config(build_options={'recursive_mod_unload_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name", use_depends_on=True))
+                init_config(build_options={'mod_use_depends_on': 'True'})
                 self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
     def test_unload(self):

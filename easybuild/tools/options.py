@@ -456,6 +456,9 @@ class EasyBuildOptions(GeneralOption):
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
+            'module-use-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
+                                      "(implies recursive unloading of modules).",
+                                      None, 'store_true', False),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                               'strlist', 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
@@ -473,8 +476,6 @@ class EasyBuildOptions(GeneralOption):
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
-                                        None, 'store_true', False),
-            'recursive-module-unload-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules.",
                                         None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
                            'choice', 'store', DEFAULT_REPOSITORY, sorted(avail_repositories().keys())),
