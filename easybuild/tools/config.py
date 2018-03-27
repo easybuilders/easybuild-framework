@@ -59,11 +59,7 @@ UNLOAD = 'unload'
 UNSET = 'unset'
 WARN = 'warn'
 
-PKG_TOOL_DOCKER = 'docker'
 PKG_TOOL_FPM = 'fpm'
-PKG_TOOL_SINGULARITY = 'singularity'
-PKG_TYPE_DEF = 'def'
-PKG_TYPE_IMG = 'img'
 PKG_TYPE_RPM = 'rpm'
 
 DEFAULT_SINGULARITY_IMAGE_FORMAT = "squashfs"
