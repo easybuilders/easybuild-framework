@@ -1340,6 +1340,8 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
+    if 'MockModulesTool' in class_dict:
+        del class_dict['MockModulesTool']
     return class_dict
 
 
