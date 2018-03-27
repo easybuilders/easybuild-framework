@@ -191,7 +191,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     options = eb_go.options
     orig_paths = eb_go.args
 
-
     # set umask (as early as possible)
     if options.umask is not None:
         new_umask = int(options.umask, 8)
@@ -402,9 +401,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
 
-
     if options.singularity:
-
 	check_singularity(ordered_ecs,options)
 	sys.exit(0)
 

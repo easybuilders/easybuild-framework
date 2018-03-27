@@ -480,7 +480,7 @@ class EasyBuildOptions(GeneralOption):
                                 "For more info, use --avail-repositories."),
                                'strlist', 'store', self.default_repositorypath),
 
-	    'singularitypath':("Path where definition and container will be written. ", None, 'store', mk_full_default_path('singularitypath')),
+            'singularitypath':("Path where definition and container will be written. ", None, 'store', mk_full_default_path('singularitypath')),
 
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
@@ -622,10 +622,10 @@ class EasyBuildOptions(GeneralOption):
 
         opts = OrderedDict({
             'singularity': ("Enabling Singularity Integration", None, 'store_true', False),
-            'singularity-bootstrap': (" Singularity bootstrap agent. 	Format: --singularity-bootstrap localimage:/path/to/image.img --singularity-bootstrap shub:<image>:<tag> --singularity-bootstrap docker:<image>:<tag> ", str, 'store', ''),
-	    'imagename': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
-	    'imageformat': ("Image format for singularity container.", 'choice', 'store', DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST),
-	    'buildimage': ("Build container will require sudo privileges! ", None, 'store_true', False)
+            'singularity-bootstrap': (" Singularity bootstrap agent. Format: --singularity-bootstrap localimage:/path/to/image.img --singularity-bootstrap shub:<image>:<tag> --singularity-bootstrap docker:<image>:<tag> ", str, 'store', ''),
+            'imagename': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
+            'imageformat': ("Image format for singularity container.", 'choice', 'store', DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST),
+            'buildimage': ("Build container will require sudo privileges! ", None, 'store_true', False)
 
         })
 
