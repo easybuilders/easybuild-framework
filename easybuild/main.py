@@ -374,6 +374,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
+    if options.singularity:
+        check_singularity(easyconfigs, options)
+        cleanup(logfile, eb_tmpdir, testing)
+        sys.exit(0)
+
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
     new_update_pr = options.new_pr or options.update_pr
@@ -400,10 +405,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
-
-    if options.singularity:
-	check_singularity(ordered_ecs,options)
-	sys.exit(0)
 
     # creating/updating PRs
     if new_update_pr:

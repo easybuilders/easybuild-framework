@@ -44,7 +44,7 @@ SHUB = 'shub'
 SINGULARITY_BOOTSTRAP_TYPES = [DOCKER, LOCALIMAGE, SHUB]
 
 
-_log = fancylogger.getLogger('tools.package')  # pylint: disable=C0103
+_log = fancylogger.getLogger('tools.singularity')  # pylint: disable=C0103
 
 
 def check_bootstrap(singularity_bootstrap):
@@ -81,7 +81,6 @@ def generate_singularity_recipe(ordered_ecs, options):
     image_format = build_option('imageformat')
     build_image = build_option('buildimage')
     sing_path = singularity_path()
-    bootstrap_opts = ""
 
     # check if --singularitypath is valid path and a directory
     if os.path.exists(sing_path) and os.path.isdir(sing_path):
@@ -119,7 +118,7 @@ def generate_singularity_recipe(ordered_ecs, options):
             else:
                 raise EaasyBuildError("Invalid image extension %s must be .img or .simg", image_ext)
         else:
-            raise EasyBuildError("Can't find image path %s", bootstrap_imagepath)
+            raise EasyBuildError("Singularity base image at specified path does not exist: %s", bootstrap_imagepath)
 
     # if option is shub or docker
     else:
@@ -209,18 +208,15 @@ source /etc/profile
 
 
     # cleaning up directories in container after build
-    post_content += """exit
-rm -rf /scratch/tmp/*
-rm -rf /scratch/build
-rm -rf /scratch/sources
-rm -rf /scratch/ebfiles_repo
-"""
+    post_content += '\n'.join([
+        'exit',
+        "rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo",
+    ])
 
-
-    runscript_content = """
-%runscript
-eval "$@"
-"""
+    runscript_content = '\n'.join([
+        "%runscript",
+        'eval "$@"',
+    ])
 
     label_content = "\n%labels \n"
 
@@ -238,13 +234,6 @@ eval "$@"
 
         # if --imagename is specified
         if image_name != None:
-            """
-            ext =  os.path.splitext(image_name)[1]
-            if ext == ".img" or ext == ".simg":
-                _log.debug("Extension for image is okay from --image-name")
-            else:
-                raise EasyBuildError("Invalid Extension for --imagename %s", ext)
-            """
             container_name = image_name
         else:
             # definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
