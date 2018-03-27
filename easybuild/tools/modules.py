@@ -1340,8 +1340,8 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
-    if 'MockModulesTool' in class_dict:
-        del class_dict['MockModulesTool']
+    if 'NoModulesTool' in class_dict:
+        del class_dict['NoModulesTool']
     return class_dict
 
 
@@ -1388,7 +1388,7 @@ class Modules(EnvironmentModulesC):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
 
 
-class MockModulesTool(ModulesTool):
+class NoModulesTool(ModulesTool):
     """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
     COMMAND = 'echo'
     VERSION_OPTION = '1.0'

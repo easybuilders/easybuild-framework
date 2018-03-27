@@ -62,7 +62,7 @@ from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
 from easybuild.tools.github import new_pr, merge_pr, update_pr
 from easybuild.tools.hooks import START, END, load_hooks, run_hook
-from easybuild.tools.modules import modules_tool, MockModulesTool
+from easybuild.tools.modules import modules_tool, NoModulesTool
 from easybuild.tools.options import parse_external_modules_metadata, process_software_build_specs, use_color
 from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.package.utilities import check_pkg_support
@@ -256,8 +256,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     config.init_build_options(build_options=build_options, cmdline_options=options)
 
     if options.fetch:
-        _log.debug("Fetching sources only, implies stop=fetch, moduletool=MockModulesTool, ignore-osdep.")
-        modtool = MockModulesTool(testing=testing)
+        _log.debug("Fetching sources only, implies stop=fetch, moduletool=NoModulesTool, ignore-osdep.")
+        modtool = NoModulesTool(testing=testing)
 
     if modtool is None:
         modtool = modules_tool(testing=testing)
