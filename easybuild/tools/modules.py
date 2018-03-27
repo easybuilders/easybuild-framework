@@ -1389,7 +1389,7 @@ class Modules(EnvironmentModulesC):
 
 
 class MockModulesTool(ModulesTool):
-    """ MockModule class"""
+    """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
     COMMAND = 'echo'
     VERSION_OPTION = '1.0'
     VERSION_REGEXP = r'(?P<version>\d\S*)'
