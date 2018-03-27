@@ -50,7 +50,7 @@ from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
@@ -255,6 +255,8 @@ class EasyBuildOptions(GeneralOption):
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
                                  None, 'store_true', False, 'x'),
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
+            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
+                      "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
@@ -856,6 +858,12 @@ class EasyBuildOptions(GeneralOption):
         # Update the search_paths (if any) to absolute paths
         if self.options.search_paths is not None:
             self.options.search_paths = [os.path.abspath(path) for path in self.options.search_paths]
+
+        # Implies stop=fetch, moduletool=MockModulesTool, ignore-osdeps and no lua module syntax
+        if self.options.fetch:
+            self.options.stop = FETCH_STEP
+            self.options.ignore_osdeps = True
+            self.options.modules_tool = None
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

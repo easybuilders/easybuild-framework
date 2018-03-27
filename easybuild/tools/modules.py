@@ -1386,7 +1386,7 @@ class Modules(EnvironmentModulesC):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
 
 
-class MockModulesTool(modules.ModulesTool):
+class MockModulesTool(ModulesTool):
     """ MockModule class"""
     COMMAND = 'echo'
     VERSION_OPTION = '1.0'
@@ -1394,3 +1394,14 @@ class MockModulesTool(modules.ModulesTool):
     # redirect to stderr, ignore 'echo python' ($0 and $1)
     COMMAND_SHELL = ["bash", "-c", "echo $2 $3 $4 1>&2"]
     
+    def check_loaded_modules(self):
+        """Nothing to do since no modules"""
+        pass
+
+    def list(self):
+        """No modules loaded"""
+        return []
+
+    def update(self):
+        """Update after new modules were added."""
+        pass
