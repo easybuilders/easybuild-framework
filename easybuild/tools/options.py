@@ -859,7 +859,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.search_paths is not None:
             self.options.search_paths = [os.path.abspath(path) for path in self.options.search_paths]
 
-        # Implies stop=fetch, moduletool=NoModulesTool, ignore-osdeps and no lua module syntax
+        # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
             self.options.stop = FETCH_STEP
             self.options.ignore_osdeps = True
