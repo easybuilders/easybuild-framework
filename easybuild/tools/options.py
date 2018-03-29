@@ -864,7 +864,6 @@ class EasyBuildOptions(GeneralOption):
             self.options.stop = FETCH_STEP
             self.options.ignore_osdeps = True
             self.options.modules_tool = None
-            self.options.module_syntax = None
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

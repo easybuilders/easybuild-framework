@@ -2959,7 +2959,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_fetch(self):
         options = EasyBuildOptions(go_args=['--fetch'])
-        options.postprocess()
 
         self.assertTrue(options.options.fetch)
         self.assertEqual(options.options.stop, 'fetch')
