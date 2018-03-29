@@ -2963,7 +2963,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(options.options.fetch)
         self.assertEqual(options.options.stop, 'fetch')
         self.assertEqual(options.options.modules_tool, None)
-        self.assertEqual(options.options.module_syntax, None)
         self.assertTrue(options.options.ignore_osdeps)
 
         args = ['toy-0.0.eb', '--fetch']
