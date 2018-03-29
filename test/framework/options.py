@@ -2968,7 +2968,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(options.options.ignore_osdeps)
 
         args = ['toy-0.0.eb', '--fetch']
-        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
         patterns = [
             "^== fetching files\.\.\.$"
