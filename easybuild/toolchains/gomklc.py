@@ -41,4 +41,3 @@ class Gomklc(Gompic, IntelMKL, IntelFFTW):
     """Compiler toolchain with GCC, Open MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers and Cuda."""
     NAME = 'gomklc'
     SUBTOOLCHAIN = Gompic.NAME
-

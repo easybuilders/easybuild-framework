@@ -39,7 +39,7 @@ from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 class Iimklc(IccIfortCUDA, IntelMKL, IntelFFTW):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), 
+    Compiler toolchain with Intel compilers (icc/ifort),
     CUDA, Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'iimklc'
