@@ -2961,9 +2961,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         options = EasyBuildOptions(go_args=['--fetch'])
         options.postprocess()
 
-        self.assertEqual(options.stop, FETCH_STEP)
-        self.assertEqual(options.modulestool, None)
-        self.assertTrue(options.ignore_osdeps)
+        self.assertTrue(options.options.fetch)
+        self.assertEqual(options.options.stop, 'fetch')
+        self.assertEqual(options.options.modules_tool, None)
+        self.assertEqual(options.options.module_syntax, None)
+        self.assertTrue(options.options.ignore_osdeps)
 
         args = ['toy-0.0.eb', '--fetch']
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True)
