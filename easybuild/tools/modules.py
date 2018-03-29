@@ -1390,12 +1390,13 @@ class Modules(EnvironmentModulesC):
 
 class NoModulesTool(ModulesTool):
     """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
-    COMMAND = 'echo'
-    VERSION_OPTION = '1.0'
-    VERSION_REGEXP = r'(?P<version>\d\S*)'
-    # redirect to stderr, ignore 'echo python' ($0 and $1)
-    COMMAND_SHELL = ["bash", "-c", "echo $2 $3 $4 1>&2"]
-    
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def exist(self, mod_names, *args, **kwargs):
+        """No modules, so nothing exists"""
+        return [False]*len(mod_names)
+
     def check_loaded_modules(self):
         """Nothing to do since no modules"""
         pass
@@ -1404,6 +1405,6 @@ class NoModulesTool(ModulesTool):
         """No modules loaded"""
         return []
 
-    def update(self):
-        """Update after new modules were added."""
-        pass
+    def available(self, *args, **kwargs):
+        """No modules, so nothing available"""
+        return []
