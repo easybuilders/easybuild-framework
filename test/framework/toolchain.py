@@ -296,17 +296,19 @@ class ToolchainTest(EnhancedTestCase):
                 tc.set_options({opt: enable})
                 tc.prepare()
                 if opt == 'optarch':
-                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-                elif isinstance(tc.options.options_map[opt], dict):
-                    flag = '-%s' % tc.options.options_map[opt][True]
+                    option = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
                 else:
-                    flag = '-%s' % tc.options.options_map[opt]
+                    option = tc.options.options_map[opt]
+                if not isinstance(option, dict):
+                    option = {True: option}
                 for var in flag_vars:
                     flags = tc.get_variable(var)
-                    if enable:
-                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
-                    else:
-                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                    for key, value in option.items():
+                        flag = "-%s" % value
+                        if enable == key:
+                            self.assertTrue(flag in flags, "%s: %s means %s in %s" % (opt, enable, flag, flags))
+                        else:
+                            self.assertTrue(flag not in flags, "%s: %s means no %s in %s" % (opt, enable, flag, flags))
                 self.modtool.purge()
 
     def test_override_optarch(self):
