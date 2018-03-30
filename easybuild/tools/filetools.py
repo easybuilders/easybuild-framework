@@ -1218,13 +1218,14 @@ def find_backup_name_candidate(src_file):
     return dst_file
 
 
-def back_up_file(src_file, backup_extension='bak', hidden=False):
+def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
     """
     Backs up a file appending a backup extension and timestamp to it (if there is already an existing backup).
 
     :param src_file: file to be back up
     :param backup_extension: extension to use for the backup file (can be empty or None)
     :param hidden: make backup hidden (leading dot in filename)
+    :param strip_fn: strip specified trailing substring from filename of backup
     :return: location of backed up file
     """
     fn_prefix, fn_suffix = '', ''
@@ -1234,6 +1235,9 @@ def back_up_file(src_file, backup_extension='bak', hidden=False):
         fn_suffix = '.%s' % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
+    if strip_fn:
+        src_fn = src_fn.rstrip(strip_fn)
+
     backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 
     copy_file(src_file, backup_fp)

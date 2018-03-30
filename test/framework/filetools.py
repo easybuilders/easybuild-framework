@@ -567,10 +567,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), known_files)
 
         # Test simple file backup
-        ft.back_up_file(fp)
+        res = ft.back_up_file(fp)
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 2)
         new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(os.path.samefile(res, os.path.join(self.test_prefix, 'sandbox', new_file)))
         self.assertTrue(new_file.startswith('test.txt.bak_'))
         first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
@@ -679,6 +680,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(first_hidden_bck_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
         self.assertEqual(ft.read_file(fp), new_txt)
+
+        # check whether strip_fn works as expected
+        fp2 = fp + '.lua'
+        ft.copy_file(fp, fp2)
+        res = ft.back_up_file(fp2)
+        self.assertTrue(fp2.endswith('.lua'))
+        self.assertTrue('.lua' in os.path.basename(res))
+
+        res = ft.back_up_file(fp2, strip_fn='.lua')
+        self.assertFalse('.lua' in os.path.basename(res))
 
     def test_move_logs(self):
         """Test move_logs function."""
