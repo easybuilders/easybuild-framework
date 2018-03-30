@@ -1352,7 +1352,7 @@ def modules_tool(mod_paths=None, testing=False):
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
-    modules_tool_class = avail_modules_tools().get(modules_tool, default=NoModulesTool)
+    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
     return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 
