@@ -2978,8 +2978,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(options.options.modules_tool, None)
         self.assertTrue(options.options.ignore_osdeps)
 
+        # in this test we want to fake the case were no modules tool are in the system so teak it
+        original_modtool = self.modtool
+        self.modtool = None
         args = ['toy-0.0.eb', '--fetch']
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
+        # back to orinal modules tool so further tests can continue
+        self.modtool = original_modtool
+
 
         patterns = [
             "^== fetching files\.\.\.$",
