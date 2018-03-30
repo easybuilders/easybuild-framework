@@ -73,9 +73,9 @@ DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
+    'containerpath': 'containers',
     'installpath': '',
     'packagepath': 'packages',
-    'singularitypath': 'singularity',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
@@ -294,6 +294,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
     REQUIRED = [
         'buildpath',
         'config',
+        'containerpath',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -308,7 +309,6 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'prefix',
         'repository',
         'repositorypath',
-        'singularitypath',
         'sourcepath',
         'subdir_modules',
         'subdir_software',
@@ -501,11 +501,11 @@ def package_path():
     """
     return ConfigurationVariables()['packagepath']
 
-def singularity_path():
+def container_path():
     """
-    Return the path for singularity definition and image directory are copied to
+    Return the path for container recipes & images
     """
-    return ConfigurationVariables()['singularitypath']
+    return ConfigurationVariables()['containerpath']
 
 
 def get_modules_tool():

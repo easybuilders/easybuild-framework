@@ -34,7 +34,7 @@ import urllib2
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option, get_module_naming_scheme, singularity_path
+from easybuild.tools.config import build_option, container_path, get_module_naming_scheme
 from easybuild.tools.filetools import change_dir, which, write_file
 
 
@@ -80,13 +80,13 @@ def generate_singularity_recipe(ordered_ecs, options):
     image_name = build_option('imagename')
     image_format = build_option('imageformat')
     build_image = build_option('buildimage')
-    sing_path = singularity_path()
+    cont_path = container_path()
 
-    # check if --singularitypath is valid path and a directory
-    if os.path.exists(sing_path) and os.path.isdir(sing_path):
-        singularity_writepath = singularity_path()
+    # check if --containerpath is valid path and a directory
+    if os.path.exists(cont_path) and os.path.isdir(cont_path):
+        _log.info("Path for container recipes & images: %s", cont_path)
     else:
-        msg = "Invalid path: " +  sing_path +  " please specify a valid directory path"
+        msg = "Invalid path: " +  cont_path +  " please specify a valid directory path"
         raise EasyBuildError(msg)
 
     bootstrap_type, bootstrap_list = check_bootstrap(options.singularity_bootstrap)
@@ -222,10 +222,10 @@ source /etc/profile
 
     # adding all the regions for writing the  Singularity definition file
     content = bootstrap_content + post_content + runscript_content + environment_content + label_content
-    change_dir(singularity_writepath)
+    change_dir(cont_path)
     write_file(def_file,content)
 
-    print_msg("Writing Singularity Definition File: %s" % os.path.join(singularity_writepath, def_file), log=_log)
+    print_msg("Writing Singularity Definition File: %s" % os.path.join(cont_path, def_file), log=_log)
 
     # if easybuild will build container
     if build_image:
@@ -244,7 +244,7 @@ source /etc/profile
         if image_format == "squashfs":
             container_name += ".simg"
             if os.path.exists(container_name):
-                errmsg = "Image already exist at " + os.path.join(singularity_writepath,container_name)
+                errmsg = "Image already exist at " + os.path.join(cont_path, container_name)
                 raise EasyBuildError(errmsg)
 
             os.system("sudo singularity build " + container_name + " " + def_file)
@@ -254,7 +254,7 @@ source /etc/profile
             container_name += ".img"
 
             if os.path.exists(container_name):
-                errmsg = "Image already exist at " + os.path.join(singularity_writepath,container_name)
+                errmsg = "Image already exist at " + os.path.join(cont_path, container_name)
                 raise EasyBuildError(errmsg)
 
             os.system("sudo singularity build --writable " + container_name + " " + def_file)
@@ -263,7 +263,7 @@ source /etc/profile
         elif image_format == "sandbox":
 
             if os.path.exists(container_name):
-                errmsg = "Image already exist at " + os.path.join(singularity_writepath,container_name)
+                errmsg = "Image already exist at " + os.path.join(cont_path, container_name)
                 raise EasyBuildError(errmsg)
 
             os.system("sudo singularity build --sandbox " + container_name + " " + def_file)
