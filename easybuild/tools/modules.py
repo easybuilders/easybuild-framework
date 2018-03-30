@@ -1352,11 +1352,8 @@ def modules_tool(mod_paths=None, testing=False):
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
-    if modules_tool is not None:
-        modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, testing=testing)
-    else:
-        return NoModulesTool(mod_paths=mod_paths, testing=testing)
+    modules_tool_class = avail_modules_tools().get(modules_tool, default=NoModulesTool)
+    return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 
 def reset_module_caches():
