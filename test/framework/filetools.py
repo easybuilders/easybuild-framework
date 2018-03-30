@@ -62,7 +62,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_extract_cmd(self):
         """Test various extract commands."""
         tests = [
-            ('test.zip', "unzip -qq test.zip"),
+            ('test.zip', "unzip -qq  test.zip"),
             ('/some/path/test.tar', "tar xf /some/path/test.tar"),
             ('test.tar.gz', "tar xzf test.tar.gz"),
             ('test.TAR.GZ', "tar xzf test.TAR.GZ"),
@@ -87,7 +87,32 @@ class FileToolsTest(EnhancedTestCase):
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
 
-        self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
+        self.assertEqual("unzip -qq -o  test.zip", ft.extract_cmd('test.zip', True))
+
+        # check whether timestamp option works
+        build_options = {
+            'keep_current_timestamp': True,
+        }
+        init_config(build_options=build_options)
+
+        tests = [
+            ('test.zip', "unzip -qq -DD test.zip"),
+            ('/some/path/test.tar', "tar xmf /some/path/test.tar"),
+            ('test.tar.gz', "tar xmzf test.tar.gz"),
+            ('test.TAR.GZ', "tar xmzf test.TAR.GZ"),
+            ('test.tgz', "tar xmzf test.tgz"),
+            ('test.gtgz', "tar xmzf test.gtgz"),
+            ('test.tbz', "tar xmjf test.tbz"),
+            ('test.tbz2', "tar xmjf test.tbz2"),
+            ('test.tb2', "tar xmjf test.tb2"),
+            ('test.tar.bz2', "tar xmjf test.tar.bz2"),
+            ('test.tar.xz', "unxz test.tar.xz --stdout | tar xm"),
+            ('test.txz', "unxz test.txz --stdout | tar xm"),
+            ('test.tar.Z', "tar xmZf test.tar.Z"),
+        ]
+        for (fn, expected_cmd) in tests:
+            cmd = ft.extract_cmd(fn)
+            self.assertEqual(expected_cmd, cmd)
 
     def test_find_extension(self):
         """Test find_extension function."""

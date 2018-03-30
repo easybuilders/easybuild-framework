@@ -169,6 +169,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hidden',
         'ignore_checksums',
         'install_latest_eb_release',
+        'keep_current_timestamp',
         'minimal_toolchains',
         'module_only',
         'package',

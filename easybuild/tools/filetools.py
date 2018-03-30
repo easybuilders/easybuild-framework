@@ -122,28 +122,28 @@ CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
 EXTRACT_CMDS = {
     # gzipped or gzipped tarball
-    '.gtgz':    "tar xzf %(filepath)s",
+    '.gtgz':    "tar x%(timestamp_tar)szf %(filepath)s",
     '.gz':      "gunzip -c %(filepath)s > %(target)s",
-    '.tar.gz':  "tar xzf %(filepath)s",
-    '.tgz':     "tar xzf %(filepath)s",
+    '.tar.gz':  "tar x%(timestamp_tar)szf %(filepath)s",
+    '.tgz':     "tar x%(timestamp_tar)szf %(filepath)s",
     # bzipped or bzipped tarball
     '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
-    '.tar.bz2': "tar xjf %(filepath)s",
-    '.tb2':     "tar xjf %(filepath)s",
-    '.tbz':     "tar xjf %(filepath)s",
-    '.tbz2':    "tar xjf %(filepath)s",
+    '.tar.bz2': "tar x%(timestamp_tar)sjf %(filepath)s",
+    '.tb2':     "tar x%(timestamp_tar)sjf %(filepath)s",
+    '.tbz':     "tar x%(timestamp_tar)sjf %(filepath)s",
+    '.tbz2':    "tar x%(timestamp_tar)sjf %(filepath)s",
     # xzipped or xzipped tarball
-    '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-    '.txz':     "unxz %(filepath)s --stdout | tar x",
+    '.tar.xz':  "unxz %(filepath)s --stdout | tar x%(timestamp_tar)s",
+    '.txz':     "unxz %(filepath)s --stdout | tar x%(timestamp_tar)s",
     '.xz':      "unxz %(filepath)s",
     # tarball
-    '.tar':     "tar xf %(filepath)s",
+    '.tar':     "tar x%(timestamp_tar)sf %(filepath)s",
     # zip file
-    '.zip':     "unzip -qq %(filepath)s",
+    '.zip':     "unzip -qq %(timestamp_zip)s %(filepath)s",
     # iso file
     '.iso':     "7z x %(filepath)s",
     # tar.Z: using compress (LZW)
-    '.tar.z':   "tar xZf %(filepath)s",
+    '.tar.z':   "tar x%(timestamp_tar)sZf %(filepath)s",
 }
 
 
@@ -768,7 +768,14 @@ def extract_cmd(filepath, overwrite=False):
         if 'unzip -qq' in cmd_tmpl:
             cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
 
-    return cmd_tmpl % {'filepath': filepath, 'target': target}
+    if build_option('keep_current_timestamp'):
+         ts_tar='m'
+         ts_zip='-DD'
+    else:
+         ts_tar=''
+         ts_zip=''
+
+    return cmd_tmpl % {'filepath': filepath, 'target': target, 'timestamp_tar': ts_tar, 'timestamp_zip': ts_zip}
 
 
 def is_patch_file(path):
