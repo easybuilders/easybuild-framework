@@ -2986,7 +2986,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # back to orinal modules tool so further tests can continue
         self.modtool = original_modtool
 
-
         patterns = [
             "^== fetching files\.\.\.$",
             "^== COMPLETED: Installation STOPPED successfully$",
