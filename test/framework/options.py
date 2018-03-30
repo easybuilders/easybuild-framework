@@ -2969,8 +2969,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
 
         patterns = [
-            "^== fetching files\.\.\.$"
-            "^== COMPLETED: Installation STOPPED successfully$"
+            "^== fetching files\.\.\.$",
+            "^== COMPLETED: Installation STOPPED successfully$",
         ]
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
