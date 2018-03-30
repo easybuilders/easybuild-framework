@@ -1821,7 +1821,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
-        self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
+        self.assertEqual(res, {'ecs': [], 'new': [], 'new_file_in_existing_folder': [],
+                               'new_folder': [], 'paths_in_repo': []})
         self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
@@ -1837,7 +1838,8 @@ class EasyConfigTest(EnhancedTestCase):
             shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
 
         res = copy_easyconfigs(ecs_to_copy, target_dir)
-        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'paths_in_repo'])
+        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'new_file_in_existing_folder',
+                                              'new_folder', 'paths_in_repo'])
         self.assertEqual(len(res['ecs']), len(test_ecs))
         self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
         self.assertTrue(all(res['new']))
@@ -1869,7 +1871,7 @@ class EasyConfigTest(EnhancedTestCase):
         # copy single easyconfig with buildstats included for running further tests
         res = copy_easyconfigs([toy_ec], target_dir)
 
-        self.assertEqual([len(x) for x in res.values()], [1, 1, 1])
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1])
         self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
 
         # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
