@@ -27,16 +27,19 @@ Support for generating Singularity definition files and creating Singularity ima
 :author: Shahzeb Siddiqui (Pfizer)
 :author: Kenneth Hoste (HPC-UGent)
 """
-import subprocess
 import os
-import sys
-import urllib2
+from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path, get_module_naming_scheme
 from easybuild.tools.filetools import change_dir, which, write_file
+from easybuild.tools.run import run_cmd
 
+
+CONT_TYPE_DOCKER = 'docker'
+CONT_TYPE_SINGULARITY = 'singularity'
 
 DOCKER = 'docker'
 LOCALIMAGE = 'localimage'
@@ -44,7 +47,7 @@ SHUB = 'shub'
 SINGULARITY_BOOTSTRAP_TYPES = [DOCKER, LOCALIMAGE, SHUB]
 
 
-_log = fancylogger.getLogger('tools.singularity')  # pylint: disable=C0103
+_log = fancylogger.getLogger('tools.containers')  # pylint: disable=C0103
 
 
 def check_bootstrap(singularity_bootstrap):
@@ -77,19 +80,15 @@ def check_bootstrap(singularity_bootstrap):
 def generate_singularity_recipe(ordered_ecs, options):
     """ main function to singularity recipe and containers"""
 
-    image_name = build_option('imagename')
-    image_format = build_option('imageformat')
-    build_image = build_option('buildimage')
     cont_path = container_path()
 
     # check if --containerpath is valid path and a directory
-    if os.path.exists(cont_path) and os.path.isdir(cont_path):
+    if os.path.isdir(cont_path):
         _log.info("Path for container recipes & images: %s", cont_path)
     else:
-        msg = "Invalid path: " +  cont_path +  " please specify a valid directory path"
-        raise EasyBuildError(msg)
+        raise EasyBuildError("Location for container recipes & images is a non-existing directory: %s" % cont_path)
 
-    bootstrap_type, bootstrap_list = check_bootstrap(options.singularity_bootstrap)
+    bootstrap_type, bootstrap_list = check_bootstrap(options.container_bootstrap)
 
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
@@ -222,69 +221,68 @@ source /etc/profile
 
     # adding all the regions for writing the  Singularity definition file
     content = bootstrap_content + post_content + runscript_content + environment_content + label_content
-    change_dir(cont_path)
-    write_file(def_file,content)
+    def_path = os.path.join(cont_path, def_file)
+    write_file(def_path, content)
 
-    print_msg("Writing Singularity Definition File: %s" % os.path.join(cont_path, def_file), log=_log)
+    print_msg("Singularity definition file created at %s" % def_path, log=_log)
 
-    # if easybuild will build container
-    if build_image:
+    # also build container image, if requested (requires sudo!)
+    if build_option('container_build_image'):
 
-        container_name = ""
-
-        # if --imagename is specified
-        if image_name != None:
-            container_name = image_name
-        else:
+        # use --imagename if specified, otherwise derive based on filename of recipe
+        cont_img = build_option('container_image_name')
+        if cont_img is None:
             # definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
-            pos = def_file.find('.')
-            container_name = def_file[pos+1:]
+            dot_idx = def_file.find('.')
+            cont_img = def_file[dot_idx+1:]
 
-        # squash image format
-        if image_format == "squashfs":
-            container_name += ".simg"
-            if os.path.exists(container_name):
-                errmsg = "Image already exist at " + os.path.join(cont_path, container_name)
-                raise EasyBuildError(errmsg)
+        cont_img_cmd_opts = ''
 
-            os.system("sudo singularity build " + container_name + " " + def_file)
+        image_format = build_option('container_image_format')
+
+        # squashfs image format (default for Singularity)
+        if image_format in [None, CONT_IMAGE_FORMAT_SQUASHFS]:
+            cont_img_path = os.path.join(cont_path, cont_img + '.simg')
 
         # ext3 image format, creating as writable container
-        elif image_format == "ext3":
-            container_name += ".img"
-
-            if os.path.exists(container_name):
-                errmsg = "Image already exist at " + os.path.join(cont_path, container_name)
-                raise EasyBuildError(errmsg)
-
-            os.system("sudo singularity build --writable " + container_name + " " + def_file)
+        elif image_format == CONT_IMAGE_FORMAT_EXT3:
+            cont_img_path = os.path.join(cont_path, cont_img + '.img')
+            cont_img_cmd_opts = '--writeable'
 
         # sandbox image format, creates as a directory but acts like a container
-        elif image_format == "sandbox":
+        elif image_format == CONT_IMAGE_FORMAT_SANDBOX:
+            cont_img_path = os.path.join(cont_path, cont_img)
 
-            if os.path.exists(container_name):
-                errmsg = "Image already exist at " + os.path.join(cont_path, container_name)
-                raise EasyBuildError(errmsg)
+        else:
+            raise EasyBuildError("Unknown container image format specified for Singularity: %s" % image_format)
 
-            os.system("sudo singularity build --sandbox " + container_name + " " + def_file)
+        if os.path.exists(cont_img_path):
+            raise EasyBuildError("Container image already exists at " + cont_img_path)
+        else:
+            cont_img_cmd = "sudo singularity build %s --sandbox %s %s" % (cont_img_cmd_opts, cont_img_path, def_path)
+            run_cmd(cont_img_cmd)
+            print_msg("Singularity image created at %s" % cont_img_path, log=_log)
 
 
 def check_singularity(ordered_ecs,options):
     """
     Return build statistics for this build
     """
-
-    path_to_singularity_cmd = which("singularity")
-    singularity_version = 0
+    path_to_singularity_cmd = which('singularity')
     if path_to_singularity_cmd:
         print_msg("Singularity tool found at %s" % path_to_singularity_cmd)
-        ret = subprocess.Popen("singularity --version", shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        # singularity version format for 2.3.1 and higher is x.y-dist
-        singularity_version = ret.communicate()[0].split("-")[0]
-    elif build_option('buildimage'):
-        raise EasyBuildError("Singularity not found in your system")
+        out, ec = run_cmd("singularity --version", simple=False)
+        if ec:
+            raise EasyBuildError("Failed to determine Singularity version: %s" % out)
+        else:
+            # singularity version format for 2.3.1 and higher is x.y-dist
+            singularity_version = out.strip().split('-')[0]
 
-        if float(singularity_version) < 2.4:
+    if build_option('container_build_image'):
+        if not path_to_singularity_cmd:
+            raise EasyBuildError("Singularity not found in your system")
+
+        if LooseVersion(singularity_version) < LooseVersion('2.4'):
             raise EasyBuildError("Please upgrade singularity instance to version 2.4 or higher")
         else:
             print_msg("Singularity version '%s' is 2.4 or higher ... OK" % singularity_version)

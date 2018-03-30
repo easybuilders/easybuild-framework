@@ -62,8 +62,15 @@ WARN = 'warn'
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
-DEFAULT_SINGULARITY_IMAGE_FORMAT = "squashfs"
-SINGULARITY_IMAGE_FORMAT_LIST = [ "squashfs", "ext3", "sandbox" ]
+CONT_IMAGE_FORMAT_EXT3 = 'ext3'
+CONT_IMAGE_FORMAT_SANDBOX = 'sandbox'
+CONT_IMAGE_FORMAT_SQUASHFS = 'squashfs'
+CONT_IMAGE_FORMATS = [CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS]
+
+CONT_TYPE_DOCKER = 'docker'
+CONT_TYPE_SINGULARITY = 'singularity'
+CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
+DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -113,6 +120,8 @@ BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
+        'container_image_format',
+        'container_image_name',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -132,7 +141,6 @@ BUILD_OPTIONS_CMDLINE = {
         'github_org',
         'group',
         'ignore_dirs',
-        'imagename',
         'job_backend_config',
         'job_cores',
         'job_max_walltime',
@@ -159,8 +167,8 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
-        'buildimage',
         'consider_archived_easyconfigs',
+        'container_build_image',
         'debug',
         'debug_lmod',
         'dump_autopep8',
@@ -183,7 +191,6 @@ BUILD_OPTIONS_CMDLINE = {
         'search_paths',
         'sequential',
         'set_gid_bit',
-        'singularity',
         'skip_test_cases',
         'sticky_bit',
         'trace',
@@ -206,6 +213,9 @@ BUILD_OPTIONS_CMDLINE = {
         'detect_loaded_modules',
         'strict',
     ],
+    DEFAULT_CONT_TYPE: [
+        'container_type',
+    ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
     ],
@@ -217,9 +227,6 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
-    ],
-    DEFAULT_SINGULARITY_IMAGE_FORMAT: [
-        'imageformat',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',

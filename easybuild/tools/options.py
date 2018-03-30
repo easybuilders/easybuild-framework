@@ -57,6 +57,7 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyco
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, print_warning, raise_easybuilderror
+from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
 from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_FORCE_DOWNLOAD, DEFAULT_JOB_BACKEND
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS, DEFAULT_MNS
 from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
@@ -64,7 +65,6 @@ from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DE
 from easybuild.tools.config import DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, EBROOT_ENV_VAR_ACTIONS
 from easybuild.tools.config import ERROR, IGNORE, FORCE_DOWNLOAD_CHOICES, LOADED_MODULES_ACTIONS, WARN
 from easybuild.tools.config import get_pretend_installpath, mk_full_default_path
-from easybuild.tools.config import  DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_TXT, FORMAT_RST
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -337,6 +337,7 @@ class EasyBuildOptions(GeneralOption):
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
                       {'metavar':'WHEN'}),
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
+            'containerize': ("Generate container recipe/image", None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
@@ -615,21 +616,23 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
-    def singularity_options(self):
-        # package-related options
-        descr = ("Singularity options", "Options passed to EasyBuild for generating Singularity definition files.")
+    def container_options(self):
+        # container-related options
+        descr = ("Container options", "Options related to generating container recipes & images")
 
         opts = OrderedDict({
-            'singularity': ("Enabling Singularity Integration", None, 'store_true', False),
-            'singularity-bootstrap': (" Singularity bootstrap agent. Format: --singularity-bootstrap localimage:/path/to/image.img --singularity-bootstrap shub:<image>:<tag> --singularity-bootstrap docker:<image>:<tag> ", str, 'store', ''),
-            'imagename': ("Custom name of image (defaults to name of easyconfig)", None, 'store', None),
-            'imageformat': ("Image format for singularity container.", 'choice', 'store', DEFAULT_SINGULARITY_IMAGE_FORMAT, SINGULARITY_IMAGE_FORMAT_LIST),
-            'buildimage': ("Build container will require sudo privileges! ", None, 'store_true', False)
-
+            'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
+            'bootstrap': ("Bootstrap agent. Examples (for Singularity): "
+                          "--container-bootstrap localimage:/path/to/image.img, "
+                          "--container-bootstrap shub:<image>:<tag>, "
+                          "--container-bootstrap docker:<image>:<tag> ", str, 'store', ''),
+            'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
+            'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
+            'type': ("Type of container recipe/image to create", 'choice', 'store', DEFAULT_CONT_TYPE, CONT_TYPES),
         })
 
-        self.log.debug("singularity_options: descr %s opts %s" % (descr, opts))
-        self.add_group_parser(opts, descr)
+        self.log.debug("container_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr, prefix='container')
 
 
     def easyconfig_options(self):

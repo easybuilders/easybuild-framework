@@ -57,6 +57,7 @@ from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.containers.utilities import CONT_TYPE_SINGULARITY, check_singularity
 from easybuild.tools.docs import list_software
 from easybuild.tools.filetools import adjust_permissions, cleanup, write_file
 from easybuild.tools.github import check_github, find_easybuild_easyconfig, install_github_token
@@ -67,7 +68,6 @@ from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, reso
 from easybuild.tools.package.utilities import check_pkg_support
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.singularity.utilities import check_singularity
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
 from easybuild.tools.version import this_is_easybuild
 
@@ -374,8 +374,12 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
-    if options.singularity:
-        check_singularity(easyconfigs, options)
+    if options.containerize:
+        if build_option('container_type') == CONT_TYPE_SINGULARITY:
+            check_singularity(easyconfigs, options)
+        else:
+            raise EasyBuildError("Unknown type of container requested: %s" % options.containerize)
+
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
