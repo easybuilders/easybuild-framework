@@ -255,8 +255,6 @@ class EasyBuildOptions(GeneralOption):
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
                                  None, 'store_true', False, 'x'),
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),
-            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
-                      "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module), "
                       "and skipping check for OS dependencies", None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
@@ -357,6 +355,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
+                      "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),

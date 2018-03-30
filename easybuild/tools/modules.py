@@ -1340,6 +1340,7 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
+    # NoModulesTool should never be used deliberately, so remove it from the list of available module tools
     if 'NoModulesTool' in class_dict:
         del class_dict['NoModulesTool']
     return class_dict
@@ -1355,7 +1356,7 @@ def modules_tool(mod_paths=None, testing=False):
         modules_tool_class = avail_modules_tools().get(modules_tool)
         return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
-        return None
+        return NoModulesTool(mod_paths=mod_paths, testing=testing)
 
 
 def reset_module_caches():

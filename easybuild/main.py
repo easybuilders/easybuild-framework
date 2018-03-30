@@ -255,10 +255,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
 
-    if options.fetch:
-        _log.debug("Fetching sources only, implies stop=fetch, moduletool=NoModulesTool, ignore-osdep.")
-        modtool = NoModulesTool(testing=testing)
-
     if modtool is None:
         modtool = modules_tool(testing=testing)
 
