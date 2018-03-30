@@ -2566,6 +2566,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
+        # should also work with a patch
+        args.append(toy_patch)
+        self.mock_stdout(True)
+        self.eb_main(args, do_build=True, raise_error=True, testing=False)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regexs[-2] = r"^\s*3 files changed"
+        regexs.append(r".*_fix-silly-typo-in-printf-statement.patch\s*\|")
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
         # modifying an existing easyconfig requires a custom PR title
         gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb')
         self.assertTrue(os.path.exists(gcc_ec))
