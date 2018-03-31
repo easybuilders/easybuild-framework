@@ -1158,7 +1158,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check log message with --skip for existing module
         lastargs = ['--recursive-module-unload']
         if self.modtool.supports_depends_on:
-            lastargs.append('--module-use-depends-on')
+            lastargs.append('--module-depends-on')
         for lastarg in lastargs:
             args = [
                 eb_file,
