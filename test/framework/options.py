@@ -2948,7 +2948,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "module load hwloc/1.6.2-GCC-4.7.2",  # loading of dependency module
             # defining build env
             "export FC='gfortran'",
-            "export CFLAGS='-O2 -march=native'",
+            "export CFLAGS='-O2 -ftree-vectorize -march=native -fno-math-errno'",
         ]
         for pattern in patterns:
             regex = re.compile("^%s$" % pattern, re.M)

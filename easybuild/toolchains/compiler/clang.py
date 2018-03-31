@@ -85,6 +85,7 @@ class Clang(Compiler):
         'defaultprec': [],
         'loose': ['ffast-math', 'fno-unsafe-math-optimizations'],
         'veryloose': ['ffast-math'],
+        'vectorize': {False: 'fno-vectorize', True: 'fvectorize'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
