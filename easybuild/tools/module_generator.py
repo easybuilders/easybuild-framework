@@ -514,8 +514,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
 
-        if (build_option('recursive_mod_unload') or recursive_unload or
-            load_template == self.LOAD_TEMPLATE_DEPENDS_ON):
+        if build_option('recursive_mod_unload') or recursive_unload or load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
