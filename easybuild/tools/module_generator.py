@@ -510,7 +510,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
         if build_option('mod_depends_on') or depends_on:
             if not modules_tool().supports_depends_on:
-                raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
+                raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
 
