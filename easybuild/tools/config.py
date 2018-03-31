@@ -237,6 +237,7 @@ BUILD_OPTIONS_OTHER = {
     False: [
         'dry_run',
         'recursive_mod_unload',
+        'mod_depends_on',
         'retain_all_deps',
         'silent',
         'try_to_generate',
@@ -387,6 +388,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             'check_osdeps': not cmdline_options.ignore_osdeps,
             'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
             'recursive_mod_unload': cmdline_options.recursive_module_unload,
+            'mod_depends_on': cmdline_options.module_depends_on,
             'retain_all_deps': retain_all_deps,
             'validate': not cmdline_options.force,
             'valid_module_classes': module_classes(),

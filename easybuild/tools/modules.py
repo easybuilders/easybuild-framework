@@ -197,6 +197,7 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
+        self.supports_depends_on = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -1101,6 +1102,7 @@ class Lmod(ModulesTool):
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
     REQ_VERSION = '5.8'
+    REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
@@ -1116,6 +1118,7 @@ class Lmod(ModulesTool):
         setvar('LMOD_REDIRECT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
+        self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""

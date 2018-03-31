@@ -403,8 +403,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
     MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
-    LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
+    LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
+    LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
 
     def check_group(self, group, error_msg=None):
         """
@@ -494,7 +495,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '$env(%s)' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
 
@@ -505,9 +506,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         body = []
         if unload_modules:
             body.extend([self.unload_module(m).strip() for m in unload_modules])
-        body.append(self.LOAD_TEMPLATE)
+        load_template = self.LOAD_TEMPLATE
+        # Lmod 7.6.1+ supports depends-on which does this most nicely:
+        if build_option('mod_depends_on') or depends_on:
+            if not modules_tool().supports_depends_on:
+                raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
+            load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+        body.append(load_template)
 
-        if build_option('recursive_mod_unload') or recursive_unload:
+        if build_option('recursive_mod_unload') or recursive_unload or load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
@@ -668,8 +675,9 @@ class ModuleGeneratorLua(ModuleGenerator):
     MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
-    LOAD_REGEX = r'^\s*load\("(\S+)"'
+    LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
+    LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
@@ -784,7 +792,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return 'os.getenv("%s")' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
 
@@ -795,19 +803,29 @@ class ModuleGeneratorLua(ModuleGenerator):
         body = []
         if unload_modules:
             body.extend([self.unload_module(m).strip() for m in unload_modules])
-        body.append(self.LOAD_TEMPLATE)
 
-        if build_option('recursive_mod_unload') or recursive_unload:
-            # wrapping the 'module load' with an 'is-loaded or mode == unload'
-            # guard ensures recursive unloading while avoiding load storms,
-            # when "module unload" is called on the module in which the
-            # depedency "module load" is present, it will get translated
-            # to "module unload"
-            # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
-            load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
+        load_template = self.LOAD_TEMPLATE
+        # Lmod 7.6+ supports depends_on which does this most nicely:
+        if build_option('mod_depends_on') or depends_on:
+            if not modules_tool().supports_depends_on:
+                raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
+            load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+
+        body.append(load_template)
+        if load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
+            load_statement = body + ['']
         else:
-            load_guard = 'isloaded("%(mod_name)s")'
-        load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
+            if build_option('recursive_mod_unload') or recursive_unload:
+                # wrapping the 'module load' with an 'is-loaded or mode == unload'
+                # guard ensures recursive unloading while avoiding load storms,
+                # when "module unload" is called on the module in which the
+                # depedency "module load" is present, it will get translated
+                # to "module unload"
+                # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
+                load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
+            else:
+                load_guard = 'isloaded("%(mod_name)s")'
+            load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
