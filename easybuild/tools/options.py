@@ -50,7 +50,7 @@ from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
@@ -355,6 +355,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
+                      "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
@@ -859,6 +861,12 @@ class EasyBuildOptions(GeneralOption):
         # Update the search_paths (if any) to absolute paths
         if self.options.search_paths is not None:
             self.options.search_paths = [os.path.abspath(path) for path in self.options.search_paths]
+
+        # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
+        if self.options.fetch:
+            self.options.stop = FETCH_STEP
+            self.options.ignore_osdeps = True
+            self.options.modules_tool = None
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

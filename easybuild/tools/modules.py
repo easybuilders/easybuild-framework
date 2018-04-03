@@ -1343,6 +1343,9 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
+    # NoModulesTool should never be used deliberately, so remove it from the list of available module tools
+    if 'NoModulesTool' in class_dict:
+        del class_dict['NoModulesTool']
     return class_dict
 
 
@@ -1352,11 +1355,8 @@ def modules_tool(mod_paths=None, testing=False):
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
-    if modules_tool is not None:
-        modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, testing=testing)
-    else:
-        return None
+    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
+    return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 
 def reset_module_caches():
@@ -1387,3 +1387,25 @@ class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
+
+
+class NoModulesTool(ModulesTool):
+    """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def exist(self, mod_names, *args, **kwargs):
+        """No modules, so nothing exists"""
+        return [False]*len(mod_names)
+
+    def check_loaded_modules(self):
+        """Nothing to do since no modules"""
+        pass
+
+    def list(self):
+        """No modules loaded"""
+        return []
+
+    def available(self, *args, **kwargs):
+        """No modules, so nothing available"""
+        return []

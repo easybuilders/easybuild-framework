@@ -40,7 +40,7 @@ import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
-from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyblock import EasyBlock, FETCH_STEP
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
@@ -2973,6 +2973,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regex = re.compile("COMPLETED: Installation STOPPED successfully", re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_fetch(self):
+        options = EasyBuildOptions(go_args=['--fetch'])
+
+        self.assertTrue(options.options.fetch)
+        self.assertEqual(options.options.stop, 'fetch')
+        self.assertEqual(options.options.modules_tool, None)
+        self.assertTrue(options.options.ignore_osdeps)
+
+        # in this test we want to fake the case were no modules tool are in the system so teak it
+        self.modtool = None
+        args = ['toy-0.0.eb', '--fetch']
+        stdout, stderr = self._run_mock_eb(args, raise_error=True, strip=True, testing=False)
+
+        patterns = [
+            "^== fetching files\.\.\.$",
+            "^== COMPLETED: Installation STOPPED successfully$",
+        ]
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' not found in: %s" % (regex.pattern, stdout))
+
+        regex = re.compile("^== creating build dir, resetting environment\.\.\.$")
+        self.assertFalse(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
     def test_parse_external_modules_metadata(self):
         """Test parse_external_modules_metadata function."""
