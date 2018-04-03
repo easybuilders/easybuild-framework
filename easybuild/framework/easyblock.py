@@ -1529,12 +1529,20 @@ class EasyBlock(object):
 
         # create backup of existing module file (if requested)
         if os.path.exists(self.mod_filepath) and build_option('backup_modules'):
+            # strip off .lua extension to ensure that Lmod ignores backed up module file
+            # Lmod 7.x ignores any files not ending in .lua
+            # Lmod 6.x ignores any files that don't have .lua anywhere in the filename
+            strip_fn = None
+            if isinstance(self.module_generator, ModuleGeneratorLua):
+                strip_fn = ModuleGeneratorLua.MODULE_FILE_EXTENSION
+
             # backups of modules in Tcl syntax should be hidden to avoid that they're shown in 'module avail';
             # backups of modules in Lua syntax do not need to be hidden:
-            # since they don't end in .lua (but in .lua.bak_*) Lmod will not pick them up anymore,
+            # since they don't have .lua in the filename Lmod will not pick them up anymore,
             # which is better than hiding them (since --show-hidden still reveals them)
             hidden = isinstance(self.module_generator, ModuleGeneratorTcl)
-            self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden)
+
+            self.mod_file_backup = back_up_file(self.mod_filepath, hidden=hidden, strip_fn=strip_fn)
             print_msg("backup of existing module file stored at %s" % self.mod_file_backup, log=self.log)
 
         # check if main install needs to be skipped
