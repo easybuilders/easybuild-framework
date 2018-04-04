@@ -38,3 +38,4 @@ class Golf(GccToolchain, OpenBLAS, Fftw):
     """Compiler toolchain with GCC, OpenBLAS, and FFTW."""
     NAME = 'golf'
     SUBTOOLCHAIN = GccToolchain.NAME
+    OPTIONAL = True

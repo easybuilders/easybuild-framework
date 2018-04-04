@@ -23,18 +23,19 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for goolfc compiler toolchain (includes GCC+CUDA, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for golfc compiler toolchain (includes GCC+CUDA, OpenBLAS, LAPACK, and FFTW).
 
 :author: Kenneth Hoste (Ghent University)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
-from easybuild.toolchains.gompic import Gompic
-from easybuild.toolchains.golfc import Golfc
+from easybuild.toolchains.gcccuda import GccCUDA
+from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
-class Goolfc(Gompic, OpenBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'goolfc'
-    SUBTOOLCHAIN = [Gompic.NAME, Golfc.NAME]
+class Golfc(GccCUDA, Golf, OpenBLAS, Fftw):
+    """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, and FFTW."""
+    NAME = 'golfc'
+    SUBTOOLCHAIN = [GccCUDA.NAME, Golf.NAME]
+    OPTIONAL = True
