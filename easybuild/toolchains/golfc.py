@@ -34,6 +34,7 @@ from easybuild.toolchains.golf import Golf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 
+
 class Golfc(GccCUDA, Golf, OpenBLAS, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, and FFTW."""
     NAME = 'golfc'
