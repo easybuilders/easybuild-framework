@@ -249,7 +249,7 @@ class RobotTest(EnhancedTestCase):
         MockModule.avail_modules = [
             'GCC/4.7.2',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'FFTW/3.3.3-gompi-1.4.10',
             'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
         ]
@@ -331,7 +331,7 @@ class RobotTest(EnhancedTestCase):
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 4)
         # goolf should be first, the software itself second
-        self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['full_mod_name'])
+        self.assertEqual('OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2', res[0]['full_mod_name'])
         self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['full_mod_name'])
         self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
@@ -442,12 +442,12 @@ class RobotTest(EnhancedTestCase):
         # all modules in the dep graph, in order
         all_mods_ordered = [
             'GCC/4.7.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'hwloc/1.6.2-GCC-4.7.2',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'gompi/1.4.10',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
-            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'SQLite/3.8.10.2-GCC-4.7.2',
+            'gompi/1.4.10',
+            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'FFTW/3.3.3-gompi-1.4.10',
             'goolf/1.4.10',
             'bar/1.2.3-goolf-1.4.10',
@@ -464,7 +464,7 @@ class RobotTest(EnhancedTestCase):
             'gompi/1.4.10',
             'goolf/1.4.10',
             'OpenMPI/1.6.4-GCC-4.7.2',
-            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'OpenBLAS/0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             'SQLite/3.8.10.2-GCC-4.7.2',
         ]
@@ -992,7 +992,7 @@ class RobotTest(EnhancedTestCase):
 
         expected_dep_versions = [
             '1.6.4-GCC-4.7.2',
-            '0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            '0.2.6-GCC-4.7.2-LAPACK-3.4.2',
             '2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
             '3.8.10.2-goolf-1.4.10',
         ]
