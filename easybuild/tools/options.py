@@ -788,7 +788,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
-        # make sure --list-format has a valid format
+        # make sure --list-prs has a valid format
         if self.options.list_prs:
             self._postprocess_list_prs()
 
