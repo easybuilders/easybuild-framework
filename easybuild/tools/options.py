@@ -568,11 +568,12 @@ class EasyBuildOptions(GeneralOption):
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'close-pr-msg': ("Custom close message for pull request closed with --close-pr", str, 'store', None),
+            'close-pr-reasons': ("Close reason for pull request closed with --close-pr", str, 'store', None),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
                                str, 'store', None),
-            'pr-close-msg': ("Close message for pull request closed with --close-pr", str, 'store', None),
             'pr-commit-msg': ("Commit message for new/updated pull request created with --new-pr", str, 'store', None),
             'pr-descr': ("Description for new pull request created with --new-pr", str, 'store', None),
             'pr-target-account': ("Target account for new PRs", str, 'store', GITHUB_EB_MAIN),
@@ -788,6 +789,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
+        # make sure --close-pr-reasons has a valid format and if so use it to set close-pr-msg
+        if self.options.close_pr_reasons:
+            self._postprocess_close_pr_reasons()
+
         # handle configuration options that affect other configuration options
         self._postprocess_config()
 
@@ -820,6 +825,22 @@ class EasyBuildOptions(GeneralOption):
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
                 self.log.info("Keeping optarch raw: %s", self.options.optarch)
+
+    def _postprocess_close_pr_reasons(self):
+        """Postprocess --close-pr-reasons options"""
+        if self.options.close_pr_msg:
+            raise EasyBuildError("Please either specify predefined reasons with --close-pr-reasons or " +
+                                 "a custom message with--close-pr-msg")
+
+        VALID_CLOSE_PR_REASONS = {'archived': 'uses an archived toolchain',
+                                  'inactive': 'no activity for > 6 months',
+                                  'obsolete': 'obsoleted by more recent PRs'}
+
+        reasons = self.options.close_pr_reasons.split(',')
+        if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
+            raise EasyBuildError("Argument to --close-pr_reasons must be a comma separated list of valid reasons " +
+                                 "among %s" % VALID_CLOSE_PR_REASONS.keys())
+        self.options.close_pr_msg = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in reasons])
 
     def _postprocess_include(self):
         """Postprocess --include options."""
