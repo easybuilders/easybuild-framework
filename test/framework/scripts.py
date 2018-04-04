@@ -91,7 +91,7 @@ class ScriptsTest(EnhancedTestCase):
             'B': '1',  # bzip2
             'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
-            'G': '11', # GCC, GCCcore, gcccuda, gmvapich2, golf, golfc, gompic, gompi, goolf, goolfc, gzip
+            'G': '11',  # GCC, GCCcore, gcccuda, gmvapich2, golf, golfc, gompic, gompi, goolf, goolfc, gzip
             'H': '1',  # hwloc
             'I': '8',  # icc, iccifort, iccifortcuda, ictce, ifort, iimpi, imkl, impi
             'M': '1',  # MVAPICH2
