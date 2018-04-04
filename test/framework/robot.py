@@ -688,6 +688,14 @@ class RobotTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
 
+        goolfc_hierarchy = get_toolchain_hierarchy({'name': 'goolfc', 'version': '2.6.10'})
+        self.assertEqual(goolfc_hierarchy, [
+            {'name': 'GCC', 'version': '4.8.2'},
+            {'name': 'gcccuda', 'version': '2.6.10'},
+            {'name': 'gompic', 'version': '2.6.10'},
+            {'name': 'goolfc', 'version': '2.6.10'},
+        ])
+
         goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
         self.assertEqual(goolf_hierarchy, [
             {'name': 'GCC', 'version': '4.7.2'},
