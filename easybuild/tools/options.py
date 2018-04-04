@@ -252,6 +252,8 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
+            'continue': ("Continue the installation from certain step",
+                     'choice', 'store_or_None', SOURCE_STEP, 'c', all_stops),
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
                                  None, 'store_true', False, 'x'),
             'extended-dry-run-ignore-errors': ("Ignore errors that occur during dry run", None, 'store_true', True),

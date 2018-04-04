@@ -71,8 +71,8 @@ from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_MD5, CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, convert_name
 from easybuild.tools.filetools import compute_checksum, copy_file, derive_alt_pypi_url, diff_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, is_alt_pypi_url, mkdir, move_logs, read_file
-from easybuild.tools.filetools import remove_file, rmtree2, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import encode_class_name, extract_file, find_base_dir, is_alt_pypi_url, mkdir, move_logs
+from easybuild.tools.filetools import read_file, remove_file, rmtree2, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, FETCH_STEP, INSTALL_STEP
 from easybuild.tools.hooks import MODULE_STEP, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTPROC_STEP, PREPARE_STEP
 from easybuild.tools.hooks import READY_STEP, SANITYCHECK_STEP, SOURCE_STEP, TEST_STEP, TESTCASES_STEP, run_hook
@@ -803,8 +803,12 @@ class EasyBlock(object):
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
+        if build_option('continue'):
+            self.log.debug("Setting cleanupoldbuild to False in continue mode")
+            self.cfg['cleanupoldbuild'] = False
+
         # make sure build dir is unique if cleanupoldbuild is False or not set
-        if not self.cfg.get('cleanupoldbuild', False):
+        if not self.cfg.get('cleanupoldbuild', False) and not build_option('continue'):
             uniq_builddir = builddir
             suff = 0
             while(os.path.isdir(uniq_builddir)):
@@ -891,6 +895,8 @@ class EasyBlock(object):
                     raise EasyBuildError("Removal of old directory %s failed: %s", dir_name, err)
             elif build_option('module_only'):
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
+            elif build_option('continue'):
+                self.log.info("Not touching existing directory %s in continue mode...", dir_name)
             else:
                 self.log.info("Moving existing directory %s out of the way...", dir_name)
                 try:
@@ -1433,9 +1439,14 @@ class EasyBlock(object):
                 else:
                     raise EasyBuildError("Specified start dir %s does not exist", abs_start_dir)
 
+        change_dir(self.start_dir)
+
+        if build_option('continue') and 'source' in self.cfg['skipsteps']:
+            self.cfg['start_dir'] = find_base_dir()
+            change_dir(self.cfg['start_dir'])
+
         self.log.info("Using %s as start dir", self.cfg['start_dir'])
 
-        change_dir(self.start_dir)
         self.log.debug("Changed to real build directory %s (start_dir)", self.start_dir)
 
     def handle_iterate_opts(self):
@@ -2245,7 +2256,7 @@ class EasyBlock(object):
         except when we're building in the installation directory or
         cleanup_builddir is False, otherwise we remove the installation
         """
-        if not self.build_in_installdir and build_option('cleanup_builddir'):
+        if not self.build_in_installdir and build_option('cleanup_builddir') and not build_option('continue'):
 
             # make sure we're out of the dir we're removing
             change_dir(self.orig_workdir)
@@ -2264,7 +2275,7 @@ class EasyBlock(object):
             except OSError, err:
                 raise EasyBuildError("Cleaning up builddir %s failed: %s", self.builddir, err)
 
-        if not build_option('cleanup_builddir'):
+        if not build_option('cleanup_builddir') or build_option('continue'):
             self.log.info("Keeping builddir %s" % self.builddir)
 
         self.toolchain.cleanup()
@@ -2683,6 +2694,18 @@ def build_and_install_one(ecdict, init_env, hooks=None):
     if stop is not None:
         _log.debug("Stop set to %s" % stop)
         app.cfg['stop'] = stop
+
+    continue_from = build_option('continue')
+    if continue_from is not None:
+        _log.experimental("Continuing from step %s" % continue_from)
+        skipsteps = []
+        for step in build_option('valid_stops'):
+            if step != continue_from:
+                _log.debug("Adding %s to skipsteps in continue mode" % step)
+                skipsteps.append(step)
+            else:
+                break
+        app.cfg['skipsteps'] = skipsteps
 
     skip = build_option('skip')
     if skip is not None:
