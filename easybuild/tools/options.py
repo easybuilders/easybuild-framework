@@ -72,6 +72,7 @@ from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
+from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
 from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
@@ -125,10 +126,6 @@ XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expandu
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
 DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
-
-VALID_CLOSE_PR_REASONS = {'archived': 'uses an archived toolchain',
-                          'inactive': 'no activity for > 6 months',
-                          'obsolete': 'obsoleted by more recent PRs'}
 
 _log = fancylogger.getLogger('options', fname=False)
 

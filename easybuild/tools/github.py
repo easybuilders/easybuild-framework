@@ -41,6 +41,7 @@ import sys
 import tempfile
 import time
 import urllib2
+from datetime import datetime, timedelta
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
@@ -96,6 +97,9 @@ HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
+VALID_CLOSE_PR_REASONS = {'archived': 'uses an archived toolchain',
+                          'inactive': 'no activity for > 6 months',
+                          'obsolete': 'obsoleted by more recent PRs'}
 
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
@@ -966,7 +970,7 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
-def close_pr(pr, reason):
+def close_pr(pr, reasons):
     """
     Close specified pull request
     """
@@ -989,21 +993,29 @@ def close_pr(pr, reason):
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
-    if not reason:
-        reason = "(no reason specified)"
+    if not reasons:
+        relevant_reasons = []
+        if datetime.now() - datetime.strptime(pr_data['updated_at'], "%Y-%m-%dT%H:%M:%SZ") > timedelta(days=180):
+            relevant_reasons.append('inactive')
+        # TODO: check the other valid reasons
+        if not relevant_reasons:
+            raise EasyBuildError("No reason specified and none found from PR data, "
+                                 "please use --close-pr-reasons or --close-pr-msg")
+        else:
+            reasons = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in relevant_reasons])
 
-    comment = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reason)
-    comment += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
-    comment += "For more information on our policy w.r.t. closing PRs, see "
-    comment += "https://easybuild.readthedocs.io/en/latest/Contributing.html#why-a-pull-request-may-be-closed-by-a-maintainer"
-    post_comment_in_issue(pr, comment, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
+    msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reasons)
+    msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
+    msg += "For more information on our policy w.r.t. closing PRs, see "
+    msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html#why-a-pull-request-may-be-closed-by-a-maintainer"
+    post_comment_in_issue(pr, msg, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
     if dry_run:
         print_msg("[DRY RUN] Closed %s/%s pull request #%s" % (pr_target_account, pr_target_repo, pr), prefix=False)
     else:
         github_token = fetch_github_token(github_user)
         if github_token is None:
-            raise EasyBuildError("GitHub token for user '%s' must be available to use --close-pr", github_user)        
+            raise EasyBuildError("GitHub token for user '%s' must be available to use --close-pr", github_user)
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         pull_url = g.repos[pr_target_account][pr_target_repo].pulls[pr]
         body = {'state': 'closed'}

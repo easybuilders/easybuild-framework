@@ -285,7 +285,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
         install_github_token(options.github_user, silent=build_option('silent'))
 
     elif options.close_pr:
-        close_pr(options.close_pr, reason=options.close_pr_msg)
+        close_pr(options.close_pr, reasons=options.close_pr_msg)
 
     elif options.merge_pr:
         merge_pr(options.merge_pr)
