@@ -32,37 +32,37 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.containers import check_container_base
+from easybuild.tools.containers import parse_container_base
 
 
 class ContainersTest(EnhancedTestCase):
     """Tests for containers support"""
 
-    def test_check_container_base(self):
-        """Test check_container_base function."""
+    def test_parse_container_base(self):
+        """Test parse_container_base function."""
 
         for base_spec in [None, '']:
-            self.assertErrorRegex(EasyBuildError, "--container-base must be specified", check_container_base, base_spec)
+            self.assertErrorRegex(EasyBuildError, "--container-base must be specified", parse_container_base, base_spec)
 
         # format of base spec must be correct: <bootstrap_agent>:<arg> or <bootstrap_agent>:<arg1>:<arg2>
         error_regex = "Invalid format for --container-base"
         for base_spec in ['foo', 'foo:bar:baz:sjee']:
-            self.assertErrorRegex(EasyBuildError, error_regex, check_container_base, base_spec)
+            self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base, base_spec)
 
         # bootstrap agent must be known
         error_regex = "Bootstrap agent in container base spec must be one of: docker, localimage, shub"
-        self.assertErrorRegex(EasyBuildError, error_regex, check_container_base, 'foo:bar')
+        self.assertErrorRegex(EasyBuildError, error_regex, parse_container_base, 'foo:bar')
 
         # check parsing of 'localimage' base spec
         expected = {'bootstrap_agent': 'localimage', 'arg1': '/path/to/base.img'}
-        self.assertEqual(check_container_base('localimage:/path/to/base.img'), expected)
+        self.assertEqual(parse_container_base('localimage:/path/to/base.img'), expected)
 
         # check parsing of 'docker' and 'shub' base spec (2nd argument, image tag, is optional)
         for agent in ['docker', 'shub']:
             expected = {'bootstrap_agent': agent, 'arg1': 'foo'}
-            self.assertEqual(check_container_base('%s:foo' % agent), expected)
+            self.assertEqual(parse_container_base('%s:foo' % agent), expected)
             expected.update({'arg2': 'bar'})
-            self.assertEqual(check_container_base('%s:foo:bar' % agent), expected)
+            self.assertEqual(parse_container_base('%s:foo:bar' % agent), expected)
 
 
 def suite():

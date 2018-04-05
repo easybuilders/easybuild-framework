@@ -50,7 +50,7 @@ SINGULARITY_BOOTSTRAP_TYPES = [DOCKER, LOCALIMAGE, SHUB]
 _log = fancylogger.getLogger('tools.containers')  # pylint: disable=C0103
 
 
-def check_container_base(base):
+def parse_container_base(base):
     """Sanity check for value passed to --container-base option."""
     if base:
         base_specs = base.split(':')
@@ -82,8 +82,8 @@ def check_container_base(base):
     return res
 
 
-def generate_singularity_recipe(ordered_ecs, options):
-    """ main function to singularity recipe and containers"""
+def generate_singularity_recipe(ordered_ecs, container_base):
+    """Main function to Singularity definition file and image."""
 
     cont_path = container_path()
 
@@ -93,7 +93,7 @@ def generate_singularity_recipe(ordered_ecs, options):
     else:
         raise EasyBuildError("Location for container recipes & images is a non-existing directory: %s" % cont_path)
 
-    base_specs = check_container_base(options.container_base)
+    base_specs = parse_container_base(container_base)
 
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
@@ -226,6 +226,10 @@ source /etc/profile
     # adding all the regions for writing the  Singularity definition file
     content = bootstrap_content + post_content + runscript_content + environment_content + label_content
     def_path = os.path.join(cont_path, def_file)
+
+    if os.path.exists(def_path) and not build_option('force'):
+        raise EasyBuildError("%s already exists, not overwriting it without --force", def_path)
+
     write_file(def_path, content)
 
     print_msg("Singularity definition file created at %s" % def_path, log=_log)
@@ -268,10 +272,13 @@ source /etc/profile
             print_msg("Singularity image created at %s" % cont_img_path, log=_log)
 
 
-def check_singularity(ordered_ecs,options):
+def singularity(ordered_ecs, container_base=None):
     """
-    Return build statistics for this build
+    Create Singularity definition file and (optionally) image
     """
+    if container_base is None:
+        container_base = build_option('container_base')
+
     path_to_singularity_cmd = which('singularity')
     if path_to_singularity_cmd:
         print_msg("Singularity tool found at %s" % path_to_singularity_cmd)
@@ -291,4 +298,4 @@ def check_singularity(ordered_ecs,options):
         else:
             print_msg("Singularity version '%s' is 2.4 or higher ... OK" % singularity_version)
 
-    generate_singularity_recipe(ordered_ecs, options)
+    generate_singularity_recipe(ordered_ecs, container_base)

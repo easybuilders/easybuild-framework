@@ -624,7 +624,7 @@ class EasyBuildOptions(GeneralOption):
             'base': ("Base for container image. Examples (for Singularity): "
                      "--container-base localimage:/path/to/image.img, "
                      "--container-base shub:<image>:<tag>, "
-                     "--container-base docker:<image>:<tag> ", str, 'store', ''),
+                     "--container-base docker:<image>:<tag> ", str, 'store', None),
             'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
             'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
             'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
