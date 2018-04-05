@@ -65,7 +65,7 @@ def check_bootstrap(singularity_bootstrap):
             ])
             raise EasyBuildError(error_msg)
     else:
-        raise EasyBuildError("--singularity-bootstrap must be specified")
+        raise EasyBuildError("--container-bootstrap must be specified")
 
     # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
     bootstrap_type = bootstrap_specs[0]
