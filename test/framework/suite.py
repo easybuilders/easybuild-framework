@@ -56,6 +56,7 @@ fancylogger.setLogLevelError()
 import test.framework.asyncprocess as a
 import test.framework.build_log as bl
 import test.framework.config as c
+import test.framework.containers as ct
 import test.framework.easyblock as b
 import test.framework.easyconfig as e
 import test.framework.easyconfigparser as ep
@@ -108,7 +109,7 @@ log = fancylogger.getLogger()
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc,
-         tw, p, i, pkg, d, env, et, y, st]
+         tw, p, i, pkg, d, env, et, y, st, ct]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 

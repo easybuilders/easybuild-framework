@@ -50,31 +50,36 @@ SINGULARITY_BOOTSTRAP_TYPES = [DOCKER, LOCALIMAGE, SHUB]
 _log = fancylogger.getLogger('tools.containers')  # pylint: disable=C0103
 
 
-def check_bootstrap(singularity_bootstrap):
-    """ sanity check for --singularity-bootstrap option"""
-    if singularity_bootstrap:
-        bootstrap_specs = singularity_bootstrap.split(':')
-        # checking format of --singularity-bootstrap
-        if len(bootstrap_specs) > 3 or len(bootstrap_specs) <= 1:
+def check_container_base(base):
+    """Sanity check for value passed to --container-base option."""
+    if base:
+        base_specs = base.split(':')
+        if len(base_specs) > 3 or len(base_specs) <= 1:
             error_msg = '\n'.join([
-                "Invalid Format for --singularity-bootstrap, must be one of the following:",
+                "Invalid format for --container-base, must be one of the following:",
                 '',
-                "--singularity-bootstrap localimage:/path/to/image",
-                "--singularity-bootstrap shub:<image>:<tag>",
-                "--singularity-bootstrap docker:<image>:<tag>",
+                "--container-base localimage:/path/to/image",
+                "--container-base shub:<image>:<tag>",
+                "--container-base docker:<image>:<tag>",
             ])
             raise EasyBuildError(error_msg)
     else:
-        raise EasyBuildError("--container-bootstrap must be specified")
+        raise EasyBuildError("--container-base must be specified")
 
-    # first argument to --singularity-bootstrap is the bootstrap agent (localimage, shub, docker)
-    bootstrap_type = bootstrap_specs[0]
+    # first argument to --container-base is the Singularity bootstrap agent (localimage, shub, docker)
+    bootstrap_agent = base_specs[0]
 
     # check bootstrap type value and ensure it is localimage, shub, docker
-    if bootstrap_type not in SINGULARITY_BOOTSTRAP_TYPES:
-        raise EasyBuildError("bootstrap type must be one of %s" % ', '.join(SINGULARITY_BOOTSTRAP_TYPES))
+    if bootstrap_agent not in SINGULARITY_BOOTSTRAP_TYPES:
+        known_bootstrap_agents = ', '.join(SINGULARITY_BOOTSTRAP_TYPES)
+        raise EasyBuildError("Bootstrap agent in container base spec must be one of: %s" % known_bootstrap_agents)
 
-    return bootstrap_type, bootstrap_specs
+    res = {'bootstrap_agent': bootstrap_agent}
+
+    for idx, base_spec in enumerate(base_specs[1:]):
+        res.update({'arg%d' % (idx + 1): base_specs[idx + 1]})
+
+    return res
 
 
 def generate_singularity_recipe(ordered_ecs, options):
@@ -88,7 +93,7 @@ def generate_singularity_recipe(ordered_ecs, options):
     else:
         raise EasyBuildError("Location for container recipes & images is a non-existing directory: %s" % cont_path)
 
-    bootstrap_type, bootstrap_list = check_bootstrap(options.container_bootstrap)
+    base_specs = check_container_base(options.container_base)
 
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
@@ -102,45 +107,44 @@ def generate_singularity_recipe(ordered_ecs, options):
 
     osdeps = ordered_ecs[0]['ec']['osdependencies']
 
-    modulepath = ""
+    modulepath = ''
 
+    bootstrap_agent = base_specs['bootstrap_agent']
 
-    # with localimage it only takes 2 arguments. --singularity-bootstrap localimage:/path/to/image
-    # checking if path to image is valid and verify image extension is".img or .simg"
-    if bootstrap_type == LOCALIMAGE:
-        bootstrap_imagepath = bootstrap_list[1]
-        if os.path.exists(bootstrap_imagepath):
+    # with localimage it only takes 2 arguments. --container-base localimage:/path/to/image
+    # checking if path to image is valid and verify image extension is '.img' or '.simg'
+    if base_specs['bootstrap_agent'] == LOCALIMAGE:
+        base_image = base_specs['arg1']
+        if os.path.exists(base_image):
             # get the extension of container image
-            image_ext = os.path.splitext(bootstrap_imagepath)[1]
+            image_ext = os.path.splitext(base_image)[1]
             if image_ext == '.img' or image_ext == '.simg':
-                _log.debug("Image Extension is OK")
+                _log.debug("Extension for base container image to use is OK: %s", image_ext)
             else:
-                raise EaasyBuildError("Invalid image extension %s must be .img or .simg", image_ext)
+                raise EasyBuildError("Invalid image extension '%s' must be .img or .simg", image_ext)
         else:
-            raise EasyBuildError("Singularity base image at specified path does not exist: %s", bootstrap_imagepath)
+            raise EasyBuildError("Singularity base image at specified path does not exist: %s", base_image)
 
-    # if option is shub or docker
+    # otherwise, bootstrap agent is 'docker' or 'shub'
+    # format --container-base {docker|shub}:<image>:<tag>
     else:
-        bootstrap_image = bootstrap_list[1]
-        image_tag = None
-        # format --singularity-bootstrap shub:<image>:<tag>
-        if len(bootstrap_list) == 3:
-            image_tag = bootstrap_list[2]
+        base_image = base_specs['arg1']
+        # image tag is optional
+        base_image_tag = base_specs.get('arg2', None)
 
     module_scheme = get_module_naming_scheme()
 
     # bootstrap from local image
-    if bootstrap_type == LOCALIMAGE:
-        bootstrap_content = 'Bootstrap: ' + bootstrap_type + '\n'
-        bootstrap_content += 'From: ' + bootstrap_imagepath + '\n'
+    if bootstrap_agent == LOCALIMAGE:
+        bootstrap_content = 'Bootstrap: ' + bootstrap_agent + '\n'
+        bootstrap_content += 'From: ' + base_image + '\n'
     # default bootstrap is shub or docker
     else:
-            bootstrap_content = 'BootStrap: ' + bootstrap_type + '\n' 
-
-            if image_tag is None:
-                bootstrap_content += 'From: ' + bootstrap_image  + '\n'
-            else:
-                bootstrap_content += 'From: ' + bootstrap_image + ':' + image_tag + '\n'
+        bootstrap_content = 'BootStrap: ' + bootstrap_agent + '\n'
+        if base_image_tag is None:
+            bootstrap_content += 'From: ' + base_image  + '\n'
+        else:
+            bootstrap_content += 'From: ' + base_image + ':' + base_image_tag + '\n'
 
     if module_scheme == "HierarchicalMNS":
         modulepath = "/app/modules/all/Core"
