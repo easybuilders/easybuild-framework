@@ -121,7 +121,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         status, pr_data, pr_url = gh.fetch_pr_data(1, GITHUB_USER, GITHUB_REPO, GITHUB_TEST_ACCOUNT)
-    
+
         self.assertEquals(gh.HTTP_STATUS_OK, status)
         self.assertEquals(pr_data['number'], 1)
         self.assertEquals(pr_data['title'], "a pr")

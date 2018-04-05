@@ -1007,7 +1007,8 @@ def close_pr(pr, reasons):
     msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reasons)
     msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
     msg += "For more information on our policy w.r.t. closing PRs, see "
-    msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html#why-a-pull-request-may-be-closed-by-a-maintainer"
+    msg += "https://easybuild.readthedocs.io/en/latest/Contributing.html"
+    msg += "#why-a-pull-request-may-be-closed-by-a-maintainer"
     post_comment_in_issue(pr, msg, account=pr_target_account, repo=pr_target_repo, github_user=github_user)
 
     if dry_run:
