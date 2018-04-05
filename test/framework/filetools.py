@@ -1410,15 +1410,17 @@ class FileToolsTest(EnhancedTestCase):
         # check for default semantics, test case-insensitivity
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(len(hits), 2)
+        self.assertEqual(len(hits), 3)
         self.assertTrue(all(os.path.exists(p) for p in hits))
         self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
         self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
+        self.assertTrue(hits[2].endswith('/hwloc-1.8-gcccuda-2.6.10.eb'))
 
         # check filename-only mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check specifying of ignored dirs
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
@@ -1427,7 +1429,8 @@ class FileToolsTest(EnhancedTestCase):
         # check short mode
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
         self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
-        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb',
+                                '$CFGS1/hwloc-1.8-gcccuda-2.6.10.eb'])
 
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
@@ -1435,13 +1438,15 @@ class FileToolsTest(EnhancedTestCase):
         expected = [
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
             os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2.6.10.eb'),
         ]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
         var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
         self.assertEqual(var_defs, [])
-        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb',
+                                'hwloc-1.8-gcccuda-2.6.10.eb'])
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
