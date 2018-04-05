@@ -126,6 +126,9 @@ XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
 DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
+VALID_CLOSE_PR_REASONS = {'archived': 'uses an archived toolchain',
+                          'inactive': 'no activity for > 6 months',
+                          'obsolete': 'obsoleted by more recent PRs'}
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -568,8 +571,9 @@ class EasyBuildOptions(GeneralOption):
             'github-org': ("GitHub organization", str, 'store', None),
             'install-github-token': ("Install GitHub token (requires --github-user)", None, 'store_true', False),
             'close-pr': ("Close pull request", int, 'store', None, {'metavar': 'PR#'}),
-            'close-pr-msg': ("Custom close message for pull request closed with --close-pr", str, 'store', None),
-            'close-pr-reasons': ("Close reason for pull request closed with --close-pr", str, 'store', None),
+            'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
+            'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "
+                                 "supported values: %s" % ", ".join(VALID_CLOSE_PR_REASONS), str, 'store', None),
             'merge-pr': ("Merge pull request", int, 'store', None, {'metavar': 'PR#'}),
             'new-pr': ("Open a new pull request", None, 'store_true', False),
             'pr-branch-name': ("Branch name to use for new PRs; '<timestamp>_new_pr_<name><version>' if unspecified",
@@ -831,10 +835,6 @@ class EasyBuildOptions(GeneralOption):
         if self.options.close_pr_msg:
             raise EasyBuildError("Please either specify predefined reasons with --close-pr-reasons or " +
                                  "a custom message with--close-pr-msg")
-
-        VALID_CLOSE_PR_REASONS = {'archived': 'uses an archived toolchain',
-                                  'inactive': 'no activity for > 6 months',
-                                  'obsolete': 'obsoleted by more recent PRs'}
 
         reasons = self.options.close_pr_reasons.split(',')
         if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
