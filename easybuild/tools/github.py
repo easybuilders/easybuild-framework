@@ -46,9 +46,11 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
+from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, det_patched_files, download_file, extract_file
@@ -970,6 +972,33 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
+def uses_archived_toolchains(pr):
+    """
+    Check if any easyconfig in PR uses an archived toolchain.
+    """
+    robot_paths = build_option('robot_path')
+
+    archived_toolchains = set()
+    for robot_path in robot_paths:
+        for (dirpath, _, filenames) in os.walk(os.path.join(robot_path, EASYCONFIGS_ARCHIVE_DIR)):
+            for fn in filenames:
+                if fn.endswith('.eb'):
+                    eb_file = os.path.join(dirpath, fn)
+                    eb_dict = EasyConfigParser(eb_file).get_config_dict()
+                    if eb_dict.get('easyblock') == 'Toolchain':
+                        toolchain = "%s-%s%s" % (eb_dict['name'], eb_dict['version'], eb_dict.get('versionsuffix'))
+                        archived_toolchains.add(toolchain)
+
+    toolchains = set()
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    for pr_file in pr_files:
+        eb_dict = EasyConfigParser(pr_file).get_config_dict()['toolchain']
+        toolchain = "%s-%s%s" % (eb_dict['name'], eb_dict['version'], eb_dict.get('versionsuffix'))
+        toolchains.add(toolchain)
+
+    return any([toolchain in archived_toolchains for toolchain in toolchains])
+
+
 def close_pr(pr, reasons):
     """
     Close specified pull request
@@ -995,14 +1024,21 @@ def close_pr(pr, reasons):
 
     if not reasons:
         relevant_reasons = []
+
+        # check if inactive for > 6 months
         if datetime.now() - datetime.strptime(pr_data['updated_at'], "%Y-%m-%dT%H:%M:%SZ") > timedelta(days=180):
             relevant_reasons.append('inactive')
-        # TODO: check the other valid reasons
+
+        # check if any easyconfig uses an archived toolchain
+        if uses_archived_toolchains(pr):
+            relevant_reasons.append('archived')
+
         if not relevant_reasons:
             raise EasyBuildError("No reason specified and none found from PR data, "
                                  "please use --close-pr-reasons or --close-pr-msg")
         else:
             reasons = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in relevant_reasons])
+            print_msg("No reason specified but found relevant reasons: %s." % reasons, prefix=False)
 
     msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reasons)
     msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
