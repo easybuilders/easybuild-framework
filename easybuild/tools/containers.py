@@ -35,6 +35,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path, get_module_naming_scheme
 from easybuild.tools.filetools import change_dir, which, write_file
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.run import run_cmd
 
 
@@ -98,17 +99,6 @@ def generate_singularity_recipe(ordered_ecs, container_base):
     # extracting application name,version, version suffix, toolchain name, toolchain version from
     # easyconfig class
 
-    appname = ordered_ecs[0]['ec']['name']
-    appver = ordered_ecs[0]['ec']['version']
-    appversuffix = ordered_ecs[0]['ec']['versionsuffix']
-
-    tcname = ordered_ecs[0]['ec']['toolchain']['name']
-    tcver = ordered_ecs[0]['ec']['toolchain']['version']
-
-    osdeps = ordered_ecs[0]['ec']['osdependencies']
-
-    modulepath = ''
-
     bootstrap_agent = base_specs['bootstrap_agent']
 
     # with localimage it only takes 2 arguments. --container-base localimage:/path/to/image
@@ -132,8 +122,6 @@ def generate_singularity_recipe(ordered_ecs, container_base):
         # image tag is optional
         base_image_tag = base_specs.get('arg2', None)
 
-    module_scheme = get_module_naming_scheme()
-
     # bootstrap from local image
     if bootstrap_agent == LOCALIMAGE:
         bootstrap_content = 'Bootstrap: ' + bootstrap_agent + '\n'
@@ -146,15 +134,10 @@ def generate_singularity_recipe(ordered_ecs, container_base):
         else:
             bootstrap_content += 'From: ' + base_image + ':' + base_image_tag + '\n'
 
-    if module_scheme == "HierarchicalMNS":
-        modulepath = "/app/modules/all/Core"
-    else:
-        modulepath = "/app/modules/all/"
+    post_content = '\n%post\n'
 
-    post_content = """
-%post
-"""
     # if there is osdependencies in easyconfig then add them to Singularity recipe
+    osdeps = ordered_ecs[0]['ec']['osdependencies']
     if len(osdeps) > 0:
         # format: osdependencies = ['libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel']
         if isinstance(osdeps[0], basestring):
@@ -169,46 +152,25 @@ def generate_singularity_recipe(ordered_ecs, container_base):
     post_content += "pip install -U easybuild \n"
     post_content += "su - easybuild \n"
 
-    environment_content = """
-%environment
-source /etc/profile
-"""
-    # check if toolchain is specified, that affects how to invoke eb and module load is affected based on module naming scheme
-    if tcname != "dummy":
-        # name of easyconfig to build
-        easyconfig  = appname + "-" + appver + "-" + tcname + "-" + tcver +  appversuffix + ".eb"
-        # name of Singularity defintiion file
-        def_file  = "Singularity." + appname + "-" + appver + "-" + tcname + "-" + tcver +  appversuffix
+    environment_content = '\n'.join([
+        "%environment",
+        "source /etc/profile",
+    ])
 
-        ebfile = os.path.splitext(easyconfig)[0] + ".eb"
-        post_content += "eb " + ebfile  + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
+    modulepath = '/app/modules/all'
+    eb_name = ordered_ecs[0]['ec'].name
+    eb_full_ver = det_full_ec_version(ordered_ecs[0]['ec'])
 
-        # This would be an example like running eb R-3.3.1-intel2017a.eb --module-naming-scheme=HierarchicalMNS. In HMNS you need to load intel/2017a first then R/3.3.1
-        if module_scheme == "HierarchicalMNS":
-                environment_content += "module use " + modulepath + "\n"
-                environment_content +=  "module load " + os.path.join(tcname,tcver) + "\n"
-                environment_content +=  "module load " + os.path.join(appname,appver+appversuffix) + "\n"
-        # This would be an example of running eb R-3.3.1-intel2017a.eb with default naming scheme, that will result in only one module load and moduletree will be different
-        else:
+    # name of easyconfig to build
+    easyconfig  = '%s-%s.eb' % (eb_name, eb_full_ver)
+    # name of Singularity defintiion file
+    def_file  = "Singularity.%s-%s" % (eb_name, eb_full_ver)
 
-                environment_content += "module use " +  modulepath + "\n" 
-                environment_content += "module load " + os.path.join(appname,appver+"-"+tcname+"-"+tcver+appversuffix) + "\n"
-    # for dummy toolchain module load will be same for EasybuildMNS and HierarchicalMNS but moduletree will not
-    else:
-        # this would be an example like eb bzip2-1.0.6.eb. Also works with version suffix easyconfigs
+    ebfile = os.path.splitext(easyconfig)[0] + '.eb'
+    post_content += "eb " + ebfile  + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp\n"
 
-        # name of easyconfig to build
-        easyconfig  = appname + "-" + appver + appversuffix + ".eb"
-
-        # name of Singularity defintiion file
-        def_file  = "Singularity." + appname + "-" + appver + appversuffix
-
-        ebfile = os.path.splitext(easyconfig)[0] + ".eb"
-        post_content += "eb " + ebfile + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp  --module-naming-scheme=" + module_scheme + "\n"
-
-        environment_content += "module use " +  modulepath + "\n"
-        environment_content +=  "module load " + os.path.join(appname,appver+appversuffix) + "\n"
-
+    environment_content += "module use " +  modulepath + '\n'
+    environment_content += "module load " + os.path.join(eb_name, eb_full_ver) + '\n'
 
     # cleaning up directories in container after build
     post_content += '\n'.join([
