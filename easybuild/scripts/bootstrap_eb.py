@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180201.01'
+EB_BOOTSTRAP_VERSION = '20180408.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -259,8 +259,8 @@ def check_module_command(tmpdir):
     # order matters, which is why we don't use a dict
     known_module_commands = [
         ('lmod', 'Lmod'),
-        ('modulecmd', 'EnvironmentModulesC'),
         ('modulecmd.tcl', 'EnvironmentModules'),
+        ('modulecmd', 'EnvironmentModulesC'),
     ]
     out = os.path.join(tmpdir, 'module_command.out')
     modtool = None
