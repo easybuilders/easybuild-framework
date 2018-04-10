@@ -976,11 +976,30 @@ def reasons_for_closing(pr_data):
     """
     Look for valid reasons to close PR by comparing with existing easyconfigs.
     """
-    print_msg("No reason or message specified, looking for possible reasons")
+    print_msg("No reason or message specified, looking for possible reasons\n")
+
+    if pr_data['status_last_commit']:
+        print_msg("Status of last commit is %s\n" % pr_data['status_last_commit'].upper(), prefix=False)
+
+    if pr_data['issue_comments']:
+        last_comment = pr_data['issue_comments'][-1]
+        print_msg("Last comment on %s, by %s, was:\n\n%s" %
+                  (last_comment['updated_at'].replace('T', ' at ')[:-1], last_comment['user']['login'],
+                   last_comment['body']), prefix=False)
+
+    if pr_data['reviews']:
+        last_review = pr_data['reviews'][-1]
+        print_msg("Last reviewed on %s by %s, state %s\n\n%s" %
+                  (last_review['submitted_at'].replace('T', ' at '), last_review['user']['login'],
+                   last_review['state'], last_review['body']), prefix=False)
+
     possible_reasons = []
 
+    print_msg("No activity since %s" % pr_data['updated_at'].replace('T', ' at ')[:-1], prefix=False)
+
     # check if PR is inactive for more than 6 months
-    if datetime.now() - datetime.strptime(pr_data['updated_at'], "%Y-%m-%dT%H:%M:%SZ") > timedelta(days=180):
+    last_updated = datetime.strptime(pr_data['updated_at'], "%Y-%m-%dT%H:%M:%SZ")
+    if datetime.now() - last_updated > timedelta(days=180):
         possible_reasons.append('inactive')
 
     robot_paths = build_option('robot_path')
@@ -992,7 +1011,7 @@ def reasons_for_closing(pr_data):
     for pr_file in pr_files:
         pr_ec = EasyConfigParser(pr_file).get_config_dict()
         pr_tc = '%s-%s' % (pr_ec['toolchain']['name'], pr_ec['toolchain']['version'])
-        print_msg("%s-%s" % (pr_ec['name'], pr_ec['version']), prefix=False)
+        print_msg("* %s-%s" % (pr_ec['name'], pr_ec['version']), prefix=False)
         for robot_path in robot_paths:
             # check if PR easyconfig uses an archived toolchain
             path = os.path.join(robot_path, EASYCONFIGS_ARCHIVE_DIR, pr_tc[0].lower(), pr_tc.split('-')[0])
@@ -1006,7 +1025,7 @@ def reasons_for_closing(pr_data):
                             else:
                                 archived_tc = '%s-%s' % (ec['name'], ec['version'])
                             if pr_tc == archived_tc:
-                                print_msg(" uses archived toolchain %s" % pr_tc, prefix=False)
+                                print_msg(" - uses archived toolchain %s" % pr_tc, prefix=False)
                                 uses_archived_tc.append(pr_ec)
 
             # check if there is a newer version of PR easyconfig
@@ -1019,13 +1038,13 @@ def reasons_for_closing(pr_data):
                             newer_versions.add(ec['version'])
 
             if newer_versions:
-                print_msg(" found newer versions %s" % ", ".join(newer_versions), prefix=False)
+                print_msg(" - found newer versions %s" % ", ".join(sorted(newer_versions)), prefix=False)
                 obsoleted.append(pr_ec)
 
     if uses_archived_tc:
         possible_reasons.append('archived')
 
-    if obsoleted:
+    if any([ec['name'] in pr_data['title'] for ec in obsoleted]):
         possible_reasons.append('obsolete')
 
     return possible_reasons
@@ -1042,7 +1061,7 @@ def close_pr(pr, reasons):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     if pr_data['state'] == GITHUB_STATE_CLOSED:
         raise EasyBuildError("PR #%d from %s/%s is already closed.", pr, pr_target_account, pr_target_repo)
@@ -1050,6 +1069,7 @@ def close_pr(pr, reasons):
     pr_owner = pr_data['user']['login']
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_owner)
     msg += "you are using GitHub account '%s'\n" % github_user
+    msg += "\nPR Title: \"%s\"\n" % pr_data['title']
     print_msg(msg, prefix=False)
 
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
