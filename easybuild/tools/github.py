@@ -972,31 +972,63 @@ def check_pr_eligible_to_merge(pr_data):
     return res
 
 
-def uses_archived_toolchains(pr):
+def reasons_for_closing(pr_data):
     """
-    Check if any easyconfig in PR uses an archived toolchain.
+    Look for valid reasons to close PR by comparing with existing easyconfigs.
     """
+    print_msg("No reason or message specified, looking for possible reasons")
+    possible_reasons = []
+
+    # check if PR is inactive for more than 6 months
+    if datetime.now() - datetime.strptime(pr_data['updated_at'], "%Y-%m-%dT%H:%M:%SZ") > timedelta(days=180):
+        possible_reasons.append('inactive')
+
     robot_paths = build_option('robot_path')
 
-    archived_toolchains = set()
-    for robot_path in robot_paths:
-        for (dirpath, _, filenames) in os.walk(os.path.join(robot_path, EASYCONFIGS_ARCHIVE_DIR)):
-            for fn in filenames:
-                if fn.endswith('.eb'):
-                    eb_file = os.path.join(dirpath, fn)
-                    eb_dict = EasyConfigParser(eb_file).get_config_dict()
-                    if eb_dict.get('easyblock') == 'Toolchain':
-                        toolchain = "%s-%s%s" % (eb_dict['name'], eb_dict['version'], eb_dict.get('versionsuffix'))
-                        archived_toolchains.add(toolchain)
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr_data['number']) if path.endswith('.eb')]
 
-    toolchains = set()
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
+    obsoleted = []
+    uses_archived_tc = []
     for pr_file in pr_files:
-        eb_dict = EasyConfigParser(pr_file).get_config_dict()['toolchain']
-        toolchain = "%s-%s%s" % (eb_dict['name'], eb_dict['version'], eb_dict.get('versionsuffix'))
-        toolchains.add(toolchain)
+        pr_ec = EasyConfigParser(pr_file).get_config_dict()
+        pr_tc = '%s-%s' % (pr_ec['toolchain']['name'], pr_ec['toolchain']['version'])
+        print_msg("%s-%s" % (pr_ec['name'], pr_ec['version']), prefix=False)
+        for robot_path in robot_paths:
+            # check if PR easyconfig uses an archived toolchain
+            path = os.path.join(robot_path, EASYCONFIGS_ARCHIVE_DIR, pr_tc[0].lower(), pr_tc.split('-')[0])
+            for (dirpath, _, filenames) in os.walk(path):
+                for fn in filenames:
+                    if fn.endswith('.eb'):
+                        ec = EasyConfigParser(os.path.join(dirpath, fn)).get_config_dict()
+                        if ec.get('easyblock') == 'Toolchain':
+                            if 'versionsuffix' in ec:
+                                archived_tc = '%s-%s%s' % (ec['name'], ec['version'], ec.get('versionsuffix'))
+                            else:
+                                archived_tc = '%s-%s' % (ec['name'], ec['version'])
+                            if pr_tc == archived_tc:
+                                print_msg(" uses archived toolchain %s" % pr_tc, prefix=False)
+                                uses_archived_tc.append(pr_ec)
 
-    return any([toolchain in archived_toolchains for toolchain in toolchains])
+            # check if there is a newer version of PR easyconfig
+            newer_versions = set()
+            for (dirpath, _, filenames) in os.walk(os.path.join(robot_path, pr_ec['name'].lower()[0], pr_ec['name'])):
+                for fn in filenames:
+                    if fn.endswith('.eb'):
+                        ec = EasyConfigParser(os.path.join(dirpath, fn)).get_config_dict()
+                        if LooseVersion(ec['version']) > LooseVersion(pr_ec['version']):
+                            newer_versions.add(ec['version'])
+
+            if newer_versions:
+                print_msg(" found newer versions %s" % ", ".join(newer_versions), prefix=False)
+                obsoleted.append(pr_ec)
+
+    if uses_archived_tc:
+        possible_reasons.append('archived')
+
+    if obsoleted:
+        possible_reasons.append('obsolete')
+
+    return possible_reasons
 
 
 def close_pr(pr, reasons):
@@ -1023,22 +1055,14 @@ def close_pr(pr, reasons):
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
 
     if not reasons:
-        relevant_reasons = []
+        possible_reasons = reasons_for_closing(pr_data)
 
-        # check if inactive for > 6 months
-        if datetime.now() - datetime.strptime(pr_data['updated_at'], "%Y-%m-%dT%H:%M:%SZ") > timedelta(days=180):
-            relevant_reasons.append('inactive')
-
-        # check if any easyconfig uses an archived toolchain
-        if uses_archived_toolchains(pr):
-            relevant_reasons.append('archived')
-
-        if not relevant_reasons:
+        if not possible_reasons:
             raise EasyBuildError("No reason specified and none found from PR data, "
                                  "please use --close-pr-reasons or --close-pr-msg")
         else:
-            reasons = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in relevant_reasons])
-            print_msg("No reason specified but found relevant reasons: %s." % reasons, prefix=False)
+            reasons = ", ".join([VALID_CLOSE_PR_REASONS[reason] for reason in possible_reasons])
+            print_msg("\nNo reason specified but found possible reasons: %s.\n" % reasons, prefix=False)
 
     msg = "@%s, this PR is being closed for the following reason(s): %s.\n" % (pr_data['user']['login'], reasons)
     msg += "Please don't hesitate to reopen this PR or add a comment if you feel this contribution is still relevant.\n"
