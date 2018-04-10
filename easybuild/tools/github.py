@@ -1096,38 +1096,13 @@ def merge_pr(pr):
     pr_target_account = build_option('pr_target_account')
     pr_target_repo = build_option('pr_target_repo')
 
-    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user)
+    status, pr_data, pr_url = fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=True)
 
     msg = "\n%s/%s PR #%s was submitted by %s, " % (pr_target_account, pr_target_repo, pr, pr_data['user']['login'])
     msg += "you are using GitHub account '%s'\n" % github_user
     print_msg(msg, prefix=False)
     if pr_data['user']['login'] == github_user:
         raise EasyBuildError("Please do not merge your own PRs!")
-
-    # also fetch status of last commit
-    pr_head_sha = pr_data['head']['sha']
-    status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
-    status, status_data = github_api_get_request(status_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, status_data)
-    pr_data['status_last_commit'] = status_data['state']
-
-    # also fetch comments
-    comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
-    status, comments_data = github_api_get_request(comments_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, comments_data)
-    pr_data['issue_comments'] = comments_data
-
-    # also fetch reviews
-    reviews_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
-    status, reviews_data = github_api_get_request(reviews_url, github_user)
-    if status != HTTP_STATUS_OK:
-        raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
-                             pr, pr_target_account, pr_target_repo, status, reviews_data)
-    pr_data['reviews'] = reviews_data
 
     force = build_option('force')
     dry_run = build_option('dry_run') or build_option('extended_dry_run')
@@ -1626,11 +1601,38 @@ def find_easybuild_easyconfig(github_user=None):
     return eb_file
 
 
-def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user):
+def fetch_pr_data(pr, pr_target_account, pr_target_repo, github_user, full=False):
     """Fetch PR data from GitHub"""
     pr_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr]
     status, pr_data = github_api_get_request(pr_url, github_user)
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
                              pr, pr_target_account, pr_target_repo, status, pr_data)
+
+    if full:
+        # also fetch status of last commit
+        pr_head_sha = pr_data['head']['sha']
+        status_url = lambda g: g.repos[pr_target_account][pr_target_repo].commits[pr_head_sha].status
+        status, status_data = github_api_get_request(status_url, github_user)
+        if status != HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to get status of last commit for PR #%d from %s/%s (status: %d %s)",
+                                 pr, pr_target_account, pr_target_repo, status, status_data)
+        pr_data['status_last_commit'] = status_data['state']
+
+        # also fetch comments
+        comments_url = lambda g: g.repos[pr_target_account][pr_target_repo].issues[pr].comments
+        status, comments_data = github_api_get_request(comments_url, github_user)
+        if status != HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to get comments for PR #%d from %s/%s (status: %d %s)",
+                                 pr, pr_target_account, pr_target_repo, status, comments_data)
+        pr_data['issue_comments'] = comments_data
+
+        # also fetch reviews
+        reviews_url = lambda g: g.repos[pr_target_account][pr_target_repo].pulls[pr].reviews
+        status, reviews_data = github_api_get_request(reviews_url, github_user)
+        if status != HTTP_STATUS_OK:
+            raise EasyBuildError("Failed to get reviews for PR #%d from %s/%s (status: %d %s)",
+                                 pr, pr_target_account, pr_target_repo, status, reviews_data)
+        pr_data['reviews'] = reviews_data
+
     return status, pr_data, pr_url
