@@ -433,7 +433,7 @@ def derive_alt_pypi_url(url):
             break
 
     if not alt_pypi_url:
-        _log.debug("Failed to extract hash using pattern '%s' or '%s' from list of URLs: %s", regex.pattern, cand_urls)
+        _log.debug("Failed to extract hash using pattern '%s' from list of URLs: %s", regex.pattern, cand_urls)
 
     return alt_pypi_url
 
