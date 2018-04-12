@@ -49,11 +49,12 @@ import site
 import sys
 import tempfile
 import traceback
+import urllib2
 from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180412.01'
+EB_BOOTSTRAP_VERSION = '20180412.02'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -659,25 +660,25 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         'preinstallopts': preinstallopts,
     })
 
-    # need to initialise build options before pypi_source_urls function can be used
-    from test.framework.utilities import init_config
-    init_config()
-
     # determine PyPI URLs for individual packages
-    from easybuild.tools.filetools import pypi_source_urls
     pkg_urls = []
     for pkg in EASYBUILD_PACKAGES:
         # format of pkg entries in templates: "'<pkg_filename>',"
         pkg_filename = templates[pkg][1:-2]
 
-        # the lines below implement a simplified version of the 'derive_alt_pypi_url' function,
-        # which we can't leverage yet because of transitional changes in PyPI (#md5= -> #sha256=)
+        # the lines below implement a simplified version of the 'pypi_source_urls' and 'derive_alt_pypi_url' functions,
+        # which we can't leverage here, partially because of transitional changes in PyPI (#md5= -> #sha256=)
 
-        # figure out relevant URL for source tarball of this pkg version
-        pkg_url = [x for x in pypi_source_urls(pkg) if '/%s#' % pkg_filename in x][0]
-        # strip of source tarball filename (and checksum) at the end
-        pkg_url = re.sub('/[^/]+$', '', pkg_url)
+        # determine download URL via PyPI's 'simple' API
+        pkg_simple = urllib2.urlopen('https://pypi.python.org/simple/%s' % pkg, timeout=10).read()
+        pkg_url_part_regex = re.compile('/(packages/[^#]+)/%s#' % pkg_filename)
+        res = pkg_url_part_regex.search(pkg_simple)
+        if res:
+            pkg_url_part = res.group(1)
+        else:
+            error("Failed to determine PyPI package URL for %s: %s\n" % (pkg, pkg_simple))
 
+        pkg_url = 'https://pypi.python.org/' + pkg_url_part
         pkg_urls.append(pkg_url)
 
     templates.update({
