@@ -53,7 +53,7 @@ from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180408.01'
+EB_BOOTSTRAP_VERSION = '20180412.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -659,14 +659,36 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         'preinstallopts': preinstallopts,
     })
 
-    # create easyconfig file
-    ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
-    handle = open(ebfile, 'w')
+    # need to initialise build options before pypi_source_urls function can be used
+    from test.framework.utilities import init_config
+    init_config()
+
+    # determine PyPI URLs for individual packages
+    from easybuild.tools.filetools import pypi_source_urls
+    pkg_urls = []
+    for pkg in EASYBUILD_PACKAGES:
+        # format of pkg entries in templates: "'<pkg_filename>',"
+        pkg_filename = templates[pkg][1:-2]
+
+        # the lines below implement a simplified version of the 'derive_alt_pypi_url' function,
+        # which we can't leverage yet because of transitional changes in PyPI (#md5= -> #sha256=)
+
+        # figure out relevant URL for source tarball of this pkg version
+        pkg_url = [x for x in pypi_source_urls(pkg) if '/%s#' % pkg_filename in x][0]
+        # strip of source tarball filename (and checksum) at the end
+        pkg_url = re.sub('/[^/]+$', '', pkg_url)
+
+        pkg_urls.append(pkg_url)
+
     templates.update({
-        'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
+        'source_urls': '\n'.join(["'%s'," % pkg_url for pkg_url in pkg_urls]),
         'sources': "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
         'pythonpath': distribute_egg_dir,
     })
+
+    # create easyconfig file
+    ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
+    handle = open(ebfile, 'w')
     handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     handle.close()
 
