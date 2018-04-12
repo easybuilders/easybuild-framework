@@ -423,16 +423,19 @@ def derive_alt_pypi_url(url):
 
     cand_urls = pypi_source_urls(pkg_name)
 
-    regex = re.compile('.*/%s#md5=[a-f0-9]{32}$' % pkg_source.replace('.', '\\.'), re.M)
+    # md5 for old PyPI, sha256 for new PyPi (Warehouse)
+    regex_md5 = re.compile('.*/%s#md5=[a-f0-9]{32}$' % pkg_source.replace('.', '\\.'), re.M)
+    regex_sha256 = re.compile('.*/%s#sha256=[a-f0-9]{64}$' % pkg_source.replace('.', '\\.'), re.M)
     for cand_url in cand_urls:
-        res = regex.match(cand_url)
+        res = regex_sha256.match(cand_url) or regex_md5.match(cand_url)
         if res:
             # e.g.: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
-            alt_pypi_url = res.group(0).split('#md5')[0]
+            alt_pypi_url = res.group(0).split('#sha256')[0].split('#md5')[0]
             break
 
     if not alt_pypi_url:
-        _log.debug("Failed to extract hash using pattern '%s' from list of URLs: %s", regex.pattern, cand_urls)
+        _log.debug("Failed to extract hash using pattern '%s' or '%s' from list of URLs: %s",
+                   regex_sha256.pattern, regex_md5.pattern, cand_urls)
 
     return alt_pypi_url
 
