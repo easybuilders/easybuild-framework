@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -153,6 +153,7 @@ DEFAULT_CONFIG = {
     # EXTENSIONS easyconfig parameters
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
     'exts_defaultclass': [None, "List of module for and name of the default extension class", EXTENSIONS],
+    'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],
     'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
                            "(templates for name, version and src)."), EXTENSIONS],
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
@@ -170,6 +171,8 @@ DEFAULT_CONFIG = {
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
+    'module_depends_on' : [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                           '(implies recursive unloading of modules).', MODULES],
     'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
 
     # MODULES documentation easyconfig parameters

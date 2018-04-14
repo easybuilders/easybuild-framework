@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
-from easybuild.tools.modules import EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
@@ -98,8 +98,10 @@ class ModulesTest(EnhancedTestCase):
         # test modules include 3 GCC modules and one GCCcore module
         ms = self.modtool.available('GCC')
         expected = ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2']
-        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C does prefix matching
-        if not isinstance(self.modtool, EnvironmentModulesTcl):
+        # Tcl-only modules tool does an exact match on module name, Lmod & Tcl/C do prefix matching
+        # EnvironmentModules is a subclass of EnvironmentModulesTcl, but Modules 4+ behaves similarly to Tcl/C impl.,
+        # so also append GCCcore/6.2.0 if we are an instance of EnvironmentModules
+        if not isinstance(self.modtool, EnvironmentModulesTcl) or isinstance(self.modtool, EnvironmentModules):
             expected.append('GCCcore/6.2.0')
         self.assertEqual(ms, expected)
 
@@ -191,13 +193,19 @@ class ModulesTest(EnhancedTestCase):
 
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/4.6.4'])
-        self.assertTrue(os.environ.get('EBROOTGCC'))
+
+        # environment modules v4.0 does not reload already loaded modules, will be changed in v4.2
+        modtool_ver = StrictVersion(self.modtool.version)
+        if not isinstance(self.modtool, EnvironmentModules) or modtool_ver >= StrictVersion('4.2'):
+            self.assertTrue(os.environ.get('EBROOTGCC'))
+
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
             self.assertTrue(self.modtool.loaded_modules()[-1] == 'GCC/4.6.4')
 
         # set things up for checking that GCC does *not* get reloaded when requested
-        del os.environ['EBROOTGCC']
+        if 'EBROOTGCC' in os.environ:
+            del os.environ['EBROOTGCC']
         self.modtool.load(['OpenMPI/1.6.4-GCC-4.6.4'])
         if isinstance(self.modtool, Lmod):
             # order of loaded modules only changes with Lmod
@@ -921,6 +929,13 @@ class ModulesTest(EnhancedTestCase):
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
         self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
+        def test_NoModulesTool(self):
+            nmt = NoModulesTool(testing=true)
+            assertEqual(len(nmt.available()), 0)
+            assertEqual(len(nmt.available(mod_names='foo')), 0)
+            assertEqual(len(nmt.list()), 0)
+            assertEqual(nmt.exist(['foo', 'bar']), [False, False])
+            assertEqual(nmt.exist(['foo', 'bar'], r'^\s*\S*/%s.*:\s*$', skip_avail=False), [False, False])
 
 def suite():
     """ returns all the testcases in this module """

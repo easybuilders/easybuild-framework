@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -310,20 +310,20 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_default_options = {',
+            '    "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '    "source_urls": ["http://example.com/%(name)s/%(version)s"]',
+            '}',
             'exts_list = [',
-            '   ("ext1", "ext_ver1", {',
-            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
-            '       "source_urls": ["http://example.com/"]',
-            '   }),',
-            '   ("ext2", "ext_ver2", {',
-            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '   ("ext1", "1.0"),',
+            '   ("ext2", "2.0", {',
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
                         # SHA256 checksum for source (gzip-1.4.eb)
             '           "6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09",',
                         # SHA256 checksum for 'patch' (toy-0.0.eb)
-            '           "044e300a051120defb01c14c7c06e9aa4bca40c5d589828df360e2684dcc9074",',
+            '           "a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546",',
             '       ],',
             '   }),',
             ']',
@@ -333,9 +333,26 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
 
+        self.assertEqual(len(exts_sources), 2)
+        self.assertEqual(exts_sources[0]['name'], 'ext1')
+        self.assertEqual(exts_sources[0]['version'], '1.0')
+        self.assertEqual(exts_sources[0]['options'], {
+            'source_tmpl': 'gzip-1.4.eb',
+            'source_urls': ['http://example.com/%(name)s/%(version)s'],
+        })
+        self.assertEqual(exts_sources[1]['name'], 'ext2')
+        self.assertEqual(exts_sources[1]['version'], '2.0')
+        self.assertEqual(exts_sources[1]['options'], {
+            'checksums': ['6f281b6d7a3965476324a23b9d80232bd4ffe3967da85e4b7c01d9d81d649a09',
+                          'a79ba0ef5dceb5b8829268247feae8932bed2034c6628ff1d92c84bf45e9a546'],
+            'patches': ['toy-0.0.eb'],
+            'source_tmpl': 'gzip-1.4.eb',
+            'source_urls': [('http://example.com', 'suffix')],
+        })
+
         modfile = os.path.join(eb.make_module_step(), 'pi', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
-        regex = re.compile('EBEXTSLISTPI.*ext1-ext_ver1,ext2-ext_ver2')
+        regex = re.compile('EBEXTSLISTPI.*ext1-1.0,ext2-2.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
     def test_suggestions(self):
@@ -1332,7 +1349,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
-        self.assertEqual(ec['patches'], ['toy-0.0_typo.patch', ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertEqual(ec['patches'], [toy_patch_fn, ('toy-extra.txt', 'toy-0.0'), 'foo.patch', 'bar.patch'])
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
@@ -1803,7 +1821,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # passing an empty list of paths is fine
         res = copy_easyconfigs([], target_dir)
-        self.assertEqual(res, {'ecs': [], 'new': [], 'paths_in_repo': []})
+        self.assertEqual(res, {'ecs': [], 'new': [], 'new_file_in_existing_folder': [],
+                               'new_folder': [], 'paths_in_repo': []})
         self.assertEqual(os.listdir(ecs_target_dir), [])
 
         # copy test easyconfigs, purposely under a different name
@@ -1819,7 +1838,8 @@ class EasyConfigTest(EnhancedTestCase):
             shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
 
         res = copy_easyconfigs(ecs_to_copy, target_dir)
-        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'paths_in_repo'])
+        self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'new_file_in_existing_folder',
+                                              'new_folder', 'paths_in_repo'])
         self.assertEqual(len(res['ecs']), len(test_ecs))
         self.assertTrue(all(isinstance(ec, EasyConfig) for ec in res['ecs']))
         self.assertTrue(all(res['new']))
@@ -1851,7 +1871,7 @@ class EasyConfigTest(EnhancedTestCase):
         # copy single easyconfig with buildstats included for running further tests
         res = copy_easyconfigs([toy_ec], target_dir)
 
-        self.assertEqual([len(x) for x in res.values()], [1, 1, 1])
+        self.assertEqual([len(x) for x in res.values()], [1, 1, 1, 1, 1])
         self.assertEqual(res['ecs'][0].full_mod_name, 'toy/0.0')
 
         # toy-0.0.eb was already copied into target_dir, so should not be marked as new anymore
@@ -1992,7 +2012,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
-        toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', toy_patch_fn)
         paths = [
             'bzip2-1.0.6.eb',
             os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
