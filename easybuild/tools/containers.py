@@ -1,4 +1,4 @@
-# Copyright 2014-2017 Ghent University
+# Copyright 2017-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -22,7 +22,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Support for generating Singularity definition files and creating Singularity images
+Support for generating container definition files and creating container images
 
 :author: Shahzeb Siddiqui (Pfizer)
 :author: Kenneth Hoste (HPC-UGent)
@@ -33,8 +33,8 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
-from easybuild.tools.config import build_option, container_path, get_module_naming_scheme
-from easybuild.tools.filetools import change_dir, which, write_file
+from easybuild.tools.config import build_option, container_path
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.run import run_cmd
 
