@@ -52,7 +52,7 @@ _log = fancylogger.getLogger('tools.containers')  # pylint: disable=C0103
 
 
 def parse_container_base(base):
-    """Sanity check for value passed to --container-base option."""
+    """Parse value passed to --container-base option."""
     if base:
         base_specs = base.split(':')
         if len(base_specs) > 3 or len(base_specs) <= 1:
@@ -83,7 +83,7 @@ def parse_container_base(base):
     return res
 
 
-def generate_singularity_recipe(ordered_ecs, container_base):
+def generate_singularity_recipe(easyconfigs, container_base):
     """Main function to Singularity definition file and image."""
 
     cont_path = container_path()
@@ -137,7 +137,7 @@ def generate_singularity_recipe(ordered_ecs, container_base):
     post_content = '\n%post\n'
 
     # if there is osdependencies in easyconfig then add them to Singularity recipe
-    osdeps = ordered_ecs[0]['ec']['osdependencies']
+    osdeps = easyconfigs[0]['ec']['osdependencies']
     if len(osdeps) > 0:
         # format: osdependencies = ['libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel']
         if isinstance(osdeps[0], basestring):
@@ -158,8 +158,8 @@ def generate_singularity_recipe(ordered_ecs, container_base):
     ])
 
     modulepath = '/app/modules/all'
-    eb_name = ordered_ecs[0]['ec'].name
-    eb_full_ver = det_full_ec_version(ordered_ecs[0]['ec'])
+    eb_name = easyconfigs[0]['ec'].name
+    eb_full_ver = det_full_ec_version([0]['ec'])
 
     # name of easyconfig to build
     easyconfig  = '%s-%s.eb' % (eb_name, eb_full_ver)
@@ -234,7 +234,7 @@ def generate_singularity_recipe(ordered_ecs, container_base):
             print_msg("Singularity image created at %s" % cont_img_path, log=_log)
 
 
-def singularity(ordered_ecs, container_base=None):
+def singularity(easyconfigs, container_base=None):
     """
     Create Singularity definition file and (optionally) image
     """
@@ -260,4 +260,15 @@ def singularity(ordered_ecs, container_base=None):
         else:
             print_msg("Singularity version '%s' is 2.4 or higher ... OK" % singularity_version)
 
-    generate_singularity_recipe(ordered_ecs, container_base)
+    generate_singularity_recipe(easyconfigs, container_base)
+
+
+def containerize(easyconfigs):
+    """
+    Generate container recipe + (optionally) image
+    """
+    container_type = build_option('container_type')
+    if container_type == CONT_TYPE_SINGULARITY:
+        singularity(easyconfigs)
+    else:
+        raise EasyBuildError("Unknown container type specified: %s", container_type)
