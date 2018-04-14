@@ -27,12 +27,25 @@ Unit tests for easybuild/tools/containers.py
 
 @author: Kenneth Hoste (Ghent University)
 """
+import os
+import re
+import stat
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered 
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
 from easybuild.tools.containers import parse_container_base
+
+
+MOCKED_SINGULARITY = """#!/bin/bash
+if [[ $1 == '--version' ]]; then
+    echo "2.4.0"
+else
+    echo "singularity was called with arguments: $@"
+fi
+"""
 
 
 class ContainersTest(EnhancedTestCase):
@@ -63,6 +76,136 @@ class ContainersTest(EnhancedTestCase):
             self.assertEqual(parse_container_base('%s:foo' % agent), expected)
             expected.update({'arg2': 'bar'})
             self.assertEqual(parse_container_base('%s:foo:bar' % agent), expected)
+
+    def run_main(self, args):
+        """Helper function to run main with arguments specified in 'args' and return stdout/stderr."""
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        self.eb_main(args, raise_error=True, verbose=True, do_build=True)
+        stdout = self.get_stdout().strip()
+        stderr = self.get_stderr().strip()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        return stdout, stderr
+
+    def check_stdout(self, regexs, stdout):
+        """Helper function to check output of stdout."""
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_end2end_singularity_recipe(self):
+        """End-to-end test for --containerize (recipe only)."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        containerpath = os.path.join(self.test_prefix, 'containers')
+        os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
+        # --containerpath must be an existing directory (this is done to avoid misconfiguration)
+        mkdir(containerpath)
+
+        args = [
+            toy_ec,
+            '--containerize',
+        ]
+
+        error_pattern = "--container-base must be specified"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        # generating Singularity definition file with 'docker' or 'shub' bootstrap agents always works,
+        # i.e. image label is not verified, image tag can be anything
+        for cont_base in ['docker:test123', 'docker:test123:foo', 'shub:test123', 'shub:test123:foo']:
+            stdout, stderr = self.run_main(args + ['--container-base=%s' % cont_base])
+
+            self.assertFalse(stderr)
+            regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
+            self.check_stdout(regexs, stdout)
+
+            os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+
+        args.append("--container-base=shub:test123")
+        self.run_main(args)
+
+        # existing definition file is not overwritten without use of --force
+        error_pattern = "Container recipe at .* already exists, not overwriting it without --force"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        stdout, stderr = self.run_main(args + ['--force'])
+        self.assertFalse(stderr)
+        regexs = [
+            "^== WARNING: overwriting existing container recipe at .* due to --force",
+            "^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix,
+        ]
+        self.check_stdout(regexs, stdout)
+
+        os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+
+        # with 'localimage' bootstrap agent, specified image must exist
+        test_img = os.path.join(self.test_prefix, 'test123.img')
+        args[-1] = "--container-base=localimage:%s" % test_img
+        error_pattern = "Singularity base image at specified path does not exist"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        write_file(test_img, '')
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
+        regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
+        self.check_stdout(regexs, stdout)
+
+        # image extension must make sense when localimage is used
+        for img_name in ['test123.foo', 'test123']:
+            test_img = os.path.join(self.test_prefix, img_name)
+            args[-1] = "--container-base=localimage:%s" % test_img
+            write_file(test_img, '')
+            error_pattern = "Invalid image extension '.*' must be \.img or \.simg"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+    def test_end2end_singularity_image(self):
+        """End-to-end test for --containerize (recipe + image)."""
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        containerpath = os.path.join(self.test_prefix, 'containers')
+        os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
+        # --containerpath must be an existing directory (this is done to avoid misconfiguration)
+        mkdir(containerpath)
+
+        test_img = os.path.join(self.test_prefix, 'test123.img')
+        write_file(test_img, '')
+
+        args = [
+            toy_ec,
+            '-C',  # equivalent with --containerize
+            '--container-base=localimage:%s' % test_img,
+            '--container-build-image',
+        ]
+
+        if which('singularity') is None:
+            error_pattern = "Singularity not found in your system"
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        # install mocked versions of 'sudo' and 'singularity' commands
+        singularity = os.path.join(self.test_prefix, 'bin', 'singularity')
+        write_file(singularity, MOCKED_SINGULARITY)
+        adjust_permissions(singularity, stat.S_IXUSR, add=True)
+
+        sudo = os.path.join(self.test_prefix, 'bin', 'sudo')
+        write_file(sudo, '#!/bin/bash\necho "running command \'$@\' with sudo..."\neval "$@"\n')
+        adjust_permissions(sudo, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH'))
+
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
+        regexs = [
+            "^== Singularity tool found at %s/bin/singularity" % self.test_prefix,
+            "^== Singularity version '2.4.0' is 2.4 or higher ... OK",
+            "^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix,
+            "^== Running 'sudo singularity build .*', you may need to enter your 'sudo' password...",
+            "^== Singularity image created at %s/containers/toy-0.0.simg" % self.test_prefix,
+        ]
+        self.check_stdout(regexs, stdout)
 
 
 def suite():

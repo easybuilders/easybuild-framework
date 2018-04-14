@@ -337,7 +337,7 @@ class EasyBuildOptions(GeneralOption):
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
                       {'metavar':'WHEN'}),
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
-            'containerize': ("Generate container recipe/image", None, 'store_true', False),
+            'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
