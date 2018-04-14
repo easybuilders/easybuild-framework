@@ -65,6 +65,7 @@ class Pgi(Compiler):
         'defaultprec': ['Mflushz'],
         'loose': ['Mfprelaxed'],
         'veryloose': ['Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', 'Mfpapprox'],
+        'vectorize': {False: 'Mnovect', True: 'Mvect'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)

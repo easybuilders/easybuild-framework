@@ -17,7 +17,7 @@ checksums = [[
     ('size', 273),
 ]]
 patches = [
-    'toy-0.0_typo.patch',
+    'toy-0.0_fix-silly-typo-in-printf-statement.patch',
     ('toy-extra.txt', 'toy-0.0'),
 ]
 

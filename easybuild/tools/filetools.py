@@ -1,5 +1,5 @@
-
-# Copyright 2009-2017 Ghent University
+# #
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -120,6 +120,32 @@ CHECKSUM_FUNCTIONS = {
 }
 CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
+EXTRACT_CMDS = {
+    # gzipped or gzipped tarball
+    '.gtgz':    "tar xzf %(filepath)s",
+    '.gz':      "gunzip -c %(filepath)s > %(target)s",
+    '.tar.gz':  "tar xzf %(filepath)s",
+    '.tgz':     "tar xzf %(filepath)s",
+    # bzipped or bzipped tarball
+    '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
+    '.tar.bz2': "tar xjf %(filepath)s",
+    '.tb2':     "tar xjf %(filepath)s",
+    '.tbz':     "tar xjf %(filepath)s",
+    '.tbz2':    "tar xjf %(filepath)s",
+    # xzipped or xzipped tarball
+    '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
+    '.txz':     "unxz %(filepath)s --stdout | tar x",
+    '.xz':      "unxz %(filepath)s",
+    # tarball
+    '.tar':     "tar xf %(filepath)s",
+    # zip file
+    '.zip':     "unzip -qq %(filepath)s",
+    # iso file
+    '.iso':     "7z x %(filepath)s",
+    # tar.Z: using compress (LZW)
+    '.tar.z':   "tar xZf %(filepath)s",
+}
+
 
 class ZlibChecksum(object):
     """
@@ -128,7 +154,7 @@ class ZlibChecksum(object):
     """
     def __init__(self, algorithm):
         self.algorithm = algorithm
-        self.checksum = algorithm(r'')  # use the same starting point as the module
+        self.checksum = algorithm(b'')  # use the same starting point as the module
         self.blocksize = 64  # The same as md5/sha1
 
     def update(self, data):
@@ -397,12 +423,13 @@ def derive_alt_pypi_url(url):
 
     cand_urls = pypi_source_urls(pkg_name)
 
-    regex = re.compile('.*/%s#md5=[a-f0-9]{32}$' % pkg_source.replace('.', '\\.'), re.M)
+    # md5 for old PyPI, sha256 for new PyPi (Warehouse)
+    regex = re.compile('.*/%s(?:#md5=[a-f0-9]{32}|#sha256=[a-f0-9]{64})$' % pkg_source.replace('.', '\\.'), re.M)
     for cand_url in cand_urls:
         res = regex.match(cand_url)
         if res:
             # e.g.: https://pypi.python.org/packages/<dir1>/<dir2>/<hash>/easybuild-<version>.tar.gz#md5=<md5>
-            alt_pypi_url = res.group(0).split('#md5')[0]
+            alt_pypi_url = res.group(0).split('#sha256')[0].split('#md5')[0]
             break
 
     if not alt_pypi_url:
@@ -433,7 +460,7 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild'})
+    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild',  "Accept" : "*/*"})
 
     while not downloaded and attempt_cnt < max_attempts:
         try:
@@ -627,7 +654,7 @@ def calc_block_checksum(path, algorithm):
 
     try:
         f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), r''):
+        for block in iter(lambda: f.read(blocksize), b''):
             algorithm.update(block)
         f.close()
     except IOError, err:
@@ -715,49 +742,32 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(filepath, overwrite=False):
-    """
-    Determines the file type of file at filepath, returns extract cmd based on file suffix
-    """
-    filename = os.path.basename(filepath)
-
-    extract_cmds = {
-        # gzipped or gzipped tarball
-        '.gtgz':    "tar xzf %(filepath)s",
-        '.gz':      "gunzip -c %(filepath)s > %(target)s",
-        '.tar.gz':  "tar xzf %(filepath)s",
-        '.tgz':     "tar xzf %(filepath)s",
-        # bzipped or bzipped tarball
-        '.bz2':     "bunzip2 -c %(filepath)s > %(target)s",
-        '.tar.bz2': "tar xjf %(filepath)s",
-        '.tb2':     "tar xjf %(filepath)s",
-        '.tbz':     "tar xjf %(filepath)s",
-        '.tbz2':    "tar xjf %(filepath)s",
-        # xzipped or xzipped tarball
-        '.tar.xz':  "unxz %(filepath)s --stdout | tar x",
-        '.txz':     "unxz %(filepath)s --stdout | tar x",
-        '.xz':      "unxz %(filepath)s",
-        # tarball
-        '.tar':     "tar xf %(filepath)s",
-        # zip file
-        '.zip':     "unzip -qq -o %(filepath)s" if overwrite else "unzip -qq %(filepath)s",
-        # iso file
-        '.iso':     "7z x %(filepath)s",
-        # tar.Z: using compress (LZW)
-        '.tar.z':   "tar xZf %(filepath)s",
-    }
-
-    suffixes = sorted(extract_cmds.keys(), key=len, reverse=True)
-    pat = r'(?P<ext>%s)$' % '|'.join([ext.replace('.', '\\.') for ext in suffixes])
+def find_extension(filename):
+    """Find best match for filename extension."""
+    # sort by length, so longest file extensions get preference
+    suffixes = sorted(EXTRACT_CMDS.keys(), key=len, reverse=True)
+    pat = r'(?P<ext>%s)$' % '|'.join([s.replace('.', '\\.') for s in suffixes])
     res = re.search(pat, filename, flags=re.IGNORECASE)
     if res:
         ext = res.group('ext')
     else:
         raise EasyBuildError('Unknown file type for file %s', filename)
 
+    return ext
+
+
+def extract_cmd(filepath, overwrite=False):
+    """
+    Determines the file type of file at filepath, returns extract cmd based on file suffix
+    """
+    filename = os.path.basename(filepath)
+    ext = find_extension(filename)
     target = filename.rstrip(ext)
 
-    cmd_tmpl = extract_cmds[ext.lower()]
+    cmd_tmpl = EXTRACT_CMDS[ext.lower()]
+    if overwrite:
+        if 'unzip -qq' in cmd_tmpl:
+            cmd_tmpl = cmd_tmpl.replace('unzip -qq', 'unzip -qq -o')
 
     return cmd_tmpl % {'filepath': filepath, 'target': target}
 
@@ -1209,13 +1219,14 @@ def find_backup_name_candidate(src_file):
     return dst_file
 
 
-def back_up_file(src_file, backup_extension='bak', hidden=False):
+def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
     """
     Backs up a file appending a backup extension and timestamp to it (if there is already an existing backup).
 
     :param src_file: file to be back up
     :param backup_extension: extension to use for the backup file (can be empty or None)
     :param hidden: make backup hidden (leading dot in filename)
+    :param strip_fn: strip specified trailing substring from filename of backup
     :return: location of backed up file
     """
     fn_prefix, fn_suffix = '', ''
@@ -1225,6 +1236,9 @@ def back_up_file(src_file, backup_extension='bak', hidden=False):
         fn_suffix = '.%s' % backup_extension
 
     src_dir, src_fn = os.path.split(src_file)
+    if strip_fn:
+        src_fn = src_fn.rstrip(strip_fn)
+
     backup_fp = find_backup_name_candidate(os.path.join(src_dir, fn_prefix + src_fn + fn_suffix))
 
     copy_file(src_file, backup_fp)
