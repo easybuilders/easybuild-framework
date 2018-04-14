@@ -208,40 +208,43 @@ def build_singularity_image(def_path):
     def_file = os.path.basename(def_path)
 
     # use --imagename if specified, otherwise derive based on filename of recipe
-    cont_img = build_option('container_image_name')
-    if cont_img is None:
+    img_name = build_option('container_image_name')
+    if img_name is None:
         # definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
         dot_idx = def_file.find('.')
-        cont_img = def_file[dot_idx+1:]
+        img_name= def_file[dot_idx+1:]
 
-    cont_img_cmd_opts = ''
+    cmd_opts = ''
 
     image_format = build_option('container_image_format')
 
     # squashfs image format (default for Singularity)
     if image_format in [None, CONT_IMAGE_FORMAT_SQUASHFS]:
-        cont_img_path = os.path.join(cont_path, cont_img + '.simg')
+        img_path = os.path.join(cont_path, img_name + '.simg')
 
     # ext3 image format, creating as writable container
     elif image_format == CONT_IMAGE_FORMAT_EXT3:
-        cont_img_path = os.path.join(cont_path, cont_img + '.img')
-        cont_img_cmd_opts = '--writeable'
+        img_path = os.path.join(cont_path, img_name + '.img')
+        cmd_opts = '--writeable'
 
     # sandbox image format, creates as a directory but acts like a container
     elif image_format == CONT_IMAGE_FORMAT_SANDBOX:
-        cont_img_path = os.path.join(cont_path, cont_img)
-        cont_img_cmd_opts = '--sandbox'
+        img_path = os.path.join(cont_path, img_name)
+        cmd_opts = '--sandbox'
 
     else:
         raise EasyBuildError("Unknown container image format specified for Singularity: %s" % image_format)
 
-    if os.path.exists(cont_img_path):
-        raise EasyBuildError("Container image already exists at " + cont_img_path)
+    if os.path.exists(img_path):
+        if build_option('force'):
+            print_msg("WARNING: overwriting existing container image at %s due to --force" % img_path)
+        else:
+            raise EasyBuildError("Container image already exists at %s, not overwriting it without --force", img_path)
     else:
-        cont_img_cmd = "sudo singularity build %s %s %s" % (cont_img_cmd_opts, cont_img_path, def_path)
-        print_msg("Running '%s', you may need to enter your 'sudo' password..." % cont_img_cmd)
-        run_cmd(cont_img_cmd)
-        print_msg("Singularity image created at %s" % cont_img_path, log=_log)
+        cmd = "sudo singularity build %s %s %s" % (cmd_opts, img_path, def_path)
+        print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
+        run_cmd(cmd)
+        print_msg("Singularity image created at %s" % img_path, log=_log)
 
 
 def check_singularity():

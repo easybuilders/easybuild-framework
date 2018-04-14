@@ -35,7 +35,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, mkdir, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
 from easybuild.tools.containers import parse_container_base
 
 
@@ -89,7 +89,7 @@ class ContainersTest(EnhancedTestCase):
 
         return stdout, stderr
 
-    def check_stdout(self, regexs, stdout):
+    def check_regexs(self, regexs, stdout):
         """Helper function to check output of stdout."""
         for regex in regexs:
             regex = re.compile(regex, re.M)
@@ -120,7 +120,7 @@ class ContainersTest(EnhancedTestCase):
 
             self.assertFalse(stderr)
             regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
-            self.check_stdout(regexs, stdout)
+            self.check_regexs(regexs, stdout)
 
             os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
@@ -137,7 +137,7 @@ class ContainersTest(EnhancedTestCase):
             "^== WARNING: overwriting existing container recipe at .* due to --force",
             "^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix,
         ]
-        self.check_stdout(regexs, stdout)
+        self.check_regexs(regexs, stdout)
 
         os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
@@ -151,7 +151,14 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
-        self.check_stdout(regexs, stdout)
+        self.check_regexs(regexs, stdout)
+
+        def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+        regexs = [
+            "^Bootstrap: localimage$",
+            "^From: %s$" % test_img,
+        ]
+        self.check_regexs(regexs, def_file)
 
         # image extension must make sense when localimage is used
         for img_name in ['test123.foo', 'test123']:
@@ -202,10 +209,23 @@ class ContainersTest(EnhancedTestCase):
             "^== Singularity tool found at %s/bin/singularity" % self.test_prefix,
             "^== Singularity version '2.4.0' is 2.4 or higher ... OK",
             "^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix,
-            "^== Running 'sudo singularity build .*', you may need to enter your 'sudo' password...",
+            "^== Running 'sudo singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
             "^== Singularity image created at %s/containers/toy-0.0.simg" % self.test_prefix,
         ]
-        self.check_stdout(regexs, stdout)
+        self.check_regexs(regexs, stdout)
+
+        os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+
+        # check use of --container-image-format & --container-image-name
+        args.extend([
+            "--container-image-format=sandbox",
+            "--container-image-name=foo.bar",
+        ])
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
+        regexs[-2] = "^== Running 'sudo singularity build --sandbox /.* /.*', you may need to enter .*"
+        regexs[-1] = "^== Singularity image created at %s/containers/foo.bar" % self.test_prefix
+        self.check_regexs(regexs, stdout)
 
 
 def suite():
