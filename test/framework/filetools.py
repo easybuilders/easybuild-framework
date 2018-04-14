@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -88,6 +88,34 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(expected_cmd, cmd)
 
         self.assertEqual("unzip -qq -o test.zip", ft.extract_cmd('test.zip', True))
+
+    def test_find_extension(self):
+        """Test find_extension function."""
+        tests = [
+            ('test.zip', '.zip'),
+            ('/some/path/test.tar', '.tar'),
+            ('test.tar.gz', '.tar.gz'),
+            ('test.TAR.GZ', '.TAR.GZ'),
+            ('test.tgz', '.tgz'),
+            ('test.gtgz', '.gtgz'),
+            ('test.bz2', '.bz2'),
+            ('/some/path/test.bz2', '.bz2'),
+            ('test.tbz', '.tbz'),
+            ('test.tbz2', '.tbz2'),
+            ('test.tb2', '.tb2'),
+            ('test.tar.bz2', '.tar.bz2'),
+            ('test.gz', '.gz'),
+            ('untar.gz', '.gz'),
+            ("/some/path/test.gz", '.gz'),
+            ('test.xz', '.xz'),
+            ('test.tar.xz', '.tar.xz'),
+            ('test.txz', '.txz'),
+            ('test.iso', '.iso'),
+            ('test.tar.Z', '.tar.Z'),
+        ]
+        for (fn, expected_ext) in tests:
+            cmd = ft.find_extension(fn)
+            self.assertEqual(expected_ext, cmd)
 
     def test_convert_name(self):
         """Test convert_name function."""
@@ -507,7 +535,8 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
-        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', toy_patch_fn)
         self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
         self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
 
@@ -538,10 +567,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(sorted(os.listdir(os.path.dirname(fp))), known_files)
 
         # Test simple file backup
-        ft.back_up_file(fp)
+        res = ft.back_up_file(fp)
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 2)
         new_file = [x for x in test_files if x not in known_files][0]
+        self.assertTrue(os.path.samefile(res, os.path.join(self.test_prefix, 'sandbox', new_file)))
         self.assertTrue(new_file.startswith('test.txt.bak_'))
         first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
@@ -650,6 +680,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(ft.read_file(first_hidden_bck_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
         self.assertEqual(ft.read_file(fp), new_txt)
+
+        # check whether strip_fn works as expected
+        fp2 = fp + '.lua'
+        ft.copy_file(fp, fp2)
+        res = ft.back_up_file(fp2)
+        self.assertTrue(fp2.endswith('.lua'))
+        self.assertTrue('.lua' in os.path.basename(res))
+
+        res = ft.back_up_file(fp2, strip_fn='.lua')
+        self.assertFalse('.lua' in os.path.basename(res))
 
     def test_move_logs(self):
         """Test move_logs function."""
@@ -1055,7 +1095,8 @@ class FileToolsTest(EnhancedTestCase):
         """Test for is_patch_file() function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
         self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')))
-        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)))
 
     def test_is_alt_pypi_url(self):
         """Test is_alt_pypi_url() function."""
@@ -1073,10 +1114,14 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += 'easybuild-3.4.0.tar.gz#md5=267a056a77a8f77fccfbf56354364045'
         self.assertTrue(eb340_url, res)
         pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern += 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
-        regex = re.compile(pattern)
+        pattern_md5 = pattern + 'easybuild-[0-9rc.]+.tar.gz#md5=[a-f0-9]{32}$'
+        pattern_sha256 = pattern + 'easybuild-[0-9rc.]+.tar.gz#sha256=[a-f0-9]{64}$'
+        regex_md5 = re.compile(pattern_md5)
+        regex_sha256 = re.compile(pattern_sha256)
         for url in res:
-            self.assertTrue(regex.match(url), "Pattern '%s' matches for '%s'" % (regex.pattern, url))
+            error_msg = "Pattern '%s' or '%s' matches for '%s'" % (regex_md5.pattern, regex_sha256.pattern, url)
+            self.assertTrue(regex_md5.match(url) or regex_sha256.match(url), error_msg)
+
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
 
@@ -1105,7 +1150,8 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
         path = ft.extract_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'), tmpdir)
-        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
         self.assertTrue(ft.apply_patch(toy_patch, path))
         patched = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
@@ -1223,13 +1269,14 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         toy_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
+        toy_patch = os.path.join(testdir, 'sandbox', 'sources', 'toy', toy_patch_fn)
         gcc_dir = os.path.join(testdir, 'easyconfigs', 'test_ecs', 'g', 'GCC')
 
         ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
 
         self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'GCC')))
-        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', 'toy-0.0_typo.patch']:
+        for filepath in ['GCC/GCC-4.6.3.eb', 'GCC/GCC-4.9.2.eb', 'toy-0.0.eb', toy_patch_fn]:
             self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, filepath)))
 
         # test copying of a single file, to a non-existing directory

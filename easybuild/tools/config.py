@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -134,16 +134,13 @@ BUILD_OPTIONS_CMDLINE = {
         'force_download',
         'from_pr',
         'git_working_dirs_path',
-        'pr_branch_name',
-        'pr_target_account',
-        'pr_target_branch',
-        'pr_target_repo',
         'github_user',
         'github_org',
         'group',
         'ignore_dirs',
         'job_backend_config',
         'job_cores',
+        'job_max_jobs',
         'job_max_walltime',
         'job_output_dir',
         'job_polling_interval',
@@ -155,6 +152,10 @@ BUILD_OPTIONS_CMDLINE = {
         'optarch',
         'package_tool_options',
         'parallel',
+        'pr_branch_name',
+        'pr_target_account',
+        'pr_target_branch',
+        'pr_target_repo',
         'rpath_filter',
         'regtest_output_dir',
         'skip',
@@ -253,6 +254,7 @@ BUILD_OPTIONS_OTHER = {
     False: [
         'dry_run',
         'recursive_mod_unload',
+        'mod_depends_on',
         'retain_all_deps',
         'silent',
         'try_to_generate',
@@ -404,6 +406,7 @@ def init_build_options(build_options=None, cmdline_options=None):
             'check_osdeps': not cmdline_options.ignore_osdeps,
             'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
             'recursive_mod_unload': cmdline_options.recursive_module_unload,
+            'mod_depends_on': cmdline_options.module_depends_on,
             'retain_all_deps': retain_all_deps,
             'validate': not cmdline_options.force,
             'valid_module_classes': module_classes(),

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -64,6 +64,7 @@ class IntelIccIfort(Compiler):
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
         'loose': ['fp-model fast=1'],
         'veryloose': ['fp-model fast=2'],
+        'vectorize': {False: 'no-vec', True: 'vec'},
         'intel-static': 'static-intel',
         'no-icc': 'no-icc',
         'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option

@@ -46,14 +46,17 @@ CMD=`basename $0`
 log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: '$(echo \"$@\")'"
 
 # rpath_args.py script spits out statement that defines $CMD_ARGS
-log "%(python)s -O %(rpath_args_py)s $CMD '%(rpath_filter)s' $(echo \"$@\")'"
-rpath_args_out=$(%(python)s -O %(rpath_args_py)s $CMD '%(rpath_filter)s' "$@")
+log "%(python)s -O %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' $(echo \"$@\")'"
+rpath_args_out=$(%(python)s -O %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@")
 
 log "rpath_args_out:
 $rpath_args_out"
 
 # define $CMD_ARGS by evaluating output of rpath_args.py script
 eval $rpath_args_out
+
+# exclude location of this wrapper from $PATH to avoid other potential wrappers calling this wrapper
+export PATH=$(echo $PATH | tr ':' '\n' | grep -v "^%(wrapper_dir)s$" | tr '\n' ':')
 
 # call original command with modified list of command line arguments
 log "running '%(orig_cmd)s $(echo ${CMD_ARGS[@]})'"

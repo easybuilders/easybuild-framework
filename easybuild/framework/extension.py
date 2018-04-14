@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2017 Ghent University
+# Copyright 2009-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -134,7 +134,8 @@ class Extension(object):
         Sanity check to run after installing extension
         """
 
-        change_dir(self.installdir)
+        if os.path.isdir(self.installdir):
+            change_dir(self.installdir)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False

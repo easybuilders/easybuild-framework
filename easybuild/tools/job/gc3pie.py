@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2017 Ghent University
+# Copyright 2015-2018 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -218,6 +218,18 @@ class GC3Pie(JobBackend):
         # make sure that all job log files end up in the same directory, rather than renaming the output directory
         # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
         self._engine.retrieve_overwrites = True
+
+        # some sites may not be happy with flooding the cluster with build jobs...
+        self._engine.max_in_flight = build_option('job_max_jobs')
+
+        # `Engine.stats()` (which is used later on in `_print_status_report()`)
+        # changed between 2.4.2 and 2.5.0.dev -- make sure we stay compatible
+        # with both
+        try:
+            self._engine.init_stats_for(Application)
+        except AttributeError:
+            _log.debug("No `init_stats_for` method in the Engine class;"
+                       " assuming pre-2.5.0 GC3Pie and ignoring error.")
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
