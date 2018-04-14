@@ -75,7 +75,7 @@ easybuild_packages = [
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.deprecated",
     "easybuild.tools.job", "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme",
     "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
-    "easybuild.tools.singularity", "easybuild.tools.repository", "test.framework", "test",
+    "easybuild.tools.repository", "test.framework", "test",
 ]
 
 setup(
