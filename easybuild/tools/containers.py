@@ -48,6 +48,40 @@ SHUB = 'shub'
 SINGULARITY_BOOTSTRAP_TYPES = [DOCKER, LOCALIMAGE, SHUB]
 
 
+SINGULARITY_TEMPLATE = """
+Bootstrap: %(bootstrap)s
+From: %(from)s
+
+%%post
+%(install_os_deps)s
+
+# upgrade easybuild package automatically to latest version
+pip install -U easybuild
+
+# change to 'easybuild' user
+su - easybuild
+
+eb %(easyconfigs)s --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+
+# exit from 'easybuild' user
+exit
+
+# cleanup
+rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo
+
+%%runscript
+eval "$@"
+
+%%environment
+source /etc/profile
+module use /app/modules/all
+module load %(module_name)s
+
+%%labels
+
+"""
+
+
 _log = fancylogger.getLogger('tools.containers')  # pylint: disable=C0103
 
 
@@ -101,6 +135,8 @@ def generate_singularity_recipe(easyconfigs, container_base):
 
     bootstrap_agent = base_specs['bootstrap_agent']
 
+    base_image, base_image_tag = None, None
+
     # with localimage it only takes 2 arguments. --container-base localimage:/path/to/image
     # checking if path to image is valid and verify image extension is '.img' or '.simg'
     if base_specs['bootstrap_agent'] == LOCALIMAGE:
@@ -122,71 +158,38 @@ def generate_singularity_recipe(easyconfigs, container_base):
         # image tag is optional
         base_image_tag = base_specs.get('arg2', None)
 
-    # bootstrap from local image
-    if bootstrap_agent == LOCALIMAGE:
-        bootstrap_content = 'Bootstrap: ' + bootstrap_agent + '\n'
-        bootstrap_content += 'From: ' + base_image + '\n'
-    # default bootstrap is shub or docker
-    else:
-        bootstrap_content = 'BootStrap: ' + bootstrap_agent + '\n'
-        if base_image_tag is None:
-            bootstrap_content += 'From: ' + base_image  + '\n'
-        else:
-            bootstrap_content += 'From: ' + base_image + ':' + base_image_tag + '\n'
-
-    post_content = '\n%post\n'
+    bootstrap_from = base_image
+    if base_image_tag:
+        bootstrap_from += ':' + base_image_tag
 
     # if there is osdependencies in easyconfig then add them to Singularity recipe
+    install_os_deps = ''
     osdeps = easyconfigs[0]['ec']['osdependencies']
-    if len(osdeps) > 0:
-        # format: osdependencies = ['libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel']
-        if isinstance(osdeps[0], basestring):
-            for os_package in osdeps:
-                post_content += "yum install -y " + os_package + " || true \n"
-        # format: osdependencies = [('libibverbs-dev', 'libibverbs-devel', 'rdma-core-devel')]
+    for osdep in osdeps:
+        if isinstance(osdep, basestring):
+            install_os_deps += "yum install -y %s\n" % osdep
+        # tuple entry indicates multiple options
+        elif isinstance(osdep, tuple):
+            install_os_deps += ' || '.join("yum install -y %s" % x for x in osdep)
         else:
-            for os_package in osdeps[0]:
-                post_content += "yum install -y " + os_package + " || true \n"
+            raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
-   # upgrade easybuild package automatically in all Singularity builds
-    post_content += "pip install -U easybuild \n"
-    post_content += "su - easybuild \n"
-
-    environment_content = '\n'.join([
-        "%environment",
-        "source /etc/profile",
-    ])
-
-    modulepath = '/app/modules/all'
     eb_name = easyconfigs[0]['ec'].name
     eb_full_ver = det_full_ec_version(easyconfigs[0]['ec'])
 
     # name of easyconfig to build
-    easyconfig  = '%s-%s.eb' % (eb_name, eb_full_ver)
+    easyconfigs  = '%s-%s.eb' % (eb_name, eb_full_ver)
     # name of Singularity defintiion file
-    def_file  = "Singularity.%s-%s" % (eb_name, eb_full_ver)
-
-    ebfile = os.path.splitext(easyconfig)[0] + '.eb'
-    post_content += "eb " + ebfile  + " --robot --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp\n"
-
-    environment_content += "module use " +  modulepath + '\n'
-    environment_content += "module load " + os.path.join(eb_name, eb_full_ver) + '\n'
-
-    # cleaning up directories in container after build
-    post_content += '\n'.join([
-        'exit',
-        "rm -rf /scratch/tmp/* /scratch/build /scratch/sources /scratch/ebfiles_repo",
-    ])
-
-    runscript_content = '\n'.join([
-        "%runscript",
-        'eval "$@"',
-    ])
-
-    label_content = "\n%labels \n"
+    def_file  = 'Singularity.%s-%s' % (eb_name, eb_full_ver)
 
     # adding all the regions for writing the  Singularity definition file
-    content = bootstrap_content + post_content + runscript_content + environment_content + label_content
+    content = SINGULARITY_TEMPLATE % {
+        'bootstrap': bootstrap_agent,
+        'from': bootstrap_from,
+        'install_os_deps': install_os_deps,
+        'easyconfigs': easyconfigs,
+        'module_name': '%s/%s' % (eb_name, eb_full_ver)
+    }
     def_path = os.path.join(cont_path, def_file)
 
     if os.path.exists(def_path):
@@ -252,7 +255,7 @@ def check_singularity():
     path_to_singularity_cmd = which('singularity')
     if path_to_singularity_cmd:
         print_msg("Singularity tool found at %s" % path_to_singularity_cmd)
-        out, ec = run_cmd("singularity --version", simple=False)
+        out, ec = run_cmd("singularity --version", simple=False, trace=False)
         if ec:
             raise EasyBuildError("Failed to determine Singularity version: %s" % out)
         else:
