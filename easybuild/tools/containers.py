@@ -75,7 +75,7 @@ eval "$@"
 %%environment
 source /etc/profile
 module use /app/modules/all
-module load %(module_name)s
+module load %(mod_names)s
 
 %%labels
 
@@ -174,21 +174,25 @@ def generate_singularity_recipe(easyconfigs, container_base):
         else:
             raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
-    eb_name = easyconfigs[0]['ec'].name
-    eb_full_ver = det_full_ec_version(easyconfigs[0]['ec'])
+    # module names to load in container environment
+    mod_names = [e['ec'].name + '/' + det_full_ec_version(e['ec']) for e in easyconfigs]
 
-    # name of easyconfig to build
-    easyconfigs  = '%s-%s.eb' % (eb_name, eb_full_ver)
-    # name of Singularity defintiion file
-    def_file  = 'Singularity.%s-%s' % (eb_name, eb_full_ver)
+    # name of Singularity definition file
+    img_name = build_option('container_image_name')
+    if img_name:
+        def_file_label = os.path.splitext(img_name)[0]
+    else:
+        def_file_label = mod_names[0].replace('/', '-')
+
+    def_file = 'Singularity.%s' % def_file_label
 
     # adding all the regions for writing the  Singularity definition file
     content = SINGULARITY_TEMPLATE % {
         'bootstrap': bootstrap_agent,
         'from': bootstrap_from,
         'install_os_deps': install_os_deps,
-        'easyconfigs': easyconfigs,
-        'module_name': '%s/%s' % (eb_name, eb_full_ver)
+        'easyconfigs': ' '.join(os.path.basename(e['spec']) for e in easyconfigs),
+        'mod_names': ' '.join(mod_names),
     }
     def_path = os.path.join(cont_path, def_file)
 

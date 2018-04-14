@@ -97,8 +97,8 @@ class ContainersTest(EnhancedTestCase):
 
     def test_end2end_singularity_recipe(self):
         """End-to-end test for --containerize (recipe only)."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
 
         containerpath = os.path.join(self.test_prefix, 'containers')
         os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
@@ -141,6 +141,9 @@ class ContainersTest(EnhancedTestCase):
 
         os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
+        # add another easyconfig file to check if multiple easyconfigs are handled correctly
+        args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
+
         # with 'localimage' bootstrap agent, specified image must exist
         test_img = os.path.join(self.test_prefix, 'test123.img')
         args[-1] = "--container-base=localimage:%s" % test_img
@@ -153,10 +156,13 @@ class ContainersTest(EnhancedTestCase):
         regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
         self.check_regexs(regexs, stdout)
 
+        # check contents of generated recipe
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
         regexs = [
             "^Bootstrap: localimage$",
             "^From: %s$" % test_img,
+            "^eb toy-0.0.eb GCC-4.9.2.eb",
+            "module load toy/0.0 GCC/4.9.2$",
         ]
         self.check_regexs(regexs, def_file)
 
@@ -208,9 +214,9 @@ class ContainersTest(EnhancedTestCase):
         regexs = [
             "^== Singularity tool found at %s/bin/singularity" % self.test_prefix,
             "^== Singularity version '2.4.0' is 2.4 or higher ... OK",
-            "^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix,
+            "^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
             "^== Running 'sudo singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
-            "^== Singularity image created at %s/containers/toy-0.0.simg" % self.test_prefix,
+            "^== Singularity image created at %s/containers/toy-0.0\.simg" % self.test_prefix,
         ]
         self.check_regexs(regexs, stdout)
 
@@ -218,13 +224,14 @@ class ContainersTest(EnhancedTestCase):
 
         # check use of --container-image-format & --container-image-name
         args.extend([
-            "--container-image-format=sandbox",
-            "--container-image-name=foo.bar",
+            "--container-image-format=ext3",
+            "--container-image-name=foo-bar.img",
         ])
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
-        regexs[-2] = "^== Running 'sudo singularity build --sandbox /.* /.*', you may need to enter .*"
-        regexs[-1] = "^== Singularity image created at %s/containers/foo.bar" % self.test_prefix
+        regexs[-3] = "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix
+        regexs[-2] = "^== Running 'sudo singularity build --writeable /.* /.*', you may need to enter .*"
+        regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img" % self.test_prefix
         self.check_regexs(regexs, stdout)
 
 
