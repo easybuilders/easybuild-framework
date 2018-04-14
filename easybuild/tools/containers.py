@@ -295,6 +295,8 @@ def containerize(easyconfigs):
     """
     Generate container recipe + (optionally) image
     """
+    _log.experimental("support for generating container recipes and images (--containerize/-C)")
+
     container_type = build_option('container_type')
     if container_type == CONT_TYPE_SINGULARITY:
         singularity(easyconfigs)
