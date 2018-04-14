@@ -112,7 +112,7 @@ def parse_container_base(base):
     res = {'bootstrap_agent': bootstrap_agent}
 
     for idx, base_spec in enumerate(base_specs[1:]):
-        res.update({'arg%d' % (idx + 1): base_specs[idx + 1]})
+        res.update({'arg%d' % (idx + 1): base_spec})
 
     return res
 
@@ -219,7 +219,7 @@ def build_singularity_image(def_path):
     if img_name is None:
         # definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
         dot_idx = def_file.find('.')
-        img_name= def_file[dot_idx+1:]
+        img_name = def_file[dot_idx+1:]
 
     cmd_opts = ''
 
