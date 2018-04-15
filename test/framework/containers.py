@@ -31,7 +31,7 @@ import os
 import re
 import stat
 import sys
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered 
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
@@ -108,6 +108,7 @@ class ContainersTest(EnhancedTestCase):
         args = [
             toy_ec,
             '--containerize',
+            '--experimental',
         ]
 
         error_pattern = "--container-base must be specified"
@@ -190,6 +191,7 @@ class ContainersTest(EnhancedTestCase):
         args = [
             toy_ec,
             '-C',  # equivalent with --containerize
+            '--experimental',
             '--container-base=localimage:%s' % test_img,
             '--container-build-image',
         ]
@@ -238,6 +240,7 @@ class ContainersTest(EnhancedTestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(ContainersTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
