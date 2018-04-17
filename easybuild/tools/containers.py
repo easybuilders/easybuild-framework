@@ -170,7 +170,7 @@ def generate_singularity_recipe(easyconfigs, container_base):
             install_os_deps += "yum install -y %s\n" % osdep
         # tuple entry indicates multiple options
         elif isinstance(osdep, tuple):
-            install_os_deps += ' || '.join("yum install -y %s" % x for x in osdep)
+            install_os_deps += "yum --skip-broken install %s" % ' '.join(osdep)
         else:
             raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
