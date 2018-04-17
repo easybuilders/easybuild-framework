@@ -51,7 +51,7 @@ try:
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
-    from gc3libs.workflow import DependentTaskCollection
+    from gc3libs.workflow import DependentTaskCollection, AbortOnError
 
     # inject EasyBuild logger into GC3Pie
     gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
@@ -60,6 +60,16 @@ try:
 
     # instruct GC3Pie to not ignore errors, but raise exceptions instead
     gc3libs.UNIGNORE_ALL_ERRORS = True
+
+    # note: order of class inheritance is important!
+    class _BuildTaskCollection(AbortOnError, DependentTaskCollection)
+        """
+        A `DependentTaskCollection`:class: that aborts execution upon error.
+
+        This is used to stop the build process in case some dependency
+        fails.  See also `<https://github.com/easybuilders/easybuild-framework/issues/1441>`_
+        """
+        pass
 
 except ImportError as err:
     _log.debug("Failed to import gc3libs from GC3Pie."
@@ -124,7 +134,7 @@ class GC3Pie(JobBackend):
             self.config_files.append(cfgfile)
 
         self.output_dir = build_option('job_output_dir')
-        self.jobs = DependentTaskCollection(output_dir=self.output_dir)
+        self.jobs = _BuildTaskCollection(output_dir=self.output_dir)
         self.job_cnt = 0
 
         # after polling for job status, sleep for this time duration
