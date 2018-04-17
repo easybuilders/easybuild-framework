@@ -34,7 +34,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
-from easybuild.tools.filetools import which, write_file
+from easybuild.tools.filetools import remove_file, which, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.run import run_cmd
 
@@ -245,6 +245,7 @@ def build_singularity_image(def_path):
     if os.path.exists(img_path):
         if build_option('force'):
             print_msg("WARNING: overwriting existing container image at %s due to --force" % img_path)
+            remove_file(img_path)
         else:
             raise EasyBuildError("Container image already exists at %s, not overwriting it without --force", img_path)
     else:
