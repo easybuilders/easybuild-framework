@@ -135,23 +135,20 @@ class GC3Pie(JobBackend):
         """
         Create and return a job object with the given parameters.
 
-        First argument `server` is an instance of the corresponding
-        `JobBackend` class, i.e., a `GC3Pie`:class: instance in this case.
-
-        Second argument `script` is the content of the job script
+        Argument *script* is the content of the job script
         itself, i.e., the sequence of shell commands that will be
         executed.
 
-        Third argument `name` sets the job human-readable name.
+        Argument *name* sets the job's human-readable name.
 
-        Fourth (optional) argument `env_vars` is a dictionary with
+        Optional argument *env_vars* is a dictionary with
         key-value pairs of environment variables that should be passed
         on to the job.
 
-        Fifth and sixth (optional) arguments `hours` and `cores` should be
+        Optional arguments *hours* and *cores* should be
         integer values:
-        * hours must be in the range 1 .. MAX_WALLTIME;
-        * cores depends on which cluster the job is being run.
+        - *hours* must be in the range 1 .. ``MAX_WALLTIME``;
+        - *cores* depends on which cluster the job is being run.
         """
         named_args = {
             'jobname': name, # job name in GC3Pie
@@ -236,7 +233,7 @@ class GC3Pie(JobBackend):
         # the application.
         self._engine.add(self.jobs)
 
-        # in case you want to select a specific resource, call
+        # select a specific execution resource?
         target_resource = build_option('job_target_resource')
         if target_resource:
             res = self._engine.select_resource(target_resource)
