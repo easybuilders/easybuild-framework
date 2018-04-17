@@ -164,15 +164,15 @@ def generate_singularity_recipe(easyconfigs, container_base):
 
     # if there is osdependencies in easyconfig then add them to Singularity recipe
     install_os_deps = ''
-    osdeps = easyconfigs[0]['ec']['osdependencies']
-    for osdep in osdeps:
-        if isinstance(osdep, basestring):
-            install_os_deps += "yum install -y %s\n" % osdep
-        # tuple entry indicates multiple options
-        elif isinstance(osdep, tuple):
-            install_os_deps += "yum --skip-broken install %s" % ' '.join(osdep)
-        else:
-            raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
+    for ec in easyconfigs:
+        for osdep in ec['ec']['osdependencies']:
+            if isinstance(osdep, basestring):
+                install_os_deps += "yum install -y %s\n" % osdep
+            # tuple entry indicates multiple options
+            elif isinstance(osdep, tuple):
+                install_os_deps += "yum --skip-broken install %s\n" % ' '.join(osdep)
+            else:
+                raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
     # module names to load in container environment
     mod_names = [e['ec'].name + '/' + det_full_ec_version(e['ec']) for e in easyconfigs]
