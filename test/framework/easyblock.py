@@ -46,6 +46,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -1258,6 +1259,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
+
+    def test_this_is_easybuild(self):
+        """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
+        # make sure both return a non-Unicode string
+        self.assertTrue(isinstance(get_git_revision(), str))
+        self.assertTrue(isinstance(this_is_easybuild(), str))
 
 
 def suite():
