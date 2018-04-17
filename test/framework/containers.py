@@ -35,7 +35,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 from easybuild.tools.containers import parse_container_base
 
 
@@ -123,7 +123,7 @@ class ContainersTest(EnhancedTestCase):
             regexs = ["^== Singularity definition file created at %s/containers/Singularity.toy-0.0" % self.test_prefix]
             self.check_regexs(regexs, stdout)
 
-            os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+            remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
         args.append("--container-base=shub:test123")
         self.run_main(args)
@@ -140,7 +140,7 @@ class ContainersTest(EnhancedTestCase):
         ]
         self.check_regexs(regexs, stdout)
 
-        os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+        remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
         # add another easyconfig file to check if multiple easyconfigs are handled correctly
         args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
@@ -222,18 +222,37 @@ class ContainersTest(EnhancedTestCase):
         ]
         self.check_regexs(regexs, stdout)
 
-        os.remove(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
+        remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
         # check use of --container-image-format & --container-image-name
         args.extend([
             "--container-image-format=ext3",
-            "--container-image-name=foo-bar.img",
+            "--container-image-name=foo-bar",
         ])
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs[-3] = "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix
         regexs[-2] = "^== Running 'sudo singularity build --writeable /.* /.*', you may need to enter .*"
-        regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img" % self.test_prefix
+        regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix
+        self.check_regexs(regexs, stdout)
+
+        remove_file(os.path.join(containerpath, 'Singularity.foo-bar'))
+
+        # test again with container image already existing
+        cont_img = os.path.join(containerpath, 'foo-bar.img')
+        write_file(cont_img, '')
+
+        error_pattern = "Container image already exists at %s, not overwriting it without --force" % cont_img
+        self.mock_stdout(True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        self.mock_stdout(False)
+
+        args.append('--force')
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
+        regexs.extend([
+            "WARNING: overwriting existing container image at %s due to --force" % cont_img,
+        ])
         self.check_regexs(regexs, stdout)
 
 

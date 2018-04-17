@@ -245,11 +245,11 @@ def build_singularity_image(def_path):
             remove_file(img_path)
         else:
             raise EasyBuildError("Container image already exists at %s, not overwriting it without --force", img_path)
-    else:
-        cmd = "sudo singularity build %s %s %s" % (cmd_opts, img_path, def_path)
-        print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
-        run_cmd(cmd)
-        print_msg("Singularity image created at %s" % img_path, log=_log)
+
+    cmd = "sudo singularity build %s %s %s" % (cmd_opts, img_path, def_path)
+    print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
+    run_cmd(cmd)
+    print_msg("Singularity image created at %s" % img_path, log=_log)
 
 
 def check_singularity():
