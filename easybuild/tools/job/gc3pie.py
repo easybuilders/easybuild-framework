@@ -62,7 +62,7 @@ try:
     gc3libs.UNIGNORE_ALL_ERRORS = True
 
     # note: order of class inheritance is important!
-    class _BuildTaskCollection(AbortOnError, DependentTaskCollection)
+    class _BuildTaskCollection(AbortOnError, DependentTaskCollection):
         """
         A `DependentTaskCollection`:class: that aborts execution upon error.
 
