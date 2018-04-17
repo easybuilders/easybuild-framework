@@ -256,24 +256,27 @@ def build_singularity_image(def_path):
 
 
 def check_singularity():
-    """Check whether Singularity can be used."""
-    path_to_singularity_cmd = which('singularity')
-    if path_to_singularity_cmd:
-        print_msg("Singularity tool found at %s" % path_to_singularity_cmd)
-        out, ec = run_cmd("singularity --version", simple=False, trace=False)
-        if ec:
-            raise EasyBuildError("Failed to determine Singularity version: %s" % out)
-        else:
-            # singularity version format for 2.3.1 and higher is x.y-dist
-            singularity_version = out.strip().split('-')[0]
+    """Check whether Singularity can be used (if it's needed)."""
+    # if we're going to build a container image, we'll need a sufficiently recent version of Singularity available
+    # (and otherwise we don't really care if Singularity is not available)
 
-        if LooseVersion(singularity_version) < LooseVersion('2.4'):
-            raise EasyBuildError("Please upgrade singularity instance to version 2.4 or higher")
-        else:
-            print_msg("Singularity version '%s' is 2.4 or higher ... OK" % singularity_version)
+    if build_option('container_build_image'):
+        path_to_singularity_cmd = which('singularity')
+        if path_to_singularity_cmd:
+            print_msg("Singularity tool found at %s" % path_to_singularity_cmd)
+            out, ec = run_cmd("singularity --version", simple=False, trace=False)
+            if ec:
+                raise EasyBuildError("Failed to determine Singularity version: %s" % out)
+            else:
+                # singularity version format for 2.3.1 and higher is x.y-dist
+                singularity_version = out.strip().split('-')[0]
 
-    elif build_option('container_build_image'):
-        raise EasyBuildError("Singularity not found in your system")
+            if LooseVersion(singularity_version) < LooseVersion('2.4'):
+                raise EasyBuildError("Please upgrade singularity instance to version 2.4 or higher")
+            else:
+                print_msg("Singularity version '%s' is 2.4 or higher ... OK" % singularity_version)
+        else:
+            raise EasyBuildError("Singularity not found in your system")
 
 
 def singularity(easyconfigs, container_base=None):
