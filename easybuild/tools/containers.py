@@ -34,7 +34,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
-from easybuild.tools.filetools import remove_file, which, write_file
+from easybuild.tools.filetools import mkdir, remove_file, which, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.run import run_cmd
 
@@ -122,11 +122,8 @@ def generate_singularity_recipe(easyconfigs, container_base):
 
     cont_path = container_path()
 
-    # check if --containerpath is valid path and a directory
-    if os.path.isdir(cont_path):
-        _log.info("Path for container recipes & images: %s", cont_path)
-    else:
-        raise EasyBuildError("Location for container recipes & images is a non-existing directory: %s" % cont_path)
+    # make sure location to write container recipes & images exists
+    mkdir(cont_path, parents=True)
 
     base_specs = parse_container_base(container_base)
 
