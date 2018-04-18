@@ -2147,6 +2147,21 @@ class EasyBlock(object):
         """Real version of sanity_check_step method."""
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
+        # helper function to sanity check (alternatives for) one particular path
+        def check_path(xs, typ, check_fn):
+            """Sanity check for one particular path."""
+            found = False
+            for name in xs:
+                path = os.path.join(self.installdir, name)
+                if check_fn(path):
+                    self.log.debug("Sanity check: found %s %s in %s" % (typ, name, self.installdir))
+                    found = True
+                    break
+                else:
+                    self.log.debug("Could not find %s %s in %s" % (typ, name, self.installdir))
+
+            return found
+
         # check sanity check paths
         for key, (typ, check_fn) in path_keys_and_check.items():
 
@@ -2156,15 +2171,15 @@ class EasyBlock(object):
                 elif not isinstance(xs, tuple):
                     raise EasyBuildError("Unsupported type '%s' encountered in %s, not a string or tuple",
                                          key, type(xs))
-                found = False
-                for name in xs:
-                    path = os.path.join(self.installdir, name)
-                    if check_fn(path):
-                        self.log.debug("Sanity check: found %s %s in %s" % (typ, name, self.installdir))
-                        found = True
-                        break
-                    else:
-                        self.log.debug("Could not find %s %s in %s" % (typ, name, self.installdir))
+
+                found = check_path(xs, typ, check_fn)
+
+                # for library files in lib/, also consider fallback to lib64/ equivalent
+                if not found and build_option('lib64_fallback_sanity_check'):
+                    if all(x.startswith('lib/') for x in xs):
+                        xs_lib64 = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
+                        found = check_path(xs_lib64, typ, check_fn)
+
                 if not found:
                     self.sanity_check_fail_msgs.append("no %s of %s in %s" % (typ, xs, self.installdir))
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
