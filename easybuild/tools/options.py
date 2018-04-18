@@ -1286,7 +1286,8 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         fd, tmptest_file = tempfile.mkstemp()
         os.close(fd)
         os.chmod(tmptest_file, 0700)
-        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False):
+        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
+                       stream_output=False):
             msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
             msg += "This can cause problems in the build process, consider using --tmpdir."
             if raise_error:
