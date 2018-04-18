@@ -138,7 +138,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
     if stream_output is None and build_option('logtostdout'):
-        _log.info("Auto-enabling streaming output of '%s' command because loggin to stdout is enabled", cmd_msg)
+        _log.info("Auto-enabling streaming output of '%s' command because logging to stdout is enabled", cmd_msg)
         stream_output = True
 
     if stream_output:
