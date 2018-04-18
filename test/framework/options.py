@@ -331,45 +331,38 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for stdout_arg in ['--logtostdout', '-l']:
 
-            _stdout = sys.stdout
-
-            fd, fn = tempfile.mkstemp()
-            fh = os.fdopen(fd, 'w')
-            sys.stdout = fh
-
             args = [
-                    '--software-name=somethingrandom',
-                    '--robot', '.',
-                    '--debug',
-                    stdout_arg,
-                   ]
+                '--software-name=somethingrandom',
+                '--robot', '.',
+                '--debug',
+                stdout_arg,
+            ]
+            self.mock_stdout(True)
             self.eb_main(args, logfile=dummylogfn)
+            stdout = self.get_stdout()
+            self.mock_stdout(False)
 
             # make sure we restore
-            sys.stdout.flush()
-            sys.stdout = _stdout
             fancylogger.logToScreen(enable=False, stdout=True)
 
-            outtxt = read_file(fn)
+            error_msg = "Log messages are printed to stdout when %s is used (stdout: %s)" % (stdout_arg, stdout)
+            self.assertTrue(len(stdout) > 100, error_msg)
 
-            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when %s is used (outtxt: %s)" % (stdout_arg, outtxt))
-
-            # cleanup
-            os.remove(fn)
-
-        stdoutorig = sys.stdout
-        sys.stdout = open("/dev/null", 'w')
 
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ecfile = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         self.logfile = None
-        out = self.eb_main([toy_ecfile, '--debug', '-l', '--force'], raise_error=True)
+
+        self.mock_stdout(True)
+        self.eb_main([toy_ecfile, '--debug', '-l', '--force'], do_build=True, raise_error=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue("Auto-enabling streaming output" in stdout)
+        self.assertTrue("== (streaming) output for command 'gcc toy.c -o toy':" in stdout)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
-
-        sys.stdout.close()
-        sys.stdout = stdoutorig
 
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""

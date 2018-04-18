@@ -98,7 +98,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=False):
+            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=None):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -135,6 +135,11 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         _log.debug('run_cmd: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
+
+    # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
+    if stream_output is None and build_option('logtostdout'):
+        _log.info("Auto-enabling streaming output of '%s' command because loggin to stdout is enabled", cmd_msg)
+        stream_output = True
 
     if stream_output:
         print_msg("(streaming) output for command '%s':" % cmd_msg)
@@ -184,7 +189,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         else:
             raise EasyBuildError("Don't know how to prefix with /usr/bin/env for commands of type %s", type(cmd))
 
-    read_size = 1024 * 8
     _log.info('running cmd: %s ' % cmd)
     try:
         proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -194,6 +198,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if inp:
         proc.stdin.write(inp)
     proc.stdin.close()
+
+    # use small read size when streaming output, to make it stream more fluently
+    # read size should not be too small though, to avoid too much overhead
+    if stream_output:
+        read_size = 128
+    else:
+        read_size = 1024 * 8
 
     ec = proc.poll()
     stdouterr = ''
