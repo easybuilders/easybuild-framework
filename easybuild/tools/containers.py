@@ -244,7 +244,7 @@ def build_singularity_image(def_path):
 
     cmd = "sudo singularity build %s %s %s" % (cmd_opts, img_path, def_path)
     print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
-    run_cmd(cmd)
+    run_cmd(cmd, stream_output=True)
     print_msg("Singularity image created at %s" % img_path, log=_log)
 
 
