@@ -232,7 +232,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs[-3] = "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix
-        regexs[-2] = "^== Running 'sudo singularity build --writeable /.* /.*', you may need to enter .*"
+        regexs[-2] = "^== Running 'sudo singularity build --writable /.* /.*', you may need to enter .*"
         regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix
         self.check_regexs(regexs, stdout)
 

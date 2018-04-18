@@ -229,7 +229,7 @@ def build_singularity_image(def_path):
     # ext3 image format, creating as writable container
     elif image_format == CONT_IMAGE_FORMAT_EXT3:
         img_path = os.path.join(cont_path, img_name + '.img')
-        cmd_opts = '--writeable'
+        cmd_opts = '--writable'
 
     # sandbox image format, creates as a directory but acts like a container
     elif image_format == CONT_IMAGE_FORMAT_SANDBOX:
