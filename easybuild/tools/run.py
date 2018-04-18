@@ -98,7 +98,7 @@ def run_cmd_cache(func):
 
 @run_cmd_cache
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None,
-            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream=False):
+            force_in_dry_run=False, verbose=True, shell=True, trace=True, stream_output=False):
     """
     Run specified command (in a subshell)
     :param cmd: command to run
@@ -113,7 +113,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     :param verbose: include message on running the command in dry run output
     :param shell: allow commands to not run in a shell (especially useful for cmd lists)
     :param trace: print command being executed as part of trace output
-    :param stream: enable streaming command output to stdout
+    :param stream_output: enable streaming command output to stdout
     """
     cwd = os.getcwd()
 
@@ -136,7 +136,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     else:
         cmd_log_fn, cmd_log = None, None
 
-    if stream:
+    if stream_output:
         print_msg("(streaming) output for command '%s':" % cmd_msg)
 
     start_time = datetime.now()
@@ -203,7 +203,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         output = proc.stdout.read(read_size)
         if cmd_log:
             cmd_log.write(output)
-        if stream:
+        if stream_output:
             sys.stdout.write(output)
         stdouterr += output
         ec = proc.poll()
@@ -213,7 +213,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if cmd_log:
         cmd_log.write(output)
         cmd_log.close()
-    if stream:
+    if stream_output:
         sys.stdout.write(output)
     stdouterr += output
 

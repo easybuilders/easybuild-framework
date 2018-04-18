@@ -371,7 +371,7 @@ class RunTest(EnhancedTestCase):
         """Test use of run_cmd with streaming output."""
         self.mock_stdout(True)
         self.mock_stderr(True)
-        (out, ec) = run_cmd("echo hello", stream=True)
+        (out, ec) = run_cmd("echo hello", stream_output=True)
         stdout = self.get_stdout()
         stderr = self.get_stderr()
         self.mock_stdout(False)
