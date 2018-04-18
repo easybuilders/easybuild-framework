@@ -115,6 +115,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
         args.append(path)
     return os.path.join(*args)
 
+
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
@@ -183,6 +184,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hidden',
         'ignore_checksums',
         'install_latest_eb_release',
+        'logtostdout',
         'minimal_toolchains',
         'module_only',
         'package',

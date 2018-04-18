@@ -554,7 +554,7 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -1095,6 +1095,13 @@ class EnvironmentModules(EnvironmentModulesTcl):
     REQ_VERSION = '4.0.0'
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
+
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if "_mlstatus = False" in stdout:
+            raise EasyBuildError("Failed module command detected: %s (stdout: %s, stderr: %s)", cmd, stdout, stderr)
+        else:
+            self.log.debug("No errors detected when running module command '%s'", cmd)
 
 
 class Lmod(ModulesTool):
