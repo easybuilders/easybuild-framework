@@ -33,14 +33,11 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
+from easybuild.tools.config import CONT_TYPE_SINGULARITY
 from easybuild.tools.config import build_option, container_path
 from easybuild.tools.filetools import mkdir, remove_file, which, write_file
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.run import run_cmd
 
-
-CONT_TYPE_DOCKER = 'docker'
-CONT_TYPE_SINGULARITY = 'singularity'
 
 DOCKER = 'docker'
 LOCALIMAGE = 'localimage'
@@ -167,12 +164,12 @@ def generate_singularity_recipe(easyconfigs, container_base):
                 install_os_deps += "yum install -y %s\n" % osdep
             # tuple entry indicates multiple options
             elif isinstance(osdep, tuple):
-                install_os_deps += "yum --skip-broken install %s\n" % ' '.join(osdep)
+                install_os_deps += "yum --skip-broken -y install %s\n" % ' '.join(osdep)
             else:
                 raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
     # module names to load in container environment
-    mod_names = [e['ec'].name + '/' + det_full_ec_version(e['ec']) for e in easyconfigs]
+    mod_names = [e['ec'].full_mod_name for e in easyconfigs]
 
     # name of Singularity definition file
     img_name = build_option('container_image_name')
@@ -215,8 +212,7 @@ def build_singularity_image(def_path):
     img_name = build_option('container_image_name')
     if img_name is None:
         # definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
-        dot_idx = def_file.find('.')
-        img_name = def_file[dot_idx+1:]
+        img_name = def_file.split('.', 1)[1]
 
     cmd_opts = ''
 
