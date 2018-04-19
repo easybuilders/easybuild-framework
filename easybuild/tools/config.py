@@ -515,6 +515,7 @@ def package_path():
     """
     return ConfigurationVariables()['packagepath']
 
+
 def container_path():
     """
     Return the path for container recipes & images
