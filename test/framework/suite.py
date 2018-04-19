@@ -41,18 +41,6 @@ from vsc.utils import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.options import set_tmpdir
 
-# set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
-try:
-    import keyring
-    keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
-except (ImportError, AttributeError):
-    pass
-
-# disable all logging to significantly speed up tests
-fancylogger.disableDefaultHandlers()
-fancylogger.setLogLevelError()
-
-# toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
 import test.framework.build_log as bl
 import test.framework.config as c
@@ -91,6 +79,17 @@ import test.framework.type_checking as et
 import test.framework.tweak as tw
 import test.framework.variables as v
 import test.framework.yeb as y
+
+# set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
+try:
+    import keyring
+    keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
+except (ImportError, AttributeError):
+    pass
+
+# disable all logging to significantly speed up tests
+fancylogger.disableDefaultHandlers()
+fancylogger.setLogLevelError()
 
 
 # make sure temporary files can be created/used
