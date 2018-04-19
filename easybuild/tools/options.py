@@ -57,6 +57,7 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyco
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
 from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, print_warning, raise_easybuilderror
+from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
 from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_FORCE_DOWNLOAD, DEFAULT_JOB_BACKEND
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS, DEFAULT_MNS
 from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
@@ -337,6 +338,7 @@ class EasyBuildOptions(GeneralOption):
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
                       {'metavar':'WHEN'}),
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
+            'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
@@ -434,6 +436,8 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'containerpath': ("Location where container recipe & image will be stored", None, 'store',
+                              mk_full_default_path('containerpath')),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
                                           'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
@@ -620,6 +624,25 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
+
+    def container_options(self):
+        # container-related options
+        descr = ("Container options", "Options related to generating container recipes & images")
+
+        opts = OrderedDict({
+            'base': ("Base for container image. Examples (for Singularity): "
+                     "--container-base localimage:/path/to/image.img, "
+                     "--container-base shub:<image>:<tag>, "
+                     "--container-base docker:<image>:<tag> ", str, 'store', None),
+            'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
+            'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
+            'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
+            'type': ("Type of container recipe/image to create", 'choice', 'store', DEFAULT_CONT_TYPE, CONT_TYPES),
+        })
+
+        self.log.debug("container_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr, prefix='container')
+
 
     def easyconfig_options(self):
         # easyconfig options (to be passed to easyconfig instance)
