@@ -59,15 +59,18 @@ UNLOAD = 'unload'
 UNSET = 'unset'
 WARN = 'warn'
 
-PKG_TOOL_DOCKER = 'docker'
 PKG_TOOL_FPM = 'fpm'
-PKG_TOOL_SINGULARITY = 'singularity'
-PKG_TYPE_DEF = 'def'
-PKG_TYPE_IMG = 'img'
 PKG_TYPE_RPM = 'rpm'
 
-DEFAULT_SINGULARITY_IMAGE_FORMAT = "squashfs"
-SINGULARITY_IMAGE_FORMAT_LIST = [ "squashfs", "ext3", "sandbox" ]
+CONT_IMAGE_FORMAT_EXT3 = 'ext3'
+CONT_IMAGE_FORMAT_SANDBOX = 'sandbox'
+CONT_IMAGE_FORMAT_SQUASHFS = 'squashfs'
+CONT_IMAGE_FORMATS = [CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS]
+
+CONT_TYPE_DOCKER = 'docker'
+CONT_TYPE_SINGULARITY = 'singularity'
+CONT_TYPES = [CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
+DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -77,9 +80,9 @@ DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
+    'containerpath': 'containers',
     'installpath': '',
     'packagepath': 'packages',
-    'singularitypath': 'singularity',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
@@ -112,11 +115,15 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
         args.append(path)
     return os.path.join(*args)
 
+
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
         'backup_modules',
+        'container_base',
+        'container_image_format',
+        'container_image_name',
         'download_timeout',
         'dump_test_report',
         'easyblock',
@@ -132,7 +139,6 @@ BUILD_OPTIONS_CMDLINE = {
         'github_org',
         'group',
         'ignore_dirs',
-	'imagename',
         'job_backend_config',
         'job_cores',
         'job_max_jobs',
@@ -164,8 +170,8 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
-	'buildimage',
         'consider_archived_easyconfigs',
+        'container_build_image',
         'debug',
         'debug_lmod',
         'dump_autopep8',
@@ -178,6 +184,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hidden',
         'ignore_checksums',
         'install_latest_eb_release',
+        'logtostdout',
         'minimal_toolchains',
         'module_only',
         'package',
@@ -188,7 +195,6 @@ BUILD_OPTIONS_CMDLINE = {
         'search_paths',
         'sequential',
         'set_gid_bit',
-	'singularity',
         'skip_test_cases',
         'sticky_bit',
         'trace',
@@ -211,6 +217,9 @@ BUILD_OPTIONS_CMDLINE = {
         'detect_loaded_modules',
         'strict',
     ],
+    DEFAULT_CONT_TYPE: [
+        'container_type',
+    ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
     ],
@@ -222,9 +231,6 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_PKG_TYPE: [
         'package_type',
-    ],
-    DEFAULT_SINGULARITY_IMAGE_FORMAT: [
-    	'imageformat',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
@@ -300,6 +306,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
     REQUIRED = [
         'buildpath',
         'config',
+        'containerpath',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -314,7 +321,6 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'prefix',
         'repository',
         'repositorypath',
-	'singularitypath',
         'sourcepath',
         'subdir_modules',
         'subdir_software',
@@ -387,10 +393,11 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
             retain_all_deps = True
 
-        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
-                                      cmdline_options.dry_run, cmdline_options.dry_run_short,
-                                      cmdline_options.extended_dry_run, cmdline_options.dump_env_script,
-                                      cmdline_options.new_pr, cmdline_options.update_pr]
+        auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.containerize,
+                                      cmdline_options.dep_graph, cmdline_options.dry_run,
+                                      cmdline_options.dry_run_short, cmdline_options.extended_dry_run,
+                                      cmdline_options.dump_env_script, cmdline_options.new_pr,
+                                      cmdline_options.update_pr]
         if any(auto_ignore_osdeps_options):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
@@ -508,11 +515,11 @@ def package_path():
     """
     return ConfigurationVariables()['packagepath']
 
-def singularity_path():
+def container_path():
     """
-    Return the path for singularity definition and image directory are copied to
+    Return the path for container recipes & images
     """
-    return ConfigurationVariables()['singularitypath']
+    return ConfigurationVariables()['containerpath']
 
 
 def get_modules_tool():
