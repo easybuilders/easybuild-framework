@@ -59,7 +59,7 @@ import test.framework.general as gen
 import test.framework.github as g
 import test.framework.hooks as h
 import test.framework.include as i
-import test.framework.license as l
+import test.framework.license as lic
 import test.framework.module_generator as mg
 import test.framework.modules as m
 import test.framework.modulestool as mt
@@ -80,7 +80,8 @@ import test.framework.tweak as tw
 import test.framework.variables as v
 import test.framework.yeb as y
 
-# set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
+# set plain text key ring to be used,
+# so a GitHub token stored in it can be obtained without having to provide a password
 try:
     import keyring
     keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
@@ -108,7 +109,7 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc,
+tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c, sc,
          tw, p, i, pkg, d, env, et, y, st, h, ct]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
@@ -131,5 +132,5 @@ if not res.wasSuccessful():
     print "Log available at %s" % log_fn, xml_msg
     sys.exit(2)
 else:
-    for f in glob.glob('%s*' % log_fn):
-        os.remove(f)
+    for fn in glob.glob('%s*' % log_fn):
+        os.remove(fn)
