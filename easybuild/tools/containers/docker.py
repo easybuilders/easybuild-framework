@@ -139,7 +139,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
     mod_names = [e['ec'].full_mod_name for e in easyconfigs]
 
     eb_opts = [eb_opt for eb_opt in eb_go.generate_cmd_line()
-               if not eb_opt.startswith('--container') and eb_opt not in ['--ignore-osdeps']]
+               if not eb_opt.startswith('--container') and eb_opt not in ['--ignore-osdeps', '--experimental']]
     eb_opts.extend(eb_go.args)
 
     tmpl = _DOCKER_TMPLS[container_base]
