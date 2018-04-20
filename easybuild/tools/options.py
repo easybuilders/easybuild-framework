@@ -47,7 +47,6 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.fancylogger import setLogLevel
 from vsc.utils.generaloption import GeneralOption
-from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
@@ -56,7 +55,7 @@ from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, print_warning, raise_easybuilderror
+from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
 from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
 from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_FORCE_DOWNLOAD, DEFAULT_JOB_BACKEND
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS, DEFAULT_MNS
@@ -71,7 +70,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
@@ -86,7 +85,6 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
-from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 
@@ -100,6 +98,7 @@ except ImportError:
         except Exception:
             # in case of errors do not bother and just return the safe default
             return False
+
 
 # monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
 # to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
@@ -116,6 +115,7 @@ def eb_shell_quote(token):
     token = str(token).strip('"')
     # escape any non-escaped single quotes, and wrap entire token in single quotes
     return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
+
 
 vsc.utils.generaloption.shell_quote = eb_shell_quote
 
@@ -143,6 +143,7 @@ def cleanup_and_exit(tmpdir):
         raise EasyBuildError("Failed to clean up temporary directory %s: %s", tmpdir, err)
 
     sys.exit(0)
+
 
 def pretty_print_opts(opts_dict):
     """
@@ -336,7 +337,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
-                      {'metavar':'WHEN'}),
+                      {'metavar': 'WHEN'}),
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
             'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
@@ -368,7 +369,7 @@ class EasyBuildOptions(GeneralOption):
                                                'store_true', False),
             'force-download': ("Force re-downloading of sources and/or patches, "
                                "even if they are available already in source path",
-                                'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
+                               'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
                                           None, 'store_true', False),
@@ -475,7 +476,7 @@ class EasyBuildOptions(GeneralOption):
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'packagepath': ("The destination path for the packages built by package-tool",
-                             None, 'store', mk_full_default_path('packagepath')),
+                            None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
@@ -643,7 +644,6 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.debug("container_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='container')
-
 
     def easyconfig_options(self):
         # easyconfig options (to be passed to easyconfig instance)

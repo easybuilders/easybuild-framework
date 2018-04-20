@@ -36,7 +36,7 @@ from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
-from easybuild.tools.containers import parse_container_base
+from easybuild.tools.containers.singularity import parse_container_base
 
 
 MOCKED_SINGULARITY = """#!/bin/bash

@@ -79,7 +79,7 @@ module load %(mod_names)s
 """
 
 
-_log = fancylogger.getLogger('tools.containers')  # pylint: disable=C0103
+_log = fancylogger.getLogger('tools.containers.singularity')  # pylint: disable=C0103
 
 
 def parse_container_base(base):
@@ -294,16 +294,3 @@ def singularity(easyconfigs, container_base=None):
     # also build container image, if requested (requires sudo!)
     if build_option('container_build_image'):
         build_singularity_image(def_path)
-
-
-def containerize(easyconfigs):
-    """
-    Generate container recipe + (optionally) image
-    """
-    _log.experimental("support for generating container recipes and images (--containerize/-C)")
-
-    container_type = build_option('container_type')
-    if container_type == CONT_TYPE_SINGULARITY:
-        singularity(easyconfigs)
-    else:
-        raise EasyBuildError("Unknown container type specified: %s", container_type)
