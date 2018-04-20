@@ -33,6 +33,7 @@ RUN mkdir /app && \\
     chown easybuild:easybuild -R /scratch
 
 RUN OS_DEPS='%(os_deps)s' && \\
+    test -n "${OS_DEPS}" && \\
     for dep in ${OS_DEPS}; do apt-get -qq install ${dep} || true; done
 
 USER easybuild
@@ -61,7 +62,9 @@ RUN pip install -U pip setuptools && \\
     hash -r pip && \\
     pip install -U easybuild
 
-RUN yum --skip-broken install -y %(os_deps)s || true
+RUN OS_DEPS='%(os_deps)s' && \\
+    test -n "${OS_DEPS}" && \\
+    yum --skip-broken install -y "${OS_DEPS}" || true
 
 RUN mkdir /app && \\
     mkdir /scratch && \\
@@ -72,7 +75,7 @@ RUN mkdir /app && \\
 
 USER easybuild
 
-RUN set -x &&  \\
+RUN set -x && \\
     . /usr/share/lmod/lmod/init/sh && \\
     eb %(eb_opts)s --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
 
@@ -117,13 +120,13 @@ def check_docker_containerize():
 
 
 def _det_os_deps(easyconfigs):
-    res = []
+    res = set()
     _os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
     for os_dep in _os_deps:
         if isinstance(os_dep, basestring):
-            res.append(os_dep)
+            res.add(os_dep)
         elif isinstance(os_dep, tuple):
-            res.extend(os_dep)
+            res.update(os_dep)
     return res
 
 
@@ -156,7 +159,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
     if img_name:
         file_label = os.path.splitext(img_name)[0]
     else:
-        file_label = mod_names[0].replace('/', '-')
+        file_label = mod_names[-1].replace('/', '-')
 
     dockerfile = os.path.join(cont_path, 'Dockerfile.%s' % file_label)
     if os.path.exists(dockerfile):
