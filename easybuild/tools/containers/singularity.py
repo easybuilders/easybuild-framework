@@ -33,7 +33,6 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
-from easybuild.tools.config import CONT_TYPE_SINGULARITY
 from easybuild.tools.config import build_option, container_path
 from easybuild.tools.filetools import mkdir, remove_file, which, write_file
 from easybuild.tools.run import run_cmd

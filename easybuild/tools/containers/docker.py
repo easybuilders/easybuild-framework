@@ -6,7 +6,7 @@ import operator
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option, container_path
 from easybuild.tools.config import DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS, DEFAULT_DOCKER_BASE_IMAGE
 from easybuild.tools.filetools import which, write_file
@@ -92,7 +92,7 @@ _DOCKER_TMPLS = {
 
 
 def check_docker_containerize():
-    docker_container_base = build_option('container_base', default=DEFAULT_DOCKER_BASE_IMAGE)
+    docker_container_base = build_option('container_base') or DEFAULT_DOCKER_BASE_IMAGE
 
     if docker_container_base not in [DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS]:
         raise EasyBuildError("Unsupported container base image '%s'" % docker_container_base)
@@ -134,7 +134,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
 
     ec = easyconfigs[-1]['ec']
 
-    init_modulepath = os.path.join("/app/modules/all", *module_naming_scheme.det_init_modulepaths(easyconfigs[0]['ec']))
+    init_modulepath = os.path.join("/app/modules/all", *module_naming_scheme.det_init_modulepaths(ec))
 
     mod_names = [e['ec'].full_mod_name for e in easyconfigs]
 
@@ -150,10 +150,8 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
         'mod_names': ' '.join(mod_names),
     }
 
-    # move dockerfile to containerpath
-    cont_path = container_path() or os.getcwd()
+    cont_path = container_path()
 
-    # name of Singularity definition file
     img_name = build_option('container_image_name')
     if img_name:
         file_label = os.path.splitext(img_name)[0]
@@ -165,7 +163,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
         if build_option('force'):
             print_msg("WARNING: overwriting existing Dockerfile at %s due to --force" % dockerfile)
         else:
-            raise EasyBuildError("Dockerfile recipe at %s already exists, not overwriting it without --force", dockerfile)
+            raise EasyBuildError("Dockerfile at %s already exists, not overwriting it without --force", dockerfile)
 
     write_file(dockerfile, content)
 
@@ -179,7 +177,7 @@ def build_docker_image(easyconfigs, dockerfile):
     module_name = module_naming_scheme.det_full_module_name(ec)
 
     tempdir = tempfile.mkdtemp(prefix='easybuild-docker')
-    container_name = build_option('container_image_name', default="%s:latest" % module_name)
+    container_name = build_option('container_image_name') or "%s:latest" % module_name
     docker_cmd = ' '.join(['sudo', 'docker', 'build', '-f', dockerfile, '-t', container_name, '.'])
     run_cmd(docker_cmd, path=tempdir)
 
@@ -191,7 +189,7 @@ def docker_containerize(easyconfigs, eb_go):
     check_docker_containerize()
 
     # Generate dockerfile
-    container_base = build_option('container_base', default=DEFAULT_DOCKER_BASE_IMAGE)
+    container_base = build_option('container_base') or DEFAULT_DOCKER_BASE_IMAGE
     dockerfile = generate_dockerfile(easyconfigs, container_base, eb_go)
 
     # Build image if requested
