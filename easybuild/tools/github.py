@@ -1095,8 +1095,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             title = commit_msg
         elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
-            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
-            names_and_versions = list(set(names_and_versions))  # remove duplicates
+            names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
             if len(names_and_versions) <= 3:
                 main_title = ', '.join(names_and_versions)
             else:
