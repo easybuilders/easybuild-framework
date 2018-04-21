@@ -257,7 +257,7 @@ def check_singularity():
         path_to_singularity_cmd = which('singularity')
         if path_to_singularity_cmd:
             print_msg("Singularity tool found at %s" % path_to_singularity_cmd)
-            out, ec = run_cmd("singularity --version", simple=False, trace=False)
+            out, ec = run_cmd("singularity --version", simple=False, trace=False, force_in_dry_run=True)
             if ec:
                 raise EasyBuildError("Failed to determine Singularity version: %s" % out)
             else:
