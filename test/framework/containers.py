@@ -44,6 +44,18 @@ if [[ $1 == '--version' ]]; then
     echo "2.4.0"
 else
     echo "singularity was called with arguments: $@"
+    # actually create image file using 'touch'
+    echo "$@"
+    echo $#
+    if [[ $# -eq 3 ]]; then
+      img=$2
+    elif [[ $# -eq 4 ]]; then
+      img=$3
+    else
+      echo "Don't know how to extract container image location" >&2
+      exit 1
+    fi
+    touch $img
 fi
 """
 
@@ -222,6 +234,8 @@ class ContainersTest(EnhancedTestCase):
         ]
         self.check_regexs(regexs, stdout)
 
+        self.assertTrue(os.path.exists(os.path.join(containerpath, 'toy-0.0.simg')))
+
         remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
         # check use of --container-image-format & --container-image-name
@@ -236,11 +250,12 @@ class ContainersTest(EnhancedTestCase):
         regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix
         self.check_regexs(regexs, stdout)
 
+        cont_img = os.path.join(containerpath, 'foo-bar.img')
+        self.assertTrue(os.path.exists(cont_img))
+
         remove_file(os.path.join(containerpath, 'Singularity.foo-bar'))
 
         # test again with container image already existing
-        cont_img = os.path.join(containerpath, 'foo-bar.img')
-        write_file(cont_img, '')
 
         error_pattern = "Container image already exists at %s, not overwriting it without --force" % cont_img
         self.mock_stdout(True)
@@ -253,6 +268,13 @@ class ContainersTest(EnhancedTestCase):
         regexs.extend([
             "WARNING: overwriting existing container image at %s due to --force" % cont_img,
         ])
+        self.check_regexs(regexs, stdout)
+        self.assertTrue(os.path.exists(cont_img))
+
+        # also check behaviour under --extended-dry-run
+        args.append('--extended-dry-run')
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
         self.check_regexs(regexs, stdout)
 
 
