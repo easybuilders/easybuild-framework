@@ -2858,6 +2858,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"#",
             r"buildpath\s* \(C\) = /weird/build/dir",
             r"configfiles\s* \(C\) = .*" + cfgfile,
+            r"containerpath\s* \(D\) = %s" % os.path.join(default_prefix, 'containers'),
             r"deprecated\s* \(E\) = 10000000",
             r"ignoreconfigfiles\s* \(E\) = %s" % ', '.join(os.environ['EASYBUILD_IGNORECONFIGFILES'].split(',')),
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
@@ -2906,6 +2907,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
         regex = re.compile(r'^include-easyblocks \(E\) = .*/testeasyblocktoinclude.py$', re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_prefix(self):
+        """Test which configuration settings are affected by --prefix."""
+        txt, _ = self._run_mock_eb(['--show-full-config', '--prefix=%s' % self.test_prefix], raise_error=True)
+
+        regex = re.compile("(?P<cfg_opt>\S*).*%s.*" % self.test_prefix, re.M)
+
+        expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
+        self.assertEqual(sorted(regex.findall(txt)), expected)
 
     def test_dump_env_config(self):
         """Test for --dump-env-config."""
