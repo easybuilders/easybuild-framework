@@ -2907,6 +2907,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r'^include-easyblocks \(E\) = .*/testeasyblocktoinclude.py$', re.M)
         self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
+    def test_prefix(self):
+        """Test which configuration settings are affected by --prefix."""
+        txt, _ = self._run_mock_eb(['--show-full-config', '--prefix=%s' % self.test_prefix], raise_error=True)
+
+        regex = re.compile("(?P<cfg_opt>\S*).*%s.*" % self.test_prefix, re.M)
+
+        expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
+        self.assertEqual(sorted(regex.findall(txt)), expected)
+
     def test_dump_env_config(self):
         """Test for --dump-env-config."""
 
