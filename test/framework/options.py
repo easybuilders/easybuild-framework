@@ -2858,6 +2858,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"#",
             r"buildpath\s* \(C\) = /weird/build/dir",
             r"configfiles\s* \(C\) = .*" + cfgfile,
+            r"containerpath\s* \(D\) = %s" % os.path.join(default_prefix, 'containers'),
             r"deprecated\s* \(E\) = 10000000",
             r"ignoreconfigfiles\s* \(E\) = %s" % ', '.join(os.environ['EASYBUILD_IGNORECONFIGFILES'].split(',')),
             r"installpath\s* \(E\) = " + os.path.join(self.test_prefix, 'tmp.*'),
