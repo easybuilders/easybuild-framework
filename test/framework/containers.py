@@ -229,7 +229,7 @@ class ContainersTest(EnhancedTestCase):
             "^== Singularity tool found at %s/bin/singularity" % self.test_prefix,
             "^== Singularity version '2.4.0' is 2.4 or higher ... OK",
             "^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
-            "^== Running 'sudo .*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
+            "^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
             "^== Singularity image created at %s/containers/toy-0.0\.simg" % self.test_prefix,
         ]
         self.check_regexs(regexs, stdout)
@@ -246,7 +246,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs[-3] = "^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix
-        regexs[-2] = "^== Running 'sudo .*/singularity build --writable /.* /.*', you may need to enter .*"
+        regexs[-2] = "^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*"
         regexs[-1] = "^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix
         self.check_regexs(regexs, stdout)
 
@@ -275,6 +275,13 @@ class ContainersTest(EnhancedTestCase):
         args.append('--extended-dry-run')
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
+        self.check_regexs(regexs, stdout)
+
+        # test use of --container-tmpdir
+        args.append('--container-tmpdir=%s' % self.test_prefix)
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
+        regexs[-3] = "^== Running 'sudo\s*SINGULARITY_TMPDIR=%s \S*/singularity build .*" % self.test_prefix
         self.check_regexs(regexs, stdout)
 
 
