@@ -244,10 +244,13 @@ def build_singularity_image(def_path):
 
     # resolve full path to 'singularity' binary, since it may not be available via $PATH under sudo...
     singularity = which('singularity')
+    cmd_env = ''
 
-    singularity_tmp = build_option('container_tmp_path')
+    singularity_tmpdir = build_option('container_tmpdir')
+    if singularity_tmpdir:
+        cmd_env += 'SINGULARITY_TMPDIR=%s' % singularity_tmpdir
 
-    cmd = "sudo SINGULARITY_TMPDIR=%s %s build %s %s %s" % (singularity_tmp, singularity, cmd_opts, img_path, def_path)
+    cmd = ' '.join(['sudo', cmd_env, singularity, 'build', cmd_opts, img_path, def_path])
     print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
     run_cmd(cmd, stream_output=True)
     print_msg("Singularity image created at %s" % img_path, log=_log)
