@@ -389,6 +389,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
+    # create a container
+    if options.containerize:
+        _log.info("Creating %s container" % options.container_type)
+        containerize(easyconfigs, options.container_type)
+        cleanup(logfile, eb_tmpdir, testing)
+        sys.exit(0)
+
     forced = options.force or options.rebuild
     dry_run_mode = options.dry_run or options.dry_run_short
 
@@ -414,13 +421,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
-
-    # create a container
-    if options.containerize:
-        _log.info("Creating %s container" % options.container_type)
-        containerize(ordered_ecs, eb_go)
-        cleanup(logfile, eb_tmpdir, testing)
-        sys.exit(0)
 
     # creating/updating PRs
     if new_update_preview_pr:

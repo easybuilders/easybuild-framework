@@ -107,14 +107,14 @@ def check_docker_containerize():
     docker_path = which('docker')
     if not docker_path:
         raise EasyBuildError("docker executable not found.")
-    _log.debug("found docker executable '%s'" % docker_path)
+    print_msg("docker tool found at %s" % docker_path)
 
     sudo_path = which('sudo')
     if not sudo_path:
         raise EasyBuildError("sudo not found.")
 
     try:
-        run_cmd("sudo docker --version")
+        run_cmd("sudo docker --version", trace=False, force_in_dry_run=True)
     except Exception:
         raise EasyBuildError("Error getting docker version")
 
@@ -130,7 +130,7 @@ def _det_os_deps(easyconfigs):
     return res
 
 
-def generate_dockerfile(easyconfigs, container_base, eb_go):
+def generate_dockerfile(easyconfigs, container_base):
     os_deps = _det_os_deps(easyconfigs)
 
     module_naming_scheme = ActiveMNS()
@@ -141,9 +141,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
 
     mod_names = [e['ec'].full_mod_name for e in easyconfigs]
 
-    eb_opts = [eb_opt for eb_opt in eb_go.generate_cmd_line()
-               if not eb_opt.startswith('--container') and eb_opt not in ['--ignore-osdeps', '--experimental']]
-    eb_opts.extend(eb_go.args)
+    eb_opts = [os.path.basename(ec['spec']) for ec in easyconfigs]
 
     tmpl = _DOCKER_TMPLS[container_base]
     content = tmpl % {
@@ -159,7 +157,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
     if img_name:
         file_label = os.path.splitext(img_name)[0]
     else:
-        file_label = mod_names[-1].replace('/', '-')
+        file_label = mod_names[0].replace('/', '-')
 
     dockerfile = os.path.join(cont_path, 'Dockerfile.%s' % file_label)
     if os.path.exists(dockerfile):
@@ -169,6 +167,7 @@ def generate_dockerfile(easyconfigs, container_base, eb_go):
             raise EasyBuildError("Dockerfile at %s already exists, not overwriting it without --force", dockerfile)
 
     write_file(dockerfile, content)
+    print_msg("Dockerfile file created at %s" % dockerfile, log=_log)
 
     return dockerfile
 
@@ -180,20 +179,23 @@ def build_docker_image(easyconfigs, dockerfile):
     module_name = module_naming_scheme.det_full_module_name(ec)
 
     tempdir = tempfile.mkdtemp(prefix='easybuild-docker')
-    container_name = build_option('container_image_name') or "%s:latest" % module_name
+    container_name = build_option('container_image_name') or "%s:latest" % module_name.replace('/', '-')
     docker_cmd = ' '.join(['sudo', 'docker', 'build', '-f', dockerfile, '-t', container_name, '.'])
-    run_cmd(docker_cmd, path=tempdir)
+
+    print_msg("Running '%s', you may need to enter your 'sudo' password..." % docker_cmd)
+    run_cmd(docker_cmd, path=tempdir, stream_output=True)
+    print_msg("Docker image created at %s" % container_name, log=_log)
 
     shutil.rmtree(tempdir)
 
 
-def docker_containerize(easyconfigs, eb_go):
+def docker_containerize(easyconfigs):
 
     check_docker_containerize()
 
     # Generate dockerfile
     container_base = build_option('container_base') or DEFAULT_DOCKER_BASE_IMAGE
-    dockerfile = generate_dockerfile(easyconfigs, container_base, eb_go)
+    dockerfile = generate_dockerfile(easyconfigs, container_base)
 
     # Build image if requested
     if build_option('container_build_image'):

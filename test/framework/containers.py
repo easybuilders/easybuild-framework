@@ -59,6 +59,12 @@ else
 fi
 """
 
+MOCKED_DOCKER = """\
+echo "docker was called with arguments: $@"
+echo "$@"
+echo $#
+"""
+
 
 class ContainersTest(EnhancedTestCase):
     """Tests for containers support"""
@@ -89,11 +95,11 @@ class ContainersTest(EnhancedTestCase):
             expected.update({'arg2': 'bar'})
             self.assertEqual(parse_container_base('%s:foo:bar' % agent), expected)
 
-    def run_main(self, args):
+    def run_main(self, args, raise_error=False):
         """Helper function to run main with arguments specified in 'args' and return stdout/stderr."""
         self.mock_stdout(True)
         self.mock_stderr(True)
-        self.eb_main(args, raise_error=True, verbose=True, do_build=True)
+        self.eb_main(args, raise_error=raise_error, verbose=True, do_build=True)
         stdout = self.get_stdout().strip()
         stderr = self.get_stderr().strip()
         self.mock_stdout(False)
@@ -120,6 +126,7 @@ class ContainersTest(EnhancedTestCase):
         args = [
             toy_ec,
             '--containerize',
+            '--container-type=singularity',
             '--experimental',
         ]
 
@@ -138,7 +145,7 @@ class ContainersTest(EnhancedTestCase):
             remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
         args.append("--container-base=shub:test123")
-        self.run_main(args)
+        self.run_main(args, raise_error=True)
 
         # existing definition file is not overwritten without use of --force
         error_pattern = "Container recipe at .* already exists, not overwriting it without --force"
@@ -204,6 +211,7 @@ class ContainersTest(EnhancedTestCase):
             toy_ec,
             '-C',  # equivalent with --containerize
             '--experimental',
+            '--container-type=singularity',
             '--container-base=localimage:%s' % test_img,
             '--container-build-image',
         ]
@@ -282,6 +290,105 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs[-3] = "^== Running 'sudo\s*SINGULARITY_TMPDIR=%s \S*/singularity build .*" % self.test_prefix
+
+    def test_end2end_dockerfile(self):
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        containerpath = os.path.join(self.test_prefix, 'containers')
+        os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
+        # --containerpath must be an existing directory (this is done to avoid misconfiguration)
+        mkdir(containerpath)
+
+        base_args = [
+            toy_ec,
+            '--containerize',
+            '--container-type=docker',
+            '--experimental',
+        ]
+
+        error_pattern = "Unsupported container base image 'not-supported'"
+        self.assertErrorRegex(EasyBuildError,
+                              error_pattern,
+                              self.eb_main,
+                              base_args + ['--container-base=not-supported'],
+                              raise_error=True)
+
+        for cont_base in ['ubuntu:16.04', 'centos:7']:
+            stdout, stderr = self.run_main(base_args + ['--container-base=%s' % cont_base])
+            self.assertFalse(stderr)
+            regexs = ["^== Dockerfile file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
+            self.check_regexs(regexs, stdout)
+            remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
+
+        self.run_main(base_args + ['--container-base=centos:7'], raise_error=True)
+
+        error_pattern = "Dockerfile at .* already exists, not overwriting it without --force"
+        self.assertErrorRegex(EasyBuildError,
+                              error_pattern,
+                              self.eb_main,
+                              base_args + ['--container-base=centos:7'],
+                              raise_error=True)
+
+        remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
+
+        base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
+        self.run_main(base_args, raise_error=True)
+        def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
+        regexs = [
+            "FROM ubuntu:16.04",
+            "eb toy-0.0.eb GCC-4.9.2.eb",
+            "module load toy/0.0 GCC/4.9.2",
+        ]
+        self.check_regexs(regexs, def_file)
+        remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
+
+    def test_end2end_docker_image(self):
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        containerpath = os.path.join(self.test_prefix, 'containers')
+        os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
+        # --containerpath must be an existing directory (this is done to avoid misconfiguration)
+        mkdir(containerpath)
+
+        args = [
+            toy_ec,
+            '-C',  # equivalent with --containerize
+            '--experimental',
+            '--container-type=docker',
+            '--container-build-image',
+        ]
+
+        if not which('docker'):
+            error_pattern = "docker executable not found."
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
+        # install mocked versions of 'sudo' and 'docker' commands
+        docker = os.path.join(self.test_prefix, 'bin', 'docker')
+        write_file(docker, MOCKED_DOCKER)
+        adjust_permissions(docker, stat.S_IXUSR, add=True)
+
+        sudo = os.path.join(self.test_prefix, 'bin', 'sudo')
+        write_file(sudo, '#!/bin/bash\necho "running command \'$@\' with sudo..."\neval "$@"\n')
+        adjust_permissions(sudo, stat.S_IXUSR, add=True)
+
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH'))
+
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
+        regexs = [
+            "^== docker tool found at %s/bin/docker" % self.test_prefix,
+            "^== Dockerfile file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
+            "^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
+            "^== Docker image created at toy-0.0:latest",
+        ]
+        self.check_regexs(regexs, stdout)
+
+        args.extend(['--force', '--extended-dry-run'])
+        stdout, stderr = self.run_main(args)
+        self.assertFalse(stderr)
         self.check_regexs(regexs, stdout)
 
 
