@@ -637,6 +637,7 @@ class EasyBuildOptions(GeneralOption):
             'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
             'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
             'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
+            'tmp-path': ("Path to where container image is temporarily built", None, 'store', None),
             'type': ("Type of container recipe/image to create", 'choice', 'store', DEFAULT_CONT_TYPE, CONT_TYPES),
         })
 
