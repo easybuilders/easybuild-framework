@@ -11,6 +11,7 @@ feature release
   - see documentation at http://easybuild.readthedocs.io/en/latest/Containers.html
 - include -ftree-vectorize and -fno-math-errno in default compiler optimisation flags for GCC (#2388)
   - this significantly improves performance of generated binaries when building with a GCC-based toolchain
+  - can be disabled if needed via the 'vectorize' toolchain option
 - several enhancements/fixes to GitHub integration support:
   - loosen commit message requirements for --new-pr w.r.t. to patches as long as all easyconfigs are new (#2438)
   - automatically add 'new' and/or 'update' labels in --new-pr (#2384)
