@@ -124,6 +124,7 @@ BUILD_OPTIONS_CMDLINE = {
         'container_base',
         'container_image_format',
         'container_image_name',
+        'container_tmpdir',
         'download_timeout',
         'dump_test_report',
         'easyblock',
