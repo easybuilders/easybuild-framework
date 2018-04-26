@@ -2985,22 +2985,27 @@ def inject_checksums(ecs, checksum_type):
 
         checksums_txt = '\n'.join(checksum_lines)
 
+        # if any checksums were provided before, get rid of them
         if app.cfg['checksums']:
+            _log.debug("Removing existing 'checksums' easyconfig parameter definition...")
             regex = re.compile(r'^checksums(?:.|\n)+?\]\s*$', re.M)
-            ectxt = regex.sub(checksums_txt, ectxt)
+            ectxt = regex.sub('', ectxt)
 
         # it is possible no sources (and hence patches) are listed, e.g. for 'bundle' easyconfigs
-        elif app.src:
+        if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
             # grab raw lines for source_urls, sources, patches
+            keys = ['patches', 'source_urls', 'sources']
             raw = {}
-            for key in ['patches', 'source_urls', 'sources']:
+            for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
                 res = regex.search(ectxt)
                 if res:
                     raw[key] = res.group(0).strip() + '\n'
                     ectxt = regex.sub(placeholder, ectxt)
+
+            _log.debug("Raw lines for %s easyconfig parameters: %s", '/'.join(keys), raw)
 
             # inject combination of source_urls/sources/patches/checksums into easyconfig
             # by replacing first occurence of placeholder that was put in place
