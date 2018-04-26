@@ -3,6 +3,49 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.6.0 (April 26th 2018)
+------------------------
+
+feature release
+- (experimental) support for generating Singularity container recipes & (optionally) images via 'sudo singularity' (#2332, #2480, #2481, #2482, #2483)
+  - see documentation at http://easybuild.readthedocs.io/en/latest/Containers.html
+- include -ftree-vectorize and -fno-math-errno in default compiler optimisation flags for GCC (#2388)
+  - this significantly improves performance of generated binaries when building with a GCC-based toolchain
+  - can be disabled if needed via the 'vectorize' toolchain option
+- several enhancements/fixes to GitHub integration support:
+  - loosen commit message requirements for --new-pr w.r.t. to patches as long as all easyconfigs are new (#2438)
+  - automatically add 'new' and/or 'update' labels in --new-pr (#2384)
+  - add force_in_dry_run=True to copy_file in copy_patch_files (#2442)
+  - test for custom commit message when deleting a file instead of when adding a patch (#2443)
+  - make diff_stat pattern also match output of older git versions in tests for --new/update-pr (#2444)
+  - remove duplicates from --new-pr title (#2478)
+- add support for "eb --fetch" to only download sources (even without having a modules tool installed) (#2457)
+- add definitions for a bunch of new toolchains:
+  - golf (#2458), gmkl (#2460), gomkl (#2455), pmkl (#2460)
+  - toolchains including CUDA: gmklc, gomklc, iimklc, iompic, iomklc (#2461)
+- various minor enhancements, including:
+  - avoid that '--inject-checksums' adds lines longer than 120 characters (#2434)
+  - enable caching of $HOME/.cache/pip in Travis config (#2435)
+  - replace raw strings with bytes literal as iterator sentinels in checksum calculation (#2446)
+  - new command-line option '--job-max-jobs' to cap nr of submitted build jobs with GC3Pie (#2378)
+  - add configuration for houndci + flake8 (#2451)
+  - add Accept header when downloading file (#2437)
+  - include running of 'eb --check-github' in Travis config (#2449, #2454)
+  - flesh out common code blocks in test/framework/options.py (#2452)
+  - support 'depends_on' load statements in generated modules via --module-depends-on and module_depends_on easyconfig parameter (#2391)
+  - fix compatibility with Modules v4.1.x (#2470)
+  - add support to run_cmd to enable streaming output (#2476)
+- various bug fixes, including:
+  - determine whether included easyblocks are generic or not based on class they define (#2432)
+  - make sure GitHub token is used in test for --preview-pr (#2436)
+  - take into account that toolchain components may be hidden when determining toolchain composition (#2440)
+  - stick to autopep8 1.3.4 when testing with Python 2.6 (#2462)
+  - strip off .lua extension when backing up modules to ensure Lmod 6.x doesn't pick up on them (#2463)
+  - check for modulecmd.tcl before modulecmd in bootstrap script to discriminate between Modules 4.1.x vs 3.2.10 (#2468)
+  - fix derive_alt_pypi_url after PyPI switching to sha256 in package URLs + fix broken test for pypi_source_urls + fix bootstrap script (#2471)
+  - make sure that both 'get_git_revision' and 'this_is_easybuild' return regular strings rather than Unicode strings (#2472)
+
+
 v3.5.3 (March 7th 2018)
 -----------------------
 

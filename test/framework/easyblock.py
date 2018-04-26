@@ -46,6 +46,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -845,29 +846,30 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
 
+        toy_patch = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
         eb.fetch_patches()
         self.assertEqual(len(eb.patches), 2)
-        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[0]['name'], toy_patch)
         self.assertFalse('level' in eb.patches[0])
 
         # reset
         eb.patches = []
 
         patches = [
-            ('toy-0.0_typo.patch', 0),  # should also be level 0 (not None or something else)
-            ('toy-0.0_typo.patch', 4),   # should be level 4
-            ('toy-0.0_typo.patch', 'foobar'),  # sourcepath should be set to 'foobar'
+            (toy_patch, 0),  # should also be level 0 (not None or something else)
+            (toy_patch, 4),   # should be level 4
+            (toy_patch, 'foobar'),  # sourcepath should be set to 'foobar'
             ('toy-0.0.tar.gz', 'some/path'),  # copy mode (not a .patch file)
         ]
         # check if patch levels are parsed correctly
         eb.fetch_patches(patch_specs=patches)
 
         self.assertEqual(len(eb.patches), 4)
-        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[0]['name'], toy_patch)
         self.assertEqual(eb.patches[0]['level'], 0)
-        self.assertEqual(eb.patches[1]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[1]['name'], toy_patch)
         self.assertEqual(eb.patches[1]['level'], 4)
-        self.assertEqual(eb.patches[2]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[2]['name'], toy_patch)
         self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
         self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
@@ -1061,7 +1063,7 @@ class EasyBlockTest(EnhancedTestCase):
         orig_sources = ec['ec']['sources'][:]
 
         toy_patches = [
-            'toy-0.0_typo.patch',  # test for applying patch
+            'toy-0.0_fix-silly-typo-in-printf-statement.patch',  # test for applying patch
             ('toy-extra.txt', 'toy-0.0'), # test for patch-by-copy
         ]
         self.assertEqual(ec['ec']['patches'], toy_patches)
@@ -1257,6 +1259,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
+
+    def test_this_is_easybuild(self):
+        """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
+        # make sure both return a non-Unicode string
+        self.assertTrue(isinstance(get_git_revision(), str))
+        self.assertTrue(isinstance(this_is_easybuild(), str))
 
 
 def suite():

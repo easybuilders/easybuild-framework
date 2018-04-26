@@ -689,12 +689,14 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if commit_msg:
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified easyconfigs at once: %s", cnt, commit_msg)
-    elif all(file_info['new']) and not paths['patch_files'] and not paths['files_to_delete']:
+    elif all(file_info['new']) and not paths['files_to_delete']:
         # automagically derive meaningful commit message if all easyconfig files are new
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
+        if paths['patch_files']:
+            commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
     else:
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
-                             "modifying/deleting easyconfigs and/or specifying patches")
+                             "modifying/deleting easyconfigs")
 
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
@@ -1071,6 +1073,13 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                                                                                    start_account=pr_target_account,
                                                                                    commit_msg=commit_msg)
 
+    # label easyconfigs for new software and/or new easyconfigs for existing software
+    labels = []
+    if any(file_info['new_folder']):
+        labels.append('new')
+    if any(file_info['new_file_in_existing_folder']):
+        labels.append('update')
+
     # only use most common toolchain(s) in toolchain label of PR title
     toolchains = ['%(name)s/%(version)s' % ec['toolchain'] for ec in file_info['ecs']]
     toolchains_counted = sorted([(toolchains.count(tc), tc) for tc in nub(toolchains)])
@@ -1086,7 +1095,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             title = commit_msg
         elif file_info['ecs'] and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
-            names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
+            names_and_versions = nub(["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']])
             if len(names_and_versions) <= 3:
                 main_title = ', '.join(names_and_versions)
             else:
@@ -1110,6 +1119,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         "* target: %s/%s:%s" % (pr_target_account, pr_target_repo, pr_target_branch),
         "* from: %s/%s:%s" % (github_account, pr_target_repo, branch),
         "* title: \"%s\"" % title,
+        "* labels: %s" % (', '.join(labels) or '(none)'),
         "* description:",
         '"""',
         full_descr,
@@ -1133,6 +1143,16 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             raise EasyBuildError("Failed to open PR for branch %s; status %s, data: %s", branch, status, data)
 
         print_msg("Opened pull request: %s" % data['html_url'], log=_log, prefix=False)
+
+        if labels:
+            # post labels
+            pr = data['html_url'].split('/')[-1]
+            pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
+            status, data = pr_url.labels.post(body=labels)
+            if not status == HTTP_STATUS_OK:
+                raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
+
+            print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')

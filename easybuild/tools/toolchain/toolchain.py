@@ -412,7 +412,7 @@ class Toolchain(object):
         var_suff = '_MODULE_NAME'
         tc_elems = {}
         for var in dir(self):
-            if var.endswith(var_suff):
+            if var.endswith(var_suff) and getattr(self, var) is not None:
                 tc_elems.update({var[:-len(var_suff)]: getattr(self, var)})
 
         self.log.debug("Toolchain definition for %s: %s", self.as_dict(), tc_elems)

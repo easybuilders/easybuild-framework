@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
-from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
@@ -929,6 +929,13 @@ class ModulesTest(EnhancedTestCase):
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
         self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
+        def test_NoModulesTool(self):
+            nmt = NoModulesTool(testing=true)
+            assertEqual(len(nmt.available()), 0)
+            assertEqual(len(nmt.available(mod_names='foo')), 0)
+            assertEqual(len(nmt.list()), 0)
+            assertEqual(nmt.exist(['foo', 'bar']), [False, False])
+            assertEqual(nmt.exist(['foo', 'bar'], r'^\s*\S*/%s.*:\s*$', skip_avail=False), [False, False])
 
 def suite():
     """ returns all the testcases in this module """

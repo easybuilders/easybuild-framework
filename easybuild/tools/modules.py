@@ -197,6 +197,7 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
+        self.supports_depends_on = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -553,7 +554,7 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -1095,12 +1096,20 @@ class EnvironmentModules(EnvironmentModulesTcl):
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
 
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if "_mlstatus = False" in stdout:
+            raise EasyBuildError("Failed module command detected: %s (stdout: %s, stderr: %s)", cmd, stdout, stderr)
+        else:
+            self.log.debug("No errors detected when running module command '%s'", cmd)
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
     REQ_VERSION = '5.8'
+    REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
@@ -1116,6 +1125,7 @@ class Lmod(ModulesTool):
         setvar('LMOD_REDIRECT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
+        self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
@@ -1340,6 +1350,9 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
+    # NoModulesTool should never be used deliberately, so remove it from the list of available module tools
+    if 'NoModulesTool' in class_dict:
+        del class_dict['NoModulesTool']
     return class_dict
 
 
@@ -1349,11 +1362,8 @@ def modules_tool(mod_paths=None, testing=False):
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
-    if modules_tool is not None:
-        modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, testing=testing)
-    else:
-        return None
+    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
+    return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 
 def reset_module_caches():
@@ -1384,3 +1394,25 @@ class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
+
+
+class NoModulesTool(ModulesTool):
+    """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def exist(self, mod_names, *args, **kwargs):
+        """No modules, so nothing exists"""
+        return [False]*len(mod_names)
+
+    def check_loaded_modules(self):
+        """Nothing to do since no modules"""
+        pass
+
+    def list(self):
+        """No modules loaded"""
+        return []
+
+    def available(self, *args, **kwargs):
+        """No modules, so nothing available"""
+        return []

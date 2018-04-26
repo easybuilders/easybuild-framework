@@ -1026,10 +1026,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
-        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_typo.patch')
+        patch_file = os.path.join(installdir, 'easybuild', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.exists(patch_file))
 
-        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_typo.patch')
+        archived_patch_file = os.path.join(repositorypath, 'toy', 'toy-0.0_fix-silly-typo-in-printf-statement.patch')
         self.assertTrue(os.path.isfile(archived_patch_file))
 
     def test_toy_module_fulltxt(self):
@@ -1386,8 +1386,10 @@ class ToyBuildTest(EnhancedTestCase):
         # Test also with lua syntax if Lmod is available. In particular, that the backup is not hidden
         if isinstance(self.modtool, Lmod):
             args = common_args + ['--module-syntax=Lua', '--backup-modules']
-            toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps.lua')
-            toy_mod_dir, toy_mod_fn = os.path.split(toy_mod)
+
+            toy_mod_dir = os.path.join(self.test_installpath, 'modules', 'all', 'toy')
+            toy_mod_fn = '0.0-deps'
+            toy_mod = os.path.join(toy_mod_dir, toy_mod_fn + '.lua')
 
             self.eb_main(args, do_build=True, raise_error=True)
             self.assertTrue(os.path.exists(toy_mod))
@@ -1406,10 +1408,10 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod_backups = glob.glob(os.path.join(toy_mod_dir, toy_mod_fn + '.bak_*'))
             self.assertEqual(len(toy_mod_backups), 1)
             first_toy_lua_mod_backup = toy_mod_backups[0]
-            self.assertTrue('.lua.bak' in os.path.basename(first_toy_lua_mod_backup))
+            self.assertTrue('.bak_' in os.path.basename(first_toy_lua_mod_backup))
             self.assertFalse(os.path.basename(first_toy_lua_mod_backup).startswith('.'))
 
-            toy_mod_bak = ".*/toy/0\.0-deps\.lua\.bak_[0-9]*"
+            toy_mod_bak = ".*/toy/0\.0-deps\.bak_[0-9]*"
             regex = re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
             regex = re.compile("^== comparing module file with backup %s; no differences found$" % toy_mod_bak, re.M)
@@ -1759,7 +1761,7 @@ class ToyBuildTest(EnhancedTestCase):
         patterns = [
             "^  >> installation prefix: .*/software/toy/0\.0$",
             "^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
-            "^  >> applying patch toy-0\.0_typo\.patch$",
+            "^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             "^  >> running command:\n\t\[started at: .*\]\n\t\[output logged in .*\]\n\tgcc toy.c -o toy\n" +
             "  >> command completed: exit 0, ran in .*",
             '^' + '\n'.join([
