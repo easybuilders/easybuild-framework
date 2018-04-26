@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2018 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,22 +23,18 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gomkl compiler toolchain (includes GCC, OpenMPI,
-Intel Math Kernel Library (MKL) and Intel FFTW wrappers).
+EasyBuild support for golf compiler toolchain (includes GCC, OpenBLAS, LAPACK, and FFTW).
 
-:author: Stijn De Weirdt (Ghent University)
 :author: Kenneth Hoste (Ghent University)
-:author: Ake Sandgren (Umea University)
-:author: Bart Oldeman (Compute Canada)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
 
-from easybuild.toolchains.gompi import Gompi
-from easybuild.toolchains.gmkl import Gmkl
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.toolchains.gcc import GccToolchain
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.openblas import OpenBLAS
 
 
-class Gomkl(Gompi, Gmkl, IntelMKL, IntelFFTW):
-    """Compiler toolchain with GCC, OpenMPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers."""
-    NAME = 'gomkl'
-    SUBTOOLCHAIN = [Gompi.NAME, Gmkl.NAME]
+class Golf(GccToolchain, OpenBLAS, Fftw):
+    """Compiler toolchain with GCC, OpenBLAS, and FFTW."""
+    NAME = 'golf'
+    SUBTOOLCHAIN = GccToolchain.NAME

@@ -495,7 +495,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '$env(%s)' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
 
@@ -508,13 +508,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
             body.extend([self.unload_module(m).strip() for m in unload_modules])
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
-        if (build_option('recursive_mod_unload_depends_on') or
-            recursive_unload == 'depends_on') and modules_tool().has_depends_on:
+        if build_option('mod_depends_on') or depends_on:
+            if not modules_tool().supports_depends_on:
+                raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
         body.append(load_template)
 
-        if (build_option('recursive_mod_unload') or recursive_unload or
-            load_template == self.LOAD_TEMPLATE_DEPENDS_ON):
+        if build_option('recursive_mod_unload') or recursive_unload or load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
@@ -792,7 +792,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return 'os.getenv("%s")' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
 
@@ -806,8 +806,9 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
-        if (build_option('recursive_mod_unload_depends_on') or
-            recursive_unload == 'depends_on') and modules_tool().has_depends_on:
+        if build_option('mod_depends_on') or depends_on:
+            if not modules_tool().supports_depends_on:
+                raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
 
         body.append(load_template)

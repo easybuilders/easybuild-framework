@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2016 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for iomkl compiler toolchain (includes Intel compilers (icc, ifort), OpenMPI,
+EasyBuild support for iimklc compiler toolchain (includes Intel compilers (icc, ifort), OpenMPI,
 CUDA, Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 
 :author: Stijn De Weirdt (Ghent University)
@@ -37,9 +37,9 @@ from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Iomklc(IccIfortCUDA, IntelMKL, IntelFFTW):
+class Iimklc(IccIfortCUDA, IntelMKL, IntelFFTW):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), 
+    Compiler toolchain with Intel compilers (icc/ifort),
     CUDA, Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'iimklc'

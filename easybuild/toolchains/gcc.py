@@ -34,5 +34,4 @@ class GccToolchain(GCCcore):
     """Simple toolchain with just the GCC compilers."""
     NAME = 'GCC'
     COMPILER_MODULE_NAME = [NAME]
-    COMPILER_FAMILY = NAME
     SUBTOOLCHAIN = GCCcore.NAME

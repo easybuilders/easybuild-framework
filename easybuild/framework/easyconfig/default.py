@@ -171,8 +171,9 @@ DEFAULT_CONFIG = {
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
+    'module_depends_on' : [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                           '(implies recursive unloading of modules).', MODULES],
     'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
-    'recursive_module_unload_depends_on' : [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module', MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)

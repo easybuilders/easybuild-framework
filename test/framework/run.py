@@ -38,7 +38,7 @@ import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
+from vsc.utils.fancylogger import setLogLevelDebug
 
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
@@ -367,13 +367,32 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertEqual(out, "hello\n")
 
+    def test_run_cmd_stream(self):
+        """Test use of run_cmd with streaming output."""
+        self.mock_stdout(True)
+        self.mock_stderr(True)
+        (out, ec) = run_cmd("echo hello", stream_output=True)
+        stdout = self.get_stdout()
+        stderr = self.get_stderr()
+        self.mock_stdout(False)
+        self.mock_stderr(False)
+
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "hello\n")
+
+        self.assertEqual(stderr, '')
+        expected = '\n'.join([
+            "== (streaming) output for command 'echo hello':",
+            "hello",
+            '',
+        ])
+        self.assertEqual(stdout, expected)
 
 
 def suite():
     """ returns all the testcases in this module """
     return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
 
+
 if __name__ == '__main__':
-    #logToScreen(enable=True)
-    #setLogLevelDebug()
     TextTestRunner(verbosity=1).run(suite())

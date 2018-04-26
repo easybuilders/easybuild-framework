@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2017 Ghent University
+# Copyright 2012-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,4 +42,3 @@ class Gomklc(Gompic, Gmkl, IntelMKL, IntelFFTW):
     """Compiler toolchain with GCC, Open MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers and Cuda."""
     NAME = 'gomklc'
     SUBTOOLCHAIN = [Gompic.NAME, Gmkl.NAME]
-
