@@ -179,9 +179,15 @@ class Extension(object):
             (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
 
             if ec:
-                fail_msg = 'command "%s" (stdin: %s) failed; output:\n%s' % (cmd, stdin, output.strip())
-                self.log.warn("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
+                if stdin:
+                    fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
+                else:
+                    fail_msg = 'command "%s" failed' % cmd
+                fail_msg += "; output:\n%s" % output.strip()
+                self.log.warning("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
                 res = (False, fail_msg)
+                # keep track of all reasons of failure
+                # (only relevant when this extension is installed stand-alone via ExtensionEasyBlock)
                 self.sanity_check_fail_msgs.append(fail_msg)
 
         return res

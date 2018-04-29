@@ -2204,28 +2204,27 @@ class EasyBlock(object):
         if not extension:
             failed_exts = []
             for ext in self.ext_instances:
-                fail_msg = None
+                success, fail_msg = None, None
                 res = ext.sanity_check_step()
                 # if result is a tuple, we expect a (<bool (success)>, <custom_message>) format
                 if isinstance(res, tuple):
-                    if len(res) == 2:
-                        if not res[0]:
-                            fail_msg = "sanity check for '%s' extension failed: %s" % (ext.name, res[1])
-                    else:
+                    if len(res) != 2:
                         raise EasyBuildError("Wrong sanity check result type for '%s' extension: %s", ext.name, res)
+                    success, fail_msg = res
                 else:
                     # if result of extension sanity check is not a 2-tuple, treat it as a boolean indicating success
-                    if not res:
-                        fail_msg = "sanity check for '%s' extension failed (see log for details)!" % ext.name
+                    success, fail_msg = res, "(see log for details)"
 
-                if fail_msg:
+                if not success:
+                    fail_msg = "failing sanity check for '%s' extension: %s" % (ext.name, fail_msg)
                     failed_exts.append((ext.name, fail_msg))
                     self.log.warning(fail_msg)
                 else:
                     self.log.info("Sanity check for '%s' extension passed!", ext.name)
 
             if failed_exts:
-                overall_fail_msg = "extensions sanity check failed for %d extensions (see below): " % len(failed_exts)
+                overall_fail_msg = "extensions sanity check failed for %d extensions: " % len(failed_exts)
+                self.log.warning(overall_fail_msg)
                 self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
                 self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
