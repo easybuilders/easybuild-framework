@@ -41,33 +41,24 @@ from easybuild.tools.build_log import EasyBuildError
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
 # constants for different categories of easyconfig parameters
-BUILD = 'BUILD'
-CUSTOM = 'CUSTOM'
-DEPENDENCIES = 'DEPENDENCIES'
-EXTENSIONS = 'EXTENSIONS'
-FILEMANAGEMENT = 'FILEMANAGEMENT'
-HIDDEN = 'HIDDEN'
-LICENSE = 'LICENSE'
-MANDATORY = 'MANDATORY'
-MODULES = 'MODULES'
-OTHER = 'OTHER'
-TOOLCHAIN = 'TOOLCHAIN'
+# use tuples so we can sort them based on the numbers
+HIDDEN = (-1, 'hidden')
+MANDATORY = (0, 'mandatory')
+CUSTOM = (1, 'easyblock-specific')
+TOOLCHAIN = (2, 'toolchain')
+BUILD = (3, 'build')
+FILEMANAGEMENT = (4, 'file-management')
+DEPENDENCIES = (5, 'dependencies')
+LICENSE = (6, 'license')
+EXTENSIONS = (7, 'extensions')
+MODULES = (8, 'modules')
+OTHER = (9, 'other')
 
 
 # we use a tuple here so we can sort them based on the numbers
-ALL_CATEGORIES = {
-    HIDDEN: (-1, 'hidden'),
-    MANDATORY: (0, 'mandatory'),
-    CUSTOM: (1, 'easyblock-specific'),
-    TOOLCHAIN: (2, 'toolchain'),
-    BUILD: (3, 'build'),
-    FILEMANAGEMENT: (4, 'file-management'),
-    DEPENDENCIES: (5, 'dependencies'),
-    LICENSE: (6, 'license'),
-    EXTENSIONS: (7, 'extensions'),
-    MODULES: (8, 'modules'),
-    OTHER: (9, 'other'),
-}
+CATEGORY_NAMES = ['BUILD', 'CUSTOM', 'DEPENDENCIES', 'EXTENSIONS', 'FILEMANAGEMENT', 'HIDDEN',
+                  'LICENSE', 'MANDATORY', 'MODULES', 'OTHER', 'TOOLCHAIN']
+ALL_CATEGORIES = dict((name, eval(name)) for name in CATEGORY_NAMES)
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
