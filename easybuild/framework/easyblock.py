@@ -80,9 +80,9 @@ from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import Lmod, ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import invalidate_module_caches_for, get_software_root, get_software_root_env_var_name
-from easybuild.tools.modules import get_software_version_env_var_name, modules_tool
+from easybuild.tools.modules import get_software_version_env_var_name
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -115,7 +115,7 @@ class EasyBlock(object):
             extra = {}
 
         if not isinstance(extra, dict):
-            _log.nosupport("Obtained 'extra' value of type '%s' in extra_options, should be 'dict'" % type(extra), '2.0')
+            _log.nosupport("Found 'extra' value of type '%s' in extra_options, should be 'dict'" % type(extra), '2.0')
 
         return extra
 
@@ -254,7 +254,7 @@ class EasyBlock(object):
         """
         Initialize the logger.
         """
-        if not self.log is None:
+        if self.log is not None:
             return
 
         self.logfile = get_log_filename(self.name, self.version, add_salt=True)
@@ -567,7 +567,6 @@ class EasyBlock(object):
         :param download_filename: filename with which the file should be downloaded, and then renamed to <filename>
         :force_download: always try to download file, even if it's already available in source path
         """
-        res = None
         srcpaths = source_paths()
 
         # should we download or just try and find it?
@@ -904,7 +903,8 @@ class EasyBlock(object):
         if dontcreateinstalldir:
             olddir = dir_name
             dir_name = os.path.dirname(dir_name)
-            self.log.info("Cleaning only, no actual creation of %s, only verification/defining of dirname %s" % (olddir, dir_name))
+            self.log.info("Cleaning only, no actual creation of %s, only verification/defining of dirname %s",
+                          olddir, dir_name)
             if os.path.exists(dir_name):
                 return
             # if not, create dir as usual
@@ -1369,10 +1369,10 @@ class EasyBlock(object):
 
             try:
                 cmd = cmdtmpl % tmpldict
-            except KeyError, err:
+            except KeyError as err:
                 msg = "KeyError occurred on completing extension filter template: %s; "
                 msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
-                self.log.nosupport(msg, '2.0')
+                self.log.nosupport(msg % err, '2.0')
 
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
@@ -1699,7 +1699,7 @@ class EasyBlock(object):
             # determine suffix of source path to apply patch in (if any)
             srcpathsuffix = patch.get('sourcepath', patch.get('copy', ''))
             # determine whether 'patch' file should be copied rather than applied
-            copy_patch = 'copy' in patch and not 'sourcepath' in patch
+            copy_patch = 'copy' in patch and 'sourcepath' not in patch
 
             self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
                            srcind, level, srcpathsuffix, copy)
@@ -1749,7 +1749,7 @@ class EasyBlock(object):
         self.rpath_include_dirs.append('$ORIGIN/../lib64')
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs, 
+        self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs,
                                rpath_include_dirs=self.rpath_include_dirs)
 
         # handle allowed system dependencies
@@ -2343,7 +2343,6 @@ class EasyBlock(object):
             else:
                 self.log.info("Skipping devel module...")
 
-
         if build_option('set_default_module'):
             self._set_module_as_default()
 
@@ -2441,7 +2440,7 @@ class EasyBlock(object):
         # skip step when only generating module file
         # * still run sanity check without use of force
         # * always run ready & prepare step to set up toolchain + deps
-        elif module_only and not step in MODULE_ONLY_STEPS:
+        elif module_only and step not in MODULE_ONLY_STEPS:
             self.log.info("Skipping %s step (only generating module)", step)
             skip = True
 
@@ -2510,14 +2509,20 @@ class EasyBlock(object):
             (True, lambda x: env.reset_changes),
             (True, lambda x: x.handle_iterate_opts),
         ]
-        ready_step_spec = lambda initial: get_step(READY_STEP, "creating build dir, resetting environment",
-                                                   ready_substeps, False, initial=initial)
+
+        def ready_step_spec(initial):
+            """Return ready step specified."""
+            return get_step(READY_STEP, "creating build dir, resetting environment", ready_substeps, False,
+                            initial=initial)
 
         source_substeps = [
             (False, lambda x: x.checksum_step),
             (True, lambda x: x.extract_step),
         ]
-        source_step_spec = lambda initial: get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
+
+        def source_step_spec(initial):
+            """Return source step specified."""
+            return get_step(SOURCE_STEP, "unpacking", source_substeps, True, initial=initial)
 
         def prepare_step_spec(initial):
             """Return prepare step specification."""
@@ -2532,7 +2537,10 @@ class EasyBlock(object):
             (False, lambda x: x.make_installdir),
             (True, lambda x: x.install_step),
         ]
-        install_step_spec = lambda init: get_step(INSTALL_STEP, "installing", install_substeps, True, initial=init)
+
+        def install_step_spec(initial):
+            """Return install step specification."""
+            return get_step(INSTALL_STEP, "installing", install_substeps, True, initial=initial)
 
         # format for step specifications: (stop_name: (description, list of functions, skippable))
 
@@ -2830,7 +2838,6 @@ def get_easyblock_instance(ecdict):
 
     returns an instance of EasyBlock (or subclass thereof)
     """
-    spec = ecdict['spec']
     rawtxt = ecdict['ec'].rawtxt
     name = ecdict['ec']['name']
 
