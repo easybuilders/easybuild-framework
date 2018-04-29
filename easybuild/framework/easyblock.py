@@ -2209,13 +2209,13 @@ class EasyBlock(object):
                 if isinstance(res, tuple):
                     if len(res) == 2:
                         if not res[0]:
-                            fail_msg = "Sanith check for '%s' extension failed: %s" % (ext.name, res[1])
+                            fail_msg = "sanity check for '%s' extension failed: %s" % (ext.name, res[1])
                     else:
                         raise EasyBuildError("Wrong sanity check result type for '%s' extension: %s", ext.name, res)
                 else:
                     # if result of extension sanity check is not a 2-tuple, treat it as a boolean indicating success
                     if not res:
-                        fail_msg = "Sanith check for '%s' extension failed (see log for details)!" % ext.name
+                        fail_msg = "sanity check for '%s' extension failed (see log for details)!" % ext.name
 
                 if fail_msg:
                     self.sanity_check_fail_msgs.append(fail_msg)

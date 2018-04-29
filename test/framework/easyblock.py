@@ -1105,7 +1105,9 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb = EB_toy(toy_ec)
         eb.silent = True
-        error_pattern = r"Sanity check failed: Sanith check for 'toy' extension failed \(see log for details\)\!"
+        error_pattern = r"Sanity check failed: sanity check for 'toy' extension failed: "
+        error_pattern += r'command "thisshouldfail" \(stdin: None\) failed; '
+        error_pattern += r"output:\n/bin/bash: thisshouldfail: command not found"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
