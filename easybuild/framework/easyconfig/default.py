@@ -40,25 +40,34 @@ from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
+# constants for different categories of easyconfig parameters
+BUILD = 'BUILD'
+CUSTOM = 'CUSTOM'
+DEPENDENCIES = 'DEPENDENCIES'
+EXTENSIONS = 'EXTENSIONS'
+FILEMANAGEMENT = 'FILEMANAGEMENT'
+HIDDEN = 'HIDDEN'
+LICENSE = 'LICENSE'
+MANDATORY = 'MANDATORY'
+MODULES = 'MODULES'
+OTHER = 'OTHER'
+TOOLCHAIN = 'TOOLCHAIN'
+
 
 # we use a tuple here so we can sort them based on the numbers
 ALL_CATEGORIES = {
-    'HIDDEN': (-1, 'hidden'),
-    'MANDATORY': (0, 'mandatory'),
-    'CUSTOM': (1, 'easyblock-specific'),
-    'TOOLCHAIN': (2, 'toolchain'),
-    'BUILD': (3, 'build'),
-    'FILEMANAGEMENT': (4, 'file-management'),
-    'DEPENDENCIES': (5, 'dependencies'),
-    'LICENSE': (6, 'license'),
-    'EXTENSIONS': (7, 'extensions'),
-    'MODULES': (8, 'modules'),
-    'OTHER': (9, 'other'),
+    HIDDEN: (-1, 'hidden'),
+    MANDATORY: (0, 'mandatory'),
+    CUSTOM: (1, 'easyblock-specific'),
+    TOOLCHAIN: (2, 'toolchain'),
+    BUILD: (3, 'build'),
+    FILEMANAGEMENT: (4, 'file-management'),
+    DEPENDENCIES: (5, 'dependencies'),
+    LICENSE: (6, 'license'),
+    EXTENSIONS: (7, 'extensions'),
+    MODULES: (8, 'modules'),
+    OTHER: (9, 'other'),
 }
-# define constants so they can be used below
-# avoid that pylint complains about unknown variables in this file
-# pylint: disable=E0602
-globals().update(ALL_CATEGORIES)
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -172,8 +181,8 @@ DEFAULT_CONFIG = {
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'module_depends_on' : [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
-                           '(implies recursive unloading of modules).', MODULES],
+    'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                          '(implies recursive unloading of modules).', MODULES],
     'recursive_module_unload': [False, 'Recursive unload of all dependencies when unloading module', MODULES],
 
     # MODULES documentation easyconfig parameters
@@ -181,8 +190,8 @@ DEFAULT_CONFIG = {
     'docpaths': [None, "List of paths for documentation relative to installation directory", MODULES],
     'examples': [None, "Free-form text with examples on using the software", MODULES],
     'site_contacts': [None, "String/list of strings with site contacts for the software", MODULES],
-    'upstream_contacts': [None, ("String/list of strings with upstream contact addresses "
-                                "(e.g., support e-mail, mailing list, bugtracker)"), MODULES],
+    'upstream_contacts': [None, "String/list of strings with upstream contact addresses "
+                          "(e.g., support e-mail, mailing list, bugtracker)", MODULES],
     'usage': [None, "Usage instructions for the software", MODULES],
     'whatis': [None, "List of brief (one line) description entries for the software", MODULES],
 
