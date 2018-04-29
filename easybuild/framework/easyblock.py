@@ -2200,12 +2200,28 @@ class EasyBlock(object):
 
             trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
+        # sanity check for extensions
         if not extension:
-            failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
+            for ext in self.ext_instances:
+                fail_msg = None
+                res = ext.sanity_check_step()
+                # if result is a tuple, we expect a (<bool (success)>, <custom_message>) format
+                if isinstance(res, tuple):
+                    if len(res) == 2:
+                        if not res[0]:
+                            fail_msg = "Sanith check for '%s' extension failed: %s" % (ext.name, res[1])
+                    else:
+                        raise EasyBuildError("Wrong sanity check result type for '%s' extension: %s", ext.name, res)
+                else:
+                    # if result of extension sanity check is not a 2-tuple, treat it as a boolean indicating success
+                    if not res:
+                        fail_msg = "Sanith check for '%s' extension failed (see log for details)!" % ext.name
 
-            if failed_exts:
-                self.sanity_check_fail_msgs.append("sanity checks for %s extensions failed!" % failed_exts)
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+                if fail_msg:
+                    self.sanity_check_fail_msgs.append(fail_msg)
+                    self.log.warning(fail_msg)
+                else:
+                    self.log.info("Sanity check for '%s' extension passed!", ext.name)
 
         # cleanup
         if fake_mod_data:
