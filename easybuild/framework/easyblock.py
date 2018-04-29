@@ -2143,6 +2143,34 @@ class EasyBlock(object):
         else:
             self.log.debug("Skiping RPATH sanity check")
 
+    def _sanity_check_step_extensions(self):
+        """Sanity check on extensions (if any)."""
+        failed_exts = []
+        for ext in self.ext_instances:
+            success, fail_msg = None, None
+            res = ext.sanity_check_step()
+            # if result is a tuple, we expect a (<bool (success)>, <custom_message>) format
+            if isinstance(res, tuple):
+                if len(res) != 2:
+                    raise EasyBuildError("Wrong sanity check result type for '%s' extension: %s", ext.name, res)
+                success, fail_msg = res
+            else:
+                # if result of extension sanity check is not a 2-tuple, treat it as a boolean indicating success
+                success, fail_msg = res, "(see log for details)"
+
+            if not success:
+                fail_msg = "failing sanity check for '%s' extension: %s" % (ext.name, fail_msg)
+                failed_exts.append((ext.name, fail_msg))
+                self.log.warning(fail_msg)
+            else:
+                self.log.info("Sanity check for '%s' extension passed!", ext.name)
+
+        if failed_exts:
+            overall_fail_msg = "extensions sanity check failed for %d extensions: " % len(failed_exts)
+            self.log.warning(overall_fail_msg)
+            self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
+            self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
+
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
@@ -2189,7 +2217,6 @@ class EasyBlock(object):
 
         # run sanity check commands
         for command in commands:
-
             out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
@@ -2200,33 +2227,9 @@ class EasyBlock(object):
 
             trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
-        # sanity check for extensions
+        # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
-            failed_exts = []
-            for ext in self.ext_instances:
-                success, fail_msg = None, None
-                res = ext.sanity_check_step()
-                # if result is a tuple, we expect a (<bool (success)>, <custom_message>) format
-                if isinstance(res, tuple):
-                    if len(res) != 2:
-                        raise EasyBuildError("Wrong sanity check result type for '%s' extension: %s", ext.name, res)
-                    success, fail_msg = res
-                else:
-                    # if result of extension sanity check is not a 2-tuple, treat it as a boolean indicating success
-                    success, fail_msg = res, "(see log for details)"
-
-                if not success:
-                    fail_msg = "failing sanity check for '%s' extension: %s" % (ext.name, fail_msg)
-                    failed_exts.append((ext.name, fail_msg))
-                    self.log.warning(fail_msg)
-                else:
-                    self.log.info("Sanity check for '%s' extension passed!", ext.name)
-
-            if failed_exts:
-                overall_fail_msg = "extensions sanity check failed for %d extensions: " % len(failed_exts)
-                self.log.warning(overall_fail_msg)
-                self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
-                self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
+            self._sanity_check_step_extensions()
 
         # cleanup
         if fake_mod_data:
