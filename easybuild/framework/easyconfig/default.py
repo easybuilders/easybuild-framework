@@ -151,6 +151,7 @@ DEFAULT_CONFIG = {
     'license_server_port': [None, 'Port for license server', LICENSE],
 
     # EXTENSIONS easyconfig parameters
+    'exts_download_dep_fail': [False, "Fail if downloaded dependencies are detected for extensions", EXTENSIONS],
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
     'exts_defaultclass': [None, "List of module for and name of the default extension class", EXTENSIONS],
     'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],
