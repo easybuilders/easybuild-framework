@@ -1148,11 +1148,13 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
             # post labels
             pr = data['html_url'].split('/')[-1]
             pr_url = g.repos[pr_target_account][pr_target_repo].issues[pr]
-            status, data = pr_url.labels.post(body=labels)
-            if not status == HTTP_STATUS_OK:
-                raise EasyBuildError("Failed to add labels to PR# %s; status %s, data: %s", pr, status, data)
-
-            print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+            try:
+                status, data = pr_url.labels.post(body=labels)
+                if status == HTTP_STATUS_OK:
+                    print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
+            except urllib2.HTTPError as err:
+                print_msg("Failed to add labels to PR# %s: %s. A maintainer will do it later." % (pr, err),
+                          log=_log, prefix=False)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
