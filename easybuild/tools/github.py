@@ -1153,8 +1153,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                 if status == HTTP_STATUS_OK:
                     print_msg("Added labels %s to PR#%s" % (', '.join(labels), pr), log=_log, prefix=False)
             except urllib2.HTTPError as err:
-                print_msg("Failed to add labels to PR# %s: %s. A maintainer will do it later." % (pr, err),
-                          log=_log, prefix=False)
+                _log.info("Failed to add labels to PR# %s: %s." % (pr, err))
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
