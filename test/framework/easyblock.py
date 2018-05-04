@@ -161,8 +161,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.modtool.use(tmp_modules)
 
-        orig_tmpdir = os.environ.get('TMPDIR')
-        self.assertTrue(orig_tmpdir)
+        orig_tmpdir = os.path.join(self.test_prefix, 'verylongdirectorythatmaycauseproblemswithopenmpi2')
+        os.environ['TMPDIR'] = orig_tmpdir
 
         self.contents = '\n'.join([
             "easyblock = 'ConfigureMake'",
