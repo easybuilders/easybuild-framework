@@ -127,8 +127,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # load fake module
             fake_mod_data = self.load_fake_module(purge=True)
 
-        # perform sanity check
-        sanity_check_ok = Extension.sanity_check_step(self)
+        # perform extension sanity check
+        (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
 
         if fake_mod_data:
             # unload fake module and clean up
@@ -140,21 +140,19 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                                                               extension=self.is_extension)
 
         # pass or fail sanity check
-        if not sanity_check_ok:
-            msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
-            if self.is_extension:
-                self.log.warning(msg)
-            else:
-                raise EasyBuildError(msg)
-            return False
+        if sanity_check_ok:
+            self.log.info("Sanity check for %s successful!", self.name)
         else:
-            self.log.info("Sanity check for %s successful!" % self.name)
-            return True
+            if not self.is_extension:
+                msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
+                raise EasyBuildError(msg)
+
+        return (sanity_check_ok, '; '.join(self.sanity_check_fail_msgs))
 
     def make_module_extra(self, extra=None):
         """Add custom entries to module."""
 
         txt = EasyBlock.make_module_extra(self)
-        if not extra is None:
+        if extra is not None:
             txt += extra
         return txt

@@ -1090,15 +1090,31 @@ class EasyBlockTest(EnhancedTestCase):
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'))
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+
+        # this import only works here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy
+
+        # purposely inject failing custom extension filter for last extension
+        toy_ec = EasyConfig(toy_ec_fn)
+        toy_ec.enable_templating = False
+        exts_list = toy_ec['exts_list']
+        exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
+        toy_ec['exts_list'] = exts_list
+        toy_ec.enable_templating = True
+
+        eb = EB_toy(toy_ec)
+        eb.silent = True
+        error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
+        error_pattern += r"failing sanity check for 'toy' extension: "
+        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash: thisshouldfail: command not found'
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
         # to check whether sanity check is only run once;
         # sanity check commands are checked after checking sanity check paths, so this should work
+        toy_ec = EasyConfig(toy_ec_fn)
         toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
-
-        # this import only works here, since EB_toy is a test easyblock
-        from easybuild.easyblocks.toy import EB_toy
         eb = EB_toy(toy_ec)
         eb.silent = True
         eb.run_all_steps(True)
