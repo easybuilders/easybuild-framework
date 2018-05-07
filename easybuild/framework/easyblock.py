@@ -212,6 +212,7 @@ class EasyBlock(object):
 
         # keep track of initial environment we start in, so we can restore it if needed
         self.initial_environ = copy.deepcopy(os.environ)
+        self.tweaked_env_vars = {}
 
         # should we keep quiet?
         self.silent = build_option('silent')
@@ -1282,7 +1283,14 @@ class EasyBlock(object):
             if self.mod_subdir and self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
                 mods.insert(0, self.toolchain.det_short_module_name())
 
+            # pass initial environment, to use it for resetting the environment before loading the modules
             self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
+
+            # handle environment variables that need to be updated after loading modules
+            for var, val in sorted(self.tweaked_env_vars.items()):
+                self.log.info("Tweaking $%s: %s", var, val)
+                env.setvar(var, val)
+
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
@@ -1751,6 +1759,14 @@ class EasyBlock(object):
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs,
                                rpath_include_dirs=self.rpath_include_dirs)
+
+        # keep track of environment variables that were tweaked and need to be restored after environment got reset
+        # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
+        for var in ['TMPDIR']:
+            if os.environ.get(var) != self.initial_environ.get(var):
+                self.tweaked_env_vars[var] = os.environ.get(var)
+                self.log.info("Found tweaked value for $%s: %s (was: %s)",
+                              var, self.tweaked_env_vars[var], self.initial_environ[var])
 
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:

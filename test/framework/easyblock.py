@@ -44,8 +44,7 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax
-from easybuild.tools.filetools import copy_file, mkdir, read_file, remove_file, write_file
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.filetools import copy_dir, copy_file, mkdir, read_file, remove_file, write_file
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
@@ -142,6 +141,64 @@ class EasyBlockTest(EnhancedTestCase):
         check_extra_options_format(extra_options)
         self.assertTrue('options' in extra_options)
         self.assertEqual(extra_options['extra_param'], [None, "help", CUSTOM])
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_load_module(self):
+        """Test load_module method."""
+        # copy OpenMPI module used in gompi/1.3.12 to fiddle with it, i.e. to fake bump OpenMPI version used in it
+        tmp_modules = os.path.join(self.test_prefix, 'modules')
+        mkdir(tmp_modules)
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        copy_dir(os.path.join(test_dir, 'modules', 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+
+        openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '1.6.4-GCC-4.6.4')
+        ompi_mod_txt = read_file(openmpi_module)
+        write_file(openmpi_module, ompi_mod_txt.replace('1.6.4', '2.0.2'))
+
+        self.modtool.use(tmp_modules)
+
+        orig_tmpdir = os.path.join(self.test_prefix, 'verylongdirectorythatmaycauseproblemswithopenmpi2')
+        os.environ['TMPDIR'] = orig_tmpdir
+
+        self.contents = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'http://example.com'",
+            "description = 'test easyconfig'",
+            "toolchain = {'name': 'gompi', 'version': '1.3.12'}",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.build_path()
+
+        # $TMPDIR is not touched yet at this point
+        self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
+
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        eb.prepare_step(start_dir=False)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertFalse(stdout)
+        self.assertTrue(stderr.strip().startswith("WARNING: Long $TMPDIR path may cause problems with OpenMPI 2.x"))
+
+        # we expect $TMPDIR to be tweaked by the prepare step (OpenMPI 2.x doesn't like long $TMPDIR values)
+        tweaked_tmpdir = os.environ.get('TMPDIR')
+        self.assertTrue(tweaked_tmpdir != orig_tmpdir)
+
+        eb.make_module_step()
+        eb.load_module()
+
+        # $TMPDIR does *not* get reset to original value after loading of module
+        # (which involves resetting the environment before loading the module)
+        self.assertEqual(os.environ.get('TMPDIR'), tweaked_tmpdir)
 
         # cleanup
         eb.close_log()
