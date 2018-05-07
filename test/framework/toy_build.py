@@ -1588,26 +1588,26 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
         write_file(test_ec, ectxt)
 
-        # sanity check fails by default
+        # sanity check fails if lib64 fallback in sanity check is disabled
         error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
 
-        # all is fine is lib64 fallback check is enabled
-        self.test_toy_build(ec_file=test_ec, extra_args=['--lib64-fallback-sanity-check'], raise_error=True)
+        # all is fine is lib64 fallback check is enabled (which it is by default)
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
 
         # also check other way around (lib64 -> lib)
         ectxt = read_file(ec_file)
         ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
         write_file(test_ec, ectxt)
 
-        # sanity check fails by default, lib64/libtoy.a is not there
+        # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
         error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
-                              raise_error=True, verbose=False)
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
 
-        # sanity check passes when lib64 fallback is enabled, since lib/libtoy.a is also considered
-        self.test_toy_build(ec_file=test_ec, extra_args=['--lib64-fallback-sanity-check'], raise_error=True)
+        # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
 
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
