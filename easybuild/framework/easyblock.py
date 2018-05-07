@@ -2162,6 +2162,10 @@ class EasyBlock(object):
 
             return found
 
+        def xs2str(xs):
+            """Human-readable version of alternative locations for a particular file/directory."""
+            return ' or '.join("'%s'" % x for x in xs)
+
         # check sanity check paths
         for key, (typ, check_fn) in path_keys_and_check.items():
 
@@ -2174,18 +2178,25 @@ class EasyBlock(object):
 
                 found = check_path(xs, typ, check_fn)
 
-                # for library files in lib/, also consider fallback to lib64/ equivalent
+                # for library files in lib/, also consider fallback to lib64/ equivalent (and vice versa)
                 if not found and build_option('lib64_fallback_sanity_check'):
+                    xs_alt = None
                     if all(x.startswith('lib/') for x in xs):
-                        xs_lib64 = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
-                        found = check_path(xs_lib64, typ, check_fn)
+                        xs_alt = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
+                    elif all(x.startswith('lib64/') for x in xs):
+                        xs_alt = [os.path.join('lib', *os.path.split(x)[1:]) for x in xs]
+
+                    if xs_alt:
+                        self.log.info("%s not found at %s in %s, consider fallback locations: %s",
+                                      typ, xs2str(xs), self.installdir, xs2str(xs_alt))
+                        found = check_path(xs_alt, typ, check_fn)
 
                 if not found:
-                    self.sanity_check_fail_msgs.append("no %s of %s in %s" % (typ, xs, self.installdir))
-                    self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+                    sanity_check_fail_msg = "no %s found at %s in %s" % (typ, xs2str(xs), self.installdir)
+                    self.sanity_check_fail_msgs.append(sanity_check_fail_msg)
+                    self.log.warning("Sanity check: %s", sanity_check_fail_msg)
 
-                cand_paths = ' or '.join(["'%s'" % x for x in xs])
-                trace_msg("%s %s found: %s" % (typ, cand_paths, ('FAILED', 'OK')[found]))
+                trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         fake_mod_data = None
         # only load fake module for non-extensions, and not during dry run

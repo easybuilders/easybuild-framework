@@ -1581,7 +1581,7 @@ class ToyBuildTest(EnhancedTestCase):
         ectxt = read_file(ec_file)
 
         # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
-        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib/libtoy.a'],", ectxt)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
         postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
@@ -1589,11 +1589,24 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, ectxt)
 
         # sanity check fails by default
-        error_pattern = r"Sanity check failed: no file of \('lib/libtoy.a',\)"
+        error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
         self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
                               raise_error=True, verbose=False)
 
         # all is fine is lib64 fallback check is enabled
+        self.test_toy_build(ec_file=test_ec, extra_args=['--lib64-fallback-sanity-check'], raise_error=True)
+
+        # also check other way around (lib64 -> lib)
+        ectxt = read_file(ec_file)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        # sanity check fails by default, lib64/libtoy.a is not there
+        error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              raise_error=True, verbose=False)
+
+        # sanity check passes when lib64 fallback is enabled, since lib/libtoy.a is also considered
         self.test_toy_build(ec_file=test_ec, extra_args=['--lib64-fallback-sanity-check'], raise_error=True)
 
     def test_toy_dumped_easyconfig(self):
