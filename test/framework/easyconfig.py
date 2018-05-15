@@ -47,8 +47,8 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
-from easybuild.framework.easyconfig.easyconfig import letter_dir_for, get_easyblock_class, process_easyconfig
-from easybuild.framework.easyconfig.easyconfig import resolve_template, verify_easyconfig_filename
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, letter_dir_for
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, resolve_template, verify_easyconfig_filename
 from easybuild.framework.easyconfig.licenses import License, LicenseGPLv3
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict, to_template_str
@@ -2155,6 +2155,14 @@ class EasyConfigTest(EnhancedTestCase):
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
+
+    def test_get_module_path(self):
+        """Test get_module_path function."""
+        self.assertEqual(get_module_path('EB_bzip2', generic=False), 'easybuild.easyblocks.bzip2')
+        self.assertEqual(get_module_path('EB_bzip2'), 'easybuild.easyblocks.bzip2')
+
+        self.assertEqual(get_module_path('RPackage'), 'easybuild.easyblocks.generic.rpackage')
+        self.assertEqual(get_module_path('RPackage', generic=True), 'easybuild.easyblocks.generic.rpackage')
 
 
 def suite():
