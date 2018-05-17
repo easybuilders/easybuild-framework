@@ -1082,9 +1082,6 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                           class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
-                # if we only get the class name, most likely we're dealing with a generic easyblock
-                # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
-                # get_module_path figures it out based on specified class name
                 modulepath = get_module_path(easyblock)
                 cls = get_class_for(modulepath, class_name)
                 _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
