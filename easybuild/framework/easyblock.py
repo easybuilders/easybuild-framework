@@ -1875,7 +1875,7 @@ class EasyBlock(object):
 
             cls, inst = None, None
             class_name = encode_class_name(ext['name'])
-            mod_path = get_module_path(class_name)
+            mod_path = get_module_path(class_name, generic=False)
 
             # try instantiating extension-specific class
             try:
