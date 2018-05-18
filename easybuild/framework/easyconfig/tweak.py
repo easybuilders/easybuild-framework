@@ -263,8 +263,11 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
 
     # write out tweaked easyconfig file
-    write_file(target_fn, ectxt)
-    _log.info("Tweaked easyconfig file written to %s" % target_fn)
+    if os.path.exists(target_fn):
+        raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written", target_fn)
+    else:
+        write_file(target_fn, ectxt)
+        _log.info("Tweaked easyconfig file written to %s", target_fn)
 
     return target_fn
 

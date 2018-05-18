@@ -34,6 +34,8 @@ from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import remove_file, write_file
 
 
 class TweakTest(EnhancedTestCase):
@@ -117,6 +119,13 @@ class TweakTest(EnhancedTestCase):
 
         # test tweaking of software version (--try-software-version)
         tweaked_toy_ec = os.path.join(self.test_prefix, 'toy-tweaked.eb')
+
+        # check behaviour if target file already exists
+        write_file(tweaked_toy_ec, '')
+        error_pattern = "A file already exists at .* where tweaked easyconfig file would be written"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+
+        remove_file(tweaked_toy_ec)
         tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
 
         toy_ec_parsed = EasyConfigParser(toy_ec).get_config_dict()
