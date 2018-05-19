@@ -108,7 +108,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
 
     # generate tweaked easyconfigs, and continue with those instead
     tweaked_easyconfigs = []
-    for orig_ec in orig_ecs:  
+    for orig_ec in orig_ecs:
         # Only return tweaked easyconfigs for easyconfigs which were listed originally on the command line (and use the
         # prepended path so that they are found first).
         # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
@@ -124,7 +124,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     return tweaked_easyconfigs
 
 
-def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
+def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
@@ -134,14 +134,22 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     The tweaks should be specified in a dictionary, with parameters and keys that map to the values
     to be set.
 
-    Reads easyconfig file at path <src_fn>, and writes the tweaked easyconfig file to <target_fn>.
+    Reads easyconfig file at specified path <orig_ec>, and writes the tweaked easyconfig file to location
+    determined by <tweaked_ec> or <targetdir> + contents of tweaked easyconfig file.
 
     If no target filename is provided, a target filepath is generated based on the contents of
     the tweaked easyconfig file.
+
+    :param orig_ec: location of original easyconfig file to read
+    :param tweaked_ec: location where tweaked easyconfig file should be written
+                      (if this is None, then filename for tweaked easyconfig is auto-derived from contents)
+    :param tweaks: dictionary with set of changes to apply to original easyconfig file
+    :param targetdir: target directory for tweaked easyconfig file (only used if tweaked_ec is None;
+                      temporary directory is used if both tweaked_ec and targetdir are None)
     """
 
     # read easyconfig file
-    ectxt = read_file(src_fn)
+    ectxt = read_file(orig_ec)
 
     _log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
     # determine new toolchain if it's being changed
@@ -151,7 +159,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
         res = tc_regexp.search(ectxt)
         if not res:
-            raise EasyBuildError("No toolchain found in easyconfig file %s: %s", src_fn, ectxt)
+            raise EasyBuildError("No toolchain found in easyconfig file %s: %s", orig_ec, ectxt)
 
         toolchain = eval(res.group(1))
         for key in ['name', 'version']:
@@ -170,7 +178,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 
     additions = []
 
-    # automagically clear out list of checksums if software version is being tweaked 
+    # automagically clear out list of checksums if software version is being tweaked
     if 'version' in tweaks and 'checksums' not in tweaks:
         tweaks['checksums'] = []
         _log.warning("Tweaking version: checksums cleared, verification disabled.")
@@ -239,7 +247,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
-    if target_fn is None:
+    if tweaked_ec is None:
         fn = None
         try:
             # obtain temporary filename
@@ -259,17 +267,17 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 
         if targetdir is None:
             targetdir = tempfile.gettempdir()
-        target_fn = os.path.join(targetdir, fn)
-        _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
+        tweaked_ec = os.path.join(targetdir, fn)
+        _log.debug("Generated file name for tweaked easyconfig file: %s", tweaked_ec)
 
     # write out tweaked easyconfig file
-    if os.path.exists(target_fn):
-        raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written", target_fn)
+    if os.path.exists(tweaked_ec):
+        raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written", tweaked_ec)
     else:
-        write_file(target_fn, ectxt)
-        _log.info("Tweaked easyconfig file written to %s", target_fn)
+        write_file(tweaked_ec, ectxt)
+        _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
 
-    return target_fn
+    return tweaked_ec
 
 
 def pick_version(req_ver, avail_vers):
