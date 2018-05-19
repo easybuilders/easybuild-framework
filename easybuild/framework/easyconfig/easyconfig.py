@@ -436,6 +436,8 @@ class EasyConfig(object):
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
                 elif key in ['builddependencies']:
                     self[key] = [self._parse_dependency(dep, build_only=True) for dep in local_vars[key]]
+                elif key in ['linkdependencies']:
+                    self[key] = [self._parse_dependency(dep, link_only=True) for dep in local_vars[key]]
                 elif key in ['hiddendependencies']:
                     self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
                 else:
@@ -557,8 +559,10 @@ class EasyConfig(object):
         """
         Filter hidden dependencies from list of (build) dependencies.
         """
-        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies'] + self['builddependencies']]
+        deps = self['dependencies'] + self['builddependencies'] + self['linkdependencies']
+        dep_mod_names = [dep['full_mod_name'] for dep in deps]
         build_dep_mod_names = [dep['full_mod_name'] for dep in self['builddependencies']]
+        link_dep_mod_names = [dep['full_mod_name'] for dep in self['linkdependencies']]
 
         faulty_deps = []
         for i, hidden_dep in enumerate(self['hiddendependencies']):
@@ -574,21 +578,30 @@ class EasyConfig(object):
                 self['hiddendependencies'][i]['build_only'] = True
                 self.enable_templating = enable_templating
 
-            # filter hidden dep from list of (build)dependencies
+            # track whether this hidden dep is listed as a link dep
+            elif visible_mod_name in link_dep_mod_names or hidden_mod_name in link_dep_mod_names:
+                # templating must be temporarily disabled when updating a value in a dict;
+                # see comments in resolve_template
+                enable_templating = self.enable_templating
+                self.enable_templating = False
+                self['hiddendependencies'][i]['link_only'] = True
+                self.enable_templating = enable_templating
+
+            # filter hidden dep from list of (build/link)dependencies
             if visible_mod_name in dep_mod_names:
-                for key in ['builddependencies', 'dependencies']:
+                for key in ['builddependencies', 'dependencies', 'linkdependencies']:
                     self[key] = [d for d in self[key] if d['full_mod_name'] != visible_mod_name]
                 self.log.debug("Removed (build)dependency matching hidden dependency %s", hidden_dep)
             elif hidden_mod_name in dep_mod_names:
-                for key in ['builddependencies', 'dependencies']:
+                for key in ['builddependencies', 'dependencies', 'linkdependencies']:
                     self[key] = [d for d in self[key] if d['full_mod_name'] != hidden_mod_name]
-                self.log.debug("Hidden (build)dependency %s is already marked to be installed as a hidden module",
+                self.log.debug("Hidden (build/link)dependency %s is already marked to be installed as a hidden module",
                                hidden_dep)
             else:
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
-                self.log.warning("Hidden dependency %s not in list of (build)dependencies", visible_mod_name)
+                self.log.warning("Hidden dependency %s not in list of (build/link)dependencies", visible_mod_name)
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
@@ -600,7 +613,7 @@ class EasyConfig(object):
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
-        deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+        deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies'] + self['linkdependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -623,6 +636,12 @@ class EasyConfig(object):
         return the parsed build dependencies
         """
         return self['builddependencies']
+
+    def linkdependencies(self):
+        """
+        return the parsed link dependencies
+        """
+        return self['linkdependencies']
 
     @property
     def name(self):
@@ -738,7 +757,7 @@ class EasyConfig(object):
         return dependency
 
     # private method
-    def _parse_dependency(self, dep, hidden=False, build_only=False):
+    def _parse_dependency(self, dep, hidden=False, build_only=False, link_only=False):
         """
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
@@ -752,6 +771,7 @@ class EasyConfig(object):
 
         :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         :param build_only: indicate whether this is a build-only dependency
+        :param link_only: indicate whether this is a link-only dependency
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -772,8 +792,9 @@ class EasyConfig(object):
             'dummy': False,
             # boolean indicating whether the module for this dependency is (to be) installed hidden
             'hidden': hidden,
-            # boolean indicating whether this this a build-only dependency
+            # boolean indicating whether this this a build/link-only dependency
             'build_only': build_only,
+            'link_only': link_only,
             # boolean indicating whether this dependency should be resolved via an external module
             'external_module': False,
             # metadata in case this is an external module;
@@ -1274,21 +1295,18 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 'full_mod_name': ec.full_mod_name,
                 'dependencies': [],
                 'builddependencies': [],
+                'linkdependencies': [],
                 'hiddendependencies': [],
                 'hidden': ec.hidden,
             })
             if len(blocks) > 1:
                 easyconfig['original_spec'] = path
 
-            # add build dependencies
-            for dep in ec['builddependencies']:
-                _log.debug("Adding build dependency %s for app %s." % (dep, name))
-                easyconfig['builddependencies'].append(dep)
-
-            # add hidden dependencies
-            for dep in ec['hiddendependencies']:
-                _log.debug("Adding hidden dependency %s for app %s." % (dep, name))
-                easyconfig['hiddendependencies'].append(dep)
+            # add build/hidden/link dependencies
+            for deptype in ['build', 'hidden', 'link']:
+                for dep in ec['%sdependencies' % deptype]:
+                    _log.debug("Adding %s dependency %s for app %s", deptype, dep, name)
+                    easyconfig['%sdependencies' % deptype].append(dep)
 
             # add dependencies (including build & hidden dependencies)
             for dep in ec.dependencies():

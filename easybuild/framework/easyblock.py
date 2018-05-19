@@ -998,13 +998,15 @@ class EasyBlock(object):
         # include load/unload statements for dependencies
         deps = []
         self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
+        # include 'module load' statements for dependencies in reverse order
         for dep in self.toolchain.dependencies:
-            if dep['build_only']:
-                self.log.debug("Skipping build dependency %s", dep)
+            if dep['build_only'] or (build_option('rpath') and dep['link_only']):
+                self.log.debug("Skipping build/link dependency %s" % str(dep))
             else:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
                 deps.append(modname)
+
         self.log.debug("List of deps to load in generated module (before excluding any): %s", deps)
 
         # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
@@ -1828,8 +1830,11 @@ class EasyBlock(object):
         if not self.dry_run:
             fake_mod_data = self.load_fake_module(purge=True)
 
-            # also load modules for build dependencies again, since those are not loaded by the fake module
-            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg['builddependencies'])
+            # also load modules for build/link dependencies again, since those may not loaded by the fake module
+            deps = self.cfg['builddependencies']
+            if build_option('rpath'):
+                deps.extend(self.cfg['linkdependencies'])
+            self.modules_tool.load(dep['short_mod_name'] for dep in deps)
 
         self.prepare_for_extensions()
 
