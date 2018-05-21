@@ -44,7 +44,8 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
@@ -269,10 +270,14 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
 
     # write out tweaked easyconfig file
     if os.path.exists(tweaked_ec):
-        raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written", tweaked_ec)
-    else:
-        write_file(tweaked_ec, ectxt)
-        _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
+        if build_option('force'):
+            print_warning("Overwriting existing file at %s with tweaked easyconfig file (due to --force)", tweaked_ec)
+        else:
+            raise EasyBuildError("A file already exists at %s where tweaked easyconfig file would be written",
+                                 tweaked_ec)
+
+    write_file(tweaked_ec, ectxt)
+    _log.info("Tweaked easyconfig file written to %s", tweaked_ec)
 
     return tweaked_ec
 

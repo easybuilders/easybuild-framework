@@ -29,7 +29,7 @@ Unit tests for framework/easyconfig/tweak.py
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.parser import EasyConfigParser
@@ -119,13 +119,6 @@ class TweakTest(EnhancedTestCase):
 
         # test tweaking of software version (--try-software-version)
         tweaked_toy_ec = os.path.join(self.test_prefix, 'toy-tweaked.eb')
-
-        # check behaviour if target file already exists
-        write_file(tweaked_toy_ec, '')
-        error_pattern = "A file already exists at .* where tweaked easyconfig file would be written"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
-
-        remove_file(tweaked_toy_ec)
         tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
 
         toy_ec_parsed = EasyConfigParser(toy_ec).get_config_dict()
@@ -139,6 +132,18 @@ class TweakTest(EnhancedTestCase):
             self.assertTrue(key in tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
             tweaked_val = tweaked_toy_ec_parsed.get(key)
             self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))
+
+        # check behaviour if target file already exists
+        error_pattern = "A file already exists at .* where tweaked easyconfig file would be written"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+
+        # existing file does get overwritten when --force is used
+        build_options = {'force': True}
+        init_config(build_options=build_options)
+        write_file(tweaked_toy_ec, '')
+        tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+        tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
+        self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
 
 
 def suite():
