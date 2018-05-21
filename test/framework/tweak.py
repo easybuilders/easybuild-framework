@@ -35,7 +35,7 @@ from unittest import TextTestRunner
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import remove_file, write_file
+from easybuild.tools.filetools import write_file
 
 
 class TweakTest(EnhancedTestCase):
@@ -149,6 +149,7 @@ class TweakTest(EnhancedTestCase):
 def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(TweakTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
