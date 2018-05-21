@@ -135,15 +135,17 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
     The tweaks should be specified in a dictionary, with parameters and keys that map to the values
     to be set.
 
-    Reads easyconfig file at specified path <orig_ec>, and writes the tweaked easyconfig file to location
-    determined by <tweaked_ec> or <targetdir> + contents of tweaked easyconfig file.
+    Reads easyconfig file at path <orig_ec>, and writes the tweaked easyconfig file to <tweaked_ec>.
+
+    If <tweaked_ec> is not provided, a target filepath is generated based on <targetdir> and the
+    contents of the tweaked easyconfig file.
 
     :param orig_ec: location of original easyconfig file to read
     :param tweaked_ec: location where tweaked easyconfig file should be written
                        (if this is None, then filename for tweaked easyconfig is auto-derived from contents)
     :param tweaks: dictionary with set of changes to apply to original easyconfig file
-    :param targetdir: target directory for tweaked easyconfig file (only used if tweaked_ec is None;
-                      temporary directory is used if both tweaked_ec and targetdir are None)
+    :param targetdir: target directory for tweaked easyconfig file, defaults to temporary directory
+                      (only used if tweaked_ec is None)
     """
 
     # read easyconfig file
