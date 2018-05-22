@@ -325,8 +325,16 @@ class ModulesTool(object):
 
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
-    def use(self, path):
-        """Add module path via 'module use'."""
+    def use(self, path, priority=None):
+        """
+        Add path to $MODULEPATH via 'module use'.
+
+        :param path: path to add to $MODULEPATH
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        """
+        if priority:
+            self.log.info("Ignoring specified priority '%s' when prepending %s to $MODULEPATH", priority, path)
+
         # make sure path exists before we add it
         mkdir(path, parents=True)
         self.run_module(['use', path])
@@ -362,13 +370,17 @@ class ModulesTool(object):
             if set_mod_paths:
                 self.set_mod_paths()
 
-    def prepend_module_path(self, path, set_mod_paths=True):
+    def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
         :param path: path to prepend to $MODULEPATH
         :param set_mod_paths: (re)set self.mod_paths
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
+        if priority:
+            self.log.info("Ignoring specified priority '%s' when prepending %s to $MODULEPATH", priority, path)
+
         # generic approach: remove the path first (if it's there), then add it again (to the front)
         modulepath = curr_module_paths()
         if not modulepath:
@@ -1196,17 +1208,33 @@ class Lmod(ModulesTool):
                 except (IOError, OSError), err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
-    def prepend_module_path(self, path, set_mod_paths=True):
+    def use(self, path, priority=None):
+        """
+        Add path to $MODULEPATH via 'module use'.
+
+        :param path: path to add to $MODULEPATH
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        """
+        # make sure path exists before we add it
+        mkdir(path, parents=True)
+
+        if priority:
+            self.run_module(['use', '--priority', str(priority), path])
+        else:
+            self.run_module(['use', path])
+
+    def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
         :param path: path to prepend to $MODULEPATH
         :param set_mod_paths: (re)set self.mod_paths
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
-            self.use(path)
+            self.use(path, priority=priority)
             if set_mod_paths:
                 self.set_mod_paths()
 
