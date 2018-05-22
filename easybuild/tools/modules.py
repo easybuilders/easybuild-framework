@@ -45,7 +45,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET, WARN
+from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
@@ -202,11 +202,6 @@ class ModulesTool(object):
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
-
-    @property
-    def modules(self):
-        """(NO LONGER SUPPORTED!) Property providing access to 'modules' class variable"""
-        self.log.nosupport("'modules' class variable is not supported anymore, use load([<list of modules>]) instead", '2.0')
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
@@ -489,10 +484,6 @@ class ModulesTool(object):
 
         return mods_exist
 
-    def exists(self, mod_name):
-        """NO LONGER SUPPORTED: use exist method instead"""
-        self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
-
     def load(self, modules, mod_paths=None, purge=False, init_env=None, allow_reload=True):
         """
         Load all requested modules.
@@ -532,9 +523,6 @@ class ModulesTool(object):
         """
         Unload all requested modules.
         """
-        if modules is None:
-            self.log.nosupport("Unloading modules listed in _modules class variable", '2.0')
-
         for mod in modules:
             self.run_module('unload', mod)
 
@@ -642,14 +630,6 @@ class ModulesTool(object):
             args = args[0]
         else:
             args = list(args)
-
-        module_path_key = None
-        if 'mod_paths' in kwargs:
-            module_path_key = 'mod_paths'
-        elif 'modulePath' in kwargs:
-            module_path_key = 'modulePath'
-        if module_path_key is not None:
-            self.log.nosupport("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
 
         self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
@@ -854,7 +834,10 @@ class ModulesTool(object):
         res = txt.strip('"')
 
         # first interpret (outer) 'file join' statement (if any)
-        file_join = lambda res: os.path.join(*[x.strip('"') for x in res.groups()])
+        def file_join(res):
+            """Helper function to compose joined path."""
+            return os.path.join(*[x.strip('"') for x in res.groups()])
+
         res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
 
         # also interpret all $env(...) parts
@@ -1017,6 +1000,7 @@ class EnvironmentModulesC(ModulesTool):
         """Update after new modules were added."""
         pass
 
+
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
     # Tcl environment modules have no --terse (yet),
@@ -1129,7 +1113,7 @@ class Lmod(ModulesTool):
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
-        if not 'regex' in kwargs:
+        if 'regex' not in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
         super(Lmod, self).check_module_function(*args, **kwargs)
 
@@ -1251,14 +1235,10 @@ def get_software_root(name, with_env_var=False):
     Return the software root set for a particular software name.
     """
     env_var = get_software_root_env_var_name(name)
-    legacy_key = "SOFTROOT%s" % convert_name(name, upper=True)
 
     root = None
     if env_var in os.environ:
         root = os.getenv(env_var)
-
-    elif legacy_key in os.environ:
-        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     if with_env_var:
         res = (root, env_var)
@@ -1317,15 +1297,13 @@ def get_software_version(name):
     Return the software version set for a particular software name.
     """
     env_var = get_software_version_env_var_name(name)
-    legacy_key = "SOFTVERSION%s" % convert_name(name, upper=True)
 
     version = None
     if env_var in os.environ:
         version = os.getenv(env_var)
-    elif legacy_key in os.environ:
-        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     return version
+
 
 def curr_module_paths():
     """
