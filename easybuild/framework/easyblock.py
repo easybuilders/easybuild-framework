@@ -1305,7 +1305,7 @@ class EasyBlock(object):
         fake_mod_path = self.make_module_step(fake=True)
 
         # load fake module
-        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir))
+        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
         self.load_module(purge=purge)
 
         return (fake_mod_path, env)
@@ -2291,17 +2291,17 @@ class EasyBlock(object):
         else:
             self.log.debug("Sanity check passed!")
 
-    def _set_module_as_default(self):
+    def _set_module_as_default(self, fake=False):
         """
-        Defining default module Version
+        Sets the default module version except if we are in dry run
 
-        sets the default module version except if we are in dry run.
+        :param fake: set default for 'fake' module in temporary location
         """
         version = self.full_mod_name.split('/')[-1]
         if self.dry_run:
             dry_run_msg("Marked %s v%s as default version" % (self.name, version))
         else:
-            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath())
+            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath(fake=fake))
             self.module_generator.set_as_default(mod_folderpath, version)
 
     def cleanup_step(self):
@@ -2409,8 +2409,10 @@ class EasyBlock(object):
             else:
                 self.log.info("Skipping devel module...")
 
-        if build_option('set_default_module'):
-            self._set_module_as_default()
+        # always set default for temporary module file,
+        # to avoid that it gets overruled by an existing module file that is set as default
+        if fake or build_option('set_default_module'):
+            self._set_module_as_default(fake=fake)
 
         return modpath
 

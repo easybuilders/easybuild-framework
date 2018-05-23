@@ -218,6 +218,21 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.build_path()
         fake_mod_data = eb.load_fake_module()
+
+        pi_modfile = os.path.join(fake_mod_data[0], 'pi', '3.14')
+        if get_module_syntax() == 'Lua':
+            pi_modfile += '.lua'
+
+        self.assertTrue(os.path.exists(pi_modfile))
+
+        # check whether temporary module file is marked as default
+        if get_module_syntax() == 'Lua':
+            default_symlink = os.path.join(fake_mod_data[0], 'pi', 'default')
+            self.assertTrue(os.path.samefile(default_symlink, pi_modfile))
+        else:
+            dot_version_txt = read_file(os.path.join(fake_mod_data[0], 'pi', '.version'))
+            self.assertTrue("set ModulesVersion 3.14" in dot_version_txt)
+
         eb.clean_up_fake_module(fake_mod_data)
 
         # cleanup
