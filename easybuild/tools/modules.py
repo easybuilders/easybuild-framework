@@ -333,7 +333,8 @@ class ModulesTool(object):
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
         if priority:
-            self.log.info("Ignoring specified priority '%s' when running 'module use %s'", priority, path)
+            self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
+                          priority, path)
 
         # make sure path exists before we add it
         mkdir(path, parents=True)
@@ -379,7 +380,8 @@ class ModulesTool(object):
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
         if priority:
-            self.log.info("Ignoring specified priority '%s' when prepending %s to $MODULEPATH", priority, path)
+            self.log.info("Ignoring specified priority '%s' when prepending %s to $MODULEPATH (Lmod-specific)",
+                          priority, path)
 
         # generic approach: remove the path first (if it's there), then add it again (to the front)
         modulepath = curr_module_paths()
