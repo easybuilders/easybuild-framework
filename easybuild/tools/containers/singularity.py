@@ -22,7 +22,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Support for generating container recipes and creating container images
+Support for generating singularity container recipes and creating container images
 
 :author: Shahzeb Siddiqui (Pfizer)
 :author: Kenneth Hoste (HPC-UGent)

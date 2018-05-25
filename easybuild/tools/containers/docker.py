@@ -1,3 +1,32 @@
+# #
+# Copyright 2009-2018 Ghent University
+#
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# https://github.com/easybuilders/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+# #
+"""
+Support for generating docker container recipes and creating container images
+
+:author Mohamed Abidi (Bright Computing)
+"""
 import os
 import shutil
 import tempfile
@@ -95,6 +124,7 @@ _DOCKER_TMPLS = {
 
 
 def check_docker_containerize():
+    """Validates the required conditions are satisfied for a docker recipe generation and image creation"""
     docker_container_base = build_option('container_base') or DEFAULT_DOCKER_BASE_IMAGE
 
     if docker_container_base not in [DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS]:
@@ -131,6 +161,7 @@ def _det_os_deps(easyconfigs):
 
 
 def generate_dockerfile(easyconfigs, container_base):
+    """Generate a dockerfile out of the passed easybuild modules"""
     os_deps = _det_os_deps(easyconfigs)
 
     module_naming_scheme = ActiveMNS()
@@ -173,6 +204,7 @@ def generate_dockerfile(easyconfigs, container_base):
 
 
 def build_docker_image(easyconfigs, dockerfile):
+    """Generates a docker image from a dockerfile"""
     ec = easyconfigs[-1]['ec']
 
     module_naming_scheme = ActiveMNS()
@@ -190,6 +222,7 @@ def build_docker_image(easyconfigs, dockerfile):
 
 
 def docker_containerize(easyconfigs):
+    """Entry point to docker recipe and image creation"""
 
     check_docker_containerize()
 
