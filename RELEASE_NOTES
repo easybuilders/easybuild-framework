@@ -3,6 +3,28 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
+v3.6.1 (May 25th 2018)
+----------------------
+
+bugfix release
+- various enhancements, including:
+  - add support for enabling fallback in sanity check to consider lib64 equivalent for seemingly missing libraries (#2477)
+  - add GITHUB_LOWER_SOURCE constant (#2491)
+  - add 'exts_download_dep_fail' as known easyconfig parameter (#2493)
+  - add support for passing custom messages on failing sanity check for extensions (#2494)
+  - add definition for fosscuda toolchain (#2507)
+- various bug fixes, including:
+  - make --inject-checksums always re-order source_urls/sources/patches/checksums (#2487)
+  - fix git remote url in CONTRIBUTING.md (#2490)
+  - make flake8 happy in easyblock.py (#2492)
+  - handle missing permissions for adding labels in --new-pr (#2497)
+  - restore tweaked $TMPDIR value after loading module (for sanity check) (#2498)
+  - enhance get_module_path function to auto-detect generic vs software-specific easyblock class names (#2502)
+  - don't blindly overwrite an existing easyconfig in tweak_one (#2504)
+  - take account that PlaintextKeyring may be provided via keyrings.alt (#2505)
+  - prepend location for temporary module file to $MODULEPATH with high priority + mark it as default in load_fake_module method (#2506)
+
+
 v3.6.0 (April 26th 2018)
 ------------------------
 
