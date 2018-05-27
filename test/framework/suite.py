@@ -83,10 +83,18 @@ import test.framework.yeb as y
 # set plain text key ring to be used,
 # so a GitHub token stored in it can be obtained without having to provide a password
 try:
+    # with recent versions of keyring, PlaintextKeyring comes from keyrings.alt
     import keyring
-    keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
-except (ImportError, AttributeError):
-    pass
+    from keyrings.alt.file import PlaintextKeyring
+    keyring.set_keyring(PlaintextKeyring())
+except ImportError as err:
+    try:
+        # with old versions of keyring, PlaintextKeyring comes from keyring.backends
+        import keyring
+        from keyring.backends.file import PlaintextKeyring
+        keyring.set_keyring(PlaintextKeyring())
+    except ImportError as err:
+        pass
 
 # disable all logging to significantly speed up tests
 fancylogger.disableDefaultHandlers()
