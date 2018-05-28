@@ -189,6 +189,7 @@ BUILD_OPTIONS_CMDLINE = {
         'hidden',
         'ignore_checksums',
         'install_latest_eb_release',
+        'lib64_fallback_sanity_check',
         'logtostdout',
         'minimal_toolchains',
         'module_only',

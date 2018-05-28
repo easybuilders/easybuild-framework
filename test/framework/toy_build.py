@@ -1574,6 +1574,41 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(os.path.exists(toy_modfile))
 
+    def test_sanity_check_paths_lib64(self):
+        """Test whether fallback in sanity check for lib64/ equivalents of library files works."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec_file = os.path.join(test_ecs_dir, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        ectxt = read_file(ec_file)
+
+        # modify test easyconfig: move lib/libtoy.a to lib64/libtoy.a
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', ('lib/libtoy.a', 'lib/libfoo.a')],", ectxt)
+        postinstallcmd = "mkdir %(installdir)s/lib64 && mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a"
+        ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
+
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
+        write_file(test_ec, ectxt)
+
+        # sanity check fails if lib64 fallback in sanity check is disabled
+        error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        # all is fine is lib64 fallback check is enabled (which it is by default)
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
+        # also check other way around (lib64 -> lib)
+        ectxt = read_file(ec_file)
+        ectxt = re.sub("\s*'files'.*", "'files': ['bin/toy', 'lib64/libtoy.a'],", ectxt)
+        write_file(test_ec, ectxt)
+
+        # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
+        error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.test_toy_build, ec_file=test_ec,
+                              extra_args=['--disable-lib64-fallback-sanity-check'], raise_error=True, verbose=False)
+
+        # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
+        self.test_toy_build(ec_file=test_ec, raise_error=True)
+
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb and .yeb format """
         filename = 'toy-0.0'
