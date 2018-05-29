@@ -212,6 +212,7 @@ class EasyBlock(object):
 
         # keep track of initial environment we start in, so we can restore it if needed
         self.initial_environ = copy.deepcopy(os.environ)
+        self.tweaked_env_vars = {}
 
         # should we keep quiet?
         self.silent = build_option('silent')
@@ -1282,7 +1283,14 @@ class EasyBlock(object):
             if self.mod_subdir and self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
                 mods.insert(0, self.toolchain.det_short_module_name())
 
+            # pass initial environment, to use it for resetting the environment before loading the modules
             self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, init_env=self.initial_environ)
+
+            # handle environment variables that need to be updated after loading modules
+            for var, val in sorted(self.tweaked_env_vars.items()):
+                self.log.info("Tweaking $%s: %s", var, val)
+                env.setvar(var, val)
+
         else:
             self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
@@ -1297,7 +1305,7 @@ class EasyBlock(object):
         fake_mod_path = self.make_module_step(fake=True)
 
         # load fake module
-        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir))
+        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
         self.load_module(purge=purge)
 
         return (fake_mod_path, env)
@@ -1752,6 +1760,14 @@ class EasyBlock(object):
         self.toolchain.prepare(self.cfg['onlytcmod'], silent=self.silent, rpath_filter_dirs=self.rpath_filter_dirs,
                                rpath_include_dirs=self.rpath_include_dirs)
 
+        # keep track of environment variables that were tweaked and need to be restored after environment got reset
+        # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
+        for var in ['TMPDIR']:
+            if os.environ.get(var) != self.initial_environ.get(var):
+                self.tweaked_env_vars[var] = os.environ.get(var)
+                self.log.info("Found tweaked value for $%s: %s (was: %s)",
+                              var, self.tweaked_env_vars[var], self.initial_environ[var])
+
         # handle allowed system dependencies
         for (name, version) in self.cfg['allow_system_deps']:
             # root is set to name, not an actual path
@@ -1859,7 +1875,7 @@ class EasyBlock(object):
 
             cls, inst = None, None
             class_name = encode_class_name(ext['name'])
-            mod_path = get_module_path(class_name)
+            mod_path = get_module_path(class_name, generic=False)
 
             # try instantiating extension-specific class
             try:
@@ -2143,9 +2159,56 @@ class EasyBlock(object):
         else:
             self.log.debug("Skiping RPATH sanity check")
 
+    def _sanity_check_step_extensions(self):
+        """Sanity check on extensions (if any)."""
+        failed_exts = []
+        for ext in self.ext_instances:
+            success, fail_msg = None, None
+            res = ext.sanity_check_step()
+            # if result is a tuple, we expect a (<bool (success)>, <custom_message>) format
+            if isinstance(res, tuple):
+                if len(res) != 2:
+                    raise EasyBuildError("Wrong sanity check result type for '%s' extension: %s", ext.name, res)
+                success, fail_msg = res
+            else:
+                # if result of extension sanity check is not a 2-tuple, treat it as a boolean indicating success
+                success, fail_msg = res, "(see log for details)"
+
+            if not success:
+                fail_msg = "failing sanity check for '%s' extension: %s" % (ext.name, fail_msg)
+                failed_exts.append((ext.name, fail_msg))
+                self.log.warning(fail_msg)
+            else:
+                self.log.info("Sanity check for '%s' extension passed!", ext.name)
+
+        if failed_exts:
+            overall_fail_msg = "extensions sanity check failed for %d extensions: " % len(failed_exts)
+            self.log.warning(overall_fail_msg)
+            self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
+            self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
+
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """Real version of sanity_check_step method."""
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
+
+        # helper function to sanity check (alternatives for) one particular path
+        def check_path(xs, typ, check_fn):
+            """Sanity check for one particular path."""
+            found = False
+            for name in xs:
+                path = os.path.join(self.installdir, name)
+                if check_fn(path):
+                    self.log.debug("Sanity check: found %s %s in %s" % (typ, name, self.installdir))
+                    found = True
+                    break
+                else:
+                    self.log.debug("Could not find %s %s in %s" % (typ, name, self.installdir))
+
+            return found
+
+        def xs2str(xs):
+            """Human-readable version of alternative locations for a particular file/directory."""
+            return ' or '.join("'%s'" % x for x in xs)
 
         # check sanity check paths
         for key, (typ, check_fn) in path_keys_and_check.items():
@@ -2156,21 +2219,28 @@ class EasyBlock(object):
                 elif not isinstance(xs, tuple):
                     raise EasyBuildError("Unsupported type '%s' encountered in %s, not a string or tuple",
                                          key, type(xs))
-                found = False
-                for name in xs:
-                    path = os.path.join(self.installdir, name)
-                    if check_fn(path):
-                        self.log.debug("Sanity check: found %s %s in %s" % (typ, name, self.installdir))
-                        found = True
-                        break
-                    else:
-                        self.log.debug("Could not find %s %s in %s" % (typ, name, self.installdir))
-                if not found:
-                    self.sanity_check_fail_msgs.append("no %s of %s in %s" % (typ, xs, self.installdir))
-                    self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
-                cand_paths = ' or '.join(["'%s'" % x for x in xs])
-                trace_msg("%s %s found: %s" % (typ, cand_paths, ('FAILED', 'OK')[found]))
+                found = check_path(xs, typ, check_fn)
+
+                # for library files in lib/, also consider fallback to lib64/ equivalent (and vice versa)
+                if not found and build_option('lib64_fallback_sanity_check'):
+                    xs_alt = None
+                    if all(x.startswith('lib/') for x in xs):
+                        xs_alt = [os.path.join('lib64', *os.path.split(x)[1:]) for x in xs]
+                    elif all(x.startswith('lib64/') for x in xs):
+                        xs_alt = [os.path.join('lib', *os.path.split(x)[1:]) for x in xs]
+
+                    if xs_alt:
+                        self.log.info("%s not found at %s in %s, consider fallback locations: %s",
+                                      typ, xs2str(xs), self.installdir, xs2str(xs_alt))
+                        found = check_path(xs_alt, typ, check_fn)
+
+                if not found:
+                    sanity_check_fail_msg = "no %s found at %s in %s" % (typ, xs2str(xs), self.installdir)
+                    self.sanity_check_fail_msgs.append(sanity_check_fail_msg)
+                    self.log.warning("Sanity check: %s", sanity_check_fail_msg)
+
+                trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         fake_mod_data = None
         # only load fake module for non-extensions, and not during dry run
@@ -2189,7 +2259,6 @@ class EasyBlock(object):
 
         # run sanity check commands
         for command in commands:
-
             out, ec = run_cmd(command, simple=False, log_ok=False, log_all=False, trace=False)
             if ec != 0:
                 fail_msg = "sanity check command %s exited with code %s (output: %s)" % (command, ec, out)
@@ -2200,12 +2269,9 @@ class EasyBlock(object):
 
             trace_msg("running command '%s': %s" % (command, ('FAILED', 'OK')[ec == 0]))
 
+        # also run sanity check for extensions (unless we are an extension ourselves)
         if not extension:
-            failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
-
-            if failed_exts:
-                self.sanity_check_fail_msgs.append("sanity checks for %s extensions failed!" % failed_exts)
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+            self._sanity_check_step_extensions()
 
         # cleanup
         if fake_mod_data:
@@ -2221,21 +2287,21 @@ class EasyBlock(object):
 
         # pass or fail
         if self.sanity_check_fail_msgs:
-            raise EasyBuildError("Sanity check failed: %s", ', '.join(self.sanity_check_fail_msgs))
+            raise EasyBuildError("Sanity check failed: %s", '\n'.join(self.sanity_check_fail_msgs))
         else:
             self.log.debug("Sanity check passed!")
 
-    def _set_module_as_default(self):
+    def _set_module_as_default(self, fake=False):
         """
-        Defining default module Version
+        Sets the default module version except if we are in dry run
 
-        sets the default module version except if we are in dry run.
+        :param fake: set default for 'fake' module in temporary location
         """
         version = self.full_mod_name.split('/')[-1]
         if self.dry_run:
             dry_run_msg("Marked %s v%s as default version" % (self.name, version))
         else:
-            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath())
+            mod_folderpath = os.path.dirname(self.module_generator.get_module_filepath(fake=fake))
             self.module_generator.set_as_default(mod_folderpath, version)
 
     def cleanup_step(self):
@@ -2343,8 +2409,10 @@ class EasyBlock(object):
             else:
                 self.log.info("Skipping devel module...")
 
-        if build_option('set_default_module'):
-            self._set_module_as_default()
+        # always set default for temporary module file,
+        # to avoid that it gets overruled by an existing module file that is set as default
+        if fake or build_option('set_default_module'):
+            self._set_module_as_default(fake=fake)
 
         return modpath
 

@@ -389,10 +389,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None):
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
 
-    # create a container
     if options.containerize:
-        _log.info("Creating %s container" % options.container_type)
-        containerize(easyconfigs, options.container_type)
+        # if --containerize/-C create a container recipe (and optionally container image), and stop
+        containerize(easyconfigs)
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

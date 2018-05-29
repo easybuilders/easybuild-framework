@@ -322,7 +322,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
-            'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
+            'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches",
+                                                None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
@@ -373,7 +374,8 @@ class EasyBuildOptions(GeneralOption):
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
                                           None, 'store_true', False),
-            'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'", None, 'store_true', False),
+            'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'",
+                       None, 'store_true', False),
             'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
@@ -381,6 +383,8 @@ class EasyBuildOptions(GeneralOption):
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
+                                            None, 'store_true', True),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
