@@ -1828,8 +1828,10 @@ class EasyBlock(object):
         if not self.dry_run:
             fake_mod_data = self.load_fake_module(purge=True)
 
+            # ignore filtered build dependencies
+            valid_build_deps = [dep for dep in self.cfg['builddependencies'] if dep['short_mod_name']]
             # also load modules for build dependencies again, since those are not loaded by the fake module
-            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg['builddependencies'])
+            self.modules_tool.load(dep['short_mod_name'] for dep in valid_build_deps)
 
         self.prepare_for_extensions()
 
