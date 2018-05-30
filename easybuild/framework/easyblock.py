@@ -1829,7 +1829,7 @@ class EasyBlock(object):
             fake_mod_data = self.load_fake_module(purge=True)
 
             # also load modules for build dependencies again, since those are not loaded by the fake module
-            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg['builddependencies'])
+            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True))
 
         self.prepare_for_extensions()
 
