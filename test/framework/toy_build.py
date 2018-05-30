@@ -939,6 +939,28 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
 
+    def test_toy_advanced_filter_deps(self):
+        """Test toy build with extensions, and filtered build dependency."""
+        # test case for bug https://github.com/easybuilders/easybuild-framework/pull/2515
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        toy_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb')
+
+        toy_ec_txt = read_file(toy_ec)
+        # add FFTW as build dependency, just to filter it out again
+        toy_ec_txt += "\nbuilddependencies = [('FFTW', '3.3.3')]"
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, toy_ec_txt)
+
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12-test', extra_args=["--filter-deps=FFTW"])
+
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-1.3.12-test')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        self.assertTrue(os.path.exists(toy_module))
+
     def test_toy_hidden_cmdline(self):
         """Test installing a hidden module using the '--hidden' command line option."""
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')

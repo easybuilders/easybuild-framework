@@ -595,12 +595,17 @@ class EasyConfig(object):
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
-    def dependencies(self):
+    def dependencies(self, build_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+
+        :param build_only: only return build dependencies, discard others
         """
-        deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+        if build_only:
+            deps = self['builddependencies']
+        else:
+            deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
