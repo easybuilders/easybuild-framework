@@ -22,3 +22,36 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
+"""
+Dispatch function for container packages
+
+:author: Shahzeb Siddiqui (Pfizer)
+:author: Kenneth Hoste (HPC-UGent)
+:author: Mohamed Abidi (Bright Computing)
+"""
+from vsc.utils import fancylogger
+
+from easybuild.tools.config import build_option
+from easybuild.tools.build_log import EasyBuildError
+from .docker import DockerContainer  # noqa
+from .singularity import SingularityContainer  # noqa
+
+_log = fancylogger.getLogger('tools.containers.singularity')  # pylint: disable=C0103
+
+
+def containerize(easyconfigs):
+    """
+    Generate container recipe + (optionally) image
+    """
+    _log.experimental("support for generating container recipes and images (--containerize/-C)")
+
+    container_type = build_option('container_type')
+
+    _log.info("Creating %s container", container_type)
+
+    try:
+        klass = globals()["%sContainer" % container_type.capitalize()]
+    except KeyError:
+        raise EasyBuildError("Unknown container type specified: %s", container_type)
+
+    klass(easyconfigs).generate()
