@@ -29,11 +29,13 @@ Unit tests for framework/easyconfig/tweak.py
 """
 import os
 import sys
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import write_file
 
 
 class TweakTest(EnhancedTestCase):
@@ -131,10 +133,23 @@ class TweakTest(EnhancedTestCase):
             tweaked_val = tweaked_toy_ec_parsed.get(key)
             self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))
 
+        # check behaviour if target file already exists
+        error_pattern = "A file already exists at .* where tweaked easyconfig file would be written"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+
+        # existing file does get overwritten when --force is used
+        build_options = {'force': True}
+        init_config(build_options=build_options)
+        write_file(tweaked_toy_ec, '')
+        tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+        tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
+        self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
+
 
 def suite():
     """ return all the tests in this file """
     return TestLoaderFiltered().loadTestsFromTestCase(TweakTest, sys.argv[1:])
+
 
 if __name__ == '__main__':
     TextTestRunner(verbosity=1).run(suite())
