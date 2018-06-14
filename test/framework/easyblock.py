@@ -882,12 +882,27 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.cfg['source_urls'] = ['file://%s' % os.path.dirname(toy_source)]
 
+        custom_source_url = os.path.join(self.test_prefix, 'custom')
+        toy_extra_txt = "This is a custom toy-extra.txt"
+        write_file(os.path.join(custom_source_url, 'toy-extra.txt'), toy_extra_txt)
+
         # reset and try with provided list of sources
         eb.src = []
         sources = [
-            {'filename': 'toy-0.0-extra.txt', 'download_filename': 'toy-extra.txt'},
-            {'filename': 'toy-0.0_gzip.patch.gz', 'extract_cmd': "gunzip %s"},
-            {'filename': 'toy-0.0-renamed.tar.gz', 'download_filename': 'toy-0.0.tar.gz', 'extract_cmd': "tar xfz %s"},
+            {
+                'download_filename': 'toy-extra.txt',
+                'filename': 'toy-0.0-extra.txt',
+                'source_urls': ['file://%s' % custom_source_url],
+            },
+            {
+                'filename': 'toy-0.0_gzip.patch.gz',
+                'extract_cmd': "gunzip %s",
+            },
+            {
+                'download_filename': 'toy-0.0.tar.gz',
+                'filename': 'toy-0.0-renamed.tar.gz',
+                'extract_cmd': "tar xfz %s",
+            },
         ]
         eb.fetch_sources(sources, checksums=[])
 
@@ -906,11 +921,21 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.src[1]['cmd'], "gunzip %s")
         self.assertEqual(eb.src[2]['cmd'], "tar xfz %s")
 
+        # make sure custom toy-extra.txt was picked up
+        self.assertEqual(read_file(eb.src[0]['path']), toy_extra_txt)
+        orig_toy_extra_txt = read_file(os.path.join(os.path.dirname(toy_source), 'toy-extra.txt'))
+        self.assertNotEqual(read_file(eb.src[0]['path']), orig_toy_extra_txt)
+
         # old format for specifying source with custom extract command is deprecated
         eb.src = []
         error_msg = "DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
                               [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
+
+        # unknown dict keys in sources are reported
+        sources[0]['nosuchkey'] = 'foobar'
+        error_pattern = "Found one or more unexpected keys in 'sources' specification: {'nosuchkey': 'foobar'}"
+        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_sources, sources, checksums=[])
 
     def test_fetch_patches(self):
         """Test fetch_patches method."""

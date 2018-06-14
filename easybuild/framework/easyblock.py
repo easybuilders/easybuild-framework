@@ -337,7 +337,7 @@ class EasyBlock(object):
             checksums = self.cfg['checksums']
 
         for index, source in enumerate(sources):
-            extract_cmd, download_filename = None, None
+            extract_cmd, download_filename, source_urls = None, None, None
 
             if isinstance(source, basestring):
                 filename = source
@@ -347,8 +347,9 @@ class EasyBlock(object):
                 filename = source.pop('filename', None)
                 extract_cmd = source.pop('extract_cmd', None)
                 download_filename = source.pop('download_filename', None)
+                source_urls = source.pop('source_urls', None)
                 if source:
-                    raise EasyBuildError("Found one or more unexpected keys in source specification: %s", source)
+                    raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
             elif isinstance(source, (list, tuple)) and len(source) == 2:
                 self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
@@ -359,7 +360,8 @@ class EasyBlock(object):
 
             # check if the sources can be located
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-            path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download)
+            path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download,
+                                    urls=source_urls)
             if path:
                 self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
@@ -664,7 +666,7 @@ class EasyBlock(object):
             else:
                 # try and download source files from specified source URLs
                 if urls:
-                    source_urls = urls
+                    source_urls = urls[:]
                 else:
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
