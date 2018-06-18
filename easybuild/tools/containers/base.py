@@ -29,7 +29,7 @@ from vsc.utils import fancylogger
 
 import os
 from easybuild.tools.filetools import write_file
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, container_path
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from .utils import check_tool
 
@@ -51,7 +51,7 @@ class ContainerGenerator(object):
         self._tmpdir = build_option('container_tmpdir')
         self._container_build_image = build_option('container_build_image')
         self._container_base = build_option('container_base')
-        self._container_path = build_option('containerpath')
+        self._container_path = container_path()
 
     def generate(self):
         self.validate()
@@ -60,6 +60,8 @@ class ContainerGenerator(object):
             self.build_image(recipe_path)
 
     def validate(self):
+        if not self._container_build_image:
+            return
         for tool_name, tool_version in self.TOOLS.items():
             if not check_tool(tool_name, tool_version):
                 raise EasyBuildError("{0!r} not found on your system.".format(tool_name,))
@@ -75,19 +77,19 @@ class ContainerGenerator(object):
         if self._img_name:
             file_label = os.path.splitext(self._img_name)[0]
         else:
-            file_label = data['mod_names'][0].replace('/', '-')
+            file_label = data['mod_names'].split(' ')[0].replace('/', '-')
 
-        recipe_path = os.path.join(self._container_path, "%s.%s" % self.RECIPE_FILE_NAME, file_label)
+        recipe_path = os.path.join(self._container_path, "%s.%s" % (self.RECIPE_FILE_NAME, file_label))
 
         if os.path.exists(recipe_path):
             if self._force:
-                print_msg("WARNING: overwriting existing %s at %s due to --force" % (self.RECIPE_FILE_NAME, recipe_path))
+                print_msg("WARNING: overwriting existing container recipe at %s due to --force" % recipe_path)
             else:
-                raise EasyBuildError("Dockerfile at %s already exists, not overwriting it without --force", self.RECIPE_FILE_NAME, recipe_path)
+                raise EasyBuildError("Container recipe at %s already exists, not overwriting it without --force", recipe_path)
 
         recipe_content = template % data
         write_file(recipe_path, recipe_content)
-        print_msg("%s file created at %s" % (self.RECIPE_FILE_NAME, recipe_path), log=_log)
+        print_msg("%s definition file created at %s" % (self.RECIPE_FILE_NAME, recipe_path), log=_log)
 
         return recipe_path
 

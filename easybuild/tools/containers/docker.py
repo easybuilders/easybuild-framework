@@ -34,7 +34,7 @@ import tempfile
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.tools.build_log import print_msg
+from easybuild.tools.build_log import print_msg, EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.config import DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS, DEFAULT_DOCKER_BASE_IMAGE
 from easybuild.tools.run import run_cmd
@@ -125,12 +125,17 @@ _DOCKER_TMPLS = {
 
 class DockerContainer(ContainerGenerator):
 
-    TOOLS = {'docker': '0.0', 'sudo': '0.0'}
+    TOOLS = {'docker': None, 'sudo': None}
 
     RECIPE_FILE_NAME = 'Dockerfile'
 
+    def __init__(self, *args, **kwargs):
+        super(DockerContainer, self).__init__(*args, **kwargs)
+        # NOTE (med): set default value for _container_base
+        self._container_base = self._container_base or DEFAULT_DOCKER_BASE_IMAGE
+
     def resolve_template(self):
-        return _DOCKER_TMPLS[self._container_base or DEFAULT_DOCKER_BASE_IMAGE]
+        return _DOCKER_TMPLS[self._container_base]
 
     def resolve_template_data(self):
         os_deps = det_os_deps(self._easyconfigs)
@@ -151,6 +156,11 @@ class DockerContainer(ContainerGenerator):
             'init_modulepath': init_modulepath,
             'mod_names': ' '.join(mod_names),
         }
+
+    def validate(self):
+        super(DockerContainer, self).validate()
+        if self._container_base not in [DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS]:
+            raise EasyBuildError("Unsupported container base image '%s'" % self._container_base)
 
     def build_image(self, dockerfile):
         ec = self._easyconfigs[-1]['ec']

@@ -28,10 +28,13 @@
 :author: Mohamed Abidi (Bright Computing)
 """
 import operator
+import re
+
 from distutils.version import LooseVersion
-from easyconfigs.tools.filetools import which
+from easybuild.tools.filetools import which
 from easybuild.tools.build_log import print_msg
 from easybuild.tools.run import run_cmd
+from easybuild.tools.build_log import EasyBuildError
 
 
 def det_os_deps(easyconfigs):
@@ -47,13 +50,22 @@ def det_os_deps(easyconfigs):
 
 def check_tool(tool_name, min_tool_version=None):
     tool_path = which(tool_name)
-    if tool_path:
-        print_msg("tool {0!r} found at {1!r}".format(tool_name, tool_path))
+    if not tool_path:
+        return False
 
-    min_tool_version = min_tool_version or '0.0'
+    print_msg("{0} tool found at {1}".format(tool_name.capitalize(), tool_path))
+
+    if not min_tool_version:
+        return True
 
     out, ec = run_cmd("{0} --version".format(tool_name), simple=False, trace=False, force_in_dry_run=True)
     if ec:
         return False
-    tool_version = out.strip()
-    return LooseVersion(str(min_tool_version)) <= LooseVersion(tool_version)
+    res = re.search("\d+\.\d+(\.\d+)?", out.strip())
+    if not res:
+        raise EasyBuildError("Error parsing version for tool %s" % tool_name)
+    tool_version = res.group(0)
+    version_ok = LooseVersion(str(min_tool_version)) <= LooseVersion(tool_version)
+    if version_ok:
+        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name.capitalize(), tool_version, min_tool_version))
+    return version_ok

@@ -59,10 +59,14 @@ else
 fi
 """
 
-MOCKED_DOCKER = """\
+MOCKED_DOCKER = """#!/bin/bash
 echo "docker was called with arguments: $@"
-echo "$@"
-echo $#
+if [[ "$1" == '--version' ]]; then
+    echo "Docker version 18.03.1-ce, build 9ee9f40"
+else
+    echo "$@"
+    echo $#
+fi
 """
 
 
@@ -229,7 +233,7 @@ class ContainersTest(EnhancedTestCase):
         write_file(sudo, '#!/bin/bash\necho "running command \'$@\' with sudo..."\neval "$@"\n')
         adjust_permissions(sudo, stat.S_IXUSR, add=True)
 
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH'))
+        os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
@@ -317,13 +321,13 @@ class ContainersTest(EnhancedTestCase):
         for cont_base in ['ubuntu:16.04', 'centos:7']:
             stdout, stderr = self.run_main(base_args + ['--container-base=%s' % cont_base])
             self.assertFalse(stderr)
-            regexs = ["^== Dockerfile file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
+            regexs = ["^== Dockerfile definition file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
             self.check_regexs(regexs, stdout)
             remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         self.run_main(base_args + ['--container-base=centos:7'], raise_error=True)
 
-        error_pattern = "Dockerfile at .* already exists, not overwriting it without --force"
+        error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, not overwriting it without --force" % self.test_prefix
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
                               self.eb_main,
@@ -361,10 +365,6 @@ class ContainersTest(EnhancedTestCase):
             '--container-build-image',
         ]
 
-        if not which('docker'):
-            error_pattern = "docker executable not found."
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
-
         # install mocked versions of 'sudo' and 'docker' commands
         docker = os.path.join(self.test_prefix, 'bin', 'docker')
         write_file(docker, MOCKED_DOCKER)
@@ -374,13 +374,17 @@ class ContainersTest(EnhancedTestCase):
         write_file(sudo, '#!/bin/bash\necho "running command \'$@\' with sudo..."\neval "$@"\n')
         adjust_permissions(sudo, stat.S_IXUSR, add=True)
 
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), os.getenv('PATH'))
+        os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
+
+        if not which('docker'):
+            error_pattern = "docker executable not found."
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            "^== docker tool found at %s/bin/docker" % self.test_prefix,
-            "^== Dockerfile file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
+            "^== Docker tool found at %s/bin/docker" % self.test_prefix,
+            "^== Dockerfile definition file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
             "^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
             "^== Docker image created at toy-0.0:latest",
         ]
