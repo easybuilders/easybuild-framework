@@ -64,7 +64,7 @@ class ContainerGenerator(object):
             return
         for tool_name, tool_version in self.TOOLS.items():
             if not check_tool(tool_name, tool_version):
-                raise EasyBuildError("{0!r} not found on your system.".format(tool_name,))
+                raise EasyBuildError("{0} not found on your system.".format(tool_name,))
 
     def resolve_template(self):
         raise NotImplementedError

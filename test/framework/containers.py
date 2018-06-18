@@ -221,7 +221,7 @@ class ContainersTest(EnhancedTestCase):
         ]
 
         if which('singularity') is None:
-            error_pattern = "Singularity not found in your system"
+            error_pattern = "singularity not found in your system\."
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'singularity' commands
@@ -366,6 +366,10 @@ class ContainersTest(EnhancedTestCase):
             '--container-build-image',
         ]
 
+        if not which('docker'):
+            error_pattern = "docker not found on your system."
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+
         # install mocked versions of 'sudo' and 'docker' commands
         docker = os.path.join(self.test_prefix, 'bin', 'docker')
         write_file(docker, MOCKED_DOCKER)
@@ -376,10 +380,6 @@ class ContainersTest(EnhancedTestCase):
         adjust_permissions(sudo, stat.S_IXUSR, add=True)
 
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
-
-        if not which('docker'):
-            error_pattern = "docker executable not found."
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
