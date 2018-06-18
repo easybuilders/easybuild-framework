@@ -188,7 +188,8 @@ class SingularityContainer(ContainerGenerator):
                 print_msg("WARNING: overwriting existing container image at %s due to --force" % img_path)
                 remove_file(img_path)
             else:
-                raise EasyBuildError("Container image already exists at %s, not overwriting it without --force", img_path)
+                raise EasyBuildError("Container image already exists at %s, not overwriting it without --force",
+                                     img_path)
 
         # resolve full path to 'singularity' binary, since it may not be available via $PATH under sudo...
         singularity = which('singularity')

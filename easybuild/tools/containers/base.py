@@ -85,7 +85,8 @@ class ContainerGenerator(object):
             if self._force:
                 print_msg("WARNING: overwriting existing container recipe at %s due to --force" % recipe_path)
             else:
-                raise EasyBuildError("Container recipe at %s already exists, not overwriting it without --force", recipe_path)
+                raise EasyBuildError("Container recipe at %s already exists, not overwriting it without --force",
+                                     recipe_path)
 
         recipe_content = template % data
         write_file(recipe_path, recipe_content)

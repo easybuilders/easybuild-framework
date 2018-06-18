@@ -327,7 +327,8 @@ class ContainersTest(EnhancedTestCase):
 
         self.run_main(base_args + ['--container-base=centos:7'], raise_error=True)
 
-        error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, not overwriting it without --force" % self.test_prefix
+        error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, " \
+                        "not overwriting it without --force" % self.test_prefix
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
                               self.eb_main,

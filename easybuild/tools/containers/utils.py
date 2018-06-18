@@ -67,5 +67,7 @@ def check_tool(tool_name, min_tool_version=None):
     tool_version = res.group(0)
     version_ok = LooseVersion(str(min_tool_version)) <= LooseVersion(tool_version)
     if version_ok:
-        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name.capitalize(), tool_version, min_tool_version))
+        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name.capitalize(),
+                                                                     tool_version,
+                                                                     min_tool_version))
     return version_ok
