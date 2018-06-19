@@ -73,7 +73,7 @@ class RunTest(EnhancedTestCase):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        regex = re.compile('cmd "echo hello" exited with exit code [0-9]* and output:')
+        regex = re.compile('cmd (echo hello) exited with exit code [0-9]* and output:')
 
         # command output is not logged by default without debug logging
         init_logging(logfile, silent=True)
