@@ -1385,7 +1385,7 @@ def invalidate_module_caches_for(path):
     if not os.path.exists(path):
         raise EasyBuildError("Non-existing path specified to invalidate module caches: %s", path)
 
-    _log.debug("Invallidating module cache entries for path '%s'", path)
+    _log.debug("Invalidating module cache entries for path: %s", path)
     for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
         for key in cache.keys():
             paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
