@@ -81,7 +81,7 @@ def run_cmd_cache(func):
         key = (cmd, kwargs.get('inp', None))
         # fetch from cache if available, cache it if it's not, but only on cmd strings
         if isinstance(cmd, basestring) and key in cache:
-            _log.debug("Using cached value for command '%s': %s", cmd, cache[key])
+            _log.debug("Using cached value for command (%s): %s", cmd, cache[key])
             return cache[key]
         else:
             res = func(cmd, *args, **kwargs)
@@ -265,7 +265,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             cmd_log = open(cmd_log_fn, 'w')
         except IOError as err:
             raise EasyBuildError("Failed to open temporary log file for output of interactive command: %s", err)
-        _log.debug('run_cmd_qa: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+        _log.debug('run_cmd_qa: Output of (%s) will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
 
