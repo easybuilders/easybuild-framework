@@ -1392,7 +1392,7 @@ def invalidate_module_caches_for(path):
             _log.debug("Paths for 'module %s' key (%s): %s", subcmd, key, paths_in_key)
             for path_in_key in paths_in_key:
                 if path == path_in_key or (os.path.exists(path_in_key) and os.path.samefile(path, path_in_key)):
-                    _log.debug("Entry '%s' in 'module %s' cache is evicted, marked as invalid via path (%s): %s",
+                    _log.debug("Entry (%s) in 'module %s' cache is evicted, marked as invalid via path (%s): %s",
                                key, subcmd, path, cache[key])
                     del cache[key]
                     break

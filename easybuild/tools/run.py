@@ -132,7 +132,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
             cmd_log = open(cmd_log_fn, 'w')
         except IOError as err:
             raise EasyBuildError("Failed to open temporary log file for output of command: %s", err)
-        _log.debug('run_cmd: Output of "%s" will be logged to %s' % (cmd, cmd_log_fn))
+        _log.debug('run_cmd: Output of (%s) will be logged to %s' % (cmd, cmd_log_fn))
     else:
         cmd_log_fn, cmd_log = None, None
 
