@@ -219,7 +219,7 @@ class ContainersTest(EnhancedTestCase):
         ]
 
         if which('singularity') is None:
-            error_pattern = "singularity not found in your system\."
+            error_pattern = "singularity not found on your system."
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'singularity' commands
