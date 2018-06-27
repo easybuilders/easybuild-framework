@@ -31,16 +31,15 @@ import operator
 import re
 
 from distutils.version import LooseVersion
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.filetools import which
-from easybuild.tools.build_log import print_msg
 from easybuild.tools.run import run_cmd
-from easybuild.tools.build_log import EasyBuildError
 
 
 def det_os_deps(easyconfigs):
     res = set()
-    _os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
-    for os_dep in _os_deps:
+    os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
+    for os_dep in os_deps:
         if isinstance(os_dep, basestring):
             res.add(os_dep)
         elif isinstance(os_dep, tuple):
@@ -53,13 +52,14 @@ def check_tool(tool_name, min_tool_version=None):
     if not tool_path:
         return False
 
-    print_msg("{0} tool found at {1}".format(tool_name.capitalize(), tool_path))
+    print_msg("{0} tool found at {1}".format(tool_name, tool_path))
 
     if not min_tool_version:
         return True
 
     out, ec = run_cmd("{0} --version".format(tool_name), simple=False, trace=False, force_in_dry_run=True)
     if ec:
+        print_error("command '{0} --version' failed with output: {1}".format(tool_name, out))
         return False
     res = re.search("\d+\.\d+(\.\d+)?", out.strip())
     if not res:
@@ -67,7 +67,7 @@ def check_tool(tool_name, min_tool_version=None):
     tool_version = res.group(0)
     version_ok = LooseVersion(str(min_tool_version)) <= LooseVersion(tool_version)
     if version_ok:
-        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name.capitalize(),
+        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name,
                                                                      tool_version,
                                                                      min_tool_version))
     return version_ok

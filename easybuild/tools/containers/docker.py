@@ -28,28 +28,23 @@ Support for generating docker container recipes and creating container images
 :author Mohamed Abidi (Bright Computing)
 """
 import os
-import shutil
 import tempfile
 
-from vsc.utils import fancylogger
-
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.tools.build_log import print_msg, EasyBuildError
-from easybuild.tools.config import build_option
-from easybuild.tools.config import DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS, DEFAULT_DOCKER_BASE_IMAGE
+from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.config import DOCKER_BASE_IMAGE_CENTOS, DOCKER_BASE_IMAGE_UBUNTU
+from easybuild.tools.containers.base import ContainerGenerator
+from easybuild.tools.containers.utils import det_os_deps
+from easybuild.tools.filetools import rmtree2
 from easybuild.tools.run import run_cmd
-from .base import ContainerGenerator
-from .utils import det_os_deps
 
-_log = fancylogger.getLogger('tools.containers.singularity')  # pylint: disable=C0103
 
-DOCKER_UBUNTU1604_TMPL = """\
-FROM ubuntu:16.04
-LABEL maintainer=mohamed.abidi@brightcomputing.com
+DOCKER_TMPL_HEADER = """\
+FROM %(container_base)s
+LABEL maintainer=easybuild@lists.ugent.be
+"""
 
-RUN apt-get update && \\
-    apt-get install -y python python-pip lmod curl wget
-
+DOCKER_INSTALL_EASYBUILD = """\
 RUN pip install -U pip setuptools && \\
     hash -r pip && \\
     pip install -U easybuild
@@ -60,66 +55,45 @@ RUN mkdir /app && \\
     useradd -m -s /bin/bash easybuild && \\
     chown easybuild:easybuild -R /app && \\
     chown easybuild:easybuild -R /scratch
+"""
+
+DOCKER_TMPL_FOOTER = """\
+USER easybuild
+
+RUN set -x && \\
+    . /usr/share/lmod/lmod/init/sh && \\
+    eb %(eb_opts)s --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
+
+RUN touch ${HOME}/.profile && \\
+    echo '\\n# Added by easybuild docker packaging' >> ${HOME}/.profile && \\
+    echo 'source /usr/share/lmod/lmod/init/bash' >> ${HOME}/.profile && \\
+    echo 'module use %(init_modulepath)s' >> ${HOME}/.profile && \\
+    echo 'module load %(mod_names)s' >> ${HOME}/.profile
+
+CMD ["/bin/bash", "-l"]
+"""
+
+DOCKER_UBUNTU1604_INSTALL_DEPS = """\
+RUN apt-get update && \\
+    apt-get install -y python python-pip lmod curl wget
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
     for dep in ${OS_DEPS}; do apt-get -qq install ${dep} || true; done
-
-USER easybuild
-
-RUN set -x && \\
-    . /usr/share/lmod/lmod/init/sh && \\
-    eb %(eb_opts)s --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
-
-RUN touch ${HOME}/.profile && \\
-    echo '\\n# Added by easybuild docker packaging' >> ${HOME}/.profile && \\
-    echo 'source /usr/share/lmod/lmod/init/bash' >> ${HOME}/.profile && \\
-    echo 'module use %(init_modulepath)s' >> ${HOME}/.profile && \\
-    echo 'module load %(mod_names)s' >> ${HOME}/.profile
-
-CMD ["/bin/bash", "-l"]
 """
 
-DOCKER_CENTOS7_TMPL = """\
-FROM centos:7
-LABEL maintainer=mohamed.abidi@brightcomputing.com
-
+DOCKER_CENTOS7_INSTALL_DEPS = """\
 RUN yum install -y epel-release && \\
     yum install -y python python-pip Lmod curl wget git
-
-RUN pip install -U pip setuptools && \\
-    hash -r pip && \\
-    pip install -U easybuild
 
 RUN OS_DEPS='%(os_deps)s' && \\
     test -n "${OS_DEPS}" && \\
     yum --skip-broken install -y "${OS_DEPS}" || true
-
-RUN mkdir /app && \\
-    mkdir /scratch && \\
-    mkdir /scratch/tmp && \\
-    useradd -m -s /bin/bash easybuild && \\
-    chown easybuild:easybuild -R /app && \\
-    chown easybuild:easybuild -R /scratch
-
-USER easybuild
-
-RUN set -x && \\
-    . /usr/share/lmod/lmod/init/sh && \\
-    eb %(eb_opts)s --installpath=/app/ --prefix=/scratch --tmpdir=/scratch/tmp
-
-RUN touch ${HOME}/.profile && \\
-    echo '\\n# Added by easybuild docker packaging' >> ${HOME}/.profile && \\
-    echo 'source /usr/share/lmod/lmod/init/bash' >> ${HOME}/.profile && \\
-    echo 'module use %(init_modulepath)s' >> ${HOME}/.profile && \\
-    echo 'module load %(mod_names)s' >> ${HOME}/.profile
-
-CMD ["/bin/bash", "-l"]
 """
 
-_DOCKER_TMPLS = {
-    DOCKER_BASE_IMAGE_UBUNTU: DOCKER_UBUNTU1604_TMPL,
-    DOCKER_BASE_IMAGE_CENTOS: DOCKER_CENTOS7_TMPL,
+DOCKER_OS_INSTALL_DEPS_TMPLS = {
+    DOCKER_BASE_IMAGE_UBUNTU: DOCKER_UBUNTU1604_INSTALL_DEPS,
+    DOCKER_BASE_IMAGE_CENTOS: DOCKER_CENTOS7_INSTALL_DEPS,
 }
 
 
@@ -129,26 +103,26 @@ class DockerContainer(ContainerGenerator):
 
     RECIPE_FILE_NAME = 'Dockerfile'
 
-    def __init__(self, *args, **kwargs):
-        super(DockerContainer, self).__init__(*args, **kwargs)
-        # NOTE (med): set default value for _container_base
-        self._container_base = self._container_base or DEFAULT_DOCKER_BASE_IMAGE
-
     def resolve_template(self):
-        return _DOCKER_TMPLS[self._container_base]
+        return (2 * "\n").join([
+            DOCKER_TMPL_HEADER % {'container_base': self.container_base},
+            DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base],
+            DOCKER_INSTALL_EASYBUILD,
+            DOCKER_TMPL_FOOTER,
+        ])
 
     def resolve_template_data(self):
-        os_deps = det_os_deps(self._easyconfigs)
+        os_deps = det_os_deps(self.easyconfigs)
 
         module_naming_scheme = ActiveMNS()
 
-        ec = self._easyconfigs[-1]['ec']
+        ec = self.easyconfigs[-1]['ec']
 
         init_modulepath = os.path.join("/app/modules/all", *module_naming_scheme.det_init_modulepaths(ec))
 
-        mod_names = [e['ec'].full_mod_name for e in self._easyconfigs]
+        mod_names = [ec['ec'].full_mod_name for ec in self.easyconfigs]
 
-        eb_opts = [os.path.basename(ec['spec']) for ec in self._easyconfigs]
+        eb_opts = [os.path.basename(ec['spec']) for ec in self.easyconfigs]
 
         return {
             'os_deps': ' '.join(os_deps),
@@ -158,22 +132,22 @@ class DockerContainer(ContainerGenerator):
         }
 
     def validate(self):
+        if self.container_base not in [DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS]:
+            raise EasyBuildError("Unsupported container base image '%s'" % self.container_base)
         super(DockerContainer, self).validate()
-        if self._container_base not in [DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS]:
-            raise EasyBuildError("Unsupported container base image '%s'" % self._container_base)
 
     def build_image(self, dockerfile):
-        ec = self._easyconfigs[-1]['ec']
+        ec = self.easyconfigs[-1]['ec']
 
         module_naming_scheme = ActiveMNS()
         module_name = module_naming_scheme.det_full_module_name(ec)
 
         tempdir = tempfile.mkdtemp(prefix='easybuild-docker')
-        container_name = build_option('container_image_name') or "%s:latest" % module_name.replace('/', '-')
+        container_name = self.img_name or "%s:latest" % module_name.replace('/', '-')
         docker_cmd = ' '.join(['sudo', 'docker', 'build', '-f', dockerfile, '-t', container_name, '.'])
 
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % docker_cmd)
         run_cmd(docker_cmd, path=tempdir, stream_output=True)
-        print_msg("Docker image created at %s" % container_name, log=_log)
+        print_msg("Docker image created at %s" % container_name, log=self.log)
 
-        shutil.rmtree(tempdir)
+        rmtree2(tempdir)

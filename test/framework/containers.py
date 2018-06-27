@@ -99,7 +99,7 @@ class ContainersTest(EnhancedTestCase):
             expected.update({'arg2': 'bar'})
             self.assertEqual(parse_container_base('%s:foo:bar' % agent), expected)
 
-    def run_main(self, args, raise_error=False):
+    def run_main(self, args, raise_error=True):
         """Helper function to run main with arguments specified in 'args' and return stdout/stderr."""
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -130,7 +130,6 @@ class ContainersTest(EnhancedTestCase):
         args = [
             toy_ec,
             '--containerize',
-            '--container-type=singularity',
             '--experimental',
         ]
 
@@ -215,7 +214,6 @@ class ContainersTest(EnhancedTestCase):
             toy_ec,
             '-C',  # equivalent with --containerize
             '--experimental',
-            '--container-type=singularity',
             '--container-base=localimage:%s' % test_img,
             '--container-build-image',
         ]
@@ -238,8 +236,8 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            "^== Singularity tool found at %s/bin/singularity" % self.test_prefix,
-            "^== Singularity version '2.4.0' is 2.4 or higher ... OK",
+            "^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+            "^== singularity version '2.4.0' is 2.4 or higher ... OK",
             "^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
             "^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
             "^== Singularity image created at %s/containers/toy-0.0\.simg" % self.test_prefix,
@@ -338,7 +336,7 @@ class ContainersTest(EnhancedTestCase):
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-        self.run_main(base_args, raise_error=True)
+        self.run_main(base_args + ['--container-base=ubuntu:16.04'], raise_error=True)
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
             "FROM ubuntu:16.04",
@@ -363,6 +361,7 @@ class ContainersTest(EnhancedTestCase):
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-type=docker',
+            '--container-base=ubuntu:16.04',
             '--container-build-image',
         ]
 
@@ -384,7 +383,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            "^== Docker tool found at %s/bin/docker" % self.test_prefix,
+            "^== docker tool found at %s/bin/docker" % self.test_prefix,
             "^== Dockerfile definition file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
             "^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
             "^== Docker image created at toy-0.0:latest",

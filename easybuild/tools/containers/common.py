@@ -31,12 +31,12 @@ Dispatch function for container packages
 """
 from vsc.utils import fancylogger
 
-from easybuild.tools.config import build_option
 from easybuild.tools.build_log import EasyBuildError
-from .docker import DockerContainer  # noqa
-from .singularity import SingularityContainer  # noqa
+from easybuild.tools.config import build_option
+from easybuild.tools.containers.docker import DockerContainer  # noqa
+from easybuild.tools.containers.singularity import SingularityContainer  # noqa
 
-_log = fancylogger.getLogger('tools.containers.singularity')  # pylint: disable=C0103
+_log = fancylogger.getLogger('tools.containers.common')  # pylint: disable=C0103
 
 
 def containerize(easyconfigs):

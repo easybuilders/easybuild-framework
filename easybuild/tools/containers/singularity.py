@@ -29,14 +29,13 @@ Support for generating singularity container recipes and creating container imag
 :author: Mohamed Abidi (Bright Computing)
 """
 import os
-from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
-from easybuild.tools.config import build_option, container_path
+from easybuild.tools.config import container_path, build_option
 from easybuild.tools.filetools import remove_file, which
 from easybuild.tools.run import run_cmd
-from .base import ContainerGenerator
+from easybuild.tools.containers.base import ContainerGenerator
 
 
 DOCKER = 'docker'
@@ -79,9 +78,6 @@ module load %(mod_names)s
 """
 
 
-_log = fancylogger.getLogger('tools.containers.singularity')  # pylint: disable=C0103
-
-
 class SingularityContainer(ContainerGenerator):
 
     TOOLS = {'singularity': '2.4'}
@@ -93,7 +89,7 @@ class SingularityContainer(ContainerGenerator):
 
     def resolve_template_data(self):
 
-        base_specs = parse_container_base(self._container_base)
+        base_specs = parse_container_base(self.container_base)
 
         # extracting application name,version, version suffix, toolchain name, toolchain version from
         # easyconfig class
@@ -110,7 +106,7 @@ class SingularityContainer(ContainerGenerator):
                 # get the extension of container image
                 image_ext = os.path.splitext(base_image)[1]
                 if image_ext == '.img' or image_ext == '.simg':
-                    _log.debug("Extension for base container image to use is OK: %s", image_ext)
+                    self.log.debug("Extension for base container image to use is OK: %s", image_ext)
                 else:
                     raise EasyBuildError("Invalid image extension '%s' must be .img or .simg", image_ext)
             else:
@@ -129,7 +125,7 @@ class SingularityContainer(ContainerGenerator):
 
         # if there is osdependencies in easyconfig then add them to Singularity recipe
         install_os_deps = ''
-        for ec in self._easyconfigs:
+        for ec in self.easyconfigs:
             for osdep in ec['ec']['osdependencies']:
                 if isinstance(osdep, basestring):
                     install_os_deps += "yum install -y %s\n" % osdep
@@ -140,14 +136,14 @@ class SingularityContainer(ContainerGenerator):
                     raise EasyBuildError("Unknown format of OS dependency specification encountered: %s", osdep)
 
         # module names to load in container environment
-        mod_names = [e['ec'].full_mod_name for e in self._easyconfigs]
+        mod_names = [e['ec'].full_mod_name for e in self.easyconfigs]
 
         # adding all the regions for writing the  Singularity definition file
         return {
             'bootstrap': bootstrap_agent,
             'from': bootstrap_from,
             'install_os_deps': install_os_deps,
-            'easyconfigs': ' '.join(os.path.basename(e['spec']) for e in self._easyconfigs),
+            'easyconfigs': ' '.join(os.path.basename(e['spec']) for e in self.easyconfigs),
             'mod_names': ' '.join(mod_names),
         }
 
@@ -157,14 +153,14 @@ class SingularityContainer(ContainerGenerator):
         def_file = os.path.basename(recipe_path)
 
         # use --imagename if specified, otherwise derive based on filename of recipe
-        img_name = build_option('container_image_name')
+        img_name = self.img_name
         if img_name is None:
             # definition file Singularity.<app>-<version, container name <app>-<version>.<img|simg>
             img_name = def_file.split('.', 1)[1]
 
         cmd_opts = ''
 
-        image_format = build_option('container_image_format')
+        image_format = self.image_format
 
         # squashfs image format (default for Singularity)
         if image_format in [None, CONT_IMAGE_FORMAT_SQUASHFS]:
@@ -195,14 +191,14 @@ class SingularityContainer(ContainerGenerator):
         singularity = which('singularity')
         cmd_env = ''
 
-        singularity_tmpdir = build_option('container_tmpdir')
+        singularity_tmpdir = self.tmpdir
         if singularity_tmpdir:
             cmd_env += 'SINGULARITY_TMPDIR=%s' % singularity_tmpdir
 
         cmd = ' '.join(['sudo', cmd_env, singularity, 'build', cmd_opts, img_path, recipe_path])
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
         run_cmd(cmd, stream_output=True)
-        print_msg("Singularity image created at %s" % img_path, log=_log)
+        print_msg("Singularity image created at %s" % img_path, log=self.log)
 
 
 def parse_container_base(base):
