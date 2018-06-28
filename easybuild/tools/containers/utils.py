@@ -64,8 +64,7 @@ def check_tool(tool_name, min_tool_version=None):
     version_cmd = "{0} --version".format(tool_name)
     out, ec = run_cmd(version_cmd, simple=False, trace=False, force_in_dry_run=True)
     if ec:
-        print_error("command '{0}' failed with output: {1}".format(version_cmd, out))
-        raise EasyBuildError("Error running '{0}' for tool {1}".format(version_cmd, tool_name))
+        raise EasyBuildError("Error running '{0}' for tool {1} with output: {2}".format(version_cmd, tool_name, out))
     res = re.search("\d+\.\d+(\.\d+)?", out.strip())
     if not res:
         raise EasyBuildError("Error parsing version for tool {0}".format(tool_name))
