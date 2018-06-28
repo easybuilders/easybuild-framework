@@ -30,7 +30,6 @@ Support for generating docker container recipes and creating container images
 import os
 import tempfile
 
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import DOCKER_BASE_IMAGE_CENTOS, DOCKER_BASE_IMAGE_UBUNTU
 from easybuild.tools.containers.base import ContainerGenerator
@@ -104,7 +103,7 @@ class DockerContainer(ContainerGenerator):
     RECIPE_FILE_NAME = 'Dockerfile'
 
     def resolve_template(self):
-        return (2 * "\n").join([
+        return "\n\n".join([
             DOCKER_TMPL_HEADER % {'container_base': self.container_base},
             DOCKER_OS_INSTALL_DEPS_TMPLS[self.container_base],
             DOCKER_INSTALL_EASYBUILD,
@@ -114,11 +113,9 @@ class DockerContainer(ContainerGenerator):
     def resolve_template_data(self):
         os_deps = det_os_deps(self.easyconfigs)
 
-        module_naming_scheme = ActiveMNS()
-
         ec = self.easyconfigs[-1]['ec']
 
-        init_modulepath = os.path.join("/app/modules/all", *module_naming_scheme.det_init_modulepaths(ec))
+        init_modulepath = os.path.join("/app/modules/all", *self.mns.det_init_modulepaths(ec))
 
         mod_names = [ec['ec'].full_mod_name for ec in self.easyconfigs]
 
@@ -132,15 +129,14 @@ class DockerContainer(ContainerGenerator):
         }
 
     def validate(self):
-        if self.container_base not in [DOCKER_BASE_IMAGE_UBUNTU, DOCKER_BASE_IMAGE_CENTOS]:
+        if self.container_base not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
             raise EasyBuildError("Unsupported container base image '%s'" % self.container_base)
         super(DockerContainer, self).validate()
 
     def build_image(self, dockerfile):
         ec = self.easyconfigs[-1]['ec']
 
-        module_naming_scheme = ActiveMNS()
-        module_name = module_naming_scheme.det_full_module_name(ec)
+        module_name = self.mns.det_full_module_name(ec)
 
         tempdir = tempfile.mkdtemp(prefix='easybuild-docker')
         container_name = self.img_name or "%s:latest" % module_name.replace('/', '-')

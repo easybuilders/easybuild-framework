@@ -32,7 +32,7 @@ import os
 
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX, CONT_IMAGE_FORMAT_SQUASHFS
-from easybuild.tools.config import container_path, build_option
+from easybuild.tools.config import build_option, container_path
 from easybuild.tools.filetools import remove_file, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.containers.base import ContainerGenerator
@@ -80,7 +80,7 @@ module load %(mod_names)s
 
 class SingularityContainer(ContainerGenerator):
 
-    TOOLS = {'singularity': '2.4'}
+    TOOLS = {'singularity': '2.4', 'sudo': None}
 
     RECIPE_FILE_NAME = 'Singularity'
 

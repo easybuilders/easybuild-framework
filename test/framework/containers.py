@@ -134,7 +134,7 @@ class ContainersTest(EnhancedTestCase):
         ]
 
         error_pattern = "--container-base must be specified"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # generating Singularity definition file with 'docker' or 'shub' bootstrap agents always works,
         # i.e. image label is not verified, image tag can be anything
@@ -148,11 +148,11 @@ class ContainersTest(EnhancedTestCase):
             remove_file(os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0'))
 
         args.append("--container-base=shub:test123")
-        self.run_main(args, raise_error=True)
+        self.run_main(args)
 
         # existing definition file is not overwritten without use of --force
         error_pattern = "Container recipe at .* already exists, not overwriting it without --force"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         stdout, stderr = self.run_main(args + ['--force'])
         self.assertFalse(stderr)
@@ -171,7 +171,7 @@ class ContainersTest(EnhancedTestCase):
         test_img = os.path.join(self.test_prefix, 'test123.img')
         args[-1] = "--container-base=localimage:%s" % test_img
         error_pattern = "Singularity base image at specified path does not exist"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         write_file(test_img, '')
         stdout, stderr = self.run_main(args)
@@ -195,7 +195,7 @@ class ContainersTest(EnhancedTestCase):
             args[-1] = "--container-base=localimage:%s" % test_img
             write_file(test_img, '')
             error_pattern = "Invalid image extension '.*' must be \.img or \.simg"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
     def test_end2end_singularity_image(self):
         """End-to-end test for --containerize (recipe + image)."""
@@ -219,7 +219,7 @@ class ContainersTest(EnhancedTestCase):
         ]
 
         if which('singularity') is None:
-            error_pattern = "singularity not found on your system."
+            error_pattern = "singularity with version 2.4 or higher not found on your system."
             self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'singularity' commands
@@ -269,7 +269,7 @@ class ContainersTest(EnhancedTestCase):
 
         error_pattern = "Container image already exists at %s, not overwriting it without --force" % cont_img
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
         self.mock_stdout(False)
 
         args.append('--force')
@@ -292,6 +292,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs[-3] = "^== Running 'sudo\s*SINGULARITY_TMPDIR=%s \S*/singularity build .*" % self.test_prefix
+        self.check_regexs(regexs, stdout)
 
     def test_end2end_dockerfile(self):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -312,7 +313,7 @@ class ContainersTest(EnhancedTestCase):
         error_pattern = "Unsupported container base image 'not-supported'"
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
-                              self.eb_main,
+                              self.run_main,
                               base_args + ['--container-base=not-supported'],
                               raise_error=True)
 
@@ -323,20 +324,20 @@ class ContainersTest(EnhancedTestCase):
             self.check_regexs(regexs, stdout)
             remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
-        self.run_main(base_args + ['--container-base=centos:7'], raise_error=True)
+        self.run_main(base_args + ['--container-base=centos:7'])
 
         error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, " \
                         "not overwriting it without --force" % self.test_prefix
         self.assertErrorRegex(EasyBuildError,
                               error_pattern,
-                              self.eb_main,
+                              self.run_main,
                               base_args + ['--container-base=centos:7'],
                               raise_error=True)
 
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
-        self.run_main(base_args + ['--container-base=ubuntu:16.04'], raise_error=True)
+        self.run_main(base_args + ['--container-base=ubuntu:16.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
             "FROM ubuntu:16.04",
@@ -344,7 +345,6 @@ class ContainersTest(EnhancedTestCase):
             "module load toy/0.0 GCC/4.9.2",
         ]
         self.check_regexs(regexs, def_file)
-        remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
     def test_end2end_docker_image(self):
 
@@ -367,7 +367,7 @@ class ContainersTest(EnhancedTestCase):
 
         if not which('docker'):
             error_pattern = "docker not found on your system."
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'docker' commands
         docker = os.path.join(self.test_prefix, 'bin', 'docker')

@@ -48,6 +48,10 @@ def det_os_deps(easyconfigs):
 
 
 def check_tool(tool_name, min_tool_version=None):
+    """
+    This function is a predicate check for the existence of tool_name on the system PATH.
+    If min_tool_version is not None, it will check that the version has an equal or higher value.
+    """
     tool_path = which(tool_name)
     if not tool_path:
         return False
@@ -57,17 +61,16 @@ def check_tool(tool_name, min_tool_version=None):
     if not min_tool_version:
         return True
 
-    out, ec = run_cmd("{0} --version".format(tool_name), simple=False, trace=False, force_in_dry_run=True)
+    version_cmd = "{0} --version".format(tool_name)
+    out, ec = run_cmd(version_cmd, simple=False, trace=False, force_in_dry_run=True)
     if ec:
-        print_error("command '{0} --version' failed with output: {1}".format(tool_name, out))
-        return False
+        print_error("command '{0}' failed with output: {1}".format(version_cmd, out))
+        raise EasyBuildError("Error running '{0}' for tool {1}".format(version_cmd, tool_name))
     res = re.search("\d+\.\d+(\.\d+)?", out.strip())
     if not res:
-        raise EasyBuildError("Error parsing version for tool %s" % tool_name)
+        raise EasyBuildError("Error parsing version for tool {0}".format(tool_name))
     tool_version = res.group(0)
     version_ok = LooseVersion(str(min_tool_version)) <= LooseVersion(tool_version)
     if version_ok:
-        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name,
-                                                                     tool_version,
-                                                                     min_tool_version))
+        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name, tool_version, min_tool_version))
     return version_ok

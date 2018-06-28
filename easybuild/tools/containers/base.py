@@ -29,6 +29,7 @@ import os
 
 from vsc.utils import fancylogger
 
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option, container_path
 from easybuild.tools.containers.utils import check_tool
@@ -36,6 +37,10 @@ from easybuild.tools.filetools import write_file
 
 
 class ContainerGenerator(object):
+    """
+    The parent class for concrete container recipe and image generator.
+    Subclasses have to provide at least template resolution and image creation logic.
+    """
 
     TOOLS = {}
 
@@ -48,10 +53,16 @@ class ContainerGenerator(object):
         self.easyconfigs = easyconfigs
         self.image_format = build_option('container_image_format')
         self.img_name = build_option('container_image_name')
-        self.log = fancylogger.getLogger(self.__class__.__module__.replace('easybuild.', ''))
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        self.mns = ActiveMNS()
         self.tmpdir = build_option('container_tmpdir')
 
     def generate(self):
+        """
+        The entry point for container recipe and image generation.
+        It starts by validating the needed tools are available using TOOLS class attribute.
+        If the validation passes, it will generate the container recipe, and optionally build out of it the container.
+        """
         self.validate()
         recipe_path = self.generate_recipe()
         if self.container_build_image:
@@ -60,7 +71,12 @@ class ContainerGenerator(object):
     def validate_tools(self):
         for tool_name, tool_version in self.TOOLS.items():
             if not check_tool(tool_name, tool_version):
-                raise EasyBuildError("{0} not found on your system.".format(tool_name,))
+                err_msg = "".join([
+                    tool_name,
+                    " with version {0} or higher".format(tool_version) if tool_version else "",
+                    " not found on your system.",
+                ])
+                raise EasyBuildError(err_msg)
 
     def validate(self):
         if self.container_build_image:
