@@ -2219,8 +2219,8 @@ class EasyBlock(object):
                 if isinstance(xs, basestring):
                     xs = (xs,)
                 elif not isinstance(xs, tuple):
-                    raise EasyBuildError("Unsupported type '%s' encountered in %s, not a string or tuple",
-                                         key, type(xs))
+                    raise EasyBuildError("Unsupported type %s encountered in '%s', not a string or tuple",
+                                         type(xs), key)
 
                 found = check_path(xs, typ, check_fn)
 
