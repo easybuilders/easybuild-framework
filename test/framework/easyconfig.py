@@ -2171,6 +2171,16 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(get_module_path('RPackage'), 'easybuild.easyblocks.generic.rpackage')
         self.assertEqual(get_module_path('RPackage', generic=True), 'easybuild.easyblocks.generic.rpackage')
 
+    def test_not_an_easyconfig(self):
+        """Test error reporting when a file that's not actually an easyconfig file is provided."""
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
+        # run test on an easyconfig file that was downloaded using wget using a non-raw GitHub URL
+        # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
+        not_an_ec = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'not_an_easyconfig.eb')
+
+        error_pattern = "Parsing easyconfig file failed: invalid syntax"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
+
 
 def suite():
     """ returns all the testcases in this module """

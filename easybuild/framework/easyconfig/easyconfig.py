@@ -274,6 +274,12 @@ class EasyConfig(object):
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
 
+        # constructing easyconfig parser object includes a "raw" parse,
+        # which serves as a check to see whether supplied easyconfig file is an actual easyconfig...
+        self.log.info("Performing quick parse to check for valid easyconfig file...")
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                       auto_convert_value_types=auto_convert_value_types)
+
         self.modules_tool = modules_tool()
 
         # use legacy module classes as default
@@ -318,8 +324,6 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
-                                       auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # perform validations
