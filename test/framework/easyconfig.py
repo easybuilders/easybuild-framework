@@ -1909,6 +1909,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-goolf-1.4.10.eb'))
 
         expected = {
+            'bitbucket_account': 'gzip',
             'github_account': None,
             'name': 'gzip',
             'nameletter': 'g',
@@ -1928,6 +1929,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec['version'] = '0.01'
 
         expected = {
+            'bitbucket_account': 'toy',
             'github_account': None,
             'name': 'toy',
             'nameletter': 't',
