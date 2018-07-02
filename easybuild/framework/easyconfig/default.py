@@ -82,6 +82,8 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
+                                           " URLs", BUILD],
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
