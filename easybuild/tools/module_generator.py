@@ -977,11 +977,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             for sub_path in re.split(os.path.sep, user_modpath):
                 matched_re = runtime_env_re.match(sub_path)
                 if matched_re:
-		    if sub_paths:
-			path = quote_str(os.path.join(*sub_paths))
+                    if sub_paths:
+                        path = quote_str(os.path.join(*sub_paths))
                         expanded_user_modpath.extend([path])
-			sub_paths = []
-		    expanded_user_modpath.extend(['os.getenv(%s)' % quote_str(matched_re.group(1))])
+                        sub_paths = []
+                    expanded_user_modpath.extend(['os.getenv(%s)' % quote_str(matched_re.group(1))])
                 else:
                     sub_paths.append(sub_path)
             if sub_paths:
