@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,24 +23,18 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Dummy easyblock for software that uses the GNU installation procedure,
-i.e. configure/make/make install.
+EasyBuild support for fosscuda compiler toolchain (includes GCC+CUDA, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Davide Vanzo (Vanderbilt University)
 """
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM
 
-class ConfigureMake(EasyBlock):
-    """Dummy support for building and installing applications with configure/make/make install."""
+from easybuild.toolchains.gompic import Gompic
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.openblas import OpenBLAS
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
-    @staticmethod
-    def extra_options(extra_vars=None):
-        """Extra easyconfig parameters specific to ConfigureMake."""
-        extra_vars = EasyBlock.extra_options(extra=extra_vars)
-        extra_vars.update({
-            'test_bool': [False, "Just a test", CUSTOM],
-            'test_none': [None, "Another test", CUSTOM],
-            'test_123': ['', "Test 1, 2, 3", CUSTOM],
-        })
-        return extra_vars
+
+class Fosscuda(Gompic, OpenBLAS, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
+    NAME = 'fosscuda'
+    SUBTOOLCHAIN = Gompic.NAME

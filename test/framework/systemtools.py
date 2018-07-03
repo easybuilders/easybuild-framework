@@ -332,6 +332,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_read_file = st.read_file
         self.orig_run_cmd = st.run_cmd
         self.orig_platform_uname = st.platform.uname
+        self.orig_get_tool_version = st.get_tool_version
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -341,6 +342,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = self.orig_get_os_type
         st.run_cmd = self.orig_run_cmd
         st.platform.uname = self.orig_platform_uname
+        st.get_tool_version = self.orig_get_tool_version
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count_native(self):
@@ -697,6 +699,12 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.LINUX
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_glibc_version(), '2.12')
+
+    def test_glibc_version_linux_musl_libc(self):
+        """Test getting glibc version (mocked for Linux)."""
+        st.get_os_type = lambda: st.LINUX
+        st.get_tool_version = lambda _: "musl libc (x86_64); Version 1.1.18; Dynamic Program Loader"
+        self.assertEqual(get_glibc_version(), UNKNOWN)
 
     def test_glibc_version_darwin(self):
         """Test getting glibc version (mocked for Darwin)."""

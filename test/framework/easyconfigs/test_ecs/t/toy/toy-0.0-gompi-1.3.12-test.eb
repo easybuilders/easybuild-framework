@@ -18,7 +18,7 @@ checksums = [[
     ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
     ('size', 273),
 ]]
-patches = ['toy-0.0_typo.patch']
+patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 
 exts_default_options = {
     'source_urls': ['http://example.com/%(name)s'],
@@ -30,7 +30,7 @@ exts_list = [
         'checksums': ['f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'],  # checksum for 
         # custom extension filter to verify use of stdin value being passed to filter command
     'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
-        'patches': ['bar-0.0_typo.patch'],
+        'patches': ['bar-0.0_fix-silly-typo-in-printf-statement.patch'],
         'toy_ext_param': "mv anotherbar bar_bis",
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
     }),

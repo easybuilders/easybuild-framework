@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2013-2016 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -8,7 +8,7 @@
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# https://github.com/easybuilders/easybuild
+# http://github.com/hpcugent/easybuild
 #
 # EasyBuild is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,24 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Dummy easyblock for software that uses the GNU installation procedure,
-i.e. configure/make/make install.
+EasyBuild support for iompic compiler toolchain (includes iccifort, OpenMPI and CUDA).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Bart Oldeman (Compute Canada)
 """
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM
 
-class ConfigureMake(EasyBlock):
-    """Dummy support for building and installing applications with configure/make/make install."""
+from easybuild.toolchains.iccifortcuda import IccIfortCUDA
+from easybuild.toolchains.mpi.openmpi import OpenMPI
 
-    @staticmethod
-    def extra_options(extra_vars=None):
-        """Extra easyconfig parameters specific to ConfigureMake."""
-        extra_vars = EasyBlock.extra_options(extra=extra_vars)
-        extra_vars.update({
-            'test_bool': [False, "Just a test", CUSTOM],
-            'test_none': [None, "Another test", CUSTOM],
-            'test_123': ['', "Test 1, 2, 3", CUSTOM],
-        })
-        return extra_vars
+
+class Iompic(IccIfortCUDA, OpenMPI):
+    """Compiler toolchain with Intel compilers (icc/ifort), OpenMPI and CUDA."""
+    NAME = 'iompic'
+    SUBTOOLCHAIN = IccIfortCUDA.NAME

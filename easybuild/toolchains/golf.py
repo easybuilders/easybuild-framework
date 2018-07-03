@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2018 Ghent University
+# Copyright 2013-2018 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,24 +23,18 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Dummy easyblock for software that uses the GNU installation procedure,
-i.e. configure/make/make install.
+EasyBuild support for golf compiler toolchain (includes GCC, OpenBLAS, LAPACK, and FFTW).
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM
 
-class ConfigureMake(EasyBlock):
-    """Dummy support for building and installing applications with configure/make/make install."""
+from easybuild.toolchains.gcc import GccToolchain
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.openblas import OpenBLAS
 
-    @staticmethod
-    def extra_options(extra_vars=None):
-        """Extra easyconfig parameters specific to ConfigureMake."""
-        extra_vars = EasyBlock.extra_options(extra=extra_vars)
-        extra_vars.update({
-            'test_bool': [False, "Just a test", CUSTOM],
-            'test_none': [None, "Another test", CUSTOM],
-            'test_123': ['', "Test 1, 2, 3", CUSTOM],
-        })
-        return extra_vars
+
+class Golf(GccToolchain, OpenBLAS, Fftw):
+    """Compiler toolchain with GCC, OpenBLAS, and FFTW."""
+    NAME = 'golf'
+    SUBTOOLCHAIN = GccToolchain.NAME

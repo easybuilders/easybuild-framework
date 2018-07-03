@@ -45,7 +45,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError, print_warning
-from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET, WARN
+from easybuild.tools.config import ERROR, IGNORE, PURGE, UNLOAD, UNSET
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
@@ -197,15 +197,11 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
+        self.supports_depends_on = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
-
-    @property
-    def modules(self):
-        """(NO LONGER SUPPORTED!) Property providing access to 'modules' class variable"""
-        self.log.nosupport("'modules' class variable is not supported anymore, use load([<list of modules>]) instead", '2.0')
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
@@ -329,8 +325,17 @@ class ModulesTool(object):
 
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
-    def use(self, path):
-        """Add module path via 'module use'."""
+    def use(self, path, priority=None):
+        """
+        Add path to $MODULEPATH via 'module use'.
+
+        :param path: path to add to $MODULEPATH
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        """
+        if priority:
+            self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
+                          priority, path)
+
         # make sure path exists before we add it
         mkdir(path, parents=True)
         self.run_module(['use', path])
@@ -366,13 +371,18 @@ class ModulesTool(object):
             if set_mod_paths:
                 self.set_mod_paths()
 
-    def prepend_module_path(self, path, set_mod_paths=True):
+    def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
         :param path: path to prepend to $MODULEPATH
         :param set_mod_paths: (re)set self.mod_paths
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
+        if priority:
+            self.log.info("Ignoring specified priority '%s' when prepending %s to $MODULEPATH (Lmod-specific)",
+                          priority, path)
+
         # generic approach: remove the path first (if it's there), then add it again (to the front)
         modulepath = curr_module_paths()
         if not modulepath:
@@ -488,10 +498,6 @@ class ModulesTool(object):
 
         return mods_exist
 
-    def exists(self, mod_name):
-        """NO LONGER SUPPORTED: use exist method instead"""
-        self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
-
     def load(self, modules, mod_paths=None, purge=False, init_env=None, allow_reload=True):
         """
         Load all requested modules.
@@ -531,9 +537,6 @@ class ModulesTool(object):
         """
         Unload all requested modules.
         """
-        if modules is None:
-            self.log.nosupport("Unloading modules listed in _modules class variable", '2.0')
-
         for mod in modules:
             self.run_module('unload', mod)
 
@@ -553,7 +556,7 @@ class ModulesTool(object):
             ans = MODULE_SHOW_CACHE[key]
             self.log.debug("Found cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
         else:
-            ans = self.run_module('show', mod_name, return_output=True)
+            ans = self.run_module('show', mod_name, check_output=False, return_output=True)
             MODULE_SHOW_CACHE[key] = ans
             self.log.debug("Cached result for 'module show %s' with key '%s': %s", mod_name, key, ans)
 
@@ -641,14 +644,6 @@ class ModulesTool(object):
             args = args[0]
         else:
             args = list(args)
-
-        module_path_key = None
-        if 'mod_paths' in kwargs:
-            module_path_key = 'mod_paths'
-        elif 'modulePath' in kwargs:
-            module_path_key = 'modulePath'
-        if module_path_key is not None:
-            self.log.nosupport("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
 
         self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
@@ -853,7 +848,10 @@ class ModulesTool(object):
         res = txt.strip('"')
 
         # first interpret (outer) 'file join' statement (if any)
-        file_join = lambda res: os.path.join(*[x.strip('"') for x in res.groups()])
+        def file_join(res):
+            """Helper function to compose joined path."""
+            return os.path.join(*[x.strip('"') for x in res.groups()])
+
         res = re.sub('\[\s+file\s+join\s+(.*)\s+(.*)\s+\]', file_join, res)
 
         # also interpret all $env(...) parts
@@ -1016,6 +1014,7 @@ class EnvironmentModulesC(ModulesTool):
         """Update after new modules were added."""
         pass
 
+
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
     # Tcl environment modules have no --terse (yet),
@@ -1095,12 +1094,20 @@ class EnvironmentModules(EnvironmentModulesTcl):
     MAX_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d\S*)\s'
 
+    def check_module_output(self, cmd, stdout, stderr):
+        """Check output of 'module' command, see if if is potentially invalid."""
+        if "_mlstatus = False" in stdout:
+            raise EasyBuildError("Failed module command detected: %s (stdout: %s, stderr: %s)", cmd, stdout, stderr)
+        else:
+            self.log.debug("No errors detected when running module command '%s'", cmd)
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
     REQ_VERSION = '5.8'
+    REQ_VERSION_DEPENDS_ON = '7.6.1'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
@@ -1116,10 +1123,11 @@ class Lmod(ModulesTool):
         setvar('LMOD_REDIRECT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
+        self.supports_depends_on = StrictVersion(self.version) >= StrictVersion(self.REQ_VERSION_DEPENDS_ON)
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
-        if not 'regex' in kwargs:
+        if 'regex' not in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
         super(Lmod, self).check_module_function(*args, **kwargs)
 
@@ -1202,17 +1210,33 @@ class Lmod(ModulesTool):
                 except (IOError, OSError), err:
                     raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
-    def prepend_module_path(self, path, set_mod_paths=True):
+    def use(self, path, priority=None):
+        """
+        Add path to $MODULEPATH via 'module use'.
+
+        :param path: path to add to $MODULEPATH
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        """
+        # make sure path exists before we add it
+        mkdir(path, parents=True)
+
+        if priority:
+            self.run_module(['use', '--priority', str(priority), path])
+        else:
+            self.run_module(['use', path])
+
+    def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
         Prepend given module path to list of module paths, or bump it to 1st place.
 
         :param path: path to prepend to $MODULEPATH
         :param set_mod_paths: (re)set self.mod_paths
+        :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
-            self.use(path)
+            self.use(path, priority=priority)
             if set_mod_paths:
                 self.set_mod_paths()
 
@@ -1241,14 +1265,10 @@ def get_software_root(name, with_env_var=False):
     Return the software root set for a particular software name.
     """
     env_var = get_software_root_env_var_name(name)
-    legacy_key = "SOFTROOT%s" % convert_name(name, upper=True)
 
     root = None
     if env_var in os.environ:
         root = os.getenv(env_var)
-
-    elif legacy_key in os.environ:
-        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     if with_env_var:
         res = (root, env_var)
@@ -1307,15 +1327,13 @@ def get_software_version(name):
     Return the software version set for a particular software name.
     """
     env_var = get_software_version_env_var_name(name)
-    legacy_key = "SOFTVERSION%s" % convert_name(name, upper=True)
 
     version = None
     if env_var in os.environ:
         version = os.getenv(env_var)
-    elif legacy_key in os.environ:
-        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     return version
+
 
 def curr_module_paths():
     """
@@ -1340,6 +1358,9 @@ def avail_modules_tools():
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
+    # NoModulesTool should never be used deliberately, so remove it from the list of available module tools
+    if 'NoModulesTool' in class_dict:
+        del class_dict['NoModulesTool']
     return class_dict
 
 
@@ -1349,11 +1370,8 @@ def modules_tool(mod_paths=None, testing=False):
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
-    if modules_tool is not None:
-        modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, testing=testing)
-    else:
-        return None
+    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
+    return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 
 def reset_module_caches():
@@ -1384,3 +1402,25 @@ class Modules(EnvironmentModulesC):
     """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
     def __init__(self, *args, **kwargs):
         _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')
+
+
+class NoModulesTool(ModulesTool):
+    """Class that mock the module behaviour, used for operation not requiring modules. Eg. tests, fetch only"""
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def exist(self, mod_names, *args, **kwargs):
+        """No modules, so nothing exists"""
+        return [False]*len(mod_names)
+
+    def check_loaded_modules(self):
+        """Nothing to do since no modules"""
+        pass
+
+    def list(self):
+        """No modules loaded"""
+        return []
+
+    def available(self, *args, **kwargs):
+        """No modules, so nothing available"""
+        return []

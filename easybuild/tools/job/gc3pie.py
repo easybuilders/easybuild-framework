@@ -219,6 +219,9 @@ class GC3Pie(JobBackend):
         # see https://gc3pie.readthedocs.org/en/latest/programmers/api/gc3libs/core.html#gc3libs.core.Engine
         self._engine.retrieve_overwrites = True
 
+        # some sites may not be happy with flooding the cluster with build jobs...
+        self._engine.max_in_flight = build_option('job_max_jobs')
+
         # `Engine.stats()` (which is used later on in `_print_status_report()`)
         # changed between 2.4.2 and 2.5.0.dev -- make sure we stay compatible
         # with both

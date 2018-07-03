@@ -55,6 +55,9 @@ $rpath_args_out"
 # define $CMD_ARGS by evaluating output of rpath_args.py script
 eval $rpath_args_out
 
+# exclude location of this wrapper from $PATH to avoid other potential wrappers calling this wrapper
+export PATH=$(echo $PATH | tr ':' '\n' | grep -v "^%(wrapper_dir)s$" | tr '\n' ':')
+
 # call original command with modified list of command line arguments
 log "running '%(orig_cmd)s $(echo ${CMD_ARGS[@]})'"
 %(orig_cmd)s "${CMD_ARGS[@]}"

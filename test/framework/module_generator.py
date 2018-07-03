@@ -258,6 +258,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends-on
+            if self.modtool.supports_depends_on:
+                expected = '\n'.join([
+                    '',
+                    "depends-on mod_name",
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
+            else:
+                expected = "depends-on statements in generated module are not supported by modules tool"
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -282,6 +298,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
+
+            # Lmod 7.6+ depends_on
+            if self.modtool.supports_depends_on:
+                expected = '\n'.join([
+                    '',
+                    'depends_on("mod_name")',
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertEqual(expected, self.modgen.load_module("mod_name"))
+            else:
+                expected = "depends_on statements in generated module are not supported by modules tool"
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
+                init_config(build_options={'mod_depends_on': 'True'})
+                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
 
     def test_unload(self):
         """Test unload part in generated module file."""

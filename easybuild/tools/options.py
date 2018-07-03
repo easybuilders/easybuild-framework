@@ -47,16 +47,16 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.fancylogger import setLogLevel
 from vsc.utils.generaloption import GeneralOption
-from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, EasyBlock
+from easybuild.framework.easyblock import MODULE_ONLY_STEPS, SOURCE_STEP, FETCH_STEP, EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import HAVE_AUTOPEP8
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import build_log, run  # build_log should always stay there, to ensure EasyBuildLog
-from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, print_warning, raise_easybuilderror
+from easybuild.tools.build_log import DEVEL_LOG_LEVEL, EasyBuildError, raise_easybuilderror
+from easybuild.tools.config import CONT_IMAGE_FORMATS, CONT_TYPES, DEFAULT_CONT_TYPE
 from easybuild.tools.config import DEFAULT_ALLOW_LOADED_MODULES, DEFAULT_FORCE_DOWNLOAD, DEFAULT_JOB_BACKEND
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS, DEFAULT_MNS
 from easybuild.tools.config import DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
@@ -70,7 +70,7 @@ from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_const
 from easybuild.tools.docs import avail_toolchain_opts, avail_easyconfig_params, avail_easyconfig_templates
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.environment import restore_env, unset_env_vars
-from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES, mkdir
+from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256, CHECKSUM_TYPES
 from easybuild.tools.github import GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, HAVE_GITHUB_API, HAVE_KEYRING
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
@@ -85,7 +85,6 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
-from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 
@@ -99,6 +98,7 @@ except ImportError:
         except Exception:
             # in case of errors do not bother and just return the safe default
             return False
+
 
 # monkey patch shell_quote in vsc.utils.generaloption, used by generate_cmd_line,
 # to fix known issue, cfr. https://github.com/hpcugent/vsc-base/issues/152;
@@ -115,6 +115,7 @@ def eb_shell_quote(token):
     token = str(token).strip('"')
     # escape any non-escaped single quotes, and wrap entire token in single quotes
     return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
+
 
 vsc.utils.generaloption.shell_quote = eb_shell_quote
 
@@ -142,6 +143,7 @@ def cleanup_and_exit(tmpdir):
         raise EasyBuildError("Failed to clean up temporary directory %s: %s", tmpdir, err)
 
     sys.exit(0)
+
 
 def pretty_print_opts(opts_dict):
     """
@@ -320,7 +322,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
-            'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches", None, 'store_true', False),
+            'add-dummy-to-minimal-toolchains': ("Include dummy in minimal toolchain searches",
+                                                None, 'store_true', False),
             'allow-loaded-modules': ("List of software names for which to allow loaded modules in initial environment",
                                      'strlist', 'store', DEFAULT_ALLOW_LOADED_MODULES),
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
@@ -335,8 +338,9 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'cleanup-tmpdir': ("Cleanup tmp dir after successful run.", None, 'store_true', True),
             'color': ("Colorize output", 'choice', 'store', fancylogger.Colorize.AUTO, fancylogger.Colorize,
-                      {'metavar':'WHEN'}),
+                      {'metavar': 'WHEN'}),
             'consider-archived-easyconfigs': ("Also consider archived easyconfigs", None, 'store_true', False),
+            'containerize': ("Generate container recipe/image", None, 'store_true', False, 'C'),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_FLAGS),
@@ -355,6 +359,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'extra-modules': ("List of extra modules to load after setting up the build environment",
                               'strlist', 'extend', None),
+            'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
+                      "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
@@ -364,11 +370,12 @@ class EasyBuildOptions(GeneralOption):
                                                'store_true', False),
             'force-download': ("Force re-downloading of sources and/or patches, "
                                "even if they are available already in source path",
-                                'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
+                               'choice', 'store_or_None', DEFAULT_FORCE_DOWNLOAD, FORCE_DOWNLOAD_CHOICES),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'group-writable-installdir': ("Enable group write permissions on installation directory after installation",
                                           None, 'store_true', False),
-            'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'", None, 'store_true', False),
+            'hidden': ("Install 'hidden' module file(s) by prefixing their version with '.'",
+                       None, 'store_true', False),
             'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
                           "(e.g. --hide-deps=zlib,ncurses)", 'strlist', 'extend', None),
             'hide-toolchains': ("Comma separated list of toolchains that you want automatically hidden, "
@@ -376,6 +383,8 @@ class EasyBuildOptions(GeneralOption):
             'ignore-checksums': ("Ignore failing checksum verification", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'install-latest-eb-release': ("Install latest known version of easybuild", None, 'store_true', False),
+            'lib64-fallback-sanity-check': ("Fallback in sanity check to lib64/ equivalent for missing libraries",
+                                            None, 'store_true', True),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
             'minimal-toolchains': ("Use minimal toolchain when resolving dependencies", None, 'store_true', False),
@@ -432,6 +441,8 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'containerpath': ("Location where container recipe & image will be stored", None, 'store',
+                              mk_full_default_path('containerpath')),
             'external-modules-metadata': ("List of files specifying metadata for external modules (INI format)",
                                           'strlist', 'store', None),
             'hooks': ("Location of Python module with hook implementations", 'str', 'store', None),
@@ -453,6 +464,9 @@ class EasyBuildOptions(GeneralOption):
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
+            'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
+                                  "(implies recursive unloading of modules).",
+                                  None, 'store_true', False),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
@@ -466,7 +480,7 @@ class EasyBuildOptions(GeneralOption):
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'packagepath': ("The destination path for the packages built by package-tool",
-                             None, 'store', mk_full_default_path('packagepath')),
+                            None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
@@ -616,6 +630,25 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("package_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
+    def container_options(self):
+        # container-related options
+        descr = ("Container options", "Options related to generating container recipes & images")
+
+        opts = OrderedDict({
+            'base': ("Base for container image. Examples (for Singularity): "
+                     "--container-base localimage:/path/to/image.img, "
+                     "--container-base shub:<image>:<tag>, "
+                     "--container-base docker:<image>:<tag> ", str, 'store', None),
+            'build-image': ("Build container image (requires sudo privileges!)", None, 'store_true', False),
+            'image-format': ("Container image format", 'choice', 'store', None, CONT_IMAGE_FORMATS),
+            'image-name': ("Custom name for container image (defaults to name of easyconfig)", None, 'store', None),
+            'tmpdir': ("Temporary directory where container image is built", None, 'store', None),
+            'type': ("Type of container recipe/image to create", 'choice', 'store', DEFAULT_CONT_TYPE, CONT_TYPES),
+        })
+
+        self.log.debug("container_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr, prefix='container')
+
     def easyconfig_options(self):
         # easyconfig options (to be passed to easyconfig instance)
         descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
@@ -634,6 +667,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'backend-config': ("Configuration file for job backend", None, 'store', None),
             'cores': ("Number of cores to request per job", 'int', 'store', None),
+            'max-jobs': ("Maximum number of concurrent jobs (queued and running, 0 = unlimited)", 'int', 'store', 0),
             'max-walltime': ("Maximum walltime for jobs (in hours)", 'int', 'store', 24),
             'output-dir': ("Output directory for jobs (default: current directory)", None, 'store', os.getcwd()),
             'polling-interval': ("Interval between polls for status of jobs (in seconds)", float, 'store', 30.0),
@@ -830,7 +864,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.prefix is not None:
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
-            for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath', 'packagepath']:
+            path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
+                         'sourcepath']
+            for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
                         setattr(self.options, dest, DEFAULT_REPOSITORY)
@@ -855,6 +891,12 @@ class EasyBuildOptions(GeneralOption):
         # Update the search_paths (if any) to absolute paths
         if self.options.search_paths is not None:
             self.options.search_paths = [os.path.abspath(path) for path in self.options.search_paths]
+
+        # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
+        if self.options.fetch:
+            self.options.stop = FETCH_STEP
+            self.options.ignore_osdeps = True
+            self.options.modules_tool = None
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
@@ -987,7 +1029,7 @@ class EasyBuildOptions(GeneralOption):
 
         # options that should never/always be printed
         ignore_opts = ['show_config', 'show_full_config']
-        include_opts = ['buildpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
+        include_opts = ['buildpath', 'containerpath', 'installpath', 'repositorypath', 'robot_paths', 'sourcepath']
         cmdline_opts_dict = self.dict_by_prefix()
 
         def reparse_cfg(args=None, withcfg=True):
@@ -1272,7 +1314,8 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         fd, tmptest_file = tempfile.mkstemp()
         os.close(fd)
         os.chmod(tmptest_file, 0700)
-        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False):
+        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False, force_in_dry_run=True, trace=False,
+                       stream_output=False):
             msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
             msg += "This can cause problems in the build process, consider using --tmpdir."
             if raise_error:

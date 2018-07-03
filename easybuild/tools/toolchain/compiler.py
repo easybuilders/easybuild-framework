@@ -88,6 +88,7 @@ class Compiler(Toolchain):
         'static': (False, "Build static library"),
         '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
+        'vectorize': (None, "Enable compiler auto-vectorization, default except for noopt and lowopt"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
         'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
     }
@@ -245,8 +246,19 @@ class Compiler(Toolchain):
                                  (default_opt_level, self.COMPILER_OPT_FLAGS))
 
         # 1st one is the one to use. add default at the end so len is at least 1
-        optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                   [self.options.option(default_opt_level)]
+        optflags = ([self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
+                    [self.options.option(default_opt_level)])[:1]
+
+        # only apply if the vectorize toolchainopt is explicitly set
+        # otherwise the individual compiler toolchain file should make sure that
+        # vectorization is disabled for noopt and lowopt, and enabled otherwise.
+        if self.options.get('vectorize') is not None:
+            vectoptions = self.options.option('vectorize')
+            vectflags = vectoptions[self.options['vectorize']]
+            # avoid double use of such flags, or e.g. -fno-tree-vectorize followed by -ftree-vectorize
+            if isinstance(optflags[0], list):
+                optflags[0] = [flag for flag in optflags[0] if flag not in vectoptions.values()]
+            optflags.append(vectflags)
 
         optarchflags = []
         if build_option('optarch') == OPTARCH_GENERIC:
@@ -259,7 +271,7 @@ class Compiler(Toolchain):
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
+        self.variables.nextend('OPTFLAGS', optflags + optarchflags)
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last

@@ -41,11 +41,9 @@ from unittest import TextTestRunner
 
 import easybuild.tools.modules as mod
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import copy_file, copy_dir, mkdir, read_file, write_file
-from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
 from easybuild.tools.modules import invalidate_module_caches_for, modules_tool, reset_module_caches
 from easybuild.tools.run import run_cmd
@@ -239,6 +237,19 @@ class ModulesTest(EnhancedTestCase):
         os.symlink(modulepath[0], symlink_path)
         self.modtool.prepend_module_path(symlink_path)
         self.assertEqual(modulepath, curr_module_paths())
+
+        # test prepending with high priority
+        test_path_bis = tempfile.mkdtemp(prefix=self.test_prefix)
+        test_path_tris = tempfile.mkdtemp(prefix=self.test_prefix)
+        self.modtool.prepend_module_path(test_path_bis, priority=10000)
+        self.assertEqual(test_path_bis, curr_module_paths()[0])
+
+        # check whether prepend with priority actually works (only for Lmod)
+        if isinstance(self.modtool, Lmod):
+            self.modtool.prepend_module_path(test_path_tris)
+            modulepath = curr_module_paths()
+            self.assertEqual(test_path_bis, modulepath[0])
+            self.assertEqual(test_path_tris, modulepath[1])
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
@@ -757,6 +768,25 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 
+    def test_module_use(self):
+        """Test 'module use'."""
+        test_dir1 = os.path.join(self.test_prefix, 'one')
+        test_dir2 = os.path.join(self.test_prefix, 'two')
+        test_dir3 = os.path.join(self.test_prefix, 'three')
+
+        self.assertFalse(test_dir1 in os.environ.get('MODULEPATH', ''))
+        self.modtool.use(test_dir1)
+        self.assertTrue(os.environ.get('MODULEPATH', '').startswith('%s:' % test_dir1))
+
+        # also test use with high priority
+        self.modtool.use(test_dir2, priority=10000)
+        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
+
+        # check whether prepend with priority actually works (only for Lmod)
+        if isinstance(self.modtool, Lmod):
+            self.modtool.use(test_dir3)
+            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:' % (test_dir2, test_dir3)))
+
     def test_module_use_bash(self):
         """Test whether effect of 'module use' is preserved when a new bash session is started."""
         # this test is here as check for a nasty bug in how the modules tool is deployed
@@ -813,6 +843,21 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(os.environ['EBROOTGCC'], '/tmp/software/Core/GCC/4.7.2')
         self.modtool.load(['hwloc/1.6.2'])
         self.assertEqual(os.environ['EBROOTHWLOC'], '/tmp/software/Compiler/GCC/4.7.2/hwloc/1.6.2')
+
+        # also test whether correct temporary module is loaded even though same module file already exists elsewhere
+        # with Lmod, this requires prepending the temporary module path to $MODULEPATH with high priority
+        tmp_moddir = os.path.join(self.test_prefix, 'tmp_modules')
+        hwloc_mod = os.path.join(tmp_moddir, 'hwloc', '1.6.2')
+        hwloc_mod_txt = '\n'.join([
+            '#%Module',
+            "module load GCC/4.7.2",
+            "setenv EBROOTHWLOC /path/to/tmp/hwloc-1.6.2",
+        ])
+        write_file(hwloc_mod, hwloc_mod_txt)
+        self.modtool.purge()
+        self.modtool.use(tmp_moddir, priority=10000)
+        self.modtool.load(['hwloc/1.6.2'])
+        self.assertTrue(os.environ['EBROOTHWLOC'], "/path/to/tmp/hwloc-1.6.2")
 
     def test_exit_code_check(self):
         """Verify that EasyBuild checks exit code of executed module commands"""
@@ -929,6 +974,13 @@ class ModulesTest(EnhancedTestCase):
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
         self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
+        def test_NoModulesTool(self):
+            nmt = NoModulesTool(testing=true)
+            assertEqual(len(nmt.available()), 0)
+            assertEqual(len(nmt.available(mod_names='foo')), 0)
+            assertEqual(len(nmt.list()), 0)
+            assertEqual(nmt.exist(['foo', 'bar']), [False, False])
+            assertEqual(nmt.exist(['foo', 'bar'], r'^\s*\S*/%s.*:\s*$', skip_avail=False), [False, False])
 
 def suite():
     """ returns all the testcases in this module """
