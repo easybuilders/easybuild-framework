@@ -286,7 +286,7 @@ class EasyBlockTest(EnhancedTestCase):
                 r'if isDir\(pathJoin\(%s, "%s", "funky", "Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s", "funky", "Compiler/pi/3.14"\)\)' %
-                    (home, usermodsdir),
+			(home, usermodsdir),
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
