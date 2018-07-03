@@ -1191,7 +1191,7 @@ class EasyBlock(object):
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
-                     guarded=True, user_modpath=user_modpath, mod_path_suffix=mod_path_suffix)
+                                             guarded=True, user_modpath=user_modpath, mod_path_suffix=mod_path_suffix)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
