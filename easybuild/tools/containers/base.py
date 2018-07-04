@@ -69,6 +69,11 @@ class ContainerGenerator(object):
             self.build_image(recipe_path)
 
     def validate_tools(self):
+        """
+        A method that gets called as part of image generation
+        that uses TOOLS class attribute to check for the existence
+        of the needed binary/tools on the host system.
+        """
         for tool_name, tool_version in self.TOOLS.items():
             if not check_tool(tool_name, tool_version):
                 err_msg = "".join([
@@ -79,16 +84,33 @@ class ContainerGenerator(object):
                 raise EasyBuildError(err_msg)
 
     def validate(self):
+        """
+        A method that should contain all the validation logic
+        for both container recipe (Singularity, Dockerfile, ...) and
+        image generation.
+        """
         if self.container_build_image:
             self.validate_tools()
 
     def resolve_template(self):
+        """
+        This method should be implemented by the concrete subclass to return
+        the correct template for the container recipe.
+        """
         raise NotImplementedError
 
     def resolve_template_data(self):
+        """
+        This method should be implemented by the concrete subclass to return
+        a dictionary of template data for container recipe generation.
+        """
         return {}
 
     def generate_recipe(self):
+        """
+        This method will make use of resolve_template and resolve_template_data methods
+        in order to generate the container recipe.
+        """
         template = self.resolve_template()
         data = self.resolve_template_data()
 
@@ -113,4 +135,8 @@ class ContainerGenerator(object):
         return recipe_path
 
     def build_image(self, recipe_path):
+        """
+        This method will be used on the concrete subclass to build the image using
+        The path of the container recipe.
+        """
         raise NotImplementedError
