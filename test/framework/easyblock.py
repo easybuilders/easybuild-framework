@@ -283,9 +283,9 @@ class EasyBlockTest(EnhancedTestCase):
             home = r'os.getenv\("HOME"\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if isDir\(pathJoin\(%s, "%s", "funky", "Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
+                r'if isDir\(pathJoin\(%s, pathJoin\("%s", "funky", "Compiler/pi/3.14"\)\)\) then' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s", "funky", "Compiler/pi/3.14"\)\)' %
+                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, pathJoin("%s", "funky", "Compiler/pi/3.14"\)\)\)' %
                         (home, usermodsdir),
             ])
         else:
