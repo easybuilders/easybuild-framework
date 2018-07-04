@@ -655,8 +655,31 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param mod_path_suffix: optional path suffix
         """
         use_statements = []
+        if user_modpath:
+            # Check for occurenses of {RUNTIME_ENV::SOME_ENV_VAR}
+            # SOME_ENV_VAR will be expanded at module load time.
+            runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
+            sub_paths = []
+            expanded_user_modpath = []
+            for sub_path in re.split(os.path.sep, user_modpath):
+                matched_re = runtime_env_re.match(sub_path)
+                if matched_re:
+                    if sub_paths:
+                        path = quote_str(os.path.join(*sub_paths))
+                        expanded_user_modpath.extend([path])
+                        sub_paths = []
+                    expanded_user_modpath.extend(['$::env(%s)' % quote_str(matched_re.group(1))])
+                else:
+                    sub_paths.append(sub_path)
+            if sub_paths:
+                expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
+            if mod_path_suffix:
+                expanded_user_modpath.extend([quote_str(mod_path_suffix)])
+            user_modpath = ' '.join(expanded_user_modpath)
         for path in paths:
             quoted_path = quote_str(path)
+            if user_modpath:
+                quoted_path = '[ file join %s %s' ] % (user_modpath, quoted_path)
             if prefix:
                 full_path = '[ file join %s %s ]' % (prefix, quoted_path)
             else:
