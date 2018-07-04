@@ -274,7 +274,8 @@ class EasyBlockTest(EnhancedTestCase):
             home = r'\$env\(HOME\)'
             regexs.extend([
                 # extension for user modules is guarded
-                r'if { \[ file isdirectory \[ file join %s \[ file join "%s" "funky" "Compiler/pi/3.14" \] \] \] } {$' % (home, usermodsdir),
+                r'if { \[ file isdirectory \[ file join %s \[ file join "%s" "funky" "Compiler/pi/3.14" \] \] \] } {$' %
+                            (home, usermodsdir),
                 # no per-moduleclass extension for user modules
                 r'^\s+module use \[ file join %s \[ file join "%s" "funky" "Compiler/pi/3.14" \] \]$' % (home, usermodsdir),
             ])
@@ -286,7 +287,7 @@ class EasyBlockTest(EnhancedTestCase):
                 r'if isDir\(pathJoin\(%s, pathJoin\("%s", "funky", "Compiler/pi/3.14"\)\)\) then' % (home, usermodsdir),
                 # no per-moduleclass extension for user modules
                 r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, pathJoin\("%s", "funky", "Compiler/pi/3.14"\)\)\)' %
-                        (home, usermodsdir),
+                            (home, usermodsdir),
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
