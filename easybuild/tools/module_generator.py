@@ -679,7 +679,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         for path in paths:
             quoted_path = quote_str(path)
             if user_modpath:
-                quoted_path = '[ file join %s %s' ] % (user_modpath, quoted_path)
+                quoted_path = '[ file join %s %s ]' % (user_modpath, quoted_path)
             if prefix:
                 full_path = '[ file join %s %s ]' % (prefix, quoted_path)
             else:
