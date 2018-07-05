@@ -527,7 +527,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        return '$env(%s)' % envvar
+        return '$::env(%s)' % envvar
 
     def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """

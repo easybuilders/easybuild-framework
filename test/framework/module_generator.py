@@ -483,7 +483,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options={'suffix_modules_path': ''})
         user_modpath = 'my/{RUNTIME_ENV::TEST123}/modules'
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", $env(TEST123), "modules"')
+            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", $::env(TEST123), "modules"')
         else:
             self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", os.getenv("TEST123"), "modules"')
 
@@ -534,8 +534,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual('$env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
-            self.assertEqual('$env(HOME)', self.modgen.getenv_cmd('HOME'))
+            self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
+            self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
         else:
             self.assertEqual('os.getenv("HOSTNAME")', self.modgen.getenv_cmd('HOSTNAME'))
             self.assertEqual('os.getenv("HOME")', self.modgen.getenv_cmd('HOME'))
