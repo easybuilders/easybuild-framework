@@ -307,14 +307,46 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None):
+    def det_user_modpath(self, user_modpath):
+        """
+        Determine user-specific modules subdirectory, to be used in 'use' statements
+        (cfr. implementations of use() method).
+        """
+        if user_modpath:
+            # Check for occurences of {RUNTIME_ENV::SOME_ENV_VAR}
+            # SOME_ENV_VAR will be expanded at module load time.
+            runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
+            sub_paths = []
+            expanded_user_modpath = []
+            for sub_path in re.split(os.path.sep, user_modpath):
+                matched_re = runtime_env_re.match(sub_path)
+                if matched_re:
+                    if sub_paths:
+                        path = quote_str(os.path.join(*sub_paths))
+                        expanded_user_modpath.extend([path])
+                        sub_paths = []
+                    expanded_user_modpath.extend([self.getenv_cmd(matched_re.group(1))])
+                else:
+                    sub_paths.append(sub_path)
+            if sub_paths:
+                expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
+
+            # if a mod_path_suffix is being used, we should respect it
+            mod_path_suffix = build_option('suffix_modules_path')
+            if mod_path_suffix:
+                expanded_user_modpath.extend([quote_str(mod_path_suffix)])
+
+            user_modpath = ', '.join(expanded_user_modpath)
+
+        return user_modpath
+
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
-        :param user_modpath: optional user subdir
-        :param mod_path_suffix: optional path suffix
+        :param user_modpath: user-specific modules subdirectory to include in use statements
         """
         raise NotImplementedError
 
@@ -645,37 +677,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
-        :param user_modpath: optional user subdir
-        :param mod_path_suffix: optional path suffix
+        :param user_modpath: user-specific modules subdirectory to include in use statements
         """
+        user_modpath = self.det_user_modpath(user_modpath)
         use_statements = []
-        if user_modpath:
-            # Check for occurenses of {RUNTIME_ENV::SOME_ENV_VAR}
-            # SOME_ENV_VAR will be expanded at module load time.
-            runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
-            sub_paths = []
-            expanded_user_modpath = []
-            for sub_path in re.split(os.path.sep, user_modpath):
-                matched_re = runtime_env_re.match(sub_path)
-                if matched_re:
-                    if sub_paths:
-                        path = quote_str(os.path.join(*sub_paths))
-                        expanded_user_modpath.extend([path])
-                        sub_paths = []
-                    expanded_user_modpath.extend(['$::env(%s)' % quote_str(matched_re.group(1))])
-                else:
-                    sub_paths.append(sub_path)
-            if sub_paths:
-                expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
-            if mod_path_suffix:
-                expanded_user_modpath.extend([quote_str(mod_path_suffix)])
-            user_modpath = ' '.join(expanded_user_modpath)
         for path in paths:
             quoted_path = quote_str(path)
             if user_modpath:
@@ -981,37 +992,16 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False, user_modpath=None, mod_path_suffix=None):
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
-        :param user_modpath: optional user subdir path
-        :param mod_path_suffix: optional path suffix, only used with user_modpath
+        :param user_modpath: user-specific modules subdirectory to include in use statements
         """
+        user_modpath = self.det_user_modpath(user_modpath)
         use_statements = []
-        if user_modpath:
-            # Check for occurenses of {RUNTIME_ENV::SOME_ENV_VAR}
-            # SOME_ENV_VAR will be expanded at module load time.
-            runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
-            sub_paths = []
-            expanded_user_modpath = []
-            for sub_path in re.split(os.path.sep, user_modpath):
-                matched_re = runtime_env_re.match(sub_path)
-                if matched_re:
-                    if sub_paths:
-                        path = quote_str(os.path.join(*sub_paths))
-                        expanded_user_modpath.extend([path])
-                        sub_paths = []
-                    expanded_user_modpath.extend(['os.getenv(%s)' % quote_str(matched_re.group(1))])
-                else:
-                    sub_paths.append(sub_path)
-            if sub_paths:
-                expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
-            if mod_path_suffix:
-                expanded_user_modpath.extend([quote_str(mod_path_suffix)])
-            user_modpath = ', '.join(expanded_user_modpath)
         for path in paths:
             quoted_path = quote_str(path)
             if user_modpath:
