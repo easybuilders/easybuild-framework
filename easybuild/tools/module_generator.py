@@ -307,7 +307,7 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def det_user_modpath(self, user_modpath):
+    def det_user_modpath(self, user_modpath, join_str):
         """
         Determine user-specific modules subdirectory, to be used in 'use' statements
         (cfr. implementations of use() method).
@@ -336,7 +336,7 @@ class ModuleGenerator(object):
             if mod_path_suffix:
                 expanded_user_modpath.extend([quote_str(mod_path_suffix)])
 
-            user_modpath = ', '.join(expanded_user_modpath)
+            user_modpath = join_str.join(expanded_user_modpath)
 
         return user_modpath
 
@@ -685,7 +685,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param guarded: use statements will be guarded to only apply if path exists
         :param user_modpath: user-specific modules subdirectory to include in use statements
         """
-        user_modpath = self.det_user_modpath(user_modpath)
+        user_modpath = self.det_user_modpath(user_modpath, join_str=' ')
         use_statements = []
         for path in paths:
             quoted_path = quote_str(path)
@@ -1000,7 +1000,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param guarded: use statements will be guarded to only apply if path exists
         :param user_modpath: user-specific modules subdirectory to include in use statements
         """
-        user_modpath = self.det_user_modpath(user_modpath)
+        user_modpath = self.det_user_modpath(user_modpath, join_str=', ')
         use_statements = []
         for path in paths:
             quoted_path = quote_str(path)
