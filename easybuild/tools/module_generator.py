@@ -313,10 +313,10 @@ class ModuleGenerator(object):
         (cfr. implementations of use() method).
         """
 
-	if self.SYNTAX == 'Tcl':
-	    join_str = ' '
-	else:
-	    join_str = ', '
+        if self.SYNTAX == 'Tcl':
+            join_str = ' '
+        else:
+            join_str = ', '
 
         if user_modpath:
             # Check for occurences of {RUNTIME_ENV::SOME_ENV_VAR}
