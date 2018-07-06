@@ -271,21 +271,23 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if get_module_syntax() == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\$env\(HOME\)'
+            home = r'\$::env\(HOME\)'
+            fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
-                r'if { \[ file isdirectory \[ file join %s "%s/funky/Compiler/pi/3.14" \] \] } {$' % (home, usermodsdir),
+                r'if { \[ file isdirectory \[ file join %s \[ %s \] \] \] } {$' % (home, fj_usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'^\s+module use \[ file join %s "%s/funky/Compiler/pi/3.14"\ ]$' % (home, usermodsdir),
+                r'^\s+module use \[ file join %s \[ %s \] \]$' % (home, fj_usermodsdir),
             ])
         elif get_module_syntax() == 'Lua':
             regexs = [r'^prepend_path\("MODULEPATH", ".*/modules/funky/Compiler/pi/3.14/%s"\)$' % c for c in modclasses]
             home = r'os.getenv\("HOME"\)'
+            pj_usermodsdir = 'pathJoin\("%s", "funky", "Compiler/pi/3.14"\)' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
-                r'if isDir\(pathJoin\(%s, "%s/funky/Compiler/pi/3.14"\)\) then' % (home, usermodsdir),
+                r'if isDir\(pathJoin\(%s, %s\)\) then' % (home, pj_usermodsdir),
                 # no per-moduleclass extension for user modules
-                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, "%s/funky/Compiler/pi/3.14"\)\)' % (home, usermodsdir),
+                r'\s+prepend_path\("MODULEPATH", pathJoin\(%s, %s\)\)' % (home, pj_usermodsdir),
             ])
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
