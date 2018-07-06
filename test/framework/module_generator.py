@@ -476,14 +476,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # None by default
         self.assertEqual(self.modgen.det_user_modpath(None), None)
 
-        self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules", "all"')
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules" "all"')
+        else:
+            self.assertEqual(self.modgen.det_user_modpath('my/own/modules'), '"my/own/modules", "all"')
 
         # result is affected by --suffix-modules-path
         # {RUNTIME_ENV::FOO} gets translated into Tcl/Lua syntax for resolving $FOO at runtime
         init_config(build_options={'suffix_modules_path': ''})
         user_modpath = 'my/{RUNTIME_ENV::TEST123}/modules'
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", $::env(TEST123), "modules"')
+            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
         else:
             self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", os.getenv("TEST123"), "modules"')
 
