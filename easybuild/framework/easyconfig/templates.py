@@ -51,6 +51,7 @@ TEMPLATE_NAMES_EASYCONFIG = [
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
+    'bitbucket_account',
     'github_account',
     'name',
     'version',
@@ -81,10 +82,10 @@ TEMPLATE_CONSTANTS = [
     # source url constants
     ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
      'apache.org source url'),
-    ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
-     'bitbucket.org source url'),
-    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(namelower)s/%(namelower)s/downloads',
-     'bitbucket.org downloads url'),
+    ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
+     'bitbucket.org source url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
+    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
+     'bitbucket.org downloads url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
     ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
