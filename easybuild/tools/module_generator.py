@@ -307,44 +307,41 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
+    def _det_user_modpath_common(self, user_modpath):
+        """
+        Helper function for det_user_modpath.
+        """
+        # Check for occurences of {RUNTIME_ENV::SOME_ENV_VAR}
+        # SOME_ENV_VAR will be expanded at module load time.
+        runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
+        sub_paths = []
+        expanded_user_modpath = []
+        for sub_path in re.split(os.path.sep, user_modpath):
+            matched_re = runtime_env_re.match(sub_path)
+            if matched_re:
+                if sub_paths:
+                    path = quote_str(os.path.join(*sub_paths))
+                    expanded_user_modpath.extend([path])
+                    sub_paths = []
+                expanded_user_modpath.extend([self.getenv_cmd(matched_re.group(1))])
+            else:
+                sub_paths.append(sub_path)
+        if sub_paths:
+            expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
+
+        # if a mod_path_suffix is being used, we should respect it
+        mod_path_suffix = build_option('suffix_modules_path')
+        if mod_path_suffix:
+            expanded_user_modpath.extend([quote_str(mod_path_suffix)])
+
+        return expanded_user_modpath
+
     def det_user_modpath(self, user_modpath):
         """
         Determine user-specific modules subdirectory, to be used in 'use' statements
-        (cfr. implementations of use() method).
+        (cfr. implementation of use() method).
         """
-
-        if self.SYNTAX == 'Tcl':
-            join_str = ' '
-        else:
-            join_str = ', '
-
-        if user_modpath:
-            # Check for occurences of {RUNTIME_ENV::SOME_ENV_VAR}
-            # SOME_ENV_VAR will be expanded at module load time.
-            runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
-            sub_paths = []
-            expanded_user_modpath = []
-            for sub_path in re.split(os.path.sep, user_modpath):
-                matched_re = runtime_env_re.match(sub_path)
-                if matched_re:
-                    if sub_paths:
-                        path = quote_str(os.path.join(*sub_paths))
-                        expanded_user_modpath.extend([path])
-                        sub_paths = []
-                    expanded_user_modpath.extend([self.getenv_cmd(matched_re.group(1))])
-                else:
-                    sub_paths.append(sub_path)
-            if sub_paths:
-                expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
-
-            # if a mod_path_suffix is being used, we should respect it
-            mod_path_suffix = build_option('suffix_modules_path')
-            if mod_path_suffix:
-                expanded_user_modpath.extend([quote_str(mod_path_suffix)])
-
-            user_modpath = join_str.join(expanded_user_modpath)
-
-        return user_modpath
+        raise NotImplementedError
 
     def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
@@ -683,6 +680,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
+    def det_user_modpath(self, user_modpath):
+        """
+        Determine user-specific modules subdirectory, to be used in 'use' statements
+        (cfr. implementation of use() method).
+        """
+        if user_modpath:
+            user_modpath = ' '.join(self._det_user_modpath_common(user_modpath))
+
+        return user_modpath
+
     def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
@@ -997,6 +1004,16 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param mod_name: name of module to generate unload statement for
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
+
+    def det_user_modpath(self, user_modpath):
+        """
+        Determine user-specific modules subdirectory, to be used in 'use' statements
+        (cfr. implementations of use() method).
+        """
+        if user_modpath:
+            user_modpath = ', '.join(self._det_user_modpath_common(user_modpath))
+
+        return user_modpath
 
     def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
