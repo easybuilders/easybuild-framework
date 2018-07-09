@@ -1910,7 +1910,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'bitbucket_account': 'gzip',
-            'github_account': None,
+            'github_account': 'gzip',
             'name': 'gzip',
             'nameletter': 'g',
             'toolchain_name': 'goolf',
@@ -1930,7 +1930,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'bitbucket_account': 'toy',
-            'github_account': None,
+            'github_account': 'toy',
             'name': 'toy',
             'nameletter': 't',
             'toolchain_name': 'dummy',
