@@ -3,22 +3,24 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
-v3.6.2 (July 10th 2018)
+v3.6.2 (July 11th 2018)
 -----------------------
 
 bugfix release
 - various enhancements, including:
-  - add module load time env var to user module path (#2395)
-  - initial work on docker containerization support (#2479)
-  - move flake8 config into setup.cfg + fix style issues in easybuild/tools/options.py (#2511)
-  - make test that verifies that BuildOptions does not support updating a bit more flexible (#2518)
+  - add support for including environment variable that is resolved a "module load time" in user module path (#2395)
+    - {RUNTIME_ENV::EXAMPLE} is replaced by value of $EXAMPLE when module is loaded
+  - also support generating Docker container recipes & image via --containerize (still experimental) (#2479)
   - add support for specifying source URLs directly in 'sources' (#2520)
   - perform early 'raw' parse of provided easyconfig file to check for syntax error or faulty inputs (#2523)
-  - add 'bitbucket_account' easyconfig parameter and template and let BITBUCKET* templates use it (#2525)
+  - add 'bitbucket_account' easyconfig parameter and template, and let BITBUCKET* templates use it (#2525)
 - various bug fixes, including:
   - take into account --filter-deps when re-loading build dependencies in extensions_step (#2516)
   - fix for offline use of bootstrap script: ignore errors when determining source URLs if source tarballs are provided (#2517)
   - fix error message that is raised for incorrect type of value in sanity_check_paths (#2524)
+- other changes:
+  - move flake8 config into setup.cfg + fix style issues in easybuild/tools/options.py (#2511)
+  - make test that verifies that BuildOptions does not support updating a bit more flexible (#2518)
 
 
 v3.6.1 (May 28th 2018)
