@@ -8,7 +8,7 @@ v3.6.2 (July 11th 2018)
 
 bugfix release
 - various enhancements, including:
-  - add support for including environment variable that is resolved a "module load time" in user module path (#2395)
+  - add support for including environment variable that is resolved at "module load time" in user module path (#2395)
     - {RUNTIME_ENV::EXAMPLE} is replaced by value of $EXAMPLE when module is loaded
   - also support generating Docker container recipes & image via --containerize (still experimental) (#2479)
   - add support for specifying source URLs directly in 'sources' (#2520)
