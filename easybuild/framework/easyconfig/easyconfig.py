@@ -274,6 +274,12 @@ class EasyConfig(object):
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
 
+        # constructing easyconfig parser object includes a "raw" parse,
+        # which serves as a check to see whether supplied easyconfig file is an actual easyconfig...
+        self.log.info("Performing quick parse to check for valid easyconfig file...")
+        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
+                                       auto_convert_value_types=auto_convert_value_types)
+
         self.modules_tool = modules_tool()
 
         # use legacy module classes as default
@@ -318,8 +324,6 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.build_specs = build_specs
-        self.parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt,
-                                       auto_convert_value_types=auto_convert_value_types)
         self.parse()
 
         # perform validations
@@ -595,12 +599,17 @@ class EasyConfig(object):
             raise EasyBuildError("Hidden deps with visible module names %s not in list of (build)dependencies: %s",
                                  faulty_deps, dep_mod_names)
 
-    def dependencies(self):
+    def dependencies(self, build_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+
+        :param build_only: only return build dependencies, discard others
         """
-        deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
+        if build_only:
+            deps = self['builddependencies']
+        else:
+            deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies

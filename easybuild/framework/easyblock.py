@@ -337,7 +337,7 @@ class EasyBlock(object):
             checksums = self.cfg['checksums']
 
         for index, source in enumerate(sources):
-            extract_cmd, download_filename = None, None
+            extract_cmd, download_filename, source_urls = None, None, None
 
             if isinstance(source, basestring):
                 filename = source
@@ -347,8 +347,9 @@ class EasyBlock(object):
                 filename = source.pop('filename', None)
                 extract_cmd = source.pop('extract_cmd', None)
                 download_filename = source.pop('download_filename', None)
+                source_urls = source.pop('source_urls', None)
                 if source:
-                    raise EasyBuildError("Found one or more unexpected keys in source specification: %s", source)
+                    raise EasyBuildError("Found one or more unexpected keys in 'sources' specification: %s", source)
 
             elif isinstance(source, (list, tuple)) and len(source) == 2:
                 self.log.deprecated("Using a 2-element list/tuple to specify sources is deprecated, "
@@ -359,7 +360,8 @@ class EasyBlock(object):
 
             # check if the sources can be located
             force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
-            path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download)
+            path = self.obtain_file(filename, download_filename=download_filename, force_download=force_download,
+                                    urls=source_urls)
             if path:
                 self.log.debug('File %s found for source %s' % (path, filename))
                 self.src.append({
@@ -664,7 +666,7 @@ class EasyBlock(object):
             else:
                 # try and download source files from specified source URLs
                 if urls:
-                    source_urls = urls
+                    source_urls = urls[:]
                 else:
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
@@ -1184,14 +1186,10 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
-                # If a mod_path_suffix is being used, we should respect it
-                mod_path_suffix = build_option('suffix_modules_path')
-                user_modpath = os.path.join(user_modpath, mod_path_suffix)
                 user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
-                user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
-                                                 guarded=True)
+                                                 guarded=True, user_modpath=user_modpath)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
@@ -1829,7 +1827,7 @@ class EasyBlock(object):
             fake_mod_data = self.load_fake_module(purge=True)
 
             # also load modules for build dependencies again, since those are not loaded by the fake module
-            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg['builddependencies'])
+            self.modules_tool.load(dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True))
 
         self.prepare_for_extensions()
 
@@ -2217,8 +2215,8 @@ class EasyBlock(object):
                 if isinstance(xs, basestring):
                     xs = (xs,)
                 elif not isinstance(xs, tuple):
-                    raise EasyBuildError("Unsupported type '%s' encountered in %s, not a string or tuple",
-                                         key, type(xs))
+                    raise EasyBuildError("Unsupported type %s encountered in '%s', not a string or tuple",
+                                         type(xs), key)
 
                 found = check_path(xs, typ, check_fn)
 
