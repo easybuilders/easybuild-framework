@@ -1447,7 +1447,7 @@ def robot_find_minimal_toolchain_of_dependency(dep, modtool, parent_tc=None, par
 
     avail_modules = []
     # Use existing modules is only considered relevant to the case where we have minimal toolchains
-    check_for_module_or_retain_dep = ((build_option('use_existing_modules') or not build_option('minimal_toolchains'))
+    check_for_module_or_retain_dep = (build_option('use_existing_modules') and build_option('minimal_toolchains')
                                       and not build_option('retain_all_deps'))
 
     if check_for_module_or_retain_dep:
