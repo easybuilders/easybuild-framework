@@ -49,7 +49,14 @@ import stat
 import sys
 import tempfile
 import time
-import urllib2
+try:
+    import requests
+    from requests.exceptions import HTTPError
+    HAVE_REQUESTS = True
+except ImportError:
+    import urllib2
+    from urllib2 import HTTPError
+    HAVE_REQUESTS = False
 import zlib
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
@@ -460,20 +467,31 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    url_req = urllib2.Request(url, headers={'User-Agent': 'EasyBuild',  "Accept" : "*/*"})
+    headers = {'User-Agent': 'EasyBuild',  "Accept" : "*/*"}
+    if not HAVE_REQUESTS:
+        url_req = urllib2.Request(url, headers=headers)
 
     while not downloaded and attempt_cnt < max_attempts:
         try:
-            # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url_req, timeout=timeout)
-            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
+            if HAVE_REQUESTS:
+                url_req = requests.get(url, headers=headers, stream=True, timeout=timeout)
+                status_code = url_req.status_code
+                url_req.raise_for_status()
+                url_fd = url_req.raw
+            else:
+                # urllib2 does the right thing for http proxy setups, urllib does not!
+                url_fd = urllib2.urlopen(url_req, timeout=timeout)
+                status_code = url_fd.getcode()
+            _log.debug('response code for given url %s: %s' % (url, status_code))
             write_file(path, url_fd.read(), forced=forced, backup=True)
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
             url_fd.close()
-        except urllib2.HTTPError as err:
-            if 400 <= err.code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+        except HTTPError as err:
+            if not HAVE_REQUESTS:
+                status_code = err.code
+            if 400 <= status_code <= 499:
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
             else:
                 _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
