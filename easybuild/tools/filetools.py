@@ -478,6 +478,7 @@ def download_file(filename, url, path, forced=False):
                 status_code = url_req.status_code
                 url_req.raise_for_status()
                 url_fd = url_req.raw
+                url_fd.decode_content = True
             else:
                 # urllib2 does the right thing for http proxy setups, urllib does not!
                 url_fd = urllib2.urlopen(url_req, timeout=timeout)
