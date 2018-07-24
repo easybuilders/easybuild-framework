@@ -467,7 +467,7 @@ def download_file(filename, url, path, forced=False):
     attempt_cnt = 0
 
     # use custom HTTP header
-    headers = {'User-Agent': 'EasyBuild',  "Accept" : "*/*"}
+    headers = {'User-Agent' : 'EasyBuild',  "Accept" : "*/*"}
     if not HAVE_REQUESTS:
         url_req = urllib2.Request(url, headers=headers)
 
