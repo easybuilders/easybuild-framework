@@ -44,6 +44,7 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
@@ -183,7 +184,7 @@ def tweak_one(orig_ec, tweaked_ec, tweaks, targetdir=None):
         tweaks['checksums'] = []
         _log.warning("Tweaking version: checksums cleared, verification disabled.")
 
-    # we need to treat list values seperately, i.e. we prepend to the current value (if any)
+    # we need to treat list values separately, i.e. we prepend to the current value (if any)
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
@@ -615,3 +616,60 @@ def obtain_ec_for(specs, paths, fp=None):
         return res
     else:
         raise EasyBuildError("No easyconfig found for requested software, and also failed to generate one.")
+
+def compare_toolchain_specs(source_tc_spec, target_tc_spec):
+    """
+    Compare whether a source and target toolchain have compatible characteristics
+
+    :param source_tc_spec: specs of source toolchain
+    :param target_tc_spec: specs of target toolchain
+    """
+    can_map = True
+    # Check they have same capabilities
+    for key in ['compiler_family', 'mpi_family','blas_family', 'lapack_family', 'cuda']:
+        if source_tc_spec[key] is not None and target_tc_spec[key] is None:
+            can_map = False
+            break
+
+    return can_map
+
+def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
+    """
+    Match a source toolchain spec to the minimal corresponding toolchain in a target hierarchy
+
+    :param source_tc_spec: specs of source toolchain
+    :param target_tc_hierarchy: hierarchy of specs for target toolchain
+    """
+    minimal_matching_toolchain = {}
+    # Do a complete loop so we always end up with the minimal value in the hierarchy
+    for target_tc_spec in target_tc_hierarchy:
+        if compare_toolchain_specs(source_tc_spec, target_tc_spec):
+            minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
+            target_compiler_family = target_tc_spec['compiler_family']
+
+    # Warn if we are changing compiler families, this is very likely to cause problems
+    if target_compiler_family != source_tc_spec['compiler_family']:
+        print_warning("Your request will results in a compiler family switch (%s to %s). Here be dragons!",
+                      source_tc_spec['compiler_family'], target_compiler_family)
+
+    if not minimal_matching_toolchain:
+        EasyBuildError("No possible mapping from source toolchain spec %s and target toolchain hierarchy specs by %s",
+                       source_tc_spec, target_tc_hierarchy)
+
+    return minimal_matching_toolchain
+
+
+def map_toolchain_hierarchies(source_toolchain, target_toolchain):
+    """
+    Create a map between toolchain hierarchy of the initial toolchain and that of the target toolchain
+
+    :param source_toolchain: initial toolchain of the easyconfig(s)
+    :param target_toolchain: target toolchain for tweaked easyconfig(s)
+    """
+    tc_mapping = {}
+    initial_tc_hierarchy = get_toolchain_hierarchy(source_toolchain)
+    target_tc_hierarchy = get_toolchain_hierarchy(target_toolchain)
+    for toolchain_spec in initial_tc_hierarchy:
+        tc_mapping[toolchain_spec['name']] = match_minimum_tc_specs(toolchain_spec, target_tc_hierarchy)
+
+    return tc_mapping
