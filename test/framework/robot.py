@@ -701,7 +701,7 @@ class RobotTest(EnhancedTestCase):
             {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
         ])
 
-        # test also including dummy
+        # test also --try-toolchain* case, where we want more detailed information
         init_config(build_options={
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
