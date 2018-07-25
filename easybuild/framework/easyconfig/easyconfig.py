@@ -246,15 +246,15 @@ def get_toolchain_hierarchy(parent_toolchain):
                     toolchain['compiler_family'] = None
                 try:
                     toolchain['mpi_family'] = tc.mpi_family()
-                except:
+                except EasyBuildError:
                     toolchain['mpi_family'] = None
                 try:
                     toolchain['blas_family'] = tc.blas_family()
-                except:
+                except EasyBuildError:
                     toolchain['blas_family'] = None
                 try:
                     toolchain['lapack_family'] = tc.lapack_family()
-                except:
+                except EasyBuildError:
                     toolchain['lapack_family'] = None
                 if 'CUDA_CC' in tc.variables:
                     toolchain['cuda'] = True
