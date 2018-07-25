@@ -234,6 +234,33 @@ def get_toolchain_hierarchy(parent_toolchain):
         subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
         toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
 
+        # also add toolchain capabilities if we are using try_toolchain_*
+        build_specs = build_option('build_specs')
+        if build_specs is not None and ('toolchain_name' in build_specs or 'toolchain_name' in build_specs):
+            for toolchain in toolchain_hierarchy:
+                toolchain_class, _ = search_toolchain(toolchain['name'])
+                tc = toolchain_class(version=toolchain['version'])
+                try:
+                    toolchain['compiler_family'] = tc.comp_family()
+                except EasyBuildError:
+                    toolchain['compiler_family'] = None
+                try:
+                    toolchain['mpi_family'] = tc.mpi_family()
+                except:
+                    toolchain['mpi_family'] = None
+                try:
+                    toolchain['blas_family'] = tc.blas_family()
+                except:
+                    toolchain['blas_family'] = None
+                try:
+                    toolchain['lapack_family'] = tc.lapack_family()
+                except:
+                    toolchain['lapack_family'] = None
+                if 'CUDA_CC' in tc.variables:
+                    toolchain['cuda'] = True
+                else:
+                    toolchain['cuda'] = False
+
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
 

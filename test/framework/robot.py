@@ -703,6 +703,33 @@ class RobotTest(EnhancedTestCase):
 
         # test also including dummy
         init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+            'build_specs': {'toolchain_name': 'fake'},
+        })
+
+        get_toolchain_hierarchy.clear()
+
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
+        self.assertEqual(goolf_hierarchy, [
+            {'name': 'GCC', 'version': '4.7.2', 'compiler_family': 'GCC', 'mpi_family': None,
+             'lapack_family': None, 'blas_family': None, 'cuda': False},
+            {'name': 'gompi', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
+             'lapack_family': None, 'blas_family': None, 'cuda': False},
+            {'name': 'goolf', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
+             'lapack_family': 'OpenBLAS', 'blas_family': 'OpenBLAS', 'cuda': False},
+        ])
+
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'})
+        self.assertEqual(iimpi_hierarchy, [
+            {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3', 'compiler_family': 'Intel', 'mpi_family': None,
+             'lapack_family': None, 'blas_family': None, 'cuda': False},
+            {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3', 'compiler_family': 'Intel', 'mpi_family': 'IntelMPI',
+             'lapack_family': None, 'blas_family': None, 'cuda': False},
+        ])
+
+        # test also including dummy
+        init_config(build_options={
             'add_dummy_to_minimal_toolchains': True,
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
