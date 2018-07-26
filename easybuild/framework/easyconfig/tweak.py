@@ -643,22 +643,25 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     :param target_tc_hierarchy: hierarchy of specs for target toolchain
     """
     minimal_matching_toolchain = {}
+    target_compiler_family = ''
     # Do a complete loop so we always end up with the minimal value in the hierarchy
-    for target_tc_spec in target_tc_hierarchy:
+    # hierarchy is given from lowest to highest, so need to reverse the order in the list
+    for target_tc_spec in reversed(target_tc_hierarchy):
         if compare_toolchain_specs(source_tc_spec, target_tc_spec):
             # GCCcore has compiler capabilities but should only be used if the original toolchain was also GCCcore
-            if source_tc_spec['name'] != 'GCCcore' and target_tc_spec['name'] == 'GCCcore':
+            if source_tc_spec['name'] != 'GCCcore' and target_tc_spec['name'] != 'GCCcore' or \
+                    source_tc_spec['name'] == 'GCCcore' and target_tc_spec['name'] == 'GCCcore':
                 minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
                 target_compiler_family = target_tc_spec['compiler_family']
 
-    if not minimal_matching_toolchain:
-        EasyBuildError("No possible mapping from source toolchain spec %s and target toolchain hierarchy specs %s",
-                       source_tc_spec, target_tc_hierarchy)
+    if len(minimal_matching_toolchain) == 0:
+        raise EasyBuildError("No possible mapping from source toolchain spec %s to target toolchain hierarchy specs %s",
+                             source_tc_spec, target_tc_hierarchy)
 
     # Warn if we are changing compiler families, this is very likely to cause problems
     if target_compiler_family != source_tc_spec['compiler_family']:
-        print_warning("Your request will results in a compiler family switch (%s to %s). Here be dragons!",
-                      source_tc_spec['compiler_family'], target_compiler_family)
+        print_warning("Your request will results in a compiler family switch (%s to %s). Here be dragons!" %
+                      (source_tc_spec['compiler_family'], target_compiler_family))
 
     return minimal_matching_toolchain
 

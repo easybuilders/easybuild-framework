@@ -32,9 +32,13 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
+from easybuild.framework.easyconfig.tweak import compare_toolchain_specs, match_minimum_tc_specs
+from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import write_file
 
 
@@ -145,6 +149,76 @@ class TweakTest(EnhancedTestCase):
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
 
+    def test_compare_toolchain_specs(self):
+        """Test comparing the functionality of two toolchains"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        get_toolchain_hierarchy.clear()
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  require_capabilities=True)
+
+        # Hierarchies are returned with top-level toolchain last, goolf has 3 elements here, intel has 2
+        # goolf <-> iimpi (should return False)
+        self.assertFalse(compare_toolchain_specs(goolf_hierarchy[2], iimpi_hierarchy[1]), "goolf requires math libs")
+        # gompi <-> iimpi
+        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[1], iimpi_hierarchy[1]))
+        # GCC <-> iimpi
+        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[0], iimpi_hierarchy[1]))
+        # GCC <-> iccifort
+        self.assertTrue(compare_toolchain_specs(goolf_hierarchy[0], iimpi_hierarchy[0]))
+
+    def test_match_minimum_tc_specs(self):
+        """Test matching a toolchain to lowest possible in a hierarchy"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        get_toolchain_hierarchy.clear()
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  require_capabilities=True)
+
+        # Compiler first
+        self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[0], goolf_hierarchy),
+                         {'name': 'GCC', 'version': '4.7.2'})
+        # Then MPI
+        self.assertEqual(match_minimum_tc_specs(iimpi_hierarchy[1], goolf_hierarchy),
+                         {'name': 'gompi', 'version': '1.4.10'})
+        # Check against itself for math
+        self.assertEqual(match_minimum_tc_specs(goolf_hierarchy[2], goolf_hierarchy),
+                         {'name': 'goolf', 'version': '1.4.10'})
+        # Make sure there's an error when we can't do the mapping
+        error_msg = "No possible mapping from source toolchain spec .*"
+        self.assertErrorRegex(EasyBuildError, error_msg, match_minimum_tc_specs,
+                              goolf_hierarchy[2], iimpi_hierarchy)
+
+    def test_map_toolchain_hierarchies(self):
+        """Test between two toolchain hierarchies"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        get_toolchain_hierarchy.clear()
+        goolf_tc = {'name': 'goolf', 'version': '1.4.10'}
+        gompi_tc = {'name': 'gompi', 'version': '1.4.10'}
+        iimpi_tc = {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}
+
+        self.assertEqual(map_toolchain_hierarchies(iimpi_tc, goolf_tc),
+                         {'iccifort': {'name': 'GCC', 'version': '4.7.2'},
+                          'iimpi': {'name': 'gompi', 'version': '1.4.10'}})
+        self.assertEqual(map_toolchain_hierarchies(gompi_tc, iimpi_tc),
+                         {'GCC': {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
+                          'gompi': {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}})
+        # Expect an error when there is no possible mapping
+        error_msg = "No possible mapping from source toolchain spec .*"
+        self.assertErrorRegex(EasyBuildError, error_msg, map_toolchain_hierarchies,
+                              goolf_tc, iimpi_tc)
 
 def suite():
     """ return all the tests in this file """
