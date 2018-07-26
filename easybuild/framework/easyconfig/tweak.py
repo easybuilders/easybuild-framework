@@ -649,12 +649,12 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     for target_tc_spec in reversed(target_tc_hierarchy):
         if compare_toolchain_specs(source_tc_spec, target_tc_spec):
             # GCCcore has compiler capabilities but should only be used if the original toolchain was also GCCcore
-            if source_tc_spec['name'] != 'GCCcore' and target_tc_spec['name'] != 'GCCcore' or \
-                    source_tc_spec['name'] == 'GCCcore' and target_tc_spec['name'] == 'GCCcore':
+            if (source_tc_spec['name'] != 'GCCcore' and target_tc_spec['name'] != 'GCCcore')\
+                    or (source_tc_spec['name'] == 'GCCcore' and target_tc_spec['name'] == 'GCCcore'):
                 minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
                 target_compiler_family = target_tc_spec['compiler_family']
 
-    if len(minimal_matching_toolchain) == 0:
+    if not minimal_matching_toolchain:
         raise EasyBuildError("No possible mapping from source toolchain spec %s to target toolchain hierarchy specs %s",
                              source_tc_spec, target_tc_hierarchy)
 
