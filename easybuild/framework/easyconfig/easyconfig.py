@@ -258,7 +258,7 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
                 if 'CUDA_CC' in tc.variables:
                     toolchain['cuda'] = True
                 else:
-                    toolchain['cuda'] = None # Useful to have it consistent with the rest
+                    toolchain['cuda'] = None  # Useful to have it consistent with the rest
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy

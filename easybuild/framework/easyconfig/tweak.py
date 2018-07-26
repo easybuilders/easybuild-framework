@@ -617,6 +617,7 @@ def obtain_ec_for(specs, paths, fp=None):
     else:
         raise EasyBuildError("No easyconfig found for requested software, and also failed to generate one.")
 
+
 def compare_toolchain_specs(source_tc_spec, target_tc_spec):
     """
     Compare whether a source and target toolchain have compatible characteristics
@@ -626,12 +627,13 @@ def compare_toolchain_specs(source_tc_spec, target_tc_spec):
     """
     can_map = True
     # Check they have same capabilities
-    for key in ['compiler_family', 'mpi_family','blas_family', 'lapack_family', 'cuda']:
+    for key in ['compiler_family', 'mpi_family', 'blas_family', 'lapack_family', 'cuda']:
         if target_tc_spec[key] is None and source_tc_spec[key] is not None:
             can_map = False
             break
 
     return can_map
+
 
 def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     """
@@ -649,7 +651,6 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
                 minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
                 target_compiler_family = target_tc_spec['compiler_family']
 
-
     if not minimal_matching_toolchain:
         EasyBuildError("No possible mapping from source toolchain spec %s and target toolchain hierarchy specs %s",
                        source_tc_spec, target_tc_hierarchy)
@@ -658,7 +659,6 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     if target_compiler_family != source_tc_spec['compiler_family']:
         print_warning("Your request will results in a compiler family switch (%s to %s). Here be dragons!",
                       source_tc_spec['compiler_family'], target_compiler_family)
-
 
     return minimal_matching_toolchain
 
