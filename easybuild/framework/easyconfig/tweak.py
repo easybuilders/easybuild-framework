@@ -649,9 +649,10 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     # hierarchy is given from lowest to highest, so need to reverse the order in the list
     for target_tc_spec in reversed(target_tc_hierarchy):
         if compare_toolchain_specs(source_tc_spec, target_tc_spec):
-            # GCCcore has compiler capabilities but should only be used if the original toolchain was also GCCcore
-            if (source_tc_spec['name'] != GCCcore.NAME and target_tc_spec['name'] != GCCcore.NAME)\
-                    or (source_tc_spec['name'] == GCCcore.NAME and target_tc_spec['name'] == GCCcore.NAME):
+            # GCCcore has compiler capabilities but should only be used in the target if the original toolchain was also
+            # GCCcore
+            if target_tc_spec['name'] != GCCcore.NAME or \
+                    (source_tc_spec['name'] == GCCcore.NAME and target_tc_spec['name'] == GCCcore.NAME):
                 minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
                 target_compiler_family = target_tc_spec['compiler_family']
 
