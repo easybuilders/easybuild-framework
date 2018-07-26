@@ -627,7 +627,7 @@ def compare_toolchain_specs(source_tc_spec, target_tc_spec):
     can_map = True
     # Check they have same capabilities
     for key in ['compiler_family', 'mpi_family','blas_family', 'lapack_family', 'cuda']:
-        if source_tc_spec[key] is not None and target_tc_spec[key] is None:
+        if target_tc_spec[key] is None and source_tc_spec[key] is not None:
             can_map = False
             break
 
@@ -644,17 +644,21 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
     # Do a complete loop so we always end up with the minimal value in the hierarchy
     for target_tc_spec in target_tc_hierarchy:
         if compare_toolchain_specs(source_tc_spec, target_tc_spec):
-            minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
-            target_compiler_family = target_tc_spec['compiler_family']
+            # GCCcore has compiler capabilities but should only be used if the original toolchain was also GCCcore
+            if source_tc_spec['name'] != 'GCCcore' and target_tc_spec['name'] == 'GCCcore':
+                minimal_matching_toolchain = {'name': target_tc_spec['name'], 'version': target_tc_spec['version']}
+                target_compiler_family = target_tc_spec['compiler_family']
+
+
+    if not minimal_matching_toolchain:
+        EasyBuildError("No possible mapping from source toolchain spec %s and target toolchain hierarchy specs %s",
+                       source_tc_spec, target_tc_hierarchy)
 
     # Warn if we are changing compiler families, this is very likely to cause problems
     if target_compiler_family != source_tc_spec['compiler_family']:
         print_warning("Your request will results in a compiler family switch (%s to %s). Here be dragons!",
                       source_tc_spec['compiler_family'], target_compiler_family)
 
-    if not minimal_matching_toolchain:
-        EasyBuildError("No possible mapping from source toolchain spec %s and target toolchain hierarchy specs by %s",
-                       source_tc_spec, target_tc_hierarchy)
 
     return minimal_matching_toolchain
 
@@ -667,8 +671,8 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain):
     :param target_toolchain: target toolchain for tweaked easyconfig(s)
     """
     tc_mapping = {}
-    initial_tc_hierarchy = get_toolchain_hierarchy(source_toolchain)
-    target_tc_hierarchy = get_toolchain_hierarchy(target_toolchain)
+    initial_tc_hierarchy = get_toolchain_hierarchy(source_toolchain, require_capabilities=True)
+    target_tc_hierarchy = get_toolchain_hierarchy(target_toolchain, require_capabilities=True)
     for toolchain_spec in initial_tc_hierarchy:
         tc_mapping[toolchain_spec['name']] = match_minimum_tc_specs(toolchain_spec, target_tc_hierarchy)
 

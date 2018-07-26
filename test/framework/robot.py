@@ -705,27 +705,27 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'valid_module_classes': module_classes(),
             'robot_path': test_easyconfigs,
-            'build_specs': {'toolchain_name': 'fake'},
         })
 
         get_toolchain_hierarchy.clear()
 
-        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'})
+        goolf_hierarchy = get_toolchain_hierarchy({'name': 'goolf', 'version': '1.4.10'}, require_capabilities=True)
         self.assertEqual(goolf_hierarchy, [
             {'name': 'GCC', 'version': '4.7.2', 'compiler_family': 'GCC', 'mpi_family': None,
-             'lapack_family': None, 'blas_family': None, 'cuda': False},
+             'lapack_family': None, 'blas_family': None, 'cuda': None},
             {'name': 'gompi', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
-             'lapack_family': None, 'blas_family': None, 'cuda': False},
+             'lapack_family': None, 'blas_family': None, 'cuda': None},
             {'name': 'goolf', 'version': '1.4.10', 'compiler_family': 'GCC', 'mpi_family': 'OpenMPI',
-             'lapack_family': 'OpenBLAS', 'blas_family': 'OpenBLAS', 'cuda': False},
+             'lapack_family': 'OpenBLAS', 'blas_family': 'OpenBLAS', 'cuda': None},
         ])
 
-        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'})
+        iimpi_hierarchy = get_toolchain_hierarchy({'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'},
+                                                  require_capabilities=True)
         self.assertEqual(iimpi_hierarchy, [
             {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3', 'compiler_family': 'Intel', 'mpi_family': None,
-             'lapack_family': None, 'blas_family': None, 'cuda': False},
+             'lapack_family': None, 'blas_family': None, 'cuda': None},
             {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3', 'compiler_family': 'Intel', 'mpi_family': 'IntelMPI',
-             'lapack_family': None, 'blas_family': None, 'cuda': False},
+             'lapack_family': None, 'blas_family': None, 'cuda': None},
         ])
 
         # test also including dummy

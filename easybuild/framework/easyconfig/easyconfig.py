@@ -115,16 +115,16 @@ def toolchain_hierarchy_cache(func):
     cache = {}
 
     @functools.wraps(func)
-    def cache_aware_func(toolchain):
+    def cache_aware_func(toolchain, require_capabilities=False):
         """Look up toolchain hierarchy in cache first, determine and cache it if not available yet."""
-        cache_key = (toolchain['name'], toolchain['version'])
+        cache_key = (toolchain['name'], toolchain['version'], require_capabilities)
 
         # fetch from cache if available, cache it if it's not
         if cache_key in cache:
             _log.debug("Using cache to return hierarchy for toolchain %s: %s", str(toolchain), cache[cache_key])
             return cache[cache_key]
         else:
-            toolchain_hierarchy = func(toolchain)
+            toolchain_hierarchy = func(toolchain, require_capabilities)
             cache[cache_key] = toolchain_hierarchy
             return cache[cache_key]
 
@@ -135,7 +135,7 @@ def toolchain_hierarchy_cache(func):
 
 
 @toolchain_hierarchy_cache
-def get_toolchain_hierarchy(parent_toolchain):
+def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
     """
     Determine list of subtoolchains for specified parent toolchain.
     Result starts with the most minimal subtoolchains first, ends with specified toolchain.
@@ -234,9 +234,8 @@ def get_toolchain_hierarchy(parent_toolchain):
         subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
         toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
 
-        # also add toolchain capabilities if we are using try_toolchain_*
-        build_specs = build_option('build_specs')
-        if build_specs is not None and ('toolchain_name' in build_specs or 'toolchain_name' in build_specs):
+        # also add toolchain capabilities
+        if require_capabilities:
             for toolchain in toolchain_hierarchy:
                 toolchain_class, _ = search_toolchain(toolchain['name'])
                 tc = toolchain_class(version=toolchain['version'])
