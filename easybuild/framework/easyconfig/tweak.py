@@ -695,9 +695,10 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
 
     return minimal_matching_toolchain
 
+
 def get_dep_tree_of_toolchain(toolchain_spec, modtool):
     """
-    Ge the dependency tree of a toolchain
+    Get the dependency tree of a toolchain
 
     :param toolchain_spec: toolchain spec to get the dependencies of
     :return: The dependency tree of the toolchain spec
@@ -709,6 +710,7 @@ def get_dep_tree_of_toolchain(toolchain_spec, modtool):
     ec = process_easyconfig(path, validate=False)
 
     return resolve_dependencies(ec, modtool)
+
 
 def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
     """
