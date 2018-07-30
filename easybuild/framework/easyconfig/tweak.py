@@ -136,6 +136,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         # prepended path so that they are found first).
         # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
         # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
+
+        modifying_toolchain = False # TODO Remove this to enable all tests
         if orig_ec['spec'] in listed_ec_paths:
             if modifying_toolchain:
                 new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
@@ -762,12 +764,28 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, target_dir
     :param target_dir:
     :return mapped_spec:
     """
-    # TODO Parse the original easyconfig
+    # Fully parse the original easyconfig
+    parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
+    # Replace the toolchain
+    parsed_ec['toolchain'] = toolchain_mapping[parsed_ec['ec']['toolchain']['name']]
+    # Replace the toolchains of all the dependencies
+    for dep in parsed_ec.dependencies():
+        # skip dependencies that are marked as external modules
+        if dep['external_module']:
+            continue
+        if dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            dep['toolchain'] = toolchain_mapping[dep['toolchain']['name']]
+        # Replace the binutils version (if necessary)
+        if (parsed_ec['toolchain']['name'] == GCCcore.NAME
+                and dep['name'] == 'binutils'
+                and dep['toolchain']['name'] == GCCcore.NAME):
+            dep['version'] = toolchain_mapping['binutils']['version']
+            dep['versionsuffix'] = toolchain_mapping['binutils']['versionsuffix']
 
-    # TODO Replace the toolchain
-
-    # TODO Replace the toolchains of all the dependencies
-
-    # TODO Replace the binutils version (if necessary)
-
-    # TODO Determine the name of the modified easyconfig and dump it target_dir
+    # Determine the name of the modified easyconfig and dump it target_dir
+    ec_filename = '%s-%s.eb' % (parsed_ec['name'], det_full_ec_version(parsed_ec))
+    if targetdir is None:
+        targetdir = tempfile.gettempdir()
+    tweaked_spec = os.path.join(target_dir, ec_filename)
+    parsed_ec.dump(tweaked_spec)
+    _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)

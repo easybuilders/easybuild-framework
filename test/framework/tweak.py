@@ -36,7 +36,7 @@ from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 from easybuild.framework.easyconfig.tweak import compare_toolchain_specs, match_minimum_tc_specs
-from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies
+from easybuild.framework.easyconfig.tweak import map_toolchain_hierarchies, map_easyconfig_to_target_tc_hierarchy
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import write_file
@@ -198,7 +198,7 @@ class TweakTest(EnhancedTestCase):
                               goolf_hierarchy[2], iimpi_hierarchy)
 
     def test_map_toolchain_hierarchies(self):
-        """Test between two toolchain hierarchies"""
+        """Test mapping between two toolchain hierarchies"""
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -227,6 +227,18 @@ class TweakTest(EnhancedTestCase):
                          {'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
                           'GCCcore': {'name': 'GCCcore', 'version': '4.9.3'},
                           'binutils': {'version': '2.25', 'versionsuffix': ''}})
+
+    def test_map_easyconfig_to_target_tc_hierarchy(self):
+        """Test mapping of easyconfig to target hierarchy"""
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        init_config(build_options={
+            'valid_module_classes': module_classes(),
+            'robot_path': test_easyconfigs,
+        })
+        get_toolchain_hierarchy.clear()
+        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
+        iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
+        map_easyconfig_to_target_tc_hierarchy()
 
 def suite():
     """ return all the tests in this file """
