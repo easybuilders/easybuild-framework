@@ -133,8 +133,8 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     tweaked_easyconfigs = []
     for orig_ec in orig_ecs:
         if orig_ec['ec']['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
-            # Only return tweaked easyconfigs for easyconfigs which were listed originally on the command line (and use the
-            # prepended path so that they are found first).
+            # Only return tweaked easyconfigs for easyconfigs which were listed originally on the command line (and use
+            # the prepended path so that they are found first).
             # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
             # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
 
