@@ -32,7 +32,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs, obtain_ec_for, pick_version, tweak_one
 from easybuild.framework.easyconfig.tweak import compare_toolchain_specs, match_minimum_tc_specs
@@ -60,7 +60,7 @@ class TweakTest(EnhancedTestCase):
             self.assertTrue(len(ecs) == 1 and ecs[0].endswith('/%s-%s.eb' % (name, installver)))
 
         ecs = find_matching_easyconfigs('GCC', '*', [test_easyconfigs_path])
-        gccvers = ['4.6.3', '4.6.4', '4.7.2', '4.8.2', '4.8.3', '4.9.2', '4.9.3-2.25']
+        gccvers = ['4.6.3', '4.6.4', '4.7.2', '4.8.2', '4.8.3', '4.9.2', '4.9.3-2.25', '4.9.3-2.26']
         self.assertEqual(len(ecs), len(gccvers))
         ecs_basename = [os.path.basename(ec) for ec in ecs]
         for gccver in gccvers:
@@ -221,7 +221,7 @@ class TweakTest(EnhancedTestCase):
                               goolf_tc, iimpi_tc, self.modtool)
 
         # Test that we correctly include GCCcore binutils when it is there
-        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
+        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
         self.assertEqual(map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool),
                          {'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
@@ -236,9 +236,18 @@ class TweakTest(EnhancedTestCase):
             'robot_path': test_easyconfigs,
         })
         get_toolchain_hierarchy.clear()
-        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
+        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
-        map_easyconfig_to_target_tc_hierarchy()
+        tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
+        ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping)
+        tweaked_ec = process_easyconfig(tweaked_spec)[0]
+        tweaked_dict = tweaked_ec['ec'].asdict()
+        key, value = 'toolchain', iccifort_binutils_tc
+        self.assertTrue(key in tweaked_dict and value == tweaked_dict[key])
+        key, value = 'version', '2.25'
+        self.assertTrue(key in tweaked_dict['builddependencies'][0] and
+                        value == tweaked_dict['builddependencies'][0][key])
 
 def suite():
     """ return all the tests in this file """

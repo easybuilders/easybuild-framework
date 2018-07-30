@@ -1221,7 +1221,7 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '4.7.2' in x])
         self.assertTrue(os.path.exists(target_dir))
-        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb']
+        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.26.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
         # GCC-4.7.2.eb should not get copied, since it's specified as file too ignore
         self.assertFalse(os.path.exists(os.path.join(target_dir, 'GCC-4.7.2.eb')))

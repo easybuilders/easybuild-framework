@@ -44,7 +44,7 @@ from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy, ActiveMNS
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
@@ -137,7 +137,6 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
         # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
 
-        modifying_toolchain = False # TODO Remove this to enable all tests
         if orig_ec['spec'] in listed_ec_paths:
             if modifying_toolchain:
                 new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
@@ -767,25 +766,35 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, target_dir
     # Fully parse the original easyconfig
     parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
     # Replace the toolchain
-    parsed_ec['toolchain'] = toolchain_mapping[parsed_ec['ec']['toolchain']['name']]
+    parsed_ec['ec']['toolchain'] = toolchain_mapping[parsed_ec['ec']['toolchain']['name']]
     # Replace the toolchains of all the dependencies
-    for dep in parsed_ec.dependencies():
-        # skip dependencies that are marked as external modules
-        if dep['external_module']:
-            continue
-        if dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
-            dep['toolchain'] = toolchain_mapping[dep['toolchain']['name']]
-        # Replace the binutils version (if necessary)
-        if (parsed_ec['toolchain']['name'] == GCCcore.NAME
-                and dep['name'] == 'binutils'
-                and dep['toolchain']['name'] == GCCcore.NAME):
-            dep['version'] = toolchain_mapping['binutils']['version']
-            dep['versionsuffix'] = toolchain_mapping['binutils']['versionsuffix']
-
+    filter_deps = build_option('filter_deps')
+    for key in ['builddependencies', 'dependencies', 'hiddendependencies']:
+        # loop over a *copy* of dependency dicts (with resolved templates);
+        # to update the original dep dict, we need to index with idx into self._config[key][0]...
+        for idx, dep in enumerate(parsed_ec['ec'][key]):
+            # reference to original dep dict, this is the one we should be updating
+            orig_dep = parsed_ec['ec']._config[key][0][idx]
+            # skip dependencies that are marked as external modules
+            if dep['external_module']:
+                continue
+            if dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                orig_dep['toolchain'] = toolchain_mapping[dep['toolchain']['name']]
+            # Replace the binutils version (if necessary)
+            if 'binutils' in toolchain_mapping and (dep['name'] == 'binutils' and
+                                                    dep['toolchain']['name'] == GCCcore.NAME):
+                orig_dep['version'] = toolchain_mapping['binutils']['version']
+                orig_dep['versionsuffix'] = toolchain_mapping['binutils']['versionsuffix']
+                if not dep['external_module']:
+                    # set module names
+                    orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
+                    orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
     # Determine the name of the modified easyconfig and dump it target_dir
-    ec_filename = '%s-%s.eb' % (parsed_ec['name'], det_full_ec_version(parsed_ec))
-    if targetdir is None:
-        targetdir = tempfile.gettempdir()
+    ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
+    if target_dir is None:
+        target_dir = tempfile.gettempdir()
     tweaked_spec = os.path.join(target_dir, ec_filename)
-    parsed_ec.dump(tweaked_spec)
+    parsed_ec['ec'].dump(tweaked_spec)
     _log.debug("Dumped easyconfig tweaked via --try-toolchain* to %s", tweaked_spec)
+
+    return tweaked_spec

@@ -153,7 +153,7 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
     subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
 
     # the parent toolchain is at the top of the hierarchy
-    toolchain_hierarchy = [parent_toolchain]
+    toolchain_hierarchy = [dict(parent_toolchain)]
 
     while subtoolchain_name:
         # grab the easyconfig of the current toolchain and search the dependencies for a version of the subtoolchain

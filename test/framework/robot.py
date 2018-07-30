@@ -1116,7 +1116,7 @@ class RobotTest(EnhancedTestCase):
         # direct conflict on software version
         ecs, _ = parse_easyconfigs([
             (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.7.2.eb'), False),
-            (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.9.3-2.25.eb'), False),
+            (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.9.3-2.26.eb'), False),
         ])
         self.mock_stderr(True)
         conflicts = check_conflicts(ecs, self.modtool)
