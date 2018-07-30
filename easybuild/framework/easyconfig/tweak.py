@@ -50,7 +50,7 @@ from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.robot import resolve_dependencies
+from easybuild.tools.robot import resolve_dependencies, robot_find_easyconfig
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 
@@ -109,7 +109,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         else:
             target_toolchain['version'] = source_toolchain['version']
 
-        src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain)
+        src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
 
         _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
         orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
@@ -148,7 +148,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
             # Place all tweaked dependency easyconfigs in the directory appended to the robot path
             if modifying_toolchain:
                 new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
-                                                                    tweaked_ecs_deps_path)
+                                                                    targetdir=tweaked_ecs_deps_path)
             else:
                 new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_deps_path)
 
@@ -695,8 +695,22 @@ def match_minimum_tc_specs(source_tc_spec, target_tc_hierarchy):
 
     return minimal_matching_toolchain
 
+def get_dep_tree_of_toolchain(toolchain_spec, modtool):
+    """
+    Ge the dependency tree of a toolchain
 
-def map_toolchain_hierarchies(source_toolchain, target_toolchain):
+    :param toolchain_spec: toolchain spec to get the dependencies of
+    :return: The dependency tree of the toolchain spec
+    """
+    path = robot_find_easyconfig(toolchain_spec['name'], toolchain_spec['version'])
+    if path is None:
+        raise EasyBuildError("Could not find easyconfig for %s toolchain version %s",
+                             toolchain_spec['name'], toolchain_spec['version'])
+    ec = process_easyconfig(path, validate=False)
+
+    return resolve_dependencies(ec, modtool)
+
+def map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool):
     """
     Create a map between toolchain hierarchy of the initial toolchain and that of the target toolchain
 
@@ -706,20 +720,52 @@ def map_toolchain_hierarchies(source_toolchain, target_toolchain):
     tc_mapping = {}
     initial_tc_hierarchy = get_toolchain_hierarchy(source_toolchain, require_capabilities=True)
     target_tc_hierarchy = get_toolchain_hierarchy(target_toolchain, require_capabilities=True)
+
     for toolchain_spec in initial_tc_hierarchy:
         tc_mapping[toolchain_spec['name']] = match_minimum_tc_specs(toolchain_spec, target_tc_hierarchy)
 
-    # TODO Include binutils version mapping for things built with GCCcore
+    # Check for presence of binutils in source and target toolchain dependency trees (only do this when GCCcore is
+    # present in both and GCCcore is not the top of the tree)
+    if GCCcore.NAME in [tc_spec['name'] for tc_spec in initial_tc_hierarchy]\
+            and GCCcore.NAME in [tc_spec['name'] for tc_spec in target_tc_hierarchy]\
+            and initial_tc_hierarchy[-1]['name'] != GCCcore.NAME:
+
+        binutils = 'binutils'
+        # Determine the dependency trees
+        source_dep_tree = get_dep_tree_of_toolchain(initial_tc_hierarchy[-1], modtool)
+        target_dep_tree = get_dep_tree_of_toolchain(target_tc_hierarchy[-1], modtool)
+        # Find the binutils mapping
+        if binutils in [dep['ec']['name'] for dep in source_dep_tree]:
+            # We need the binutils that was built using GCCcore (we assume that everything is using standard behaviour:
+            # build binutils with GCCcore and then use that for anything built with GCCcore)
+            binutils_list = [{'version': dep['ec']['version'], 'versionsuffix': dep['ec']['versionsuffix']}
+                             for dep in target_dep_tree if (dep['ec']['name'] == binutils) and
+                             (dep['ec']['toolchain']['name'] == GCCcore.NAME)]
+            # There should be one element in this list
+            if len(binutils_list) != 1:
+                raise EasyBuildError("Target hierarchy %s should have binutils using GCCcore, can't determine mapping!"
+                                     % target_tc_hierarchy[-1])
+            else:
+                tc_mapping[binutils] = binutils_list[0]
 
     return tc_mapping
 
 
-def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, target_dir):
+def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, target_dir=None):
     """
     Take an easyconfig spec, parse it, map it to a target toolchain and dump it out
 
-    :param ec_spec:
-    :param toolchain_mapping:
+    :param ec_spec: Location of original easyconfig
+    :param toolchain_mapping: Mapping between toolchain and target toolchain and target toolchain
     :param target_dir:
     :return mapped_spec:
     """
+    # TODO Parse the original easyconfig
+
+    # TODO Replace the toolchain
+
+    # TODO Replace the toolchains of all the dependencies
+
+    # TODO Replace the binutils version (if necessary)
+
+    # TODO Determine the name of the modified easyconfig and dump it target_dir

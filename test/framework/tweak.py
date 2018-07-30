@@ -209,16 +209,24 @@ class TweakTest(EnhancedTestCase):
         gompi_tc = {'name': 'gompi', 'version': '1.4.10'}
         iimpi_tc = {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}
 
-        self.assertEqual(map_toolchain_hierarchies(iimpi_tc, goolf_tc),
+        self.assertEqual(map_toolchain_hierarchies(iimpi_tc, goolf_tc, self.modtool),
                          {'iccifort': {'name': 'GCC', 'version': '4.7.2'},
                           'iimpi': {'name': 'gompi', 'version': '1.4.10'}})
-        self.assertEqual(map_toolchain_hierarchies(gompi_tc, iimpi_tc),
+        self.assertEqual(map_toolchain_hierarchies(gompi_tc, iimpi_tc, self.modtool),
                          {'GCC': {'name': 'iccifort', 'version': '2013.5.192-GCC-4.8.3'},
                           'gompi': {'name': 'iimpi', 'version': '5.5.3-GCC-4.8.3'}})
         # Expect an error when there is no possible mapping
         error_msg = "No possible mapping from source toolchain spec .*"
         self.assertErrorRegex(EasyBuildError, error_msg, map_toolchain_hierarchies,
-                              goolf_tc, iimpi_tc)
+                              goolf_tc, iimpi_tc, self.modtool)
+
+        # Test that we correctly include GCCcore binutils when it is there
+        gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.25'}
+        iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
+        self.assertEqual(map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool),
+                         {'GCC': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
+                          'GCCcore': {'name': 'GCCcore', 'version': '4.9.3'},
+                          'binutils': {'version': '2.25', 'versionsuffix': ''}})
 
 def suite():
     """ return all the tests in this file """
