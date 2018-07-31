@@ -660,9 +660,11 @@ class ToyBuildTest(EnhancedTestCase):
             '--module-naming-scheme=HierarchicalMNS',
         ]
 
-        # test module paths/contents with gompi build
+        # test module paths/contents with goolf build
         extra_args = [
             '--try-toolchain=goolf,1.4.10',
+            # Force using the regex method so try uses the full toolchain
+            '--try-amend=parallel=1',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -707,7 +709,6 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
         os.remove(toy_module_path)
-
         # test module path with GCC/4.7.2 build, pretend to be an MPI lib by setting moduleclass
         extra_args = [
             '--try-toolchain=GCC,4.7.2',
