@@ -88,7 +88,7 @@ class ScriptsTest(EnhancedTestCase):
         regex = r"Supported Packages \(27 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
-            'B': '1',  # bzip2
+            'B': '2',  # binutils, bzip2
             'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
             'G': '6',  # GCC, GCCcore, gmvapich2, gompi, goolf, gzip
