@@ -88,46 +88,53 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     modifying_toolchains = False
     target_toolchain = {}
     src_to_dst_tc_mapping = {}
+    revert_to_regex = False
 
     if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs:
-        # We're doing something with the toolchain, build specifications should be applied to the whole dependency graph
-        # Obtain full dependency graph for specified easyconfigs
-        # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
-        modifying_toolchains = True
         keys = build_specs.keys()
 
         # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
         # supported
         for key in keys:
             if key not in ['toolchain_name', 'toolchain_version', 'toolchain']:
-                raise EasyBuildError("Combining --try-toolchain* with other build options is currently not supported")
+                print_warning("Combining --try-toolchain* with other build options is not fully supported: using regex")
+                revert_to_regex = True
 
-        if 'toolchain_name' in keys:
-            target_toolchain['name'] = build_specs['toolchain_name']
-        else:
-            target_toolchain['name'] = source_toolchain['name']
-        if 'toolchain_version' in keys:
-            target_toolchain['version'] = build_specs['toolchain_version']
-        else:
-            target_toolchain['version'] = source_toolchain['version']
+        if not revert_to_regex:
+            # We're doing something with the toolchain, build specifications should be applied to whole dependency graph
+            # Obtain full dependency graph for specified easyconfigs
+            # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
+            modifying_toolchains = True
 
-        src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
-
-        _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
-        orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
-
-        # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
-        # We can leave any dependencies they may have as they will only be used if required (or originally listed)
-        _log.debug("Filtering out toolchain hierarchy for %s" % source_toolchain)
-
-        i = 0
-        while i < len(orig_ecs):
-            if orig_ecs[i]['ec']['name'] in [tc['name'] for tc in get_toolchain_hierarchy(source_toolchain)]:
-                # drop elements in toolchain hierarchy
-                del orig_ecs[i]
+            if 'toolchain_name' in keys:
+                target_toolchain['name'] = build_specs['toolchain_name']
             else:
-                i += 1
+                target_toolchain['name'] = source_toolchain['name']
+            if 'toolchain_version' in keys:
+                target_toolchain['version'] = build_specs['toolchain_version']
+            else:
+                target_toolchain['version'] = source_toolchain['version']
+
+            src_to_dst_tc_mapping = map_toolchain_hierarchies(source_toolchain, target_toolchain, modtool)
+
+            _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
+            orig_ecs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True)
+
+            # Filter out the toolchain hierarchy (which would only appear if we are applying build_specs recursively)
+            # We can leave any dependencies they may have as they will only be used if required (or originally listed)
+            _log.debug("Filtering out toolchain hierarchy for %s" % source_toolchain)
+
+            i = 0
+            while i < len(orig_ecs):
+                if orig_ecs[i]['ec']['name'] in [tc['name'] for tc in get_toolchain_hierarchy(source_toolchain)]:
+                    # drop elements in toolchain hierarchy
+                    del orig_ecs[i]
+                else:
+                    i += 1
     else:
+        revert_to_regex = True
+
+    if revert_to_regex:
         # no recursion if software name/version build specification are included or we are amending something
         # in that case, do not construct full dependency graph
         orig_ecs = easyconfigs
