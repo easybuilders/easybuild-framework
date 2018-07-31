@@ -225,7 +225,8 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
                 raise EasyBuildError("Multiple versions of %s found in dependencies of toolchain %s: %s",
                                      subtoolchain_name, current_tc_name, ', '.join(sorted(uniq_subtc_versions)))
 
-        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and not build_option('add_dummy_to_minimal_toolchains'):
+        if subtoolchain_name == DUMMY_TOOLCHAIN_NAME and (not build_option('add_dummy_to_minimal_toolchains')
+                                                          or require_capabilities):
             # we're done
             break
 
@@ -234,31 +235,31 @@ def get_toolchain_hierarchy(parent_toolchain, require_capabilities=False):
         subtoolchain_name, subtoolchain_version = subtoolchains[current_tc_name], None
         toolchain_hierarchy.insert(0, {'name': current_tc_name, 'version': current_tc_version})
 
-        # also add toolchain capabilities
-        if require_capabilities:
-            for toolchain in toolchain_hierarchy:
-                toolchain_class, _ = search_toolchain(toolchain['name'])
-                tc = toolchain_class(version=toolchain['version'])
-                try:
-                    toolchain['compiler_family'] = tc.comp_family()
-                except EasyBuildError:
-                    toolchain['compiler_family'] = None
-                try:
-                    toolchain['mpi_family'] = tc.mpi_family()
-                except EasyBuildError:
-                    toolchain['mpi_family'] = None
-                try:
-                    toolchain['blas_family'] = tc.blas_family()
-                except EasyBuildError:
-                    toolchain['blas_family'] = None
-                try:
-                    toolchain['lapack_family'] = tc.lapack_family()
-                except EasyBuildError:
-                    toolchain['lapack_family'] = None
-                if 'CUDA_CC' in tc.variables:
-                    toolchain['cuda'] = True
-                else:
-                    toolchain['cuda'] = None  # Useful to have it consistent with the rest
+    # also add toolchain capabilities
+    if require_capabilities:
+        for toolchain in toolchain_hierarchy:
+            toolchain_class, _ = search_toolchain(toolchain['name'])
+            tc = toolchain_class(version=toolchain['version'])
+            try:
+                toolchain['compiler_family'] = tc.comp_family()
+            except EasyBuildError:
+                toolchain['compiler_family'] = None
+            try:
+                toolchain['mpi_family'] = tc.mpi_family()
+            except EasyBuildError:
+                toolchain['mpi_family'] = None
+            try:
+                toolchain['blas_family'] = tc.blas_family()
+            except EasyBuildError:
+                toolchain['blas_family'] = None
+            try:
+                toolchain['lapack_family'] = tc.lapack_family()
+            except EasyBuildError:
+                toolchain['lapack_family'] = None
+            if 'CUDA_CC' in tc.variables:
+                toolchain['cuda'] = True
+            else:
+                toolchain['cuda'] = None  # Useful to have it consistent with the rest
 
     _log.info("Found toolchain hierarchy for toolchain %s: %s", parent_toolchain, toolchain_hierarchy)
     return toolchain_hierarchy
