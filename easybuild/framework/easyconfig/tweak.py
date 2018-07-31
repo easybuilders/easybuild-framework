@@ -796,8 +796,9 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
     """
     # Fully parse the original easyconfig
     parsed_ec = process_easyconfig(ec_spec, validate=False)[0]
-    # Replace the toolchain
-    parsed_ec['ec']['toolchain'] = toolchain_mapping[parsed_ec['ec']['toolchain']['name']]
+    # Replace the toolchain if the mapping exists
+    if parsed_ec['ec']['toolchain']['name'] in toolchain_mapping:
+        parsed_ec['ec']['toolchain'] = toolchain_mapping[parsed_ec['ec']['toolchain']['name']]
     # Replace the toolchains of all the dependencies
     filter_deps = build_option('filter_deps')
     for key in ['builddependencies', 'dependencies', 'hiddendependencies']:
@@ -820,7 +821,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
                     # set module names
                     orig_dep['short_mod_name'] = ActiveMNS().det_short_module_name(dep)
                     orig_dep['full_mod_name'] = ActiveMNS().det_full_module_name(dep)
-    # Determine the name of the modified easyconfig and dump it target_dir
+    # Determine the name of the modified easyconfig and dump it to target_dir
     ec_filename = '%s-%s.eb' % (parsed_ec['ec']['name'], det_full_ec_version(parsed_ec['ec']))
     if targetdir is None:
         targetdir = tempfile.gettempdir()
