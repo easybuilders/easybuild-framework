@@ -137,19 +137,34 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         # easyconfig files for dependencies are also generated but not included, they will be resolved via --robot
         # either from existing easyconfigs or, if that fails, from easyconfigs in the appended path
 
+        new_ec_file = ''
+        verification_build_specs = dict(build_specs)
         if orig_ec['spec'] in listed_ec_paths:
             if modifying_toolchains:
-                if orig_ec['ec']['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                if src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         tweaked_ecs_path)
+                    # Need to update the toolchain in the build_specs to match the toolchain mapping
+                    keys = verification_build_specs.keys()
+                    if 'toolchain_name' in keys:
+                        verification_build_specs['toolchain_name'] = \
+                            src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]['name']
+                    if 'toolchain_version' in keys:
+                        verification_build_specs['toolchain_version'] = \
+                            src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]['version']
+                    if 'toolchain' in keys:
+                        verification_build_specs['toolchain'] = \
+                            src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]
             else:
                 new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=tweaked_ecs_path)
-            new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
-            tweaked_easyconfigs.extend(new_ecs)
+            if new_ec_file:
+                # Need to update the toolchain the build_specs to match the toolchain mapping
+                new_ecs = process_easyconfig(new_ec_file, build_specs=verification_build_specs)
+                tweaked_easyconfigs.extend(new_ecs)
         else:
             # Place all tweaked dependency easyconfigs in the directory appended to the robot path
             if modifying_toolchains:
-                if orig_ec['ec']['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                if src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         targetdir=tweaked_ecs_deps_path)
             else:
