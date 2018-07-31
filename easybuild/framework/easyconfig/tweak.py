@@ -155,7 +155,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         verification_build_specs = dict(build_specs)
         if orig_ec['spec'] in listed_ec_paths:
             if modifying_toolchains:
-                if src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]:
+                if orig_ec['ec']['toolchain']['name'] in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         tweaked_ecs_path)
                     # Need to update the toolchain in the build_specs to match the toolchain mapping
@@ -178,7 +178,7 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
         else:
             # Place all tweaked dependency easyconfigs in the directory appended to the robot path
             if modifying_toolchains:
-                if src_to_dst_tc_mapping[orig_ec['ec']['toolchain']['name']]:
+                if orig_ec['ec']['toolchain']['name'] in src_to_dst_tc_mapping:
                     new_ec_file = map_easyconfig_to_target_tc_hierarchy(orig_ec['spec'], src_to_dst_tc_mapping,
                                                                         targetdir=tweaked_ecs_deps_path)
             else:
@@ -809,7 +809,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             # skip dependencies that are marked as external modules
             if dep['external_module']:
                 continue
-            if toolchain_mapping[dep['toolchain']['name']]:
+            if dep['toolchain']['name'] in toolchain_mapping:
                 orig_dep['toolchain'] = toolchain_mapping[dep['toolchain']['name']]
             # Replace the binutils version (if necessary)
             if 'binutils' in toolchain_mapping and (dep['name'] == 'binutils' and
