@@ -1429,7 +1429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
             # --try-toolchain* has a different branch to all other try options, don't combine them
-            #(['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
+            # (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
             (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
