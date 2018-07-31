@@ -843,7 +843,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(openmpi_mod, extra_modtxt, append=True)
 
         args = [
-            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % home,
@@ -861,9 +861,10 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod = os.path.join(home, 'modules', 'all', openmpi_mod_subdir, 'toy', '0.0' + mod_ext)
         toy_modtxt = read_file(toy_mod)
 
-        for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
-            regex = re.compile('load.*' + modname, re.M)
-            self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+        #No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
+        #for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
+        #    regex = re.compile('load.*' + modname, re.M)
+        #    self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
 
         for modname in ['GCC', 'OpenMPI']:
             regex = re.compile('load.*' + modname, re.M)
@@ -910,9 +911,11 @@ class ToyBuildTest(EnhancedTestCase):
             self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
             toy_modtxt = read_file(toy_mod)
 
-            for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
-                regex = re.compile('load.*' + modname, re.M)
-                self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
+            #No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
+
+            #for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
+            #    regex = re.compile('load.*' + modname, re.M)
+            #    self.assertTrue(regex.search(toy_modtxt), "Pattern '%s' found in: %s" % (regex.pattern, toy_modtxt))
 
             for modname in ['GCC', 'OpenMPI']:
                 regex = re.compile('load.*' + modname, re.M)
