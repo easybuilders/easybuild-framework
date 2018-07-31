@@ -1481,24 +1481,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
-
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            # toolchain GCC/4.7.2 (subtoochain of gompi/1.4.10) should be listed (and present)
+            mark = 'x'
 
-            # toolchain gompi/1.4.10 should be listed (but not present yet)
-            if extra_args:
-                mark = 'x'
-            else:
-                mark = ' '
-            tc_regex = re.compile("^ \* \[%s\] .*/gompi-1.4.10.eb \(module: .*gompi/1.4.10\)$" % mark, re.M)
+            tc_regex = re.compile("^ \* \[%s\] .*/GCC-4.7.2.eb \(module: .*GCC/4.7.2\)$" % mark, re.M)
             self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
             # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
             for ec_name in ['gzip-1.4', 'toy-0.0']:
-                ec = '%s-gompi-1.4.10.eb' % ec_name
+                ec = '%s-GCC-4.7.2.eb' % ec_name
                 if extra_args:
                     mod = ec_name.replace('-', '/')
                 else:
-                    mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
+                    mod = '%s-GCC-4.7.2' % ec_name.replace('-', '/')
                 mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))

@@ -795,7 +795,7 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
             # skip dependencies that are marked as external modules
             if dep['external_module']:
                 continue
-            if dep['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            if toolchain_mapping[dep['toolchain']['name']]:
                 orig_dep['toolchain'] = toolchain_mapping[dep['toolchain']['name']]
             # Replace the binutils version (if necessary)
             if 'binutils' in toolchain_mapping and (dep['name'] == 'binutils' and
