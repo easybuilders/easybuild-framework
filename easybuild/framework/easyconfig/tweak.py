@@ -89,17 +89,19 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
     target_toolchain = {}
     src_to_dst_tc_mapping = {}
 
-    if 'name' in build_specs or 'version' in build_specs:
-        # no recursion if software name/version build specification are included
-        # in that case, do not construct full dependency graph
-        orig_ecs = easyconfigs
-        _log.debug("Software name/version found, so not applying build specifications recursively: %s" % build_specs)
-    else:
+    if 'toolchain_name' in build_specs or 'toolchain_version' in build_specs:
         # We're doing something with the toolchain, build specifications should be applied to the whole dependency graph
         # Obtain full dependency graph for specified easyconfigs
         # easyconfigs will be ordered 'top-to-bottom' (toolchains and dependencies appearing first)
         modifying_toolchains = True
         keys = build_specs.keys()
+
+        # Make sure there are no more build_specs, as combining --try-toolchain* with other options is currently not
+        # supported
+        for key in keys:
+            if key not in ['toolchain_name', 'toolchain_version', 'toolchain']:
+                raise EasyBuildError("Combining --try-toolchain* with other build options is currently not supported")
+
         if 'toolchain_name' in keys:
             target_toolchain['name'] = build_specs['toolchain_name']
         else:
@@ -125,6 +127,11 @@ def tweak(easyconfigs, build_specs, modtool, targetdirs=None):
                 del orig_ecs[i]
             else:
                 i += 1
+    else:
+        # no recursion if software name/version build specification are included or we are amending something
+        # in that case, do not construct full dependency graph
+        orig_ecs = easyconfigs
+        _log.debug("Software name/version found, so not applying build specifications recursively: %s" % build_specs)
 
     # keep track of originally listed easyconfigs (via their path)
     listed_ec_paths = [ec['spec'] for ec in easyconfigs]

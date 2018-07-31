@@ -1421,13 +1421,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         test_cases = [
             ([], 'toy/0.0'),
-            (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
-            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            # --try-toolchain* has a different branch to all other try options, don't combine them
+            # (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
             # --try-toolchain is overridden by --toolchain
             (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
-            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
-            (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-GCC-4.7.2'),
+            # --try-toolchain* has a different branch to all other try options, don't combine them
+            #(['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
             # --try-amend is overridden by --amend
             (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
@@ -1441,8 +1443,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # define extra list-typed parameter
             (['--try-amend=versionsuffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
             # only --try causes other build specs to be included too
-            (['--try-software=foo,1.2.3', '--toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
-            (['--software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            # --try-toolchain* has a different branch to all other try options, don't combine them
+            # (['--try-software=foo,1.2.3', '--toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            # (['--software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--software=foo,1.2.3', '--try-amend=versionsuffix=-test'], 'foo/1.2.3-test'),
         ]
 
@@ -1526,7 +1529,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, verbose=True)
 
         # make sure build directory is properly cleaned up after a successful build (default behavior)
-        self.assertFalse(os.path.exists(toy_buildpath), "Build dir %s removed after succesful build" % toy_buildpath)
+        self.assertFalse(os.path.exists(toy_buildpath), "Build dir %s removed after successful build" % toy_buildpath)
         # make sure --disable-cleanup-builddir works
         args.append('--disable-cleanup-builddir')
         self.eb_main(args, do_build=True, verbose=True)
