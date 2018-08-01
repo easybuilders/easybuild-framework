@@ -837,6 +837,10 @@ class EasyConfig(object):
         if build_option('hide_deps'):
             dependency['hidden'] |= dependency['name'] in build_option('hide_deps')
 
+        # check whether all dependencies should be hidden according to --hide-all-deps
+        if build_option('hide_all_deps'):
+            dependency['hidden'] = True
+
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
         tc_spec = dependency['toolchain']
