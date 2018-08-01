@@ -167,6 +167,7 @@ BUILD_OPTIONS_CMDLINE = {
         'filter_deps',
         'filter_env_vars',
         'hide_deps',
+        'hide_all_deps',
         'hide_toolchains',
         'force_download',
         'from_pr',
