@@ -49,11 +49,12 @@ import site
 import sys
 import tempfile
 import traceback
+import urllib2
 from distutils.version import LooseVersion
 from hashlib import md5
 
 
-EB_BOOTSTRAP_VERSION = '20180201.01'
+EB_BOOTSTRAP_VERSION = '20180531.01'
 
 # argparse preferrred, optparse deprecated >=2.7
 HAVE_ARGPARSE = False
@@ -259,8 +260,8 @@ def check_module_command(tmpdir):
     # order matters, which is why we don't use a dict
     known_module_commands = [
         ('lmod', 'Lmod'),
-        ('modulecmd', 'EnvironmentModulesC'),
         ('modulecmd.tcl', 'EnvironmentModules'),
+        ('modulecmd', 'EnvironmentModulesC'),
     ]
     out = os.path.join(tmpdir, 'module_command.out')
     modtool = None
@@ -659,14 +660,46 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         'preinstallopts': preinstallopts,
     })
 
-    # create easyconfig file
-    ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
-    handle = open(ebfile, 'w')
+    # determine PyPI URLs for individual packages
+    pkg_urls = []
+    for pkg in EASYBUILD_PACKAGES:
+        # format of pkg entries in templates: "'<pkg_filename>',"
+        pkg_filename = templates[pkg][1:-2]
+
+        # the lines below implement a simplified version of the 'pypi_source_urls' and 'derive_alt_pypi_url' functions,
+        # which we can't leverage here, partially because of transitional changes in PyPI (#md5= -> #sha256=)
+
+        # determine download URL via PyPI's 'simple' API
+        pkg_simple = None
+        try:
+            pkg_simple = urllib2.urlopen('https://pypi.python.org/simple/%s' % pkg, timeout=10).read()
+        except (urllib2.URLError, urllib2.HTTPError) as err:
+            # failing to figure out the package download URl may be OK when source tarballs are provided
+            if sourcepath:
+                info("Ignoring failed attempt to determine '%s' download URL since source tarballs are provided" % pkg)
+            else:
+                raise err
+
+        if pkg_simple:
+            pkg_url_part_regex = re.compile('/(packages/[^#]+)/%s#' % pkg_filename)
+            res = pkg_url_part_regex.search(pkg_simple)
+            if res:
+                pkg_url_part = res.group(1)
+            else:
+                error("Failed to determine PyPI package URL for %s: %s\n" % (pkg, pkg_simple))
+
+            pkg_url = 'https://pypi.python.org/' + pkg_url_part
+            pkg_urls.append(pkg_url)
+
     templates.update({
-        'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
+        'source_urls': '\n'.join(["'%s'," % pkg_url for pkg_url in pkg_urls]),
         'sources': "%(vsc-install)s%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
         'pythonpath': distribute_egg_dir,
     })
+
+    # create easyconfig file
+    ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
+    handle = open(ebfile, 'w')
     handle.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     handle.close()
 

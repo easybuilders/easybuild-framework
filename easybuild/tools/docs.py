@@ -490,7 +490,7 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
         children = cls.__subclasses__()
         classes.update({cls.__name__: {
             'module': cls.__module__,
-            'children': [x.__name__ for x in children]
+            'children': sorted([c.__name__ for c in children], key=lambda x: x.lower())
         }})
         for child in children:
             add_class(classes, child)
@@ -891,12 +891,14 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
     if eb_class.extra_options():
         title = 'Extra easyconfig parameters specific to ``%s`` easyblock' % classname
         ex_opt = eb_class.extra_options()
+        keys = sorted(ex_opt.keys())
+        values = [ex_opt[k] for k in keys]
 
         table_titles = ['easyconfig parameter', 'description', 'default value']
         table_values = [
-            ['``' + key + '``' for key in ex_opt],  # parameter name
-            [val[1] for val in ex_opt.values()],  # description
-            ['``' + str(quote_str(val[0])) + '``' for val in ex_opt.values()]  # default value
+            ['``' + key + '``' for key in keys],  # parameter name
+            [val[1] for val in values],  # description
+            ['``' + str(quote_str(val[0])) + '``' for val in values]  # default value
         ]
 
         doc.extend(rst_title_and_table(title, table_titles, table_values))

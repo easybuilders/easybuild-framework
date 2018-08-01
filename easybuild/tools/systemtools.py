@@ -135,7 +135,7 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity().cpus))
     else:
         # BSD-type systems
-        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False)
+        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False)
         try:
             if int(out) > 0:
                 core_cnt = int(out)
@@ -172,7 +172,7 @@ def get_total_memory():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             memtotal = int(out.strip()) / (1024**2)
 
@@ -248,7 +248,7 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         out = out.strip()
         if ec == 0 and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
@@ -332,7 +332,7 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             model = out.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
@@ -377,7 +377,7 @@ def get_cpu_speed():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False)
+        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
         if ec == 0:
             # returns clock frequency in cycles/sec, but we want MHz
             cpu_freq = float(out.strip()) / (1000 ** 2)
@@ -423,7 +423,7 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False)
+            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False)
             if ec == 0:
                 cpu_feat.extend(out.strip().lower().split())
 
@@ -567,11 +567,13 @@ def check_os_dependency(dep):
     cmd = None
     if which('rpm'):
         cmd = "rpm -q %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False)
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                        stream_output=False)
 
     if not found and which('dpkg'):
         cmd = "dpkg -s %s" % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False)
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                        stream_output=False)
 
     if cmd is None:
         # fallback for when os-dependency is a binary/library
@@ -580,7 +582,8 @@ def check_os_dependency(dep):
         # try locate if it's available
         if not found and which('locate'):
             cmd = 'locate --regexp "/%s$"' % dep
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False)
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
+                            stream_output=False)
 
     return found
 
@@ -590,7 +593,8 @@ def get_tool_version(tool, version_option='--version'):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True, trace=False)
+    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
+                      trace=False, stream_output=False)
     if ec:
         _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
         return UNKNOWN
@@ -602,7 +606,8 @@ def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False, trace=False)
+    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False, trace=False,
+                      stream_output=False)
     res = None
     if ec:
         _log.warning("Failed to determine the version of GCC: %s", out)
@@ -710,7 +715,7 @@ def det_parallelism(par=None, maxpar=None):
     else:
         par = get_avail_core_count()
         # check ulimit -u
-        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False)
+        out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
         try:
             if out.startswith("unlimited"):
                 out = 2 ** 32 - 1

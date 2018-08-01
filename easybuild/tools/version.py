@@ -43,8 +43,9 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('3.5.2.dev0')
+VERSION = LooseVersion('3.6.3.dev0')
 UNKNOWN = 'UNKNOWN'
+
 
 def get_git_revision():
     """
@@ -60,9 +61,13 @@ def get_git_revision():
     try:
         path = os.path.dirname(__file__)
         gitrepo = git.Git(path)
-        return gitrepo.rev_list("HEAD").splitlines()[0]
+        # 'encode' is required to make sure a regular string is returned rather than a unicode string
+        res = gitrepo.rev_list('HEAD').splitlines()[0].encode('ascii')
     except git.GitCommandError:
-        return UNKNOWN
+        res = UNKNOWN
+
+    return res
+
 
 git_rev = get_git_revision()
 if git_rev == UNKNOWN:
@@ -76,14 +81,15 @@ FRAMEWORK_VERSION = VERBOSE_VERSION
 # EasyBlock version
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
-except:
+except Exception:
     EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+
 
 def this_is_easybuild():
     """Standard starting message"""
     top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
     # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
-    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
-         % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
-
-    return msg
+    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
+    msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
+    # 'encode' is required to make sure a regular string is returned rather than a unicode string
+    return msg.encode('ascii')

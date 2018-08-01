@@ -51,6 +51,7 @@ TEMPLATE_NAMES_EASYCONFIG = [
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
+    'bitbucket_account',
     'github_account',
     'name',
     'version',
@@ -81,16 +82,18 @@ TEMPLATE_CONSTANTS = [
     # source url constants
     ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
      'apache.org source url'),
-    ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
-     'bitbucket.org source url'),
-    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(namelower)s/%(namelower)s/downloads',
-     'bitbucket.org downloads url'),
+    ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
+     'bitbucket.org source url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
+    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
+     'bitbucket.org downloads url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
     ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
     ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
      'GitHub source URL (requires github_account easyconfig parameter to be specified)'),
+    ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
+     'GitHub source URL (lowercase name, requires github_account easyconfig parameter to be specified)'),
     ('GNU_SAVANNAH_SOURCE', 'http://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'http://ftpmirror.gnu.org/gnu/%(namelower)s',

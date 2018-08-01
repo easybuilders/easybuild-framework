@@ -9,7 +9,7 @@ description = "Toy C program, 100% toy."
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
-patches = ['toy-0.0_typo.patch']
+patches = ['toy-0.0_fix-silly-typo-in-printf-statement.patch']
 checksums = [
     ('adler32', '0x998410035'),
     'e6785e1a721fc8bf79892e3ef41557c0',

@@ -307,12 +307,49 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def use(self, paths, prefix=None, guarded=False):
+    def _det_user_modpath_common(self, user_modpath):
+        """
+        Helper function for det_user_modpath.
+        """
+        # Check for occurences of {RUNTIME_ENV::SOME_ENV_VAR}
+        # SOME_ENV_VAR will be expanded at module load time.
+        runtime_env_re = re.compile(r'{RUNTIME_ENV::(\w+)}')
+        sub_paths = []
+        expanded_user_modpath = []
+        for sub_path in re.split(os.path.sep, user_modpath):
+            matched_re = runtime_env_re.match(sub_path)
+            if matched_re:
+                if sub_paths:
+                    path = quote_str(os.path.join(*sub_paths))
+                    expanded_user_modpath.extend([path])
+                    sub_paths = []
+                expanded_user_modpath.extend([self.getenv_cmd(matched_re.group(1))])
+            else:
+                sub_paths.append(sub_path)
+        if sub_paths:
+            expanded_user_modpath.extend([quote_str(os.path.join(*sub_paths))])
+
+        # if a mod_path_suffix is being used, we should respect it
+        mod_path_suffix = build_option('suffix_modules_path')
+        if mod_path_suffix:
+            expanded_user_modpath.extend([quote_str(mod_path_suffix)])
+
+        return expanded_user_modpath
+
+    def det_user_modpath(self, user_modpath):
+        """
+        Determine user-specific modules subdirectory, to be used in 'use' statements
+        (cfr. implementation of use() method).
+        """
+        raise NotImplementedError
+
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
+        :param user_modpath: user-specific modules subdirectory to include in use statements
         """
         raise NotImplementedError
 
@@ -403,8 +440,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
     MODULE_SHEBANG = '#%Module'
     CHARS_TO_ESCAPE = ['$']
 
-    LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
+    LOAD_REGEX = r"^\s*module\s+(?:load|depends-on)\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
+    LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
 
     def check_group(self, group, error_msg=None):
         """
@@ -492,9 +530,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        return '$env(%s)' % envvar
+        return '$::env(%s)' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
 
@@ -505,9 +543,15 @@ class ModuleGeneratorTcl(ModuleGenerator):
         body = []
         if unload_modules:
             body.extend([self.unload_module(m).strip() for m in unload_modules])
-        body.append(self.LOAD_TEMPLATE)
+        load_template = self.LOAD_TEMPLATE
+        # Lmod 7.6.1+ supports depends-on which does this most nicely:
+        if build_option('mod_depends_on') or depends_on:
+            if not modules_tool().supports_depends_on:
+                raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
+            load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+        body.append(load_template)
 
-        if build_option('recursive_mod_unload') or recursive_unload:
+        if build_option('recursive_mod_unload') or recursive_unload or load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the dependency "module load" is present,
             # it will get translated to "module unload"
@@ -636,16 +680,30 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return '\n'.join(['', "module unload %s" % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False):
+    def det_user_modpath(self, user_modpath):
+        """
+        Determine user-specific modules subdirectory, to be used in 'use' statements
+        (cfr. implementation of use() method).
+        """
+        if user_modpath:
+            user_modpath = ' '.join(self._det_user_modpath_common(user_modpath))
+
+        return user_modpath
+
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
+        :param user_modpath: user-specific modules subdirectory to include in use statements
         """
+        user_modpath = self.det_user_modpath(user_modpath)
         use_statements = []
         for path in paths:
             quoted_path = quote_str(path)
+            if user_modpath:
+                quoted_path = '[ file join %s %s ]' % (user_modpath, quoted_path)
             if prefix:
                 full_path = '[ file join %s %s ]' % (prefix, quoted_path)
             else:
@@ -668,8 +726,9 @@ class ModuleGeneratorLua(ModuleGenerator):
     MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
     CHARS_TO_ESCAPE = []
 
-    LOAD_REGEX = r'^\s*load\("(\S+)"'
+    LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
+    LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
@@ -784,7 +843,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return 'os.getenv("%s")' % envvar
 
-    def load_module(self, mod_name, recursive_unload=False, unload_modules=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None):
         """
         Generate load statement for specified module.
 
@@ -795,19 +854,29 @@ class ModuleGeneratorLua(ModuleGenerator):
         body = []
         if unload_modules:
             body.extend([self.unload_module(m).strip() for m in unload_modules])
-        body.append(self.LOAD_TEMPLATE)
 
-        if build_option('recursive_mod_unload') or recursive_unload:
-            # wrapping the 'module load' with an 'is-loaded or mode == unload'
-            # guard ensures recursive unloading while avoiding load storms,
-            # when "module unload" is called on the module in which the
-            # depedency "module load" is present, it will get translated
-            # to "module unload"
-            # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
-            load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
+        load_template = self.LOAD_TEMPLATE
+        # Lmod 7.6+ supports depends_on which does this most nicely:
+        if build_option('mod_depends_on') or depends_on:
+            if not modules_tool().supports_depends_on:
+                raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
+            load_template = self.LOAD_TEMPLATE_DEPENDS_ON
+
+        body.append(load_template)
+        if load_template == self.LOAD_TEMPLATE_DEPENDS_ON:
+            load_statement = body + ['']
         else:
-            load_guard = 'isloaded("%(mod_name)s")'
-        load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
+            if build_option('recursive_mod_unload') or recursive_unload:
+                # wrapping the 'module load' with an 'is-loaded or mode == unload'
+                # guard ensures recursive unloading while avoiding load storms,
+                # when "module unload" is called on the module in which the
+                # depedency "module load" is present, it will get translated
+                # to "module unload"
+                # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
+                load_guard = 'isloaded("%(mod_name)s") or mode() == "unload"'
+            else:
+                load_guard = 'isloaded("%(mod_name)s")'
+            load_statement = [self.conditional_statement(load_guard, '\n'.join(body), negative=True)]
 
         return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
@@ -936,20 +1005,35 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join(['', 'unload("%s")' % mod_name])
 
-    def use(self, paths, prefix=None, guarded=False):
+    def det_user_modpath(self, user_modpath):
+        """
+        Determine user-specific modules subdirectory, to be used in 'use' statements
+        (cfr. implementations of use() method).
+        """
+        if user_modpath:
+            user_modpath = ', '.join(self._det_user_modpath_common(user_modpath))
+
+        return user_modpath
+
+    def use(self, paths, prefix=None, guarded=False, user_modpath=None):
         """
         Generate module use statements for given list of module paths.
         :param paths: list of module path extensions to generate use statements for; paths will be quoted
         :param prefix: optional path prefix; not quoted, i.e., can be a statement
         :param guarded: use statements will be guarded to only apply if path exists
+        :param user_modpath: user-specific modules subdirectory to include in use statements
         """
+        user_modpath = self.det_user_modpath(user_modpath)
         use_statements = []
         for path in paths:
             quoted_path = quote_str(path)
+            if user_modpath:
+                quoted_path = 'pathJoin(%s, %s)' % (user_modpath, quoted_path)
             if prefix:
                 full_path = 'pathJoin(%s, %s)' % (prefix, quoted_path)
             else:
                 full_path = quoted_path
+
             prepend_modulepath = self.UPDATE_PATH_TEMPLATE % ('prepend', 'MODULEPATH', full_path)
             if guarded:
                 cond_statement = self.conditional_statement('isDir(%s)' % full_path, prepend_modulepath)
