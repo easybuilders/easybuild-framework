@@ -438,7 +438,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     # sanity check: make sure all patched files are downloaded
     ec_files = []
-    for patched_file in patched_files:
+    for patched_file in [f for f in patched_files if not f.startswith('test/')]:
         fn = os.path.sep.join(patched_file.split(os.path.sep)[-3:])
         if os.path.exists(os.path.join(path, fn)):
             ec_files.append(os.path.join(path, fn))
