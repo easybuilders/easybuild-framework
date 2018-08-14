@@ -34,7 +34,8 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 from vsc.utils import fancylogger
-from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
+from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, _eb_check_order_grouping_params
+from easybuild.framework.easyconfig.style import check_easyconfigs_style
 
 try:
     import pycodestyle
@@ -94,6 +95,71 @@ class StyleTest(EnhancedTestCase):
         for (line, line_number, expected_result) in zip(lines, line_numbers, test_cases):
             result = _eb_check_trailing_whitespace(line, lines, line_number, state)
             self.assertEqual(result, expected_result)
+
+    def test_check_order_grouping_params_head(self):
+        """Test for check on order/grouping of parameters in head of easyconfig file."""
+
+        def run_test(fail_idx):
+            """Helper function to run the actual test"""
+            state = {}
+            for idx in range(total_lines):
+                # error state should be detected at specified line
+                if idx == fail_idx:
+                    expected = (0, "W001 " + ', '.join(expected_errors))
+                else:
+                    expected = None
+
+                res = _eb_check_order_grouping_params(lines[idx], lines, idx+1, total_lines, state)
+                self.assertEqual(res, expected)
+
+
+        # easyblock shouldn't be in same group as name/version
+        # name/version are out of order
+        keys = ['easyblock', 'version', 'name']
+        lines = ["%s = '...'" % k for k in keys]
+        total_lines = len(lines)
+
+        expected_errors = [
+            "easyblock parameter definition is not isolated",
+            "name/version parameter definitions are not isolated",
+            "name/version parameter definitions are out of order",
+        ]
+
+        # failure should occur at index 2 (3rd line)
+        run_test(2)
+
+        # error state detected as soon as group ends, not necessary at end of file
+        lines.append('')
+        total_lines += 1
+
+        # failure should still occur at index 2 (3rd line)
+        run_test(2)
+
+        # switch name/version lines, inject empty line after easyblock line
+        lines[1], lines[2] = lines[2], lines[1]
+        lines.insert(1, '')
+        total_lines += 1
+
+        # no failures
+        run_test(-1)
+
+        # add homepage/description out of order
+        lines.extend([
+            '',
+            'description = """..."""',
+            'homepage = "..."',
+        ])
+
+        # add unexpected parameter definition in head of easyconfig
+        lines.append("moduleclass = '...'")
+        total_lines = len(lines)
+
+        expected_errors = [
+            "homepage/description parameter definitions are not isolated",
+            "homepage/description parameter definitions are out of order",
+            "found unexpected parameter definitions in head of easyconfig: moduleclass",
+        ]
+        run_test(8)
 
 
 def suite():
