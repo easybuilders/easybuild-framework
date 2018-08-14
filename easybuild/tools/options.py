@@ -82,11 +82,14 @@ from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.robot import AVAILABLE_DEPENDENCIES_VERSION, NEWER_DEPENDENCIES_VERSION
 from easybuild.tools.run import run_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
 from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
 from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
+
+DEP_VER_MAP_CHAR = ":"
 
 try:
     from humanfriendly.terminal import terminal_supports_colors
@@ -309,10 +312,16 @@ class EasyBuildOptions(GeneralOption):
         })
 
         longopts = opts.keys()
+        try_msg = "Try to %s (USE WITH CARE!)"
         for longopt in longopts:
             hlp = opts[longopt][0]
-            hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
+            hlp = try_msg % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
+
+        # There isn't any non-try version for this option, so we add it here
+        opts['try-dependencies-version'] = (try_msg % "build software with automatically updated list of dependencies",
+                                            'strlist', 'extend', None,
+                                            {'metavar': '[AVAILABLE,NEWER,NAME%sVERSION]' % DEP_VER_MAP_CHAR})
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -814,6 +823,10 @@ class EasyBuildOptions(GeneralOption):
         if self.options.optarch and not self.options.job:
             self._postprocess_optarch()
 
+        # make sure --try-dependencies-version has a valid format
+        if self.options.try_dependencies_version:
+            self._postprocess_try_dependencies_version()
+
         # handle configuration options that affect other configuration options
         self._postprocess_config()
 
@@ -846,6 +859,27 @@ class EasyBuildOptions(GeneralOption):
             # if optarch is not in mapping format, we do nothing and just keep the string
             else:
                 self.log.info("Keeping optarch raw: %s", self.options.optarch)
+
+    def _postprocess_try_dependencies_version(self):
+        """Postprocess --try-dependencies-version option."""
+        try_dep_versions = self.options.try_dependencies_version
+        if try_dep_versions[0] == AVAILABLE_DEPENDENCIES_VERSION or try_dep_versions[0] == NEWER_DEPENDENCIES_VERSION:
+            if len(try_dep_versions) > 1:
+                raise EasyBuildError("The try-dependencies-version option has an incorrect syntax: %s", try_dep_versions)
+            self.log.info("Keeping try_dependencies_version raw: %s", self.options.try_dependencies_version)
+        # Create a dict and organized all the passed dependencies there
+        else:
+            try_dep_ver_dict = {}
+            for sw_name, sw_ver in [sw.split(DEP_VER_MAP_CHAR) for sw in try_dep_versions]:
+                if sw_name in try_dep_ver_dict:
+                    raise EasyBuildError("The try_dependencies_version option contains duplicated entries for " \
+                                         "sofware %s: %s", sw_name, try_dep_versions)
+                else:
+                    try_dep_ver_dict[sw_name] = sw_ver
+            self.options.try_dependencies_version = try_dep_ver_dict
+            self.log.info("Transforming try_dependencies_version into a dict: %s",
+                         self.options.try_dependencies_version)
+
 
     def _postprocess_include(self):
         """Postprocess --include options."""
@@ -1158,6 +1192,7 @@ def process_software_build_specs(options):
         'version': options.try_software_version,
         'toolchain_name': options.try_toolchain_name,
         'toolchain_version': options.try_toolchain_version,
+        'dependencies_version': options.try_dependencies_version,
     }
 
     # process easy options
